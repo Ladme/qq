@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import click
+
 from qq_lib.run import run
 from qq_lib.submit import submit
 

@@ -3,6 +3,8 @@
 
 from abc import ABC, abstractmethod
 
+from qq_lib.properties import QQProperties
+
 
 class QQBatchInterface(ABC):
     """
@@ -53,4 +55,9 @@ class QQBatchInterface(ABC):
         Returns
             str: Environment variable name for the workdir.
         """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def translateSubmit(props: QQProperties, queue: str, script: str) -> str:
         pass

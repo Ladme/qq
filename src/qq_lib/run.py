@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Sequence, Type, Union
 
-from qq_lib.env_vars import JOBDIR, WORKDIR
+from qq_lib.env_vars import JOBDIR, STDERR_FILE, STDOUT_FILE, WORKDIR
 from qq_lib.guard import guard
 from qq_lib.error import QQError
 from qq_lib.pbs import QQPBS
@@ -19,20 +19,21 @@ from qq_lib.logger import get_logger
 
 logger = get_logger("qq run")
 
+
 @click.command()
 @click.argument("script_path", type=str)
 def run(script_path: str):
     """
     Execute a script within the qq environment.
-    
+
     This function should not be called directly. Scripts must be executed
     by adding `qq run` to the script's shebang line.
     """
     try:
         guard()
-        runner = QQRunner(QQPBS)
-        runner.setUpWorkDir(script_path)
-        sys.exit(runner.executeScript(script_path))
+        runner = QQRunner(QQPBS, script_path)
+        runner.setUpWorkDir()
+        sys.exit(runner.executeScript())
     except Exception as e:
         logger.error(e)
         sys.exit(1)
@@ -52,17 +53,20 @@ class QQRunner:
     # Supported scratch directories. Directories are in order of decreasing preference.
     SCRATCH_DIRS = [Path("/scratch.ssd"), Path("/scratch")]
 
-    def __init__(self, batch_system: Type[QQBatchInterface]):
+    def __init__(self, batch_system: Type[QQBatchInterface], script: str):
         """
         Initialize the QQRunner with the specified batch system.
 
         Args:
             batch_system (Type[QQBatchInterface]): The batch system interface.
+            script (str): Name of the script to be executed.
 
         Raises:
             QQError: If required environment variables are not set.
+            QQError: If the script does not exist or is not a file.
         """
         self.batch_system = batch_system
+        self.script = Path(script)
 
         self.username = os.environ.get(self.batch_system.usernameEnvVar())
         self.jobid = os.environ.get(self.batch_system.jobIdEnvVar())
@@ -72,7 +76,10 @@ class QQRunner:
                 f"Required {self.batch_system.envName()} environment variables are not set."
             )
 
-    def setUpWorkDir(self, script: str):
+        if not self.script.is_file():
+            raise QQError(f"Script '{script}' does not exist or is not a file.")
+
+    def setUpWorkDir(self):
         """
         Set up a working directory for the current job.
 
@@ -91,46 +98,57 @@ class QQRunner:
         work_dir = scratch_dir / f"job_{self.jobid}"
         self._createWorkDir(work_dir)
 
-        self._copyScriptToDir(Path(script), work_dir)
+        self._copyScriptToDir(work_dir)
         os.chdir(work_dir)
 
         job_dir = os.environ.get(JOBDIR)
         if job_dir is None:
             raise QQError(f"'{JOBDIR}' environment variable is not set.")
-        
+
         self._copyFilesToDst(self._getFilesToCopy(job_dir), work_dir)
 
         os.environ[WORKDIR] = str(work_dir)
 
-    def executeScript(self, script: str) -> int:
+    def executeScript(self) -> int:
         """
-        Execute a script in the working directory, skipping its shebang line.
-
-        Args:
-            script (str): Path to the script file to execute.
+        Execute the script associated with this runner in the working directory.
+        Skips the shebang line of the script.
 
         Returns:
             int: The return code from the script execution.
 
         Raises:
-            QQError: If the script does not exist or execution fails.
+            QQError: If execution of the script fails.
         """
-        script_path = Path(script)
-        if not script_path.is_file():
-            raise QQError(f"Script '{script}' does not exist or is not a file.")
-
-        try:
-            with script_path.open() as file:
-                lines = file.readlines()[1:]
-
-            result = subprocess.run(
-                ["bash"], input = "".join(lines), text = True, check = False
+        # get paths to output files
+        stdout_log = os.environ.get(STDOUT_FILE)
+        stderr_log = os.environ.get(STDERR_FILE)
+        if not stdout_log or not stderr_log:
+            raise QQError(
+                f"'{STDOUT_FILE}' or '{STDERR_FILE}' environment variable has not been set up."
             )
 
-            return result.returncode
+        with self.script.open() as file:
+            lines = file.readlines()[1:]
 
+        try:
+            with open(stdout_log, "w") as out, open(stderr_log, "w") as err:
+                process = subprocess.Popen(
+                    ["bash"],
+                    stdin=subprocess.PIPE,
+                    stdout=out,
+                    stderr=err,
+                    text=True,
+                )
+                process.communicate(input="".join(lines))
+                
         except Exception as e:
-            raise QQError(f"Failed to execute script '{script_path}': {e}")
+            raise QQError(f"Failed to execute script '{self.script}': {e}")
+
+        # copy files back to the submission directory
+        self._copyFilesBack()
+
+        return process.returncode
 
     def _getScratchDir(self) -> Union[Path, None]:
         """
@@ -175,13 +193,14 @@ class QQRunner:
             QQError: If the directory cannot be created.
         """
         try:
-            directory.mkdir(parents = False, exist_ok = False)
+            directory.mkdir(parents=False, exist_ok=False)
         except Exception as e:
             raise QQError(f"Could not create working directory '{directory}': {e}")
 
-    def _copyScriptToDir(self, script: Path, directory: Path):
+    def _copyScriptToDir(self, directory: Path):
         """
-        Copy a script file into a target directory.
+        Copy a script file into a target directory. 
+        Reassings the `self.script` path to the script in the target directory.
 
         Args:
             script (Path): The script file to copy, relative to the batch system's (not qq's) working directory.
@@ -191,10 +210,13 @@ class QQRunner:
             QQError: If the script cannot be copied to the destination directory.
         """
         try:
-            shutil.copy(Path(self.batch_system.workDirEnvVar()) / script, directory)
+            self.script = Path(shutil.copy2(
+                Path(self.batch_system.workDirEnvVar()) / self.script, directory
+            ))
         except Exception as e:
-            raise QQError(f"Could not copy '{script}' into directory '{directory}': {e}")
-
+            raise QQError(
+                f"Could not copy '{self.script}' into directory '{directory}': {e}"
+            )
 
     def _copyFilesToDst(self, src: Sequence[Path], directory: Path):
         """
@@ -209,11 +231,33 @@ class QQRunner:
         """
         for file in src:
             try:
-                shutil.copy(file, directory)
+                shutil.copy2(file, directory)
             except Exception as e:
-                raise QQError(f"Could not copy '{file}' into directory '{directory}': {e}")
-    
-    def _getFilesToCopy(self, directory: Path, filter_out: Optional[List[str]] = None) -> List[Path]:
+                raise QQError(
+                    f"Could not copy '{file}' into directory '{directory}': {e}"
+                )
+
+    def _copyFilesBack(self):
+        """
+        Copy files from workdir back to jobdir.
+        """
+        work_dir = os.environ.get(WORKDIR)
+        job_dir = os.environ.get(JOBDIR)
+        if not work_dir or not job_dir:
+            raise QQError(
+                f"Environment variables '{WORKDIR}' or '{JOBDIR}' are not properly set."
+            )
+
+        logger.debug(f"Copying files from {work_dir} to {job_dir}.")
+
+        # copy everything except for the executed script
+        files_to_copy = self._getFilesToCopy(work_dir, [self.script])
+        logger.debug(f"Copying the following paths: {files_to_copy}")
+        self._copyFilesToDst(files_to_copy, job_dir)
+
+    def _getFilesToCopy(
+        self, directory: Path, filter_out: Optional[List[str]] = None
+    ) -> List[Path]:
         """
         Get the list of files in a directory that should be copied, optionally filtering out some files.
 
@@ -228,7 +272,6 @@ class QQRunner:
         root = Path(directory).resolve()
         # normalize filter_out to absolute paths
         filter_paths = {Path(p).resolve() for p in filter_out} if filter_out else set()
+        logger.debug(f"Paths to filter out: {filter_paths}")
 
         return [p for p in root.iterdir() if p.resolve() not in filter_paths]
-
-        

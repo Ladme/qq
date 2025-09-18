@@ -25,9 +25,6 @@ logger = get_logger("qq run")
 def run(script_path: str):
     """
     Execute a script within the qq environment.
-
-    This function should not be called directly. Scripts must be executed
-    by adding `qq run` to the script's shebang line.
     """
     try:
         guard()

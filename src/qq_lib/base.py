@@ -3,7 +3,7 @@
 
 from abc import ABC, abstractmethod
 
-from qq_lib.properties import QQProperties
+from qq_lib.resources import QQResources
 
 
 class QQBatchInterface(ABC):
@@ -59,5 +59,10 @@ class QQBatchInterface(ABC):
 
     @staticmethod
     @abstractmethod
-    def translateSubmit(props: QQProperties, queue: str, script: str) -> str:
+    def translateSubmit(res: QQResources, queue: str, script: str) -> str:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def translateKill(job_id: str) -> str:
         pass

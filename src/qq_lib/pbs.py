@@ -1,9 +1,20 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import os
+from pathlib import Path
+
 from qq_lib.base import QQBatchInterface
+from qq_lib.env_vars import (
+    DEBUG_MODE,
+    GUARD,
+    INFO_FILE,
+    JOBDIR,
+    STDERR_FILE,
+    STDOUT_FILE,
+)
 from qq_lib.logger import get_logger
-from qq_lib.properties import QQProperties
+from qq_lib.resources import QQResources
 
 logger = get_logger(__name__)
 
@@ -25,21 +36,29 @@ class QQPBS(QQBatchInterface):
     def workDirEnvVar() -> str:
         return "PBS_O_WORKDIR"
 
-    def translateSubmit(props: QQProperties, queue: str, script: str) -> str:
-        command = f"qsub -q {queue} -o qq.out -e qq.out -V "
+    def translateSubmit(res: QQResources, queue: str, script: str) -> str:
+        qq_output = str(Path(script).with_suffix(".qqout"))
+        command = f"qsub -q {queue} -o {qq_output} -e {qq_output} -v {GUARD},{JOBDIR},{STDOUT_FILE},{STDERR_FILE},{INFO_FILE}"
+
+        if os.environ.get(DEBUG_MODE):
+            command += f",{DEBUG_MODE} "
+        else:
+            command += " "
 
         # translate properties
         trans_props = []
-        if props.ncpus is not None:
-            trans_props.append(f"ncpus={props.ncpus}")
+        if res.ncpus is not None:
+            trans_props.append(f"ncpus={res.ncpus}")
 
-        if props.vnode is not None:
-            trans_props.append(f"vnode={props.vnode}")
+        if res.vnode is not None:
+            trans_props.append(f"vnode={res.vnode}")
 
         if len(trans_props) > 0:
             command += "-l "
 
         command += ",".join(trans_props) + " " + script
 
-        logger.debug(command)
         return command
+
+    def translateKill(job_id: str) -> str:
+        return f"qdel -W force {job_id}"

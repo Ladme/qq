@@ -1,0 +1,110 @@
+# Released under MIT License.
+# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+
+import subprocess
+import sys
+from pathlib import Path
+from time import sleep
+
+import click
+
+from qq_lib.common import get_info_file
+from qq_lib.error import QQError
+from qq_lib.info import QQInformer
+from qq_lib.logger import get_logger
+
+logger = get_logger("qq go", True)
+
+
+@click.command()
+def go():
+    """
+    Go to the working directory of the qq job submitted from this directory.
+    """
+    try:
+        goer = QQGoer(Path("."))
+        goer.navigate()
+    except QQError as e:
+        logger.error(e)
+        sys.exit(1)
+    except Exception as e:
+        logger.critical(e, exc_info=True, stack_info=True)
+        sys.exit(1)
+
+
+class QQGoer:
+    def __init__(self, current_dir: Path):
+        self.info_file = get_info_file(current_dir)
+
+        logger.debug(f"Loading QQInformer from '{self.info_file}'")
+        self.info = QQInformer.loadFromFile(self.info_file)
+
+        self.state = self.info.getState()
+        destination = self._getDestination()
+        if destination:
+            (self.host, self.directory) = destination
+        else:
+            self.host = None
+            self.directory = None
+
+    def navigate(self):
+        if self.state == "finished":
+            logger.warning(
+                "qq job is finished and synchronized (working directory may no longer exist)"
+            )
+        elif self.state == "failed":
+            logger.warning(
+                "qq job has failed executing (working directory may no longer exist)"
+            )
+        elif self.state == "killed":
+            logger.warning("qq job has been killed (working directory may not exist)")
+        elif self.state == "queued":
+            logger.warning(
+                "qq job is queued (working directory does not yet exist; will retry every 5 seconds)"
+            )
+            # keep retrying until the job gets run
+            while self.state == "queued":
+                sleep(5)
+                self.info = QQInformer.loadFromFile(self.info_file)
+                self.state = self.info.getState()
+                destination = self._getDestination()
+                if destination:
+                    (self.host, self.directory) = destination
+
+        elif self.state == "running":
+            pass
+        else:
+            logger.warning(
+                "qq job is in an unknown, unrecognized, or inconsistent state"
+            )
+
+        if not self.directory or not self.host:
+            raise QQError(
+                "Host ('main_node') or working directory ('work_dir') are not defined in the qqinfo file."
+            )
+
+        logger.info(f"Navigating to {self.directory} at {self.host}...")
+        try:
+            ssh_command = [
+                "ssh",
+                self.host,
+                "-t",
+                f"cd {self.directory} && exec bash -l",
+            ]
+
+            result = subprocess.run(ssh_command)
+            if result.returncode != 0:
+                raise Exception
+        except KeyboardInterrupt:
+            pass
+        except Exception as e:
+            raise QQError(f"Could not reach {self.host}:{self.directory}: {e}") from e
+
+    def _getDestination(self) -> tuple[str, str] | None:
+        destination = self.info.getDestination()
+        if destination:
+            logger.debug(f"Destination is {destination}")
+        else:
+            logger.debug("Destination is not specified")
+
+        return destination

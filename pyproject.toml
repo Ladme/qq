@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Wrapper around PBS Pro and Slurm batch systems"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["click>=8.2.1"]
+dependencies = [
+    "click>=8.2.1",
+    "pyyaml>=6.0.2",
+]
 
 [dependency-groups]
 dev = ["pyinstaller>=6.16.0", "ruff>=0.13.0", "ty>=0.0.1a20"]

@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
-class QQProperties:
+class QQResources:
     def setNCPUs(self, ncpus: int | None):
         self.ncpus = ncpus
 

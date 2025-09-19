@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 QQ_SUFFIXES = [".qqinfo", ".qqout", ".stdout", ".stderr"]
 
+
 def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
     """
     Get the list of files inside the directory with the specified suffix.
@@ -24,12 +25,10 @@ def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
 
 def get_info_file(current_directory: Path) -> Path:
     info_files = get_files_with_suffix(current_directory, ".qqinfo")
-    logger.debug(f"Detected the following qq info files: {info_files}")
+    logger.debug(f"Detected the following qq info files: {info_files}.")
     if len(info_files) == 0:
         raise QQError("No qq job info file found.")
     if len(info_files) > 1:
-        raise QQError(
-            f"Multiple ({len(info_files)}) qq job info files detected."
-        )
+        raise QQError(f"Multiple ({len(info_files)}) qq job info files detected.")
 
     return info_files[0]

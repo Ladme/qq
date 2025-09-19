@@ -119,7 +119,7 @@ class QQInformer:
         jobid = self.info.get("job_id")
 
         if not jobid:
-            raise QQError("Property 'job_id' not available in qq info")
+            raise QQError("Property 'job_id' not available in qq info.")
 
         return jobid
 

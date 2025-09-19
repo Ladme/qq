@@ -86,12 +86,12 @@ class QQSubmitter:
                 ["bash"], input=command, text=True, check=False, capture_output=True
             )
         except Exception as e:
-            raise QQError(f"Failed to submit script '{self.script}': {e}") from e
+            raise QQError(f"Failed to submit script '{self.script}': {e}.") from e
 
         if result.returncode == 0:
             # submission successful
             jobid = result.stdout.strip()
-            logger.info(f"Submitted the job as '{jobid}'")
+            logger.info(f"Job '{jobid}' submitted successfully.")
 
             info = QQInformer()
             info.setSubmitted(
@@ -106,7 +106,7 @@ class QQSubmitter:
             )
             info.exportToFile(self.info_file)
         else:
-            raise QQError(f"Failed to submit script '{self.script}': {result.stderr}")
+            raise QQError(f"Failed to submit script '{self.script}': {result.stderr}.")
 
         return result.returncode
 

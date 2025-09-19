@@ -10,6 +10,7 @@ DEBUG_LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
 LOG_FORMAT = "[%(name)s] [%(levelname)s] %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+
 class ColoredFormatter(logging.Formatter):
     """Custom formatter to color the log level based on severity."""
 

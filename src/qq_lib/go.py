@@ -36,7 +36,7 @@ class QQGoer:
     def __init__(self, current_dir: Path):
         self.info_file = get_info_file(current_dir)
 
-        logger.debug(f"Loading QQInformer from '{self.info_file}'")
+        logger.debug(f"Loading QQInformer from '{self.info_file}'.")
         self.info = QQInformer.loadFromFile(self.info_file)
 
         self.state = self.info.getState()
@@ -48,19 +48,13 @@ class QQGoer:
             self.directory = None
 
     def navigate(self):
-        if self.state == "finished":
-            logger.warning(
-                "Job is finished and synchronized (working directory may no longer exist)"
-            )
-        elif self.state == "failed":
-            logger.warning(
-                "Job has failed executing (working directory may no longer exist)"
-            )
+        if self.state == "finished" or self.state == "failed":
+            logger.warning("Job has finished: working directory may no longer exist.")
         elif self.state == "killed":
-            logger.warning("Job has been killed (working directory may not exist)")
+            logger.warning("Job has been killed: working directory may not exist.")
         elif self.state == "queued":
             logger.warning(
-                "Job is queued (working directory does not yet exist; will retry every 5 seconds)"
+                "Job is queued: working directory does not yet exist. Will retry every 5 seconds."
             )
             # keep retrying until the job gets run
             while self.state == "queued":
@@ -74,16 +68,14 @@ class QQGoer:
         elif self.state == "running":
             pass
         else:
-            logger.warning(
-                "Job is in an unknown, unrecognized, or inconsistent state"
-            )
+            logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")
 
         if not self.directory or not self.host:
             raise QQError(
                 "Host ('main_node') or working directory ('work_dir') are not defined in the qqinfo file."
             )
 
-        logger.info(f"Navigating to {self.directory} at {self.host}...")
+        logger.info(f"Navigating to {self.directory} on {self.host}...")
         try:
             ssh_command = [
                 "ssh",
@@ -99,15 +91,17 @@ class QQGoer:
             pass
         except Exception as e:
             if str(e) != "":
-                raise QQError(f"Could not reach {self.host}:{self.directory}: {e}") from e
+                raise QQError(
+                    f"Could not reach '{self.host}:{self.directory}': {e}."
+                ) from e
             else:
-                raise QQError(f"Could not reach {self.host}:{self.directory}") from e
+                raise QQError(f"Could not reach '{self.host}:{self.directory}'.") from e
 
     def _getDestination(self) -> tuple[str, str] | None:
         destination = self.info.getDestination()
         if destination:
-            logger.debug(f"Destination is {destination}")
+            logger.debug(f"Destination is {destination}.")
         else:
-            logger.debug("Destination is not specified")
+            logger.debug("Destination is not specified.")
 
         return destination

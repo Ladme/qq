@@ -30,5 +30,5 @@ def clear():
 def clear_files(directory: Path):
     for suffix in QQ_SUFFIXES:
         for file in get_files_with_suffix(directory, suffix):
-            logger.debug(f"Removing file '{file}'")
+            logger.debug(f"Removing file '{file}'.")
             os.remove(file)

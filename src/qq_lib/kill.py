@@ -21,21 +21,13 @@ logger = get_logger("qq kill", True)
 
 
 @click.command()
-@click.option(
-    "--force",
-    is_flag=True,
-    help="Forcefully terminate the job.",
-)
-def kill(force: bool = False):
+def kill():
     """
     Kill the qq job submitted from this directory.
     """
     try:
         killer = QQKiller(QQPBS, Path("."))
-        if force:
-            killer.terminateForce()
-        else:
-            killer.terminate()
+        killer.terminate()
     except QQError as e:
         logger.error(e)
         sys.exit(1)
@@ -49,42 +41,13 @@ class QQKiller:
         self.batch_system = batch_system
         self.info_file = get_info_file(current_dir)
 
-        logger.debug(f"Loading QQInformer from '{self.info_file}'")
+        logger.debug(f"Loading QQInformer from '{self.info_file}'.")
         self.info = QQInformer.loadFromFile(self.info_file)
 
         self.state = self.info.getState()
         self.jobid = self.info.getJobId()
 
     def terminate(self):
-        if self.state == "finished":
-            raise QQError("Job is finished and synchronized (nothing to kill)")
-        elif self.state == "failed":
-            raise QQError("Job has failed executing (nothing to kill)")
-        elif self.state == "killed":
-            raise QQError("Job has been killed (nothing else to kill)")
-        elif self.state == "running" or self.state == "queued":
-            pass
-        else:
-            logger.warning(
-                "Job is in an unknown, unrecognized, or inconsistent state"
-            )
-
-        command = self.batch_system.translateKill(self.jobid)
-
-        logger.debug(command)
-        result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
-        )
-
-        if result.returncode == 0:
-            self.info.setKilled(datetime.now())
-            self.info.exportToFile(self.info_file)
-            self._lockFile(self.info_file)
-            logger.info(f"Killed job '{self.jobid}'")
-        else:
-            raise QQError(f"Unable to kill job '{self.jobid}': {result.stderr.strip()}")
-
-    def terminateForce(self):
         command = self.batch_system.translateKill(self.jobid)
 
         logger.debug(command)
@@ -97,11 +60,14 @@ class QQKiller:
                 self.info.setKilled(datetime.now())
                 self.info.exportToFile(self.info_file)
                 self._lockFile(self.info_file)
-            logger.info(f"Killed job '{self.jobid}' forcefully")
+            logger.info(f"Killed job '{self.jobid}'.")
         else:
-            raise QQError(
-                f"Unable to force-kill job '{self.jobid}': {result.stderr.strip()}"
-            )
+            if self.state == "finished" or self.state == "failed":
+                raise QQError(f"Job '{self.jobid}' has already finished.")
+            elif self.state == "killed":
+                raise QQError(f"Job '{self.jobid}' has already been killed.")
+            else:
+                raise QQError(f"Unable to kill job '{self.jobid}'.")
 
     def _lockFile(self, file_path: Path):
         """

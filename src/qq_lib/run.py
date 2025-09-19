@@ -102,7 +102,7 @@ class QQRunner:
 
         self._ensureWritable(scratch_dir)
         self.work_dir = scratch_dir / f"job_{self.jobid}"
-        logger.debug(f"Setting QQRunner.work_dir to {self.work_dir}")
+        logger.debug(f"Setting QQRunner.work_dir to {self.work_dir}.")
         self._createWorkDir(self.work_dir)
 
         self._copyScriptToDir(self.work_dir)
@@ -111,12 +111,12 @@ class QQRunner:
         self.job_dir = os.environ.get(JOBDIR)
         if self.job_dir is None:
             raise QQError(f"'{JOBDIR}' environment variable is not set.")
-        logger.debug(f"Setting QQRunner.job_dir to '{self.job_dir}'")
+        logger.debug(f"Setting QQRunner.job_dir to '{self.job_dir}'.")
 
         self.info_file = os.environ.get(INFO_FILE)
         if self.info_file is None:
             raise QQError(f"'{INFO_FILE}' environment variable is not set.")
-        logger.debug(f"Setting QQRunner.info_file to '{self.info_file}'")
+        logger.debug(f"Setting QQRunner.info_file to '{self.info_file}'.")
 
         self._copyFilesToDst(
             self._getFilesToCopy(self.job_dir, [self.info_file]), self.work_dir
@@ -205,7 +205,7 @@ class QQRunner:
                 directory.chmod(directory.stat().st_mode | stat.S_IWUSR)
             except Exception as e:
                 raise QQError(
-                    f"Could not set write permissions for '{directory}': {e}"
+                    f"Could not set write permissions for '{directory}': {e}."
                 ) from e
 
     def _createWorkDir(self, directory: Path):
@@ -222,7 +222,7 @@ class QQRunner:
             directory.mkdir(parents=False, exist_ok=False)
         except Exception as e:
             raise QQError(
-                f"Could not create working directory '{directory}': {e}"
+                f"Could not create working directory '{directory}': {e}."
             ) from e
 
     def _copyScriptToDir(self, directory: Path):
@@ -245,7 +245,7 @@ class QQRunner:
             )
         except Exception as e:
             raise QQError(
-                f"Could not copy '{self.script}' into directory '{directory}': {e}"
+                f"Could not copy '{self.script}' into directory '{directory}': {e}."
             ) from e
 
     def _copyFilesToDst(self, src: Sequence[Path], directory: Path):
@@ -265,7 +265,7 @@ class QQRunner:
                 shutil.copy2(file, directory)
             except Exception as e:
                 raise QQError(
-                    f"Could not copy '{file}' into directory '{directory}': {e}"
+                    f"Could not copy '{file}' into directory '{directory}': {e}."
                 ) from e
 
     def _copyFilesBack(self):
@@ -276,7 +276,7 @@ class QQRunner:
 
         # copy everything except for the executed script
         files_to_copy = self._getFilesToCopy(self.work_dir, [self.script])
-        logger.debug(f"Copying the following paths: {files_to_copy}")
+        logger.debug(f"Copying the following paths: {files_to_copy}.")
         self._copyFilesToDst(files_to_copy, self.job_dir)
 
     def _getFilesToCopy(
@@ -296,39 +296,39 @@ class QQRunner:
         root = Path(directory).resolve()
         # normalize filter_out to absolute paths
         filter_paths = {Path(p).resolve() for p in filter_out} if filter_out else set()
-        logger.debug(f"Paths to filter out: {filter_paths}")
+        logger.debug(f"Paths to filter out: {filter_paths}.")
 
         return [p for p in root.iterdir() if p.resolve() not in filter_paths]
 
     def _updateInfoRun(self, info_file: Path, work_dir: Path):
-        logger.debug(f"Updating '{info_file}' at job start")
+        logger.debug(f"Updating '{info_file}' at job start.")
         try:
             info = QQInformer.loadFromFile(info_file)
             info.setRunning(datetime.now(), socket.gethostname(), work_dir)
             info.exportToFile(info_file)
         except Exception as e:
             raise QQError(
-                f"Could not update qqinfo file '{info_file}' at JOB START: {e}"
+                f"Could not update qqinfo file '{info_file}' at JOB START: {e}."
             ) from e
 
     def _updateInfoFinished(self, info_file: Path):
-        logger.debug(f"Updating '{info_file}' at job completion")
+        logger.debug(f"Updating '{info_file}' at job completion.")
         try:
             info = QQInformer.loadFromFile(info_file)
             info.setFinished(datetime.now())
             info.exportToFile(info_file)
         except Exception as e:
             logger.warning(
-                f"Could not update qqinfo file '{info_file}' at JOB COMPLETION: {e}"
+                f"Could not update qqinfo file '{info_file}' at JOB COMPLETION: {e}."
             )
 
     def _updateInfoFailed(self, info_file: Path, return_code: int):
-        logger.debug(f"Updating '{info_file}' at job failure")
+        logger.debug(f"Updating '{info_file}' at job failure.")
         try:
             info = QQInformer.loadFromFile(info_file)
             info.setFailed(datetime.now(), return_code)
             info.exportToFile(info_file)
         except Exception as e:
             logger.warning(
-                f"COuld not update qqinfo file '{info_file}' at JOB FAILURE: {e}"
+                f"COuld not update qqinfo file '{info_file}' at JOB FAILURE: {e}."
             )

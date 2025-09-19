@@ -13,7 +13,7 @@ from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
 
-logger = get_logger("qq go", True)
+logger = get_logger(__name__)
 
 
 @click.command()
@@ -75,7 +75,7 @@ class QQGoer:
                 "Host ('main_node') or working directory ('work_dir') are not defined in the qqinfo file."
             )
 
-        logger.info(f"Navigating to {self.directory} on {self.host}...")
+        logger.info(f"Navigating to '{self.directory}' on '{self.host}'.")
         try:
             ssh_command = [
                 "ssh",

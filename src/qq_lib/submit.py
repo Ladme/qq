@@ -19,7 +19,7 @@ from qq_lib.logger import get_logger
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 
-logger = get_logger("qq submit", True)
+logger = get_logger(__name__)
 
 
 @click.command()

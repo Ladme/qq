@@ -11,7 +11,7 @@ import click
 from qq_lib.common import QQ_SUFFIXES, get_files_with_suffix
 from qq_lib.logger import get_logger
 
-logger = get_logger("qq clear", True)
+logger = get_logger(__name__)
 
 
 @click.command()

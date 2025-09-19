@@ -4,60 +4,42 @@
 import logging
 import os
 
+from rich.logging import RichHandler
+from rich.console import Console
+
 from qq_lib.env_vars import DEBUG_MODE
 
-DEBUG_LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
-LOG_FORMAT = "[%(name)s] [%(levelname)s] %(message)s"
+LOG_FORMAT = "%(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-class ColoredFormatter(logging.Formatter):
-    """Custom formatter to color the log level based on severity."""
-
-    COLOR_CODES = {
-        "DEBUG": "",  # default
-        "INFO": "\033[32m",  # green
-        "WARNING": "\033[33m",  # yellow
-        "ERROR": "\033[31m",  # red
-        "CRITICAL": "\033[31m",  # red
-    }
-    RESET = "\033[0m"
-
-    def format(self, record: logging.LogRecord) -> str:
-        levelname = record.levelname
-        color = self.COLOR_CODES.get(levelname, self.RESET)
-        record.levelname = f"{color}{levelname}{self.RESET}"
-        return super().format(record)
-
-
-def get_logger(name: str | None = None, colored: bool = False) -> logging.Logger:
+def get_logger(name: str) -> logging.Logger:
     """
     Return a logger with unified formatting.
-
-    Logs are written to stderr.
-    If colored=True, the log level is colored based on severity:
-      - DEBUG → default
-      - INFO → green
-      - WARNING → yellow
-      - ERROR/CRITICAL → red
+    If colored=True, use rich's RichHandler with colored levels.
     """
-    logger = logging.getLogger(name or __name__)
+    logger = logging.getLogger(name)
 
-    if not logger.handlers:
-        debug_mode = os.environ.get(DEBUG_MODE) is not None
+    debug_mode = os.environ.get(DEBUG_MODE) is not None
+    logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
 
-        logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
+    console = Console(stderr=True)
+    handler = RichHandler(
+        console=console,
+        rich_tracebacks=True,
+        show_path=False,
+        show_level=True,
+        show_time=debug_mode,
+        log_time_format=DATE_FORMAT,
+        locals_max_length=None,
+        locals_max_string=None,
+        tracebacks_width=None,
+        tracebacks_code_width=None,
+        tracebacks_extra_lines=None
+    )
 
-        fmt = DEBUG_LOG_FORMAT if debug_mode else LOG_FORMAT
-        formatter = (
-            ColoredFormatter(fmt=fmt, datefmt=DATE_FORMAT)
-            if colored
-            else logging.Formatter(fmt=fmt, datefmt=DATE_FORMAT)
-        )
-
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
+    handler.setLevel(logging.DEBUG if debug_mode else logging.INFO)
+    logger.addHandler(handler)
+    logger.propagate = False
 
     return logger

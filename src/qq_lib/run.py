@@ -21,8 +21,7 @@ from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
 from qq_lib.pbs import QQPBS
 
-logger = get_logger("qq run")
-
+logger = get_logger(__name__)
 
 @click.command(hidden=True)
 @click.argument("script_path", type=str)

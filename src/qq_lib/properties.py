@@ -1,12 +1,10 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-from typing import Optional, Union
-
 
 class QQProperties:
-    def setNCPUs(self, ncpus: Optional[int]):
+    def setNCPUs(self, ncpus: int | None):
         self.ncpus = ncpus
 
-    def setVnode(self, vnode: Optional[str]):
+    def setVnode(self, vnode: str | None):
         self.vnode = vnode

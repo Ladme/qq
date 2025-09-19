@@ -8,3 +8,20 @@ dependencies = ["click>=8.2.1"]
 
 [dependency-groups]
 dev = ["pyinstaller>=6.16.0", "ruff>=0.13.0", "ty>=0.0.1a20"]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = ["E501"]

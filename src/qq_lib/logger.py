@@ -1,9 +1,8 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import os
 import logging
-from typing import Optional
+import os
 
 from qq_lib.env_vars import DEBUG_MODE
 
@@ -11,9 +10,7 @@ LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-def get_logger(
-    name: Optional[str] = None, log_file: Optional[str] = None
-) -> logging.Logger:
+def get_logger(name: str | None = None, log_file: str | None = None) -> logging.Logger:
     """
     Return a logger with unified formatting.
 

@@ -1,21 +1,22 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import os
 import shutil
 import stat
 import subprocess
 import sys
-import click
-import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import List, Optional, Sequence, Type, Union
 
-from qq_lib.env_vars import JOBDIR, STDERR_FILE, STDOUT_FILE, WORKDIR
-from qq_lib.guard import guard
-from qq_lib.error import QQError
-from qq_lib.pbs import QQPBS
+import click
+
 from qq_lib.base import QQBatchInterface
+from qq_lib.env_vars import JOBDIR, STDERR_FILE, STDOUT_FILE, WORKDIR
+from qq_lib.error import QQError
+from qq_lib.guard import guard
 from qq_lib.logger import get_logger
+from qq_lib.pbs import QQPBS
 
 logger = get_logger("qq run")
 
@@ -50,7 +51,7 @@ class QQRunner:
     # Supported scratch directories. Directories are in order of decreasing preference.
     SCRATCH_DIRS = [Path("/scratch.ssd"), Path("/scratch")]
 
-    def __init__(self, batch_system: Type[QQBatchInterface], script: str):
+    def __init__(self, batch_system: type[QQBatchInterface], script: str):
         """
         Initialize the QQRunner with the specified batch system.
 
@@ -138,16 +139,16 @@ class QQRunner:
                     text=True,
                 )
                 process.communicate(input="".join(lines))
-                
+
         except Exception as e:
-            raise QQError(f"Failed to execute script '{self.script}': {e}")
+            raise QQError(f"Failed to execute script '{self.script}': {e}") from e
 
         # copy files back to the submission directory
         self._copyFilesBack()
 
         return process.returncode
 
-    def _getScratchDir(self) -> Union[Path, None]:
+    def _getScratchDir(self) -> Path | None:
         """
         Find a suitable scratch directory for the user.
 
@@ -177,7 +178,9 @@ class QQRunner:
             try:
                 directory.chmod(directory.stat().st_mode | stat.S_IWUSR)
             except Exception as e:
-                raise QQError(f"Could not set write permissions for '{directory}': {e}")
+                raise QQError(
+                    f"Could not set write permissions for '{directory}': {e}"
+                ) from e
 
     def _createWorkDir(self, directory: Path):
         """
@@ -192,11 +195,13 @@ class QQRunner:
         try:
             directory.mkdir(parents=False, exist_ok=False)
         except Exception as e:
-            raise QQError(f"Could not create working directory '{directory}': {e}")
+            raise QQError(
+                f"Could not create working directory '{directory}': {e}"
+            ) from e
 
     def _copyScriptToDir(self, directory: Path):
         """
-        Copy a script file into a target directory. 
+        Copy a script file into a target directory.
         Reassings the `self.script` path to the script in the target directory.
 
         Args:
@@ -207,13 +212,15 @@ class QQRunner:
             QQError: If the script cannot be copied to the destination directory.
         """
         try:
-            self.script = Path(shutil.copy2(
-                Path(self.batch_system.workDirEnvVar()) / self.script, directory
-            ))
+            self.script = Path(
+                shutil.copy2(
+                    Path(self.batch_system.workDirEnvVar()) / self.script, directory
+                )
+            )
         except Exception as e:
             raise QQError(
                 f"Could not copy '{self.script}' into directory '{directory}': {e}"
-            )
+            ) from e
 
     def _copyFilesToDst(self, src: Sequence[Path], directory: Path):
         """
@@ -232,7 +239,7 @@ class QQRunner:
             except Exception as e:
                 raise QQError(
                     f"Could not copy '{file}' into directory '{directory}': {e}"
-                )
+                ) from e
 
     def _copyFilesBack(self):
         """
@@ -253,8 +260,8 @@ class QQRunner:
         self._copyFilesToDst(files_to_copy, job_dir)
 
     def _getFilesToCopy(
-        self, directory: Path, filter_out: Optional[List[str]] = None
-    ) -> List[Path]:
+        self, directory: Path, filter_out: list[str] | None = None
+    ) -> list[Path]:
         """
         Get the list of files in a directory that should be copied, optionally filtering out some files.
 

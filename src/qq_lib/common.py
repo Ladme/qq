@@ -29,7 +29,7 @@ def get_info_file(current_directory: Path) -> Path:
         raise QQError("No qq job info file found.")
     if len(info_files) > 1:
         raise QQError(
-            f"Multiple ({info_files}) qq job info files detected in the directory."
+            f"Multiple ({len(info_files)}) qq job info files detected."
         )
 
     return info_files[0]

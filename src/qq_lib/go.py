@@ -50,17 +50,17 @@ class QQGoer:
     def navigate(self):
         if self.state == "finished":
             logger.warning(
-                "qq job is finished and synchronized (working directory may no longer exist)"
+                "Job is finished and synchronized (working directory may no longer exist)"
             )
         elif self.state == "failed":
             logger.warning(
-                "qq job has failed executing (working directory may no longer exist)"
+                "Job has failed executing (working directory may no longer exist)"
             )
         elif self.state == "killed":
-            logger.warning("qq job has been killed (working directory may not exist)")
+            logger.warning("Job has been killed (working directory may not exist)")
         elif self.state == "queued":
             logger.warning(
-                "qq job is queued (working directory does not yet exist; will retry every 5 seconds)"
+                "Job is queued (working directory does not yet exist; will retry every 5 seconds)"
             )
             # keep retrying until the job gets run
             while self.state == "queued":
@@ -75,7 +75,7 @@ class QQGoer:
             pass
         else:
             logger.warning(
-                "qq job is in an unknown, unrecognized, or inconsistent state"
+                "Job is in an unknown, unrecognized, or inconsistent state"
             )
 
         if not self.directory or not self.host:
@@ -98,7 +98,10 @@ class QQGoer:
         except KeyboardInterrupt:
             pass
         except Exception as e:
-            raise QQError(f"Could not reach {self.host}:{self.directory}: {e}") from e
+            if str(e) != "":
+                raise QQError(f"Could not reach {self.host}:{self.directory}: {e}") from e
+            else:
+                raise QQError(f"Could not reach {self.host}:{self.directory}") from e
 
     def _getDestination(self) -> tuple[str, str] | None:
         destination = self.info.getDestination()

@@ -6,9 +6,9 @@ import os
 
 from qq_lib.env_vars import DEBUG_MODE
 
-LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
+DEBUG_LOG_FORMAT = "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
+LOG_FORMAT = "[%(name)s] [%(levelname)s] %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter to color the log level based on severity."""
@@ -43,19 +43,17 @@ def get_logger(name: str | None = None, colored: bool = False) -> logging.Logger
     logger = logging.getLogger(name or __name__)
 
     if not logger.handlers:
-        # Set log level from environment
-        if os.environ.get(DEBUG_MODE) is not None:
-            logger.setLevel(logging.DEBUG)
-        else:
-            logger.setLevel(logging.INFO)
+        debug_mode = os.environ.get(DEBUG_MODE) is not None
 
+        logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
+
+        fmt = DEBUG_LOG_FORMAT if debug_mode else LOG_FORMAT
         formatter = (
-            ColoredFormatter(fmt=LOG_FORMAT, datefmt=DATE_FORMAT)
+            ColoredFormatter(fmt=fmt, datefmt=DATE_FORMAT)
             if colored
-            else logging.Formatter(fmt=LOG_FORMAT, datefmt=DATE_FORMAT)
+            else logging.Formatter(fmt=fmt, datefmt=DATE_FORMAT)
         )
 
-        # Always write to console
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
         ch.setFormatter(formatter)

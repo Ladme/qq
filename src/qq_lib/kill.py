@@ -57,16 +57,16 @@ class QQKiller:
 
     def terminate(self):
         if self.state == "finished":
-            raise QQError("qq job is finished and synchronized (nothing to kill)")
+            raise QQError("Job is finished and synchronized (nothing to kill)")
         elif self.state == "failed":
-            raise QQError("qq job has failed executing (nothing to kill)")
+            raise QQError("Job has failed executing (nothing to kill)")
         elif self.state == "killed":
-            raise QQError("qq job has been killed (nothing else to kill)")
+            raise QQError("Job has been killed (nothing else to kill)")
         elif self.state == "running" or self.state == "queued":
             pass
         else:
             logger.warning(
-                "qq job is in an unknown, unrecognized, or inconsistent state"
+                "Job is in an unknown, unrecognized, or inconsistent state"
             )
 
         command = self.batch_system.translateKill(self.jobid)

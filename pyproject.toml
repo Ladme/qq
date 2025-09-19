@@ -10,7 +10,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pyinstaller>=6.16.0", "ruff>=0.13.0", "ty>=0.0.1a20"]
+dev = [
+    "nuitka>=2.7.16",
+    "ruff>=0.13.0",
+    "ty>=0.0.1a20",
+]
 
 [tool.ruff.lint]
 select = [

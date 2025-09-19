@@ -24,7 +24,7 @@ from qq_lib.pbs import QQPBS
 logger = get_logger("qq run")
 
 
-@click.command()
+@click.command(hidden=True)
 @click.argument("script_path", type=str)
 def run(script_path: str):
     """

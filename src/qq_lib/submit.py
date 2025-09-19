@@ -117,7 +117,7 @@ class QQSubmitter:
         if self._qqFilesPresent():
             raise QQError(
                 "Detected qq runtime files. Multiple submissions from the same directory are not allowed. "
-                "To clear the qq runtime files, run 'qq clear'."
+                "To clear the files, run 'qq clear'."
             )
 
     def _qqFilesPresent(self) -> bool:

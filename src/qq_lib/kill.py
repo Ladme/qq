@@ -223,6 +223,7 @@ class QQKiller:
         return self.state in [QQState.FINISHED, QQState.FAILED]
 
     def _isUnknownInconsistent(self) -> bool:
+        """Check if the job is in an unknown or inconsistent state."""
         return self.state in [QQState.UNKNOWN, QQState.IN_AN_INCONSISTENT_STATE]
 
     def _lockFile(self, file_path: Path):

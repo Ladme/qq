@@ -107,14 +107,13 @@ class QQKiller:
 
         Conditions for updating the info file (all points must be true):
             - The job is forcefully killed (`force=True`)
-                OR the job is still queued
-                    OR the job is booting.
+                OR the job is queued/booting/suspended.
             - The job is not finished.
             - The job has not already been killed.
             - The job is not in an unknown or inconsistent state.
         """
         return (
-            (force or self._isQueued() or self._isBooting())
+            (force or self._isQueued() or self._isBooting() or self._isSuspended())
             and not self._isFinished()
             and not self._isKilled()
             and not self._isUnknownInconsistent()
@@ -129,9 +128,12 @@ class QQKiller:
 
     def _isBooting(self) -> bool:
         return self.state == QQState.BOOTING
+    
+    def _isSuspended(self) -> bool:
+        return self.state == QQState.SUSPENDED
 
     def _isQueued(self) -> bool:
-        return self.state in [QQState.QUEUED, QQState.HELD, QQState.WAITING, QQState]
+        return self.state in [QQState.QUEUED, QQState.HELD, QQState.WAITING]
 
     def _isKilled(self) -> bool:
         return self.state == QQState.KILLED

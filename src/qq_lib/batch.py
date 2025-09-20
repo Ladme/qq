@@ -2,6 +2,8 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 from abc import ABC, abstractmethod
+from pathlib import Path
+from subprocess import CompletedProcess
 
 from qq_lib.resources import QQResources
 
@@ -65,4 +67,9 @@ class QQBatchInterface(ABC):
     @staticmethod
     @abstractmethod
     def translateKill(job_id: str) -> str:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def navigateToDestination(host: str, directory: Path) -> CompletedProcess[bytes]:
         pass

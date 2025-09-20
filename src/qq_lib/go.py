@@ -1,7 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import subprocess
 import sys
 from pathlib import Path
 from time import sleep
@@ -22,7 +21,7 @@ def go():
     Go to the working directory of the qq job submitted from this directory.
     """
     try:
-        goer = QQGoer(Path("."))
+        goer = QQGoer(Path())
         goer.navigate()
     except QQError as e:
         logger.error(e)
@@ -35,9 +34,8 @@ def go():
 class QQGoer:
     def __init__(self, current_dir: Path):
         self.info_file = get_info_file(current_dir)
-
-        logger.debug(f"Loading QQInformer from '{self.info_file}'.")
         self.info = QQInformer.loadFromFile(self.info_file)
+        self.batch_system = self.info.batch_system
 
         self.state = self.info.getState()
         destination = self._getDestination()
@@ -77,14 +75,7 @@ class QQGoer:
 
         logger.info(f"Navigating to '{self.directory}' on '{self.host}'.")
         try:
-            ssh_command = [
-                "ssh",
-                self.host,
-                "-t",
-                f"cd {self.directory} && exec bash -l",
-            ]
-
-            result = subprocess.run(ssh_command)
+            result = self.batch_system.navigateToDestination(self.host, self.directory)
             if result.returncode != 0:
                 raise Exception
         except KeyboardInterrupt:
@@ -94,8 +85,7 @@ class QQGoer:
                 raise QQError(
                     f"Could not reach '{self.host}:{self.directory}': {e}."
                 ) from e
-            else:
-                raise QQError(f"Could not reach '{self.host}:{self.directory}'.") from e
+            raise QQError(f"Could not reach '{self.host}:{self.directory}'.") from e
 
     def _getDestination(self) -> tuple[str, str] | None:
         destination = self.info.getDestination()

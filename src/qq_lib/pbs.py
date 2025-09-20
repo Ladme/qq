@@ -2,9 +2,11 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import os
+import subprocess
 from pathlib import Path
+from subprocess import CompletedProcess
 
-from qq_lib.base import QQBatchInterface
+from qq_lib.batch import QQBatchInterface
 from qq_lib.env_vars import (
     DEBUG_MODE,
     GUARD,
@@ -62,3 +64,13 @@ class QQPBS(QQBatchInterface):
 
     def translateKill(job_id: str) -> str:
         return f"qdel -W force {job_id}"
+
+    def navigateToDestination(host: str, directory: Path) -> CompletedProcess[bytes]:
+        ssh_command = [
+            "ssh",
+            host,
+            "-t",
+            f"cd {directory} && exec bash -l",
+        ]
+
+        return subprocess.run(ssh_command)

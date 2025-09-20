@@ -8,10 +8,16 @@ from typing import Any, Self
 import click
 import yaml
 
+import qq_lib
+from qq_lib.batch import QQBatchInterface
+from qq_lib.common import convert_to_batch_system
 from qq_lib.error import QQError
+from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+logger = get_logger(__name__)
 
 
 @click.command()
@@ -28,7 +34,11 @@ class QQInformer:
     about the qq run.
     """
 
-    def __init__(self, info: dict[str, Any] | None = None):
+    def __init__(
+        self, batch_system: type[QQBatchInterface], info: dict[str, Any] | None = None
+    ):
+        self.batch_system = batch_system
+
         if info:
             self.info = info
         else:
@@ -45,6 +55,10 @@ class QQInformer:
         time: datetime.datetime,
         jobid: str,
     ):
+        _ = resources
+
+        self.info["batch_system"] = self.batch_system.envName()
+        self.info["qq_version"] = qq_lib.__version__
         self.info["job_name"] = job_name
         self.info["job_type"] = job_type
         self.info["input_machine"] = input_machine
@@ -83,17 +97,33 @@ class QQInformer:
         print()
 
     def exportToFile(self, file: Path):
-        with open(file, "w") as output:
+        logger.debug(f"Exporting qq info into '{file}'.")
+        with Path.open(file, "w") as output:
             output.write("# qq job info file\n")
             output.write(self._exportToYaml())
             output.write("\n")
 
     @classmethod
     def loadFromFile(cls, file: Path) -> Self:
-        with open(file) as input:
-            info = yaml.safe_load(input)
+        logger.debug(f"Loading qq info from '{file}'.")
+        with Path.open(file) as input:
+            info: dict = yaml.safe_load(input)
 
-        return cls(info)
+        try:
+            batch_system_string = info["batch_system"]
+        except KeyError:
+            raise QQError(
+                "Undefined batch system: 'batch_system' missing from qqinfo file."
+            )
+
+        try:
+            batch_system = convert_to_batch_system(batch_system_string)
+        except KeyError:
+            raise QQError(
+                f"Unknown batch system: '{batch_system_string}' does not match any known batch system."
+            )
+
+        return cls(batch_system, info)
 
     def getDestination(self) -> tuple[str, str] | None:
         """

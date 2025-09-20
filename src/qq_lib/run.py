@@ -13,7 +13,7 @@ from pathlib import Path
 
 import click
 
-from qq_lib.base import QQBatchInterface
+from qq_lib.batch import QQBatchInterface
 from qq_lib.env_vars import INFO_FILE, JOBDIR, STDERR_FILE, STDOUT_FILE, WORKDIR
 from qq_lib.error import QQError
 from qq_lib.guard import guard
@@ -22,6 +22,7 @@ from qq_lib.logger import get_logger
 from qq_lib.pbs import QQPBS
 
 logger = get_logger(__name__)
+
 
 @click.command(hidden=True)
 @click.argument("script_path", type=str)
@@ -149,7 +150,7 @@ class QQRunner:
             lines = file.readlines()[1:]
 
         try:
-            with open(stdout_log, "w") as out, open(stderr_log, "w") as err:
+            with Path.open(stdout_log, "w") as out, Path.open(stderr_log, "w") as err:
                 process = subprocess.Popen(
                     ["bash"],
                     stdin=subprocess.PIPE,
@@ -184,6 +185,8 @@ class QQRunner:
             scratch_dir = base_dir / self.username
             if scratch_dir.exists():
                 return scratch_dir
+
+        return None
 
     def _ensureWritable(self, directory: Path):
         """

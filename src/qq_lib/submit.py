@@ -10,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from qq_lib.base import QQBatchInterface
+from qq_lib.batch import QQBatchInterface
 from qq_lib.common import QQ_SUFFIXES
 from qq_lib.env_vars import GUARD, INFO_FILE, JOBDIR, STDERR_FILE, STDOUT_FILE
 from qq_lib.error import QQError
@@ -93,7 +93,7 @@ class QQSubmitter:
             jobid = result.stdout.strip()
             logger.info(f"Job '{jobid}' submitted successfully.")
 
-            info = QQInformer()
+            info = QQInformer(self.batch_system)
             info.setSubmitted(
                 str(self.script),
                 "standard",
@@ -121,14 +121,14 @@ class QQSubmitter:
             )
 
     def _qqFilesPresent(self) -> bool:
-        current_dir = Path(".")
+        current_dir = Path()
         for file in current_dir.iterdir():
             if file.is_file() and file.suffix in QQ_SUFFIXES:
                 return True
         return False
 
     def _setJobDir(self):
-        self.job_dir = Path(os.path.abspath(os.getcwd()))
+        self.job_dir = Path(Path.resolve(Path.cwd()))
         os.environ[JOBDIR] = str(self.job_dir)
 
     def _setQQEnv(self):
@@ -141,6 +141,6 @@ class QQSubmitter:
         os.environ[INFO_FILE] = str(self.info_file)
 
     def _hasValidShebang(self, script: Path) -> bool:
-        with open(script) as file:
+        with Path.open(script) as file:
             first_line = file.readline()
             return first_line.startswith("#!") and first_line.strip().endswith("qq run")

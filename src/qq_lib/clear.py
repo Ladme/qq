@@ -1,8 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-
-import os
 import sys
 from pathlib import Path
 
@@ -20,7 +18,7 @@ def clear():
     Prepare the current directory for submitting a qq job.
     """
     try:
-        clear_files(Path("."))
+        clear_files(Path())
         sys.exit(0)
     except Exception as e:
         logger.critical(e)
@@ -31,4 +29,4 @@ def clear_files(directory: Path):
     for suffix in QQ_SUFFIXES:
         for file in get_files_with_suffix(directory, suffix):
             logger.debug(f"Removing file '{file}'.")
-            os.remove(file)
+            Path.unlink(file)

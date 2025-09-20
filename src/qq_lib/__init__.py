@@ -1,4 +1,4 @@
 from .qq import cli
-from .run import run
 
-__all__ = ["cli", "run"]
+__all__ = ["cli"]
+__version__ = "0.1.0-dev.1"

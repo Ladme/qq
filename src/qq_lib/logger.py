@@ -4,8 +4,8 @@
 import logging
 import os
 
-from rich.logging import RichHandler
 from rich.console import Console
+from rich.logging import RichHandler
 
 from qq_lib.env_vars import DEBUG_MODE
 
@@ -31,11 +31,8 @@ def get_logger(name: str) -> logging.Logger:
         show_level=True,
         show_time=debug_mode,
         log_time_format=DATE_FORMAT,
-        locals_max_length=None,
-        locals_max_string=None,
         tracebacks_width=None,
         tracebacks_code_width=None,
-        tracebacks_extra_lines=None
     )
 
     handler.setLevel(logging.DEBUG if debug_mode else logging.INFO)

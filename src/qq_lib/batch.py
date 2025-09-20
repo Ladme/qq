@@ -6,6 +6,7 @@ from pathlib import Path
 from subprocess import CompletedProcess
 
 from qq_lib.resources import QQResources
+from qq_lib.states import BatchState
 
 
 class QQBatchInterface(ABC):
@@ -61,6 +62,23 @@ class QQBatchInterface(ABC):
 
     @staticmethod
     @abstractmethod
+    def jobState() -> str:
+        """
+        Return the string corresponding to job state in the dump file of job information.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def translateJobState(state: str) -> BatchState:
+        """
+        Translate the job state from the batch system into state understandable by qq.
+        Should not raise exceptions -- instead, if an unknown state is encountered, return the unknown batch state.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
     def translateSubmit(res: QQResources, queue: str, script: str) -> str:
         pass
 
@@ -71,5 +89,18 @@ class QQBatchInterface(ABC):
 
     @staticmethod
     @abstractmethod
+    def translateKillForce(job_id: str) -> str:
+        pass
+
+    @staticmethod
+    @abstractmethod
     def navigateToDestination(host: str, directory: Path) -> CompletedProcess[bytes]:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def getJobInfo(jobid: str) -> dict[str, str]:
+        """
+        Get information about the job from the batch system.
+        """
         pass

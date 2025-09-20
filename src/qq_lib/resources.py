@@ -8,3 +8,6 @@ class QQResources:
 
     def setVnode(self, vnode: str | None):
         self.vnode = vnode
+
+    def setWalltime(self, walltime: str | None):
+        self.walltime = walltime

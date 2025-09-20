@@ -6,13 +6,16 @@ from pathlib import Path
 from time import sleep
 
 import click
+from rich.console import Console
 
 from qq_lib.common import get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
+from qq_lib.states import QQState
 
 logger = get_logger(__name__)
+console = Console()
 
 
 @click.command()
@@ -22,9 +25,13 @@ def go():
     """
     try:
         goer = QQGoer(Path())
+        goer.printInfo()
         goer.navigate()
+        print()
+        sys.exit(0)
     except QQError as e:
         logger.error(e)
+        print()
         sys.exit(1)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
@@ -37,7 +44,7 @@ class QQGoer:
         self.info = QQInformer.loadFromFile(self.info_file)
         self.batch_system = self.info.batch_system
 
-        self.state = self.info.getState()
+        self.state = self.info.getRealState()
         destination = self._getDestination()
         if destination:
             (self.host, self.directory) = destination
@@ -45,25 +52,39 @@ class QQGoer:
             self.host = None
             self.directory = None
 
+    def printInfo(self):
+        panel = self.info.getJobStatusPanel()
+        console.print(panel)
+
     def navigate(self):
-        if self.state == "finished" or self.state == "failed":
+        if self.state in [QQState.FINISHED, QQState.FAILED]:
             logger.warning("Job has finished: working directory may no longer exist.")
-        elif self.state == "killed":
+        elif self.state == QQState.KILLED:
             logger.warning("Job has been killed: working directory may not exist.")
-        elif self.state == "queued":
+        elif self.state in [
+            QQState.QUEUED,
+            QQState.BOOTING,
+            QQState.HELD,
+            QQState.WAITING,
+        ]:
             logger.warning(
-                "Job is queued: working directory does not yet exist. Will retry every 5 seconds."
+                f"Job is {self.state}: working directory does not yet exist. Will retry every 5 seconds."
             )
             # keep retrying until the job gets run
-            while self.state == "queued":
+            while self.state in [
+                QQState.QUEUED,
+                QQState.BOOTING,
+                QQState.HELD,
+                QQState.WAITING,
+            ]:
                 sleep(5)
                 self.info = QQInformer.loadFromFile(self.info_file)
-                self.state = self.info.getState()
+                self.state = self.info.getRealState()
                 destination = self._getDestination()
                 if destination:
                     (self.host, self.directory) = destination
 
-        elif self.state == "running":
+        elif self.state in [QQState.RUNNING, QQState.SUSPENDED]:
             pass
         else:
             logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")

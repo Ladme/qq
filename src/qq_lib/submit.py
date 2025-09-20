@@ -27,11 +27,13 @@ logger = get_logger(__name__)
 @click.argument("script", type=str)
 @click.option("--ncpus", type=int)
 @click.option("--vnode", type=str)
+@click.option("--walltime", type=str)
 def submit(
     queue: str,
     script: str,
     ncpus: int | None = None,
     vnode: str | None = None,
+    walltime: str | None = None,
 ):
     """
     Submit a script to the batch system.
@@ -41,6 +43,7 @@ def submit(
         submitter.guard()
         submitter.resources.setNCPUs(ncpus)
         submitter.resources.setVnode(vnode)
+        submitter.resources.setWalltime(walltime)
 
         sys.exit(submitter.submit())
     except QQError as e:

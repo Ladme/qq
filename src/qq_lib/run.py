@@ -3,6 +3,7 @@
 
 import os
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -10,6 +11,7 @@ import sys
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from types import FrameType
 
 import click
 
@@ -20,6 +22,10 @@ from qq_lib.guard import guard
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
 from qq_lib.pbs import QQPBS
+
+# time in seconds between sending a SIGTERM signal
+# to the running process and sending a SIGKILL signal
+SIGTERM_TO_SIGKILL = 10
 
 logger = get_logger(__name__)
 
@@ -69,6 +75,11 @@ class QQRunner:
             QQError: If required environment variables are not set.
             QQError: If the script does not exist or is not a file.
         """
+        self.process: subprocess.Popen[str] | None = None
+
+        # install a signal handler
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
+
         self.batch_system = batch_system
         self.script = Path(script)
 
@@ -151,14 +162,14 @@ class QQRunner:
 
         try:
             with Path.open(stdout_log, "w") as out, Path.open(stderr_log, "w") as err:
-                process = subprocess.Popen(
+                self.process = subprocess.Popen(
                     ["bash"],
                     stdin=subprocess.PIPE,
                     stdout=out,
                     stderr=err,
                     text=True,
                 )
-                process.communicate(input="".join(lines))
+                self.process.communicate(input="".join(lines))
 
         except Exception as e:
             raise QQError(f"Failed to execute script '{self.script}': {e}") from e
@@ -167,12 +178,12 @@ class QQRunner:
         self._copyFilesBack()
 
         # update the qqinfo file
-        if process.returncode == 0:
+        if self.process.returncode == 0:
             self._updateInfoFinished(self.info_file)
         else:
-            self._updateInfoFailed(self.info_file, process.returncode)
+            self._updateInfoFailed(self.info_file, self.process.returncode)
 
-        return process.returncode
+        return self.process.returncode
 
     def _getScratchDir(self) -> Path | None:
         """
@@ -332,5 +343,39 @@ class QQRunner:
             info.exportToFile(info_file)
         except Exception as e:
             logger.warning(
-                f"COuld not update qqinfo file '{info_file}' at JOB FAILURE: {e}."
+                f"Could not update qqinfo file '{info_file}' at JOB FAILURE: {e}."
             )
+
+    def _updateInfoKilled(self, info_file: Path):
+        logger.debug(f"Updating '{info_file}' at job kill.")
+        try:
+            info = QQInformer.loadFromFile(info_file)
+            info.setKilled(datetime.now())
+            info.exportToFile(info_file)
+        except Exception as e:
+            logger.warning(
+                f"Could not update qqinfo file '{info_file}' at JOB KILL: {e}."
+            )
+
+    def _cleanup(self) -> None:
+        """Perform clean-up of the execution in case of SIGTERM or an exception from the subprocess."""
+        # update the qq info file
+        self._updateInfoKilled(Path(self.info_file))
+
+        # send SIGTERM to the running process, if there is any
+        if self.process and self.process.poll() is None:
+            logger.info("Cleaning up: terminating subprocess.")
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=SIGTERM_TO_SIGKILL)
+            # kill the running process if this takes too long
+            except subprocess.TimeoutExpired:
+                logger.info("Subprocess did not exit, killing.")
+                self.process.kill()
+
+    def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> None:
+        """Signal handler for SIGTERM."""
+        logger.info("Received SIGTERM, initiating shutdown.")
+        self._cleanup()
+        logger.error("Execution was terminated by SIGTERM.")
+        sys.exit(15)

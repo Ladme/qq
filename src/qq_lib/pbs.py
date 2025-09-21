@@ -138,11 +138,13 @@ def _parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
     for raw_line in text.splitlines():
         line = raw_line.rstrip()
 
-        if "=" in line and not line.lstrip().startswith("="):
-            key, value = line.split("=", 1)
+        if " = " in line and not line.lstrip().startswith("="):
+            # new key
+            key, value = line.split(" = ", 1)
             current_key = key.strip()
             result[current_key] = value.strip()
         elif current_key is not None:
+            # multiline values
             result[current_key] += line.strip()
         else:
             pass

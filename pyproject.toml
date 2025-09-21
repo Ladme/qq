@@ -12,7 +12,12 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["nuitka>=2.7.16", "ruff>=0.13.0", "ty>=0.0.1a20"]
+dev = [
+    "nuitka>=2.7.16",
+    "pytest>=8.4.2",
+    "ruff>=0.13.0",
+    "ty>=0.0.1a20",
+]
 
 [tool.ruff.lint]
 extend-select = [

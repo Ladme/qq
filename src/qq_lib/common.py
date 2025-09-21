@@ -10,6 +10,7 @@ from rich.text import Text
 from qq_lib.batch import QQBatchInterface
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
+from qq_lib.suffixes import QQ_INFO_SUFFIX
 from qq_lib.supported_batch_systems import BATCH_SYSTEMS
 
 logger = get_logger(__name__)
@@ -28,7 +29,7 @@ def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
 
 
 def get_info_file(current_directory: Path) -> Path:
-    info_files = get_files_with_suffix(current_directory, ".qqinfo")
+    info_files = get_files_with_suffix(current_directory, QQ_INFO_SUFFIX)
     logger.debug(f"Detected the following qq info files: {info_files}.")
     if len(info_files) == 0:
         raise QQError("No qq job info file found.")

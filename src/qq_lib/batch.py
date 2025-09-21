@@ -107,6 +107,8 @@ class QQBatchInterface(ABC):
     def getJobInfo(jobid: str) -> dict[str, str]:
         """
         Get information about the job from the batch system.
-        Should never raise Exception. Instead return an empty dictionary.
+        Should never raise Exception. If the job was not found, return an empty dictionary.
+        This is because information about the jobs eventually gets removed from the batch
+        system but qq commands can't just return errors for old jobs.
         """
         pass

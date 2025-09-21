@@ -216,7 +216,7 @@ class QQInformer:
         Get the state of the job according to the batch system.
         """
         if not self.batch_info:
-            self._loadBatchJobInfo()
+            self.batch_info = self.batch_system.getJobInfo(self.getJobId())
 
         state_code = self.batch_info.get(self.batch_system.jobState())
         logger.debug(f"Batch state code: '{state_code}'")
@@ -232,12 +232,6 @@ class QQInformer:
         naive = self.getNaiveState()
         batch = self.getBatchState()
         return QQState.fromStates(naive, batch)
-
-    def _loadBatchJobInfo(self):
-        """
-        Load the actual job info from the batch system.
-        """
-        self.batch_info = self.batch_system.getJobInfo(self.getJobId())
 
     def _convertToYaml(self) -> str:
         cleaned = {k: v for k, v in self.info.items() if v is not None}

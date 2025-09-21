@@ -103,6 +103,7 @@ def run(script_path: str):
               - 91: Guard check failure or an error logged into an info file
               - 92: Fatal error not logged into an info file
               - 99: Fatal unexpected error (indicates a bug)
+              - 143: Execution terminated by SIGTERM.
     """
 
     # the script path provided points to a script copied to a temporary
@@ -533,7 +534,7 @@ class QQRunner:
         logger.info("Received SIGTERM, initiating shutdown.")
         self._cleanup()
         logger.error("Execution was terminated by SIGTERM.")
-        sys.exit(15)
+        sys.exit(143)
 
 
 def _log_fatal_qq_error(exception: QQError, exit_code: int) -> NoReturn:

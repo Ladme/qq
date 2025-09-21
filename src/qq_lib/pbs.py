@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import socket
 import subprocess
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -72,12 +73,18 @@ class QQPBS(QQBatchInterface):
         return f"qdel {job_id}"
 
     def navigateToDestination(host: str, directory: Path) -> CompletedProcess[bytes]:
+        if host == socket.gethostname():
+            # if the directory is on the current host, we do not need to use ssh
+            logger.debug("Current host is the same as target host. Using 'cd'.")
+            return subprocess.run(["bash"], cwd=directory)
         ssh_command = [
             "ssh",
             host,
             "-t",
             f"cd {directory} && exec bash -l",
         ]
+
+        logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
 
         return subprocess.run(ssh_command)
 

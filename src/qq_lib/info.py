@@ -26,7 +26,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 logger = get_logger(__name__)
 
 
-@click.command()
+@click.command(help="Get information about the qq job.")
 def info():
     """
     Get information about the qq job submitted from this directory.

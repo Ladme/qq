@@ -48,7 +48,7 @@ def submit(
     worksize: str | None = None,
 ):
     """
-    Submit a script to the batch system.
+    Submit a qq job to the batch system.
     """
     try:
         submitter = QQSubmitter(QQPBS, queue, script)

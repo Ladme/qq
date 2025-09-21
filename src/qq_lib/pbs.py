@@ -4,10 +4,8 @@
 import socket
 import subprocess
 from pathlib import Path
-from subprocess import CompletedProcess
 
 from qq_lib.batch import QQBatchInterface
-from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
@@ -18,6 +16,7 @@ logger = get_logger(__name__)
 CD_FAIL = 94
 # exit code of ssh if connection fails
 SSH_FAIL = 255
+
 
 class QQPBS(QQBatchInterface):
     """
@@ -82,12 +81,12 @@ class QQPBS(QQBatchInterface):
             logger.debug("Current host is the same as target host. Using 'cd'.")
             if not directory.is_dir():
                 return 1
-            
+
             subprocess.run(["bash"], cwd=directory)
-            
+
             # if the directory exists, always return 0, no matter what the user does inside the terminal
             return 0
-        
+
         # the directory is on an another node
         ssh_command = [
             "ssh",

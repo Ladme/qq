@@ -27,7 +27,7 @@ console = Console()
 
 
 @click.command(
-    help="""Terminate a qq job submitted from the current directory.
+    help="""Terminate the qq job.
 
 Unless the `-y` or `--force` flag is used, `qq kill` always
 asks for confirmation before killing a job.

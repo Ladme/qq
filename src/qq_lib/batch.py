@@ -3,7 +3,6 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from subprocess import CompletedProcess
 
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState

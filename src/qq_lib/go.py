@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 console = Console()
 
 
-@click.command()
+@click.command(help="Change to the qq job's working directory.")
 def go():
     """
     Go to the working directory of the qq job submitted from this directory.
@@ -111,7 +111,9 @@ class QQGoer:
 
         logger.info(f"Navigating to '{self.directory}' on '{self.host}'.")
         try:
-            return_code = self.batch_system.navigateToDestination(self.host, Path(self.directory))
+            return_code = self.batch_system.navigateToDestination(
+                self.host, Path(self.directory)
+            )
             if return_code != 0:
                 raise Exception
         except KeyboardInterrupt:

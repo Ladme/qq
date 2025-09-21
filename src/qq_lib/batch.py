@@ -99,7 +99,7 @@ class QQBatchInterface(ABC):
 
     @staticmethod
     @abstractmethod
-    def navigateToDestination(host: str, directory: Path) -> CompletedProcess[bytes]:
+    def navigateToDestination(host: str, directory: Path) -> int:
         pass
 
     @staticmethod
@@ -107,5 +107,6 @@ class QQBatchInterface(ABC):
     def getJobInfo(jobid: str) -> dict[str, str]:
         """
         Get information about the job from the batch system.
+        Should never raise Exception. Instead return an empty dictionary.
         """
         pass

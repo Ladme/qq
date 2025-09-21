@@ -111,8 +111,8 @@ class QQGoer:
 
         logger.info(f"Navigating to '{self.directory}' on '{self.host}'.")
         try:
-            result = self.batch_system.navigateToDestination(self.host, self.directory)
-            if result.returncode != 0:
+            return_code = self.batch_system.navigateToDestination(self.host, Path(self.directory))
+            if return_code != 0:
                 raise Exception
         except KeyboardInterrupt:
             pass

@@ -14,6 +14,10 @@ from qq_lib.states import BatchState
 
 logger = get_logger(__name__)
 
+# magic number indicating unreachable directory when navigating to it
+CD_FAIL = 94
+# exit code of ssh if connection fails
+SSH_FAIL = 255
 
 class QQPBS(QQBatchInterface):
     """
@@ -72,21 +76,41 @@ class QQPBS(QQBatchInterface):
     def translateKill(job_id: str) -> str:
         return f"qdel {job_id}"
 
-    def navigateToDestination(host: str, directory: Path) -> CompletedProcess[bytes]:
+    def navigateToDestination(host: str, directory: Path) -> int:
+        # if the directory is on the current host, we do not need to use ssh
         if host == socket.gethostname():
-            # if the directory is on the current host, we do not need to use ssh
             logger.debug("Current host is the same as target host. Using 'cd'.")
-            return subprocess.run(["bash"], cwd=directory)
+            if not directory.is_dir():
+                return 1
+            
+            subprocess.run(["bash"], cwd=directory)
+            
+            # if the directory exists, always return 0, no matter what the user does inside the terminal
+            return 0
+        
+        # the directory is on an another node
         ssh_command = [
             "ssh",
             host,
             "-t",
-            f"cd {directory} && exec bash -l",
+            f"cd {directory} || exit {CD_FAIL} && exec bash -l",
         ]
 
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
 
-        return subprocess.run(ssh_command)
+        exit_code = subprocess.run(ssh_command).returncode
+
+        # the subprocess exit code can come from:
+        # - SSH itself failing - returns SSH_FAIL
+        # - the explicit exit code we set if 'cd' to the directory fails - returns CD_FAIL
+        # - the exit code of the last command the user runs in the interactive shell
+        #
+        # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
+        if exit_code == SSH_FAIL:
+            return SSH_FAIL
+        if exit_code == CD_FAIL:
+            return CD_FAIL
+        return 0
 
     def getJobInfo(jobid: str) -> dict[str, str]:
         command = f"qstat -fx {jobid}"
@@ -96,9 +120,7 @@ class QQPBS(QQBatchInterface):
         )
 
         if result.returncode != 0:
-            raise QQError(
-                f"Could not get job information from {QQPBS.envName()}: {result.stderr.strip()}"
-            )
+            return {}
         return _parse_pbs_dump_to_dictionary(result.stdout)
 
 

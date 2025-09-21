@@ -10,12 +10,9 @@ from rich.text import Text
 from qq_lib.batch import QQBatchInterface
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
-from qq_lib.pbs import QQPBS
+from qq_lib.supported_batch_systems import BATCH_SYSTEMS
 
 logger = get_logger(__name__)
-
-QQ_SUFFIXES = [".qqinfo", ".qqout", ".stdout", ".stderr"]
-BATCH_SYSTEMS = {QQPBS.envName(): QQPBS}
 
 
 def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:

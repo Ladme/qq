@@ -54,15 +54,8 @@ from typing import NoReturn
 
 import click
 
-from qq_lib.common import convert_to_batch_system
 from qq_lib.env_vars import (
-    BATCH_SYSTEM,
     INFO_FILE,
-    JOBDIR,
-    STDERR_FILE,
-    STDOUT_FILE,
-    USE_SCRATCH,
-    WORKDIR,
 )
 from qq_lib.error import QQError
 from qq_lib.guard import guard
@@ -192,25 +185,10 @@ class QQRunner:
             QQError: If required environment variables are missing or invalid.
         """
         # get job directory
-        job_dir = os.environ.get(JOBDIR)
-        if not job_dir:
-            raise QQError(f"'{JOBDIR}' environment variable is not set.")
-        logger.debug(f"Job directory: '{job_dir}'.")
-
-        self.job_dir = Path(job_dir)
+        self.job_dir = Path(self.info.getJobDir())
 
         # get the batch system
-        batch_system_name = os.environ.get(BATCH_SYSTEM)
-        if not batch_system_name:
-            raise QQError(f"Required '{BATCH_SYSTEM}' environment variable is not set.")
-        logger.debug(f"Used batch system: '{batch_system_name}'.")
-
-        try:
-            self.batch_system = convert_to_batch_system(batch_system_name)
-        except KeyError as e:
-            raise QQError(
-                f"Unknown batch system name '{batch_system_name}': {e}"
-            ) from e
+        self.batch_system = self.info.batch_system
 
         # get the username and job id
         self.username = os.environ.get(self.batch_system.usernameEnvVar())
@@ -225,8 +203,7 @@ class QQRunner:
         logger.debug(f"Job ID: {self.jobid}.")
 
         # should the scratch directory be used?
-        self.use_scratch = os.environ.get(USE_SCRATCH) is not None
-
+        self.use_scratch = self.info.useScratch()
         logger.debug(f"Use scratch: {self.use_scratch}.")
 
     def setUpWorkDir(self):
@@ -264,12 +241,8 @@ class QQRunner:
         script = Path(self.info.getJobName()).resolve()
 
         # get paths to output files
-        stdout_log = os.environ.get(STDOUT_FILE)
-        stderr_log = os.environ.get(STDERR_FILE)
-        if not stdout_log or not stderr_log:
-            raise QQError(
-                f"'{STDOUT_FILE}' or '{STDERR_FILE}' environment variable has not been set up."
-            )
+        stdout_log = self.info.getStdout()
+        stderr_log = self.info.getStderr()
 
         with script.open() as file:
             lines = file.readlines()[1:]
@@ -331,9 +304,6 @@ class QQRunner:
         # set qq working directory to job directory
         self.work_dir = self.job_dir
 
-        # export working directory path as an environment variable
-        os.environ[WORKDIR] = str(self.work_dir)
-
         # move to the working directory
         os.chdir(self.work_dir)
 
@@ -354,9 +324,6 @@ class QQRunner:
                 f"Could not get the scratch directory from '{self.batch_system.scratchDirEnvVar()}' environment variable."
             )
         self.work_dir = Path(work_dir)
-
-        # export working directory path as an environment variable
-        os.environ[WORKDIR] = str(self.work_dir)
 
         # move to the working directory
         os.chdir(self.work_dir)

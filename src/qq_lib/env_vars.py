@@ -4,26 +4,8 @@
 # Specifies whether we are working inside a qq environment.
 GUARD = "QQ_ENV_SET"
 
-# Specifies absolute path to the directory from which the job was submitted.
-JOBDIR = "QQ_JOBDIR"
-
-# Specifies the absolute path to the directory where the job is running.
-WORKDIR = "QQ_WORKDIR"
-
 # Specifies whether debug logs should be printed.
 DEBUG_MODE = "QQ_DEBUG"
 
-# Specifies the path to file collecting standard output during the job execution.
-STDOUT_FILE = "QQ_STDOUT"
-
-# Specifies the path to file collecting standard error output during the job execution.
-STDERR_FILE = "QQ_STDERR"
-
 # Specifies absolute path to file collecting information about the qq job (inside job directory).
 INFO_FILE = "QQ_INFO"
-
-# Batch system used to run the job.
-BATCH_SYSTEM = "QQ_BATCH_SYSTEM"
-
-# Should the scratch directory be set-up and used?
-USE_SCRATCH = "QQ_USE_SCRATCH"

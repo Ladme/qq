@@ -16,11 +16,12 @@ from pathlib import Path
 
 import click
 
-from qq_lib.common import QQ_SUFFIXES, get_files_with_suffix, get_info_file
+from qq_lib.common import get_files_with_suffix, get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
 from qq_lib.states import QQState
+from qq_lib.suffixes import QQ_SUFFIXES
 
 logger = get_logger(__name__)
 

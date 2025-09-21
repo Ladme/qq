@@ -3,12 +3,14 @@
 
 import socket
 import subprocess
+from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch import QQBatchInterface
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
+from qq_lib.suffixes import QQ_OUT_SUFFIX
 
 logger = get_logger(__name__)
 
@@ -32,9 +34,6 @@ class QQPBS(QQBatchInterface):
     def jobIdEnvVar() -> str:
         return "PBS_JOBID"
 
-    def workDirEnvVar() -> str:
-        return "PBS_O_WORKDIR"
-
     def scratchDirEnvVar() -> str:
         return "SCRATCHDIR"
 
@@ -45,29 +44,32 @@ class QQPBS(QQBatchInterface):
         return BatchState.fromCode(state)
 
     def translateSubmit(res: QQResources, queue: str, script: str) -> str:
-        qq_output = str(Path(script).with_suffix(".qqout"))
+        qq_output = str(Path(script).with_suffix(QQ_OUT_SUFFIX))
         command = f"qsub -q {queue} -j eo -e {qq_output} -V "
 
-        # translate properties
-        trans_props = []
-        if res.ncpus:
-            trans_props.append(f"ncpus={res.ncpus}")
+        # handle resources
+        trans_res = QQPBS.translateResources(res)
 
-        if res.vnode:
-            trans_props.append(f"vnode={res.vnode}")
-
-        if res.walltime:
-            trans_props.append(f"walltime={res.walltime}")
-
-        if res.workdir:
-            trans_props.append(f"{res.workdir}={res.worksize}")
-
-        if len(trans_props) > 0:
+        if len(trans_res) > 0:
             command += "-l "
 
-        command += ",".join(trans_props) + " " + script
+        command += ",".join(trans_res) + " " + script
 
         return command
+
+    def translateResources(res: QQResources) -> list[str]:
+        trans_res = []
+        for f in fields(res):
+            name = f.name
+
+            if name in ["workdir", "worksize"]:
+                continue
+
+            attribute = getattr(res, name)
+            if attribute:
+                trans_res.append(f"{name}={attribute}")
+
+        return trans_res
 
     def translateKillForce(job_id: str) -> str:
         return f"qdel -W force {job_id}"

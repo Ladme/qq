@@ -50,17 +50,6 @@ class QQBatchInterface(ABC):
 
     @staticmethod
     @abstractmethod
-    def workDirEnvVar() -> str:
-        """
-        Return the environment variable name that stores the current work directory.
-
-        Returns
-            str: Environment variable name for the workdir.
-        """
-        pass
-
-    @staticmethod
-    @abstractmethod
     def scratchDirEnvVar() -> str:
         pass
 
@@ -84,6 +73,11 @@ class QQBatchInterface(ABC):
     @staticmethod
     @abstractmethod
     def translateSubmit(res: QQResources, queue: str, script: str) -> str:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def translateResources(res: QQResources) -> list[str]:
         pass
 
     @staticmethod

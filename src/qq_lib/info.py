@@ -73,9 +73,9 @@ class QQInformer:
         excluded_files: list[Path] | None,
         time: datetime,
         jobid: str,
+        stdout_file: str,
+        stderr_file: str,
     ):
-        _ = resources
-
         self.info["batch_system"] = self.batch_system.envName()
         self.info["qq_version"] = qq_lib.__version__
         self.info["job_name"] = job_name
@@ -89,6 +89,9 @@ class QQInformer:
         self.info["job_state"] = str(NaiveState.QUEUED)
         self.info["submission_time"] = time.strftime(DATE_FORMAT)
         self.info["job_id"] = jobid
+        self.info["stdout_file"] = stdout_file
+        self.info["stderr_file"] = stderr_file
+        self.info["resources"] = resources.toDict()
 
     def setRunning(self, time: datetime, main_node: str, work_dir: Path):
         self.info["job_state"] = str(NaiveState.RUNNING)
@@ -156,6 +159,7 @@ class QQInformer:
         if not isinstance(info, dict):
             raise QQError(f"Could not read the qqinfo file '{file}'.")
 
+        # get the batch system
         try:
             batch_system_string = info["batch_system"]
         except KeyError:
@@ -171,6 +175,14 @@ class QQInformer:
             )
 
         return cls(batch_system, info)
+
+    def getResources(self) -> dict[str, Any]:
+        res = self.info.get("resources")
+
+        if not res:
+            raise QQError("Property 'resources' not available in qq info.")
+
+        return res
 
     def getDestination(self) -> tuple[str, str] | None:
         """
@@ -193,6 +205,30 @@ class QQInformer:
 
         return jobid
 
+    def getJobDir(self) -> str:
+        job_dir = self.info.get("job_dir")
+
+        if not job_dir:
+            raise QQError("Property 'job_dir' not available in qq info.")
+
+        return job_dir
+
+    def getStdout(self) -> str:
+        stdout_file = self.info.get("stdout_file")
+
+        if not stdout_file:
+            raise QQError("Property 'stdout_file' not available in qq info.")
+
+        return stdout_file
+
+    def getStderr(self) -> str:
+        stderr_file = self.info.get("stderr_file")
+
+        if not stderr_file:
+            raise QQError("Property 'stderr_file' not available in qq info.")
+
+        return stderr_file
+
     def getJobName(self) -> str:
         job_name = self.info.get("job_name")
 
@@ -200,6 +236,12 @@ class QQInformer:
             raise QQError("Property 'job_name' not available in qq info.")
 
         return job_name
+
+    def useScratch(self) -> bool:
+        try:
+            return self.getResources()["work_dir"] is not None
+        except Exception:
+            raise QQError("Could not get working directory from the info file.")
 
     def getNaiveState(self) -> NaiveState:
         """

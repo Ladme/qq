@@ -1,26 +1,27 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+from dataclasses import asdict, dataclass
+from typing import Any
 
+
+@dataclass
 class QQResources:
-    def setNCPUs(self, ncpus: int | None):
-        self.ncpus = ncpus
+    ncpus: int | None = None
+    vnode: str | None = None
+    walltime: str | None = None
+    work_dir: str | None = None
+    work_size: str | None = None
 
-    def setVnode(self, vnode: str | None):
-        self.vnode = vnode
+    def __post_init__(self):
+        # enforce workdir logic
+        if self.work_dir == "jobdir":
+            self.work_dir = None
 
-    def setWalltime(self, walltime: str | None):
-        self.walltime = walltime
+        # enforce worksize logic
+        if self.work_size is None and self.ncpus is not None:
+            self.work_size = f"{self.ncpus}gb"
 
-    def setWorkdir(self, workdir: str):
-        # shared is the default option
-        if workdir == "jobdir":
-            self.workdir = None
-        else:
-            self.workdir = workdir
-
-    def setWorksize(self, worksize: str | None):
-        if not worksize:
-            self.worksize = f"{self.ncpus}gb"
-        else:
-            self.worksize = worksize
+    def toDict(self) -> dict[str, Any]:
+        """Return all fields as a dict, excluding fields set to None."""
+        return {k: v for k, v in asdict(self).items() if v is not None}

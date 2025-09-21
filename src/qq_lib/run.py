@@ -18,7 +18,7 @@ Lifecycle of a qq job:
        The qq info file is updated to record the "running" state.
        The job script is executed.
 
-    3. Completion handling
+    3. Completion
        - On success:
          - The qq info file is updated to "finished".
          - If running on scratch, job files are copied back to the submission

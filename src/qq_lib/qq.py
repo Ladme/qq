@@ -14,8 +14,7 @@ from qq_lib.submit import submit
 @click.group()
 def cli():
     """
-    Run any qq subcommand. qq is a wrapper around PBS Pro
-    and Slurm alowing simpler job management.
+    Run any qq subcommand.
     """
     pass
 

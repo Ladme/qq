@@ -4,27 +4,7 @@
 """
 Module for terminating qq jobs submitted from the current directory.
 
-----------------------------------------------------
-Detailed information about the behavior of `qq kill`
-----------------------------------------------------
-Killing a job sets its state to "killed". This is handled either by `qq kill` or
-`qq run`, depending on job type and whether the `--force` flag was used:
-
-    - Forced kills: `qq kill` updates the qq info file to mark the
-        job as killed, because `qq run` may not have time to do so.
-        The info file is subsequently locked to avoid overwriting.
-
-    - Jobs that have not yet started: `qq run` does not exist yet, so
-        `qq kill` is responsible for marking the job as killed.
-
-    - Jobs that are booting: `qq run` does exist for booting jobs, but
-        it is unreliable at this stage. PBS's `qdel` may also silently fail for
-        booting jobs. `qq kill` is thus responsible for setting the job state
-        and locking the info file (which then forces `qq run` to terminate
-        even if the batch system fails to kill it).
-
-    - Normal (non-forced) termination: `qq run` is responsible for
-        updating the job state in the info file once the job is terminated.
+Read the documentation of the `kill` function for more details.
 """
 
 import stat
@@ -46,7 +26,19 @@ logger = get_logger(__name__)
 console = Console()
 
 
-@click.command()
+@click.command(
+    help="""Terminate a qq job submitted from the current directory.
+
+Unless the `-y` or `--force` flag is used, `qq kill` always
+asks for confirmation before killing a job.
+
+By default (without --force), `qq kill` will only attempt to kill jobs
+that are queued, held, booting, or running but not yet finished or already killed.
+
+When the --force flag is used, `qq kill` will attempt to terminate any job
+regardless of its state, including jobs that are, according to the qq,
+already finished or killed. This can be used to remove lingering (stuck) jobs."""
+)
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."
 )
@@ -66,6 +58,26 @@ def kill(yes: bool = False, force: bool = False):
     When the --force flag is used, `qq kill` will attempt to terminate any job
     regardless of its state, including jobs that are, according to the qq,
     already finished or killed. This can be used to remove lingering (stuck) jobs.
+
+    Details
+        Killing a job sets its state to "killed". This is handled either by `qq kill` or
+        `qq run`, depending on job type and whether the `--force` flag was used:
+
+        - Forced kills: `qq kill` updates the qq info file to mark the
+            job as killed, because `qq run` may not have time to do so.
+            The info file is subsequently locked to avoid overwriting.
+
+        - Jobs that have not yet started: `qq run` does not exist yet, so
+            `qq kill` is responsible for marking the job as killed.
+
+        - Jobs that are booting: `qq run` does exist for booting jobs, but
+            it is unreliable at this stage. PBS's `qdel` may also silently fail for
+            booting jobs. `qq kill` is thus responsible for setting the job state
+            and locking the info file (which then forces `qq run` to terminate
+            even if the batch system fails to kill it).
+
+        - Normal (non-forced) termination: `qq run` is responsible for
+            updating the job state in the info file once the job is terminated.
     """
     try:
         killer = QQKiller(Path(), force)

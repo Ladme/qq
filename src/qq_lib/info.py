@@ -193,6 +193,14 @@ class QQInformer:
 
         return jobid
 
+    def getJobName(self) -> str:
+        job_name = self.info.get("job_name")
+
+        if not job_name:
+            raise QQError("Property 'job_name' not available in qq info.")
+
+        return job_name
+
     def getNaiveState(self) -> NaiveState:
         """
         Get the naive state of the job as defined in the qqinfo file.

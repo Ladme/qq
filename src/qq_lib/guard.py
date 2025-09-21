@@ -14,7 +14,7 @@ def guard():
     if not _check_qq_env():
         raise QQError(
             "This script must be run as a qq job within the batch system. "
-            "To submit it properly, use: qq submit."
+            "To submit it properly, use: 'qq submit'."
         )
 
 

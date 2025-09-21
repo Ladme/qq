@@ -11,3 +11,16 @@ class QQResources:
 
     def setWalltime(self, walltime: str | None):
         self.walltime = walltime
+
+    def setWorkdir(self, workdir: str):
+        # shared is the default option
+        if workdir == "jobdir":
+            self.workdir = None
+        else:
+            self.workdir = workdir
+
+    def setWorksize(self, worksize: str | None):
+        if not worksize:
+            self.worksize = f"{self.ncpus}gb"
+        else:
+            self.worksize = worksize

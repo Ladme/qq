@@ -21,3 +21,9 @@ STDERR_FILE = "QQ_STDERR"
 
 # Specifies absolute path to file collecting information about the qq job (inside job directory).
 INFO_FILE = "QQ_INFO"
+
+# Batch system used to run the job.
+BATCH_SYSTEM = "QQ_BATCH_SYSTEM"
+
+# Should the scratch directory be set-up and used?
+USE_SCRATCH = "QQ_USE_SCRATCH"

@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import socket
 import sys
 from pathlib import Path
 from time import sleep
@@ -32,10 +33,10 @@ def go():
     except QQError as e:
         logger.error(e)
         print()
-        sys.exit(1)
+        sys.exit(91)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(1)
+        sys.exit(99)
 
 
 class QQGoer:
@@ -57,8 +58,18 @@ class QQGoer:
         console.print(panel)
 
     def navigate(self):
-        if self.state in [QQState.FINISHED, QQState.FAILED]:
-            logger.warning("Job has finished: working directory may no longer exist.")
+        if self._isInWorkDir():
+            logger.info("You are already in the working directory.")
+            return
+
+        if self.state in [QQState.FINISHED]:
+            raise QQError(
+                "Job has finished and was synchronized: working directory does not exist."
+            )
+        if self.state in [QQState.FAILED]:
+            logger.warning(
+                "Job has finished with an error code: working directory may no longer exist."
+            )
         elif self.state == QQState.KILLED:
             logger.warning("Job has been killed: working directory may not exist.")
         elif self.state in [
@@ -84,6 +95,10 @@ class QQGoer:
                 if destination:
                     (self.host, self.directory) = destination
 
+                if self._isInWorkDir():
+                    logger.info("You are already in the working directory.")
+                    return
+
         elif self.state in [QQState.RUNNING, QQState.SUSPENDED]:
             pass
         else:
@@ -107,6 +122,13 @@ class QQGoer:
                     f"Could not reach '{self.host}:{self.directory}': {e}."
                 ) from e
             raise QQError(f"Could not reach '{self.host}:{self.directory}'.") from e
+
+    def _isInWorkDir(self) -> bool:
+        return (
+            self.directory
+            and Path(self.directory).resolve() == Path.cwd().resolve()
+            and self.host == socket.gethostname()
+        )
 
     def _getDestination(self) -> tuple[str, str] | None:
         destination = self.info.getDestination()

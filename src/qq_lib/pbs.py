@@ -31,6 +31,9 @@ class QQPBS(QQBatchInterface):
     def workDirEnvVar() -> str:
         return "PBS_O_WORKDIR"
 
+    def scratchDirEnvVar() -> str:
+        return "SCRATCHDIR"
+
     def jobState() -> str:
         return "job_state"
 
@@ -39,7 +42,7 @@ class QQPBS(QQBatchInterface):
 
     def translateSubmit(res: QQResources, queue: str, script: str) -> str:
         qq_output = str(Path(script).with_suffix(".qqout"))
-        command = f"qsub -q {queue} -o {qq_output} -e {qq_output} -V "
+        command = f"qsub -q {queue} -j eo -e {qq_output} -V "
 
         # translate properties
         trans_props = []
@@ -51,6 +54,9 @@ class QQPBS(QQBatchInterface):
 
         if res.walltime:
             trans_props.append(f"walltime={res.walltime}")
+
+        if res.workdir:
+            trans_props.append(f"{res.workdir}={res.worksize}")
 
         if len(trans_props) > 0:
             command += "-l "

@@ -12,7 +12,15 @@ import click
 
 from qq_lib.batch import QQBatchInterface
 from qq_lib.common import QQ_SUFFIXES
-from qq_lib.env_vars import GUARD, INFO_FILE, JOBDIR, STDERR_FILE, STDOUT_FILE
+from qq_lib.env_vars import (
+    BATCH_SYSTEM,
+    GUARD,
+    INFO_FILE,
+    JOBDIR,
+    STDERR_FILE,
+    STDOUT_FILE,
+    USE_SCRATCH,
+)
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
@@ -28,12 +36,16 @@ logger = get_logger(__name__)
 @click.option("--ncpus", type=int)
 @click.option("--vnode", type=str)
 @click.option("--walltime", type=str)
+@click.option("--workdir", type=str, default="scratch_local")
+@click.option("--worksize", type=str)
 def submit(
     queue: str,
     script: str,
     ncpus: int | None = None,
     vnode: str | None = None,
     walltime: str | None = None,
+    workdir: str = "scratch_local",
+    worksize: str | None = None,
 ):
     """
     Submit a script to the batch system.
@@ -44,14 +56,16 @@ def submit(
         submitter.resources.setNCPUs(ncpus)
         submitter.resources.setVnode(vnode)
         submitter.resources.setWalltime(walltime)
+        submitter.resources.setWorkdir(workdir)
+        submitter.resources.setWorksize(worksize)
 
         sys.exit(submitter.submit())
     except QQError as e:
         logger.error(e)
-        sys.exit(1)
+        sys.exit(91)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(1)
+        sys.exit(99)
 
 
 class QQSubmitter:
@@ -77,7 +91,10 @@ class QQSubmitter:
     def submit(self) -> int:
         self._setQQEnv()
         self._setJobDir()
+        self._setBatchSystem()
         self._setOutputFiles()
+        if self.resources.workdir:
+            self._setUseScratch()
 
         command = self.batch_system.translateSubmit(
             self.resources, self.queue, str(self.script)
@@ -130,6 +147,9 @@ class QQSubmitter:
                 return True
         return False
 
+    def _setUseScratch(self):
+        os.environ[USE_SCRATCH] = "1"
+
     def _setJobDir(self):
         self.job_dir = Path(Path.resolve(Path.cwd()))
         os.environ[JOBDIR] = str(self.job_dir)
@@ -142,6 +162,9 @@ class QQSubmitter:
         os.environ[STDERR_FILE] = str(self.script.with_suffix(".stderr"))
         self.info_file = self.script.with_suffix(".qqinfo").resolve()
         os.environ[INFO_FILE] = str(self.info_file)
+
+    def _setBatchSystem(self):
+        os.environ[BATCH_SYSTEM] = self.batch_system.envName()
 
     def _hasValidShebang(self, script: Path) -> bool:
         with Path.open(script) as file:

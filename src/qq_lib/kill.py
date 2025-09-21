@@ -45,6 +45,7 @@ from qq_lib.states import QQState
 logger = get_logger(__name__)
 console = Console()
 
+
 @click.command()
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."
@@ -84,10 +85,10 @@ def kill(yes: bool = False, force: bool = False):
     except QQError as e:
         logger.error(e)
         print()
-        sys.exit(1)
+        sys.exit(91)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(1)
+        sys.exit(99)
 
 
 class QQKiller:

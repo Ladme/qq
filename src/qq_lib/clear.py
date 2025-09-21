@@ -28,10 +28,10 @@ def clear(force: bool = False):
         sys.exit(0)
     except QQError as e:
         logger.error(e)
-        sys.exit(1)
+        sys.exit(91)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(1)
+        sys.exit(99)
 
 
 class QQClearer:

@@ -62,6 +62,11 @@ class QQBatchInterface(ABC):
 
     @staticmethod
     @abstractmethod
+    def scratchDirEnvVar() -> str:
+        pass
+
+    @staticmethod
+    @abstractmethod
     def jobState() -> str:
         """
         Return the string corresponding to job state in the dump file of job information.

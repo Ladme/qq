@@ -2,9 +2,11 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import sys
+from dataclasses import dataclass, fields
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Self, Union, get_args, get_origin
 
 import click
 import yaml
@@ -307,3 +309,126 @@ class QQInformer:
             start, end, self.info.get("job_exit_code"), self.info.get("main_node")
         )
         return (message, details, real_state)
+
+
+@dataclass
+class QQInfo:
+    batch_system: str
+    qq_version: str
+    job_id: str
+    job_name: str
+    script_name: str
+    job_type: str
+    input_machine: str
+    job_dir: str
+    job_state: NaiveState
+    submission_time: str
+    stdout_file: str
+    stderr_file: str
+    resources: QQResources
+    excluded_files: list[Path] | None = None
+    start_time: str | None = None
+    main_node: str | None = None
+    work_dir: str | None = None
+    completion_time: str | None = None
+    job_exit_code: int | None = None
+
+    def __getattribute__(self, name: str):
+        """
+        Return the value of an attribute.
+
+        Raises:
+            QQError: If a dataclass field is accessed and its value is None.
+        """
+        value = super().__getattribute__(name)
+        if value is None:
+            raise QQError(f"Property '{name}' not available in qq info.")
+        return value
+
+    @classmethod
+    def loadFromFile(cls, file: Path) -> "QQInfo":
+        logger.debug(f"Loading qq info from '{file}'.")
+
+        if not file.exists():
+            raise QQError(f"qq info file '{file}' does not exist.")
+
+        with file.open("r") as input:
+            data: dict[str, object] = yaml.safe_load(input)
+            return cls._fromDict(data)
+
+    def exportToFile(self, file: Path):
+        logger.debug(f"Exporting qq info into '{file}'.")
+
+        try:
+            with file.open("w") as output:
+                output.write("# qq job info file\n")
+                output.write(self._toYaml())
+                output.write("\n")
+        except Exception as e:
+            raise QQError(f"Cannot create or write to file '{file}': {e}") from e
+
+    def useScratch(self) -> bool:
+        return self.resources.work_dir is not None
+
+    def _toDict(self) -> dict[str, str]:
+        """Return dataclass fields as a dictionary of string-string pairs, skipping None fields."""
+        result: dict[str, str] = {}
+        for f in fields(self):
+            name = f.name
+            # bypass __getattribute__ which raises for None values
+            value = object.__getattribute__(self, name)
+            if value is None:
+                continue
+
+            # handle resources
+            if hasattr(value, "_toDict") and callable(getattr(value, "_toDict")):
+                result[name] = value._toDict()
+            # handle enums
+            elif isinstance(value, Enum):
+                result[name] = str(value)
+            # handle list of paths
+            elif isinstance(value, list):
+                result[name] = [str(x) if hasattr(x, "__str__") else x for x in value]
+            else:
+                result[name] = value
+
+        return result
+
+    @classmethod
+    def _fromDict(cls, data: dict[str, Any]) -> Self:
+        init_kwargs = {}
+        for f in fields(cls):
+            name = f.name
+            if name not in data:
+                init_kwargs[name] = None
+                continue
+
+            value = data[name]
+
+            print(f.type)
+
+            if name == "resources" and isinstance(value, dict):
+                init_kwargs[name] = QQResources(**value)
+            elif f.type == NaiveState:
+                init_kwargs[name] = (
+                    NaiveState.fromStr(value) if value else NaiveState.UNKNOWN
+                )
+            elif f.type == list[Path] | None:
+                init_kwargs[name] = [
+                    Path(v) if isinstance(v, str) else v for v in value
+                ]
+            else:
+                init_kwargs[name] = value
+
+        return cls(**init_kwargs)
+
+    def _toYaml(self) -> str:
+        return yaml.dump(self._toDict(), default_flow_style=False, sort_keys=False)
+
+
+class QQInformer2:
+    def __init__(self, batch_system: type[QQBatchInterface], info: QQInfo):
+        self.info = info
+
+        self._batch_system = batch_system
+        self._batch_info = None

@@ -22,6 +22,6 @@ class QQResources:
         if self.work_size is None and self.ncpus is not None:
             self.work_size = f"{self.ncpus}gb"
 
-    def toDict(self) -> dict[str, Any]:
+    def _toDict(self) -> dict[str, Any]:
         """Return all fields as a dict, excluding fields set to None."""
         return {k: v for k, v in asdict(self).items() if v is not None}

@@ -1,0 +1,231 @@
+# Released under MIT License.
+# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+
+from pathlib import Path
+from typing import Any
+
+import pytest
+import yaml
+
+from qq_lib.error import QQError
+from qq_lib.info import QQInfo
+from qq_lib.resources import QQResources
+from qq_lib.states import NaiveState
+
+
+@pytest.fixture
+def sample_resources():
+    return QQResources(ncpus=8, work_dir="scratch_local")
+
+
+@pytest.fixture
+def sample_info(sample_resources):
+    return QQInfo(
+        batch_system="PBS",
+        qq_version="0.1.0",
+        job_id="12345.fake.server.com",
+        job_name="script.sh+025",
+        script_name="script.sh",
+        job_type="standard",
+        input_machine="fake.machine.com",
+        job_dir="/shared/storage/",
+        job_state=NaiveState.RUNNING,
+        submission_time="2025-09-21 12:00:00",
+        stdout_file="stdout.log",
+        stderr_file="stderr.log",
+        resources=sample_resources,
+        excluded_files=[Path("ignore.txt")],
+        work_dir="/scratch/job_12345.fake.server.com",
+    )
+
+
+def test_access_non_none_field(sample_info):
+    assert sample_info.job_id == "12345.fake.server.com"
+    assert sample_info.job_name == "script.sh+025"
+    assert sample_info.resources.ncpus == 8
+
+
+def test_access_none_field_raises(sample_info):
+    with pytest.raises(QQError, match="start_time"):
+        _ = sample_info.start_time
+
+
+def test_to_dict_skips_none(sample_info):
+    result = sample_info._toDict()
+    assert "start_time" not in result
+    assert "completion_time" not in result
+    assert "job_exit_code" not in result
+
+    assert result["job_id"] == "12345.fake.server.com"
+    assert result["resources"]["ncpus"] == 8
+
+
+def test_to_dict_contains_all_non_none_fields(sample_info):
+    result = sample_info._toDict()
+    expected_fields = {
+        "batch_system",
+        "qq_version",
+        "job_id",
+        "job_name",
+        "script_name",
+        "job_type",
+        "input_machine",
+        "job_dir",
+        "job_state",
+        "submission_time",
+        "stdout_file",
+        "stderr_file",
+        "resources",
+        "excluded_files",
+    }
+    assert expected_fields.issubset(result.keys())
+
+
+def test_to_yaml_returns_string(sample_info):
+    yaml_str = sample_info._toYaml()
+    assert isinstance(yaml_str, str)
+
+
+def test_to_yaml_contains_fields(sample_info):
+    yaml_str = sample_info._toYaml()
+    data: dict[str, Any] = yaml.safe_load(yaml_str)
+
+    assert data["job_id"] == "12345.fake.server.com"
+    assert data["job_name"] == "script.sh+025"
+    assert data["resources"]["ncpus"] == 8
+
+
+def test_to_yaml_skips_none_fields(sample_info):
+    yaml_str = sample_info._toYaml()
+    data: dict[str, Any] = yaml.safe_load(yaml_str)
+
+    assert "start_time" not in data
+    assert "completion_time" not in data
+    assert "job_exit_code" not in data
+
+
+def test_export_to_file_creates_file(sample_info, tmp_path):
+    file_path = tmp_path / "qqinfo.yaml"
+    sample_info.exportToFile(file_path)
+
+    assert file_path.exists()
+    assert file_path.is_file()
+
+
+def test_export_to_file_contains_yaml(sample_info, tmp_path):
+    file_path = tmp_path / "qqinfo.yaml"
+    sample_info.exportToFile(file_path)
+
+    content = file_path.read_text()
+
+    assert content.startswith("# qq job info file")
+
+    data: dict[str, str] = yaml.safe_load(content)
+
+    assert data["job_id"] == sample_info.job_id
+    assert data["job_name"] == sample_info.job_name
+    assert data["batch_system"] == sample_info.batch_system
+    assert data["job_state"] == str(sample_info.job_state)
+
+    resources_dict = sample_info.resources._toDict()
+    assert data["resources"] == resources_dict
+
+    assert data["excluded_files"] == [str(p) for p in sample_info.excluded_files]
+
+
+def test_export_to_file_skips_none_fields(sample_info, tmp_path):
+    file_path = tmp_path / "qqinfo.yaml"
+    sample_info.exportToFile(file_path)
+
+    content = file_path.read_text()
+    data = yaml.safe_load(content)
+
+    assert "start_time" not in data
+    assert "completion_time" not in data
+    assert "main_node" not in data
+    assert "job_exit_code" not in data
+
+
+def test_export_to_file_invalid_path(sample_info):
+    invalid_file = Path("/this/path/does/not/exist/qqinfo.yaml")
+
+    with pytest.raises(QQError, match="Cannot create or write to file"):
+        sample_info.exportToFile(invalid_file)
+
+
+def test_from_dict_roundtrip(sample_info):
+    # convert to dict and back
+    data = sample_info._toDict()
+    reconstructed = QQInfo._fromDict(data)
+
+    # basic fields
+    for field_name in [
+        "job_id",
+        "job_name",
+        "batch_system",
+        "script_name",
+        "job_type",
+        "input_machine",
+        "job_dir",
+        "submission_time",
+        "stdout_file",
+        "stderr_file",
+    ]:
+        assert getattr(reconstructed, field_name) == getattr(sample_info, field_name)
+
+    # job state enum
+    assert reconstructed.job_state == sample_info.job_state
+
+    # resources
+    assert isinstance(reconstructed.resources, QQResources)
+    assert reconstructed.resources.ncpus == sample_info.resources.ncpus
+    assert reconstructed.resources.work_dir == sample_info.resources.work_dir
+
+    # optional fields
+    for optional_field in [
+        "start_time",
+        "main_node",
+        "completion_time",
+        "job_exit_code",
+    ]:
+        value = object.__getattribute__(reconstructed, optional_field)
+        assert value is None
+
+    assert getattr(reconstructed, "work_dir") == getattr(sample_info, "work_dir")
+
+    # excluded files
+    assert reconstructed.excluded_files == [Path(p) for p in sample_info.excluded_files]
+
+
+def test_from_dict_with_empty_resources(sample_info):
+    data = sample_info._toDict()
+    data["resources"] = {}
+
+    reconstructed = QQInfo._fromDict(data)
+    assert isinstance(reconstructed.resources, QQResources)
+
+
+def test_from_dict_empty_excluded(sample_info):
+    data = sample_info._toDict()
+    data["excluded_files"] = []
+
+    reconstructed = QQInfo._fromDict(data)
+    assert len(reconstructed.excluded_files) == 0
+
+
+def test_load_from_file(tmp_path, sample_info):
+    file_path = tmp_path / "qqinfo.yaml"
+
+    sample_info.exportToFile(file_path)
+
+    loaded_info = QQInfo.loadFromFile(file_path)
+
+    assert loaded_info.job_id == sample_info.job_id
+    assert loaded_info.job_name == sample_info.job_name
+    assert loaded_info.resources.ncpus == sample_info.resources.ncpus
+
+
+def test_load_from_file_missing(tmp_path):
+    missing_file = tmp_path / "nonexistent.yaml"
+    with pytest.raises(QQError, match="does not exist"):
+        QQInfo.loadFromFile(missing_file)

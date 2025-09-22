@@ -25,9 +25,6 @@ class NaiveState(Enum):
     def __str__(self):
         return self.name.lower()
 
-    def __repr__(self):
-        return str(self)
-
     @classmethod
     def fromStr(cls, s: str) -> Self:
         """
@@ -62,9 +59,6 @@ class BatchState(Enum):
 
     def __str__(self):
         return self.name.lower()
-
-    def __repr__(self):
-        return str(self)
 
     @classmethod
     def _codeToState(cls) -> dict[str, str]:
@@ -117,9 +111,6 @@ class QQState(Enum):
 
     def __str__(self):
         return self.name.lower().replace("_", " ")
-
-    def __repr__(self):
-        return str(self)
 
     @classmethod
     def fromStates(cls, naive_state: NaiveState, batch_state: BatchState) -> Self:

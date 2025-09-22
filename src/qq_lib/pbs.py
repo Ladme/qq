@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch import QQBatchInterface
+from qq_lib.batch import QQBatchMeta, QQBatchInterface
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
@@ -20,7 +20,7 @@ CD_FAIL = 94
 SSH_FAIL = 255
 
 
-class QQPBS(QQBatchInterface):
+class QQPBS(QQBatchInterface, metaclass=QQBatchMeta):
     """
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
@@ -123,6 +123,10 @@ class QQPBS(QQBatchInterface):
         if result.returncode != 0:
             return {}
         return _parse_pbs_dump_to_dictionary(result.stdout)
+
+
+# register the QQPBS class
+QQBatchMeta.register(QQPBS)
 
 
 def _parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:

@@ -1,9 +1,10 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from pathlib import Path
 
+from qq_lib.error import QQError
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
 
@@ -105,3 +106,40 @@ class QQBatchInterface(ABC):
         system but qq commands can't just return errors for old jobs.
         """
         pass
+
+
+class QQBatchMeta(ABCMeta):
+    """
+    Metaclass for batch system classes.
+    """
+
+    # registry of supported batch systems
+    _registry: dict[str, type[QQBatchInterface]] = {}
+
+    def __str__(cls: type[QQBatchInterface]):
+        """
+        Get the string representation of the batch system class.
+        """
+        return cls.envName()
+
+    @classmethod
+    def register(cls, batch_cls: type[QQBatchInterface]):
+        """
+        Register a batch system class in the metaclass registry.
+
+        Args:
+            batch_cls: Subclass of QQBatchInterface to register.
+        """
+        cls._registry[batch_cls.envName()] = batch_cls
+
+    @classmethod
+    def fromStr(mcs, name: str) -> type[QQBatchInterface]:
+        """
+        Return the batch system class registered with the given name.
+
+        Raises:
+            QQError: If no class is registered for the given name.
+        """
+        if name not in mcs._registry:
+            raise QQError(f"No batch system registered for '{name}'.")
+        return mcs._registry[name]

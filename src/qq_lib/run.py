@@ -497,15 +497,15 @@ class QQRunner:
         self._updateInfoKilled()
 
         # send SIGTERM to the running process, if there is any
-        if self.process and self.process.poll() is None:
+        if self._process and self._process.poll() is None:
             logger.info("Cleaning up: terminating subprocess.")
-            self.process.terminate()
+            self._process.terminate()
             try:
-                self.process.wait(timeout=SIGTERM_TO_SIGKILL)
+                self._process.wait(timeout=SIGTERM_TO_SIGKILL)
             # kill the running process if this takes too long
             except subprocess.TimeoutExpired:
                 logger.info("Subprocess did not exit, killing.")
-                self.process.kill()
+                self._process.kill()
 
     def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> None:
         """

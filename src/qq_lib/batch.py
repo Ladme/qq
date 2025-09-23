@@ -163,6 +163,7 @@ class QQBatchMeta(ABCMeta):
         Raises:
             QQError: If no class is registered for the given name.
         """
+        print(mcs._registry)
         if name not in mcs._registry:
             raise QQError(f"No batch system registered for '{name}'.")
         return mcs._registry[name]

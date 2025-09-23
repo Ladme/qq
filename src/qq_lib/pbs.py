@@ -133,20 +133,22 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def _translateResources(res: QQResources) -> list[str]:
         trans_res = []
         for (name, value) in res.toDict().items():
-            print(name, value)
             if name in ["work_dir", "work_size"]:
                 continue
 
             trans_res.append(f"{name}={value}")
         
-        trans_res.append(QQPBS._translateWorkDir(res))
+        # translate working directory resource
+        workdir = QQPBS._translateWorkDir(res)
+        if workdir:
+            trans_res.append(workdir)
 
         return trans_res
     
     @staticmethod
-    def _translateWorkDir(res: QQResources) -> str:
+    def _translateWorkDir(res: QQResources) -> str | None:
         if not res.work_dir:
-            return ""
+            return None
 
         return f"{res.work_dir}={res.work_size}"
 
@@ -157,9 +159,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     @staticmethod
     def _translateKill(job_id: str) -> str:
         return f"qdel {job_id}"
-
-# register the QQPBS class
-QQBatchMeta.register(QQPBS)
 
 class PBSJobInfo(BatchJobInfoInterface):
     """

@@ -15,7 +15,7 @@ class QQResources:
 
     def __post_init__(self):
         # enforce workdir logic
-        if self.work_dir == "jobdir":
+        if self.work_dir and self.work_dir.lower().replace("-", "").replace("_", "") == "jobdir":
             self.work_dir = None
         else:
             # enforce worksize logic

@@ -12,7 +12,6 @@ from qq_lib.batch import QQBatchInterface
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.constants import QQ_INFO_SUFFIX
-from qq_lib.supported_batch_systems import BATCH_SYSTEMS
 
 logger = get_logger(__name__)
 
@@ -38,17 +37,6 @@ def get_info_file(current_directory: Path) -> Path:
         raise QQError(f"Multiple ({len(info_files)}) qq job info files detected.")
 
     return info_files[0]
-
-
-def convert_to_batch_system(name: str) -> type[QQBatchInterface]:
-    """
-    Converts the name of the batch system to
-    the actual type of the batch system used.
-
-    Raises KeyError if the name is not recognized.
-    """
-    return BATCH_SYSTEMS[name]
-
 
 def yes_or_no_prompt(prompt: str) -> bool:
     prompt = f"   {prompt} "

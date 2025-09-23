@@ -71,7 +71,7 @@ logger = get_logger(__name__)
 
 @click.command(
     hidden=True,
-    help="Execute a script inside qq batch environment. Do not run directly.",
+    help="Execute a script inside qq environment. Do not run directly.",
 )
 @click.argument("script_path", type=str)
 def run(script_path: str):
@@ -126,6 +126,7 @@ def run(script_path: str):
         runner.setUp()
         runner.setUpWorkDir()
         exit_code = runner.executeScript()
+        runner.complete()
         sys.exit(exit_code)
     except QQError as e:
         # if the execution fails, log this error into both stderr and the info file
@@ -163,19 +164,21 @@ class QQRunner:
         Raises:
             QQError: If the info file cannot be found or loaded.
         """
-        self.process: subprocess.Popen[str] | None = None
+        # process running the wrapped script
+        self._process: subprocess.Popen[str] | None = None
 
         # install a signal handler
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
         # get path to the qq info file
-        self.info_file = os.environ.get(INFO_FILE)
-        if not self.info_file:
+        info_file_string = os.environ.get(INFO_FILE)
+        if not info_file_string:
             raise QQError(f"'{INFO_FILE}' environment variable is not set.")
-        logger.debug(f"Info file: '{self.info_file}'.")
+        self._info_file = Path(info_file_string)
+        logger.debug(f"Info file: '{self._info_file}'.")
 
         # load the info file
-        self.info = QQInformer.loadFromFile(self.info_file)
+        self._informer = QQInformer.fromFile(self._info_file)
 
     def setUp(self):
         """
@@ -185,26 +188,16 @@ class QQRunner:
             QQError: If required environment variables are missing or invalid.
         """
         # get job directory
-        self.job_dir = Path(self.info.getJobDir())
+        self._job_dir = Path(self._informer.info.job_dir)
+        logger.debug(f"Job directory: {self._job_dir}.")
 
         # get the batch system
-        self.batch_system = self.info.batch_system
-
-        # get the username and job id
-        self.username = os.environ.get(self.batch_system.usernameEnvVar())
-        self.jobid = os.environ.get(self.batch_system.jobIdEnvVar())
-
-        if not self.username or not self.jobid:
-            raise QQError(
-                f"Required '{self.batch_system.envName()}' environment variables are not set."
-            )
-
-        logger.debug(f"Username: {self.username}.")
-        logger.debug(f"Job ID: {self.jobid}.")
+        self._batch_system = self._informer.batch_system
+        logger.debug(f"Batch system: {str(self._batch_system)}.")
 
         # should the scratch directory be used?
-        self.use_scratch = self.info.useScratch()
-        logger.debug(f"Use scratch: {self.use_scratch}.")
+        self._use_scratch = self._informer.useScratch()
+        logger.debug(f"Use scratch: {self._use_scratch}.")
 
     def setUpWorkDir(self):
         """
@@ -217,7 +210,9 @@ class QQRunner:
         Raises:
             QQError: If working directory setup fails.
         """
-        if self.use_scratch:
+        logger.info("Setting up working directory.")
+
+        if self._use_scratch:
             self._setUpScratchDir()
         else:
             self._setUpSharedDir()
@@ -232,50 +227,71 @@ class QQRunner:
             int: The exit code from the executed script.
 
         Raises:
-            QQError: If execution fails or required environment variables are missing.
+            QQError: If execution fails or info file cannot be updated.
         """
         # update the qqinfo file
-        self._updateInfoRun()
+        self._updateInfoRunning()
 
         # get the actual name of the script to execute
-        script = Path(self.info.getJobName()).resolve()
+        script = Path(self._informer.info.script_name).resolve()
 
         # get paths to output files
-        stdout_log = self.info.getStdout()
-        stderr_log = self.info.getStderr()
+        stdout_log = self._informer.info.stdout_file
+        stderr_log = self._informer.info.stderr_file
 
+        logger.info(f"Executing script '{script}'.")
         with script.open() as file:
             lines = file.readlines()[1:]
 
         try:
             with Path.open(stdout_log, "w") as out, Path.open(stderr_log, "w") as err:
-                self.process = subprocess.Popen(
+                self._process = subprocess.Popen(
                     ["bash"],
                     stdin=subprocess.PIPE,
                     stdout=out,
                     stderr=err,
                     text=True,
                 )
-                self.process.communicate(input="".join(lines))
+                self._process.communicate(input="".join(lines))
 
         except Exception as e:
             raise QQError(f"Failed to execute script '{script}': {e}") from e
 
-        if self.use_scratch:
-            # copy files back to the submission (job) directory
-            self._copyFilesFromWorkDir()
+        return self._process.returncode
+
+    def complete(self):
+        """
+        Finalize the execution of the job script.
+
+        This method handles post-processing depending on the success or failure 
+        of the script:
+
+        - On success (process return code 0):
+            - Updates the qq info file to indicate the job is "finished".
+            - If `use_scratch` is True, copies job files back from the scratch 
+            directory to the submission directory and removes them from scratch.
+
+        - On failure (non-zero return code):
+            - Updates the qq info file to indicate the job "failed".
+            - If `use_scratch` is True, files remain in the scratch directory 
+            for debugging purposes.
+
+        Raises:
+            QQError: If copying or deletion of files fails.
+        """
+        logger.info("Completing the execution.")
 
         # update the qqinfo file
-        if self.process.returncode == 0:
+        if self._process.returncode == 0:
             self._updateInfoFinished()
-            if self.use_scratch:
+            if self._use_scratch:
+                # copy files back to the submission (job) directory
+                self._copyFilesFromWorkDir()
                 # remove the files from scratch
                 # files are retained on scratch if the run fails for any reason
                 self._removeFilesFromWorkDir()
         else:
-            self._updateInfoFailed(self.process.returncode)
-
-        return self.process.returncode
+            self._updateInfoFailed(self._process.returncode)
 
     def logFailureIntoInfoFile(self, exit_code: int) -> NoReturn:
         """
@@ -302,10 +318,10 @@ class QQRunner:
         Configure the job directory as the working directory.
         """
         # set qq working directory to job directory
-        self.work_dir = self.job_dir
+        self._work_dir = self._job_dir
 
         # move to the working directory
-        os.chdir(self.work_dir)
+        os.chdir(self._work_dir)
 
     def _setUpScratchDir(self):
         """
@@ -318,19 +334,18 @@ class QQRunner:
             QQError: If scratch directory cannot be determined.
         """
         # set qq working directory to scratch directory
-        work_dir = os.environ.get(self.batch_system.scratchDirEnvVar())
-        if not work_dir:
-            raise QQError(
-                f"Could not get the scratch directory from '{self.batch_system.scratchDirEnvVar()}' environment variable."
-            )
-        self.work_dir = Path(work_dir)
+        result = self._batch_system.getScratchDir(self._informer.info.job_id)
+        if result.exit_code == 0:
+            self._work_dir = Path(result.success_message)
+        else:
+            raise QQError(result.error_message)
 
         # move to the working directory
-        os.chdir(self.work_dir)
+        os.chdir(self._work_dir)
 
         # copy files to the working directory excluding the qq info file
         self._copyFilesToDst(
-            self._getFilesToCopy(self.job_dir, [self.info_file]), self.work_dir
+            self._getFilesToCopy(self._job_dir, [self._info_file]), self._work_dir
         )
 
     def _copyFilesToDst(self, src: Sequence[Path], directory: Path):
@@ -364,12 +379,12 @@ class QQRunner:
 
     def _copyFilesFromWorkDir(self):
         """
-        Copy all files from the working directory back into the job directory.
+        Copy all files and directories from the working directory back into the job directory.
         """
-        logger.debug(f"Copying files from {self.work_dir} to {self.job_dir}.")
-        files_to_copy = self._getFilesToCopy(self.work_dir, [])
+        logger.debug(f"Copying files from {self._work_dir} to {self._job_dir}.")
+        files_to_copy = self._getFilesToCopy(self._work_dir, [])
         logger.debug(f"Copying the following paths: {files_to_copy}.")
-        self._copyFilesToDst(files_to_copy, self.job_dir)
+        self._copyFilesToDst(files_to_copy, self._job_dir)
 
     def _removeFilesFromWorkDir(self):
         """
@@ -377,7 +392,7 @@ class QQRunner:
 
         Used only after successful execution in scratch space.
         """
-        for item in self.work_dir.iterdir():
+        for item in self._work_dir.iterdir():
             if item.is_file() or item.is_symlink():
                 logger.debug(f"Removing file {item}.")
                 item.unlink()
@@ -386,14 +401,14 @@ class QQRunner:
                 shutil.rmtree(item)
 
     def _getFilesToCopy(
-        self, directory: Path, filter_out: list[str] | None = None
+        self, directory: Path, filter_out: list[Path] | None = None
     ) -> list[Path]:
         """
         List files and directories in a source directory, excluding certain paths.
 
         Args:
             directory (Path): Source directory to scan.
-            filter_out (list[str] | None): Paths to exclude.
+            filter_out (list[Path] | None): Paths to exclude.
 
         Returns:
             list[Path]: Paths of files/directories to be copied.
@@ -405,20 +420,20 @@ class QQRunner:
 
         return [p for p in root.iterdir() if p.resolve() not in filter_paths]
 
-    def _updateInfoRun(self):
+    def _updateInfoRunning(self):
         """
         Update the qq info file to mark the job as running.
 
         Raises:
             QQError: If the info file cannot be updated.
         """
-        logger.debug(f"Updating '{self.info_file}' at job start.")
+        logger.debug(f"Updating '{self._info_file}' at job start.")
         try:
-            self.info.setRunning(datetime.now(), socket.gethostname(), self.work_dir)
-            self.info.exportToFile(self.info_file)
+            self._informer.setRunning(datetime.now(), socket.gethostname(), self._work_dir)
+            self._informer.toFile(self._info_file)
         except Exception as e:
             raise QQError(
-                f"Could not update qqinfo file '{self.info_file}' at JOB START: {e}."
+                f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
             ) from e
 
     def _updateInfoFinished(self):
@@ -427,13 +442,13 @@ class QQRunner:
 
         Logs errors as warnings if updating fails.
         """
-        logger.debug(f"Updating '{self.info_file}' at job completion.")
+        logger.debug(f"Updating '{self._info_file}' at job completion.")
         try:
-            self.info.setFinished(datetime.now())
-            self.info.exportToFile(self.info_file)
+            self._informer.setFinished(datetime.now())
+            self._informer.toFile(self._info_file)
         except Exception as e:
             logger.warning(
-                f"Could not update qqinfo file '{self.info_file}' at JOB COMPLETION: {e}."
+                f"Could not update qqinfo file '{self._info_file}' at JOB COMPLETION: {e}."
             )
 
     def _updateInfoFailed(self, return_code: int):
@@ -445,13 +460,13 @@ class QQRunner:
 
         Logs errors as warnings if updating fails.
         """
-        logger.debug(f"Updating '{self.info_file}' at job failure.")
+        logger.debug(f"Updating '{self._info_file}' at job failure.")
         try:
-            self.info.setFailed(datetime.now(), return_code)
-            self.info.exportToFile(self.info_file)
+            self._informer.setFailed(datetime.now(), return_code)
+            self._informer.toFile(self._info_file)
         except Exception as e:
             logger.warning(
-                f"Could not update qqinfo file '{self.info_file}' at JOB FAILURE: {e}."
+                f"Could not update qqinfo file '{self._info_file}' at JOB FAILURE: {e}."
             )
 
     def _updateInfoKilled(self):
@@ -462,13 +477,13 @@ class QQRunner:
 
         Logs errors as warnings if updating fails.
         """
-        logger.debug(f"Updating '{self.info_file}' at job kill.")
+        logger.debug(f"Updating '{self._info_file}' at job kill.")
         try:
-            self.info.setKilled(datetime.now())
-            self.info.exportToFile(self.info_file)
+            self._informer.setKilled(datetime.now())
+            self._informer.toFile(self._info_file)
         except Exception as e:
             logger.warning(
-                f"Could not update qqinfo file '{self.info_file}' at JOB KILL: {e}."
+                f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
     def _cleanup(self) -> None:

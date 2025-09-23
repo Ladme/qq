@@ -8,7 +8,6 @@ from unittest.mock import patch
 import pytest
 
 from qq_lib.common import (
-    convert_to_batch_system,
     get_files_with_suffix,
     get_info_file,
     yes_or_no_prompt,
@@ -94,14 +93,3 @@ def test_other_key():
     with patch("readchar.readkey", return_value="x"):
         result = yes_or_no_prompt("Do you agree?")
         assert result is False
-
-
-def test_valid_batch_system_name():
-    name = QQPBS.envName()
-    result = convert_to_batch_system(name)
-    assert result is QQPBS
-
-
-def test_invalid_batch_system_name():
-    with pytest.raises(KeyError):
-        convert_to_batch_system("FakePBS")

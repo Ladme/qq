@@ -40,9 +40,9 @@ def script_invalid_shebang(tmp_path):
 def test_submitter_init_valid(script_with_shebang, sample_resources, tmp_path):
     os.chdir(tmp_path)
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
-    assert submitter.script == script_with_shebang
-    assert submitter.resources == sample_resources
-    assert submitter.info_file.suffix != ""
+    assert submitter._script == script_with_shebang
+    assert submitter._resources == sample_resources
+    assert submitter._info_file.suffix != ""
 
 def test_submitter_init_nonexistent_file(tmp_path, sample_resources):
     os.chdir(tmp_path)
@@ -67,8 +67,8 @@ def test_submitter_submit_success(script_with_shebang, sample_resources, tmp_pat
     submitter.submit()
 
     # check if qq info file was created
-    assert submitter.info_file.exists()
-    info = QQInfo.fromFile(submitter.info_file)
+    assert submitter._info_file.exists()
+    info = QQInfo.fromFile(submitter._info_file)
     assert info.job_id == "0"
     assert info.job_state == NaiveState.QUEUED
     assert info.username == getpass.getuser()
@@ -102,7 +102,7 @@ def test_set_env_vars_sets_variables(script_with_shebang, sample_resources, tmp_
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
     submitter._setEnvVars()
     assert os.environ.get("QQ_ENV_SET") == "true"
-    assert os.environ.get("QQ_INFO") == str(submitter.info_file)
+    assert os.environ.get("QQ_INFO") == str(submitter._info_file)
 
 def test_has_valid_shebang(script_with_shebang, sample_resources, tmp_path):
     os.chdir(tmp_path)

@@ -206,7 +206,7 @@ class QQInfo:
             elif f.type == list[Path] or f.type == list[Path] | None:
                 result[f.name] = [str(x) if hasattr(x, "__str__") else x for x in value]
             # convert timestamp
-            elif f.type == datetime:
+            elif f.type == datetime or f.type == datetime | None:
                 result[f.name] = value.strftime(DATE_FORMAT)
             else:
                 result[f.name] = value
@@ -256,7 +256,7 @@ class QQInfo:
                     Path(v) if isinstance(v, str) else v for v in value
                 ]
             # convert timestamp
-            elif f.type == datetime:
+            elif f.type == datetime or f.type == datetime | None:
                 init_kwargs[name] = datetime.strptime(value, DATE_FORMAT)
             else:
                 init_kwargs[name] = value

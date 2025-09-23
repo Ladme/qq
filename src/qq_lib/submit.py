@@ -24,7 +24,6 @@ from qq_lib.constants import (
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.logger import get_logger
-from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.constants import QQ_INFO_SUFFIX, QQ_SUFFIXES, STDERR_SUFFIX, STDOUT_SUFFIX
 from qq_lib.states import NaiveState, RealState
@@ -45,13 +44,7 @@ def submit(queue, script, **kwargs):
     """
     Submit a qq job to a batch system from the command line.
 
-    Note that the submitted script must be located in the same 
-    directory from which 'qq submit' is invoked.
-
-    Exits:
-        0 on successful submission,
-        91 if a QQError occurs,
-        99 on unexpected exceptions.
+    Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
     try:
         BatchSystem = QQBatchMeta.fromStr(kwargs["batch_system"])
@@ -99,24 +92,24 @@ class QQSubmitter:
                      or has an invalid shebang.
         """
 
-        self.batch_system = batch_system
-        self.queue = queue
-        self.script = script
-        self.script_name = script.name # strip any potential absolute path
-        self.info_file = self.script.with_suffix(QQ_INFO_SUFFIX).resolve()
-        self.resources = resources
+        self._batch_system = batch_system
+        self._queue = queue
+        self._script = script
+        self._script_name = script.name # strip any potential absolute path
+        self._info_file = self._script.with_suffix(QQ_INFO_SUFFIX).resolve()
+        self._resources = resources
 
         # script must exist
-        if not self.script.is_file():
+        if not self._script.is_file():
             raise QQError(f"Script '{script}' does not exist or is not a file.")
         
         # script must exist in the current directory
-        if not Path(self.script_name).is_file():
+        if not Path(self._script_name).is_file():
             raise QQError(f"Script '{script}' is not in the submission directory.")
 
-        if not self._hasValidShebang(self.script):
+        if not self._hasValidShebang(self._script):
             raise QQError(
-                f"Script '{self.script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S qq run'."
+                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S qq run'."
             )
 
     def submit(self) -> str:
@@ -136,7 +129,7 @@ class QQSubmitter:
         self._setEnvVars()
 
         # submit the job
-        result = self.batch_system.jobSubmit(self.resources, self.queue, self.script)
+        result = self._batch_system.jobSubmit(self._resources, self._queue, self._script)
 
         if result.exit_code == 0:
             # submission succesful
@@ -144,28 +137,28 @@ class QQSubmitter:
             logger.info(f"Job '{job_id}' submitted successfully.")
             informer = QQInformer(
                 QQInfo(
-                    batch_system = self.batch_system,
+                    batch_system = self._batch_system,
                     qq_version = qq_lib.__version__,
                     username = getpass.getuser(),
                     job_id = job_id,
-                    job_name = self.script_name,
-                    script_name = self.script_name,
+                    job_name = self._script_name,
+                    script_name = self._script_name,
                     job_type = "standard",
                     input_machine = socket.gethostname(),
                     job_dir = Path.cwd(),
                     job_state = NaiveState.QUEUED,
                     submission_time = datetime.now(),
-                    stdout_file = str(Path(self.script_name).with_suffix(STDOUT_SUFFIX)),
-                    stderr_file = str(Path(self.script_name).with_suffix(STDERR_SUFFIX)),
-                    resources = self.resources,
+                    stdout_file = str(Path(self._script_name).with_suffix(STDOUT_SUFFIX)),
+                    stderr_file = str(Path(self._script_name).with_suffix(STDERR_SUFFIX)),
+                    resources = self._resources,
                 )
             )
 
-            informer.toFile(self.info_file)
+            informer.toFile(self._info_file)
             return job_id
         else:
             # submission failed
-            raise QQError(f"Failed to submit script '{self.script}': {result.error_message}.")
+            raise QQError(f"Failed to submit script '{self._script}': {result.error_message}.")
 
     def guard(self):
         """
@@ -231,7 +224,7 @@ class QQSubmitter:
         os.environ[GUARD] = "true"
 
         # this contains a path to the qq info file
-        os.environ[INFO_FILE] = str(self.info_file)
+        os.environ[INFO_FILE] = str(self._info_file)
 
     def _hasValidShebang(self, script: Path) -> bool:
         """

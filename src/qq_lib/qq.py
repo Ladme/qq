@@ -31,4 +31,3 @@ cli.add_command(kill)
 
 # register supported batch systems
 QQBatchMeta.register(QQPBS)
-QQBatchMeta.register(QQVBS)

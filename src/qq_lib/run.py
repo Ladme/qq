@@ -54,7 +54,7 @@ from typing import NoReturn
 
 import click
 
-from qq_lib.env_vars import (
+from qq_lib.constants import (
     INFO_FILE,
 )
 from qq_lib.error import QQError

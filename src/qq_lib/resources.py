@@ -25,3 +25,12 @@ class QQResources:
     def _toDict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""
         return {k: v for k, v in asdict(self).items() if v is not None}
+
+    def useScratch(self) -> bool:
+        """
+        Determine if the job uses a scratch directory.
+
+        Returns:
+            True if a work_dir is defined, False otherwise.
+        """
+        return self.work_dir is not None

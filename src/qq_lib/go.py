@@ -13,7 +13,7 @@ from qq_lib.common import get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
-from qq_lib.states import QQState
+from qq_lib.states import RealState
 
 logger = get_logger(__name__)
 console = Console()
@@ -62,31 +62,31 @@ class QQGoer:
             logger.info("You are already in the working directory.")
             return
 
-        if self.state in [QQState.FINISHED]:
+        if self.state in [RealState.FINISHED]:
             raise QQError(
                 "Job has finished and was synchronized: working directory does not exist."
             )
-        if self.state in [QQState.FAILED]:
+        if self.state in [RealState.FAILED]:
             logger.warning(
                 "Job has finished with an error code: working directory may no longer exist."
             )
-        elif self.state == QQState.KILLED:
+        elif self.state == RealState.KILLED:
             logger.warning("Job has been killed: working directory may not exist.")
         elif self.state in [
-            QQState.QUEUED,
-            QQState.BOOTING,
-            QQState.HELD,
-            QQState.WAITING,
+            RealState.QUEUED,
+            RealState.BOOTING,
+            RealState.HELD,
+            RealState.WAITING,
         ]:
             logger.warning(
                 f"Job is {self.state}: working directory does not yet exist. Will retry every 5 seconds."
             )
             # keep retrying until the job gets run
             while self.state in [
-                QQState.QUEUED,
-                QQState.BOOTING,
-                QQState.HELD,
-                QQState.WAITING,
+                RealState.QUEUED,
+                RealState.BOOTING,
+                RealState.HELD,
+                RealState.WAITING,
             ]:
                 sleep(5)
                 self.info = QQInformer.loadFromFile(self.info_file)
@@ -99,7 +99,7 @@ class QQGoer:
                     logger.info("You are already in the working directory.")
                     return
 
-        elif self.state in [QQState.RUNNING, QQState.SUSPENDED]:
+        elif self.state in [RealState.RUNNING, RealState.SUSPENDED]:
             pass
         else:
             logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")

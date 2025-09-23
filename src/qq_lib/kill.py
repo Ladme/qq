@@ -20,7 +20,7 @@ from qq_lib.common import get_info_file, yes_or_no_prompt
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
-from qq_lib.states import QQState
+from qq_lib.states import RealState
 
 logger = get_logger(__name__)
 console = Console()
@@ -217,27 +217,27 @@ class QQKiller:
 
     def _isBooting(self) -> bool:
         """Check if the job is currently booting."""
-        return self.state == QQState.BOOTING
+        return self.state == RealState.BOOTING
 
     def _isSuspended(self) -> bool:
         """Check if the job is currently suspended."""
-        return self.state == QQState.SUSPENDED
+        return self.state == RealState.SUSPENDED
 
     def _isQueued(self) -> bool:
         """Check if the job is queued, held, or waiting."""
-        return self.state in [QQState.QUEUED, QQState.HELD, QQState.WAITING]
+        return self.state in [RealState.QUEUED, RealState.HELD, RealState.WAITING]
 
     def _isKilled(self) -> bool:
         """Check if the job has already been killed."""
-        return self.state == QQState.KILLED
+        return self.state == RealState.KILLED
 
     def _isFinished(self) -> bool:
         """Check if the job has finished or failed."""
-        return self.state in [QQState.FINISHED, QQState.FAILED]
+        return self.state in [RealState.FINISHED, RealState.FAILED]
 
     def _isUnknownInconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""
-        return self.state in [QQState.UNKNOWN, QQState.IN_AN_INCONSISTENT_STATE]
+        return self.state in [RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE]
 
     def _lockFile(self, file_path: Path):
         """

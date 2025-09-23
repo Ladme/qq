@@ -3,7 +3,7 @@
 
 import pytest
 
-from qq_lib.env_vars import GUARD
+from qq_lib.constants import GUARD
 from qq_lib.error import QQError
 from qq_lib.guard import guard
 

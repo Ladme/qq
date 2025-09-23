@@ -11,7 +11,7 @@ from pathlib import Path
 import click
 
 from qq_lib.batch import QQBatchInterface
-from qq_lib.env_vars import (
+from qq_lib.constants import (
     GUARD,
     INFO_FILE,
 )
@@ -20,7 +20,7 @@ from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
-from qq_lib.suffixes import QQ_INFO_SUFFIX, QQ_SUFFIXES, STDERR_SUFFIX, STDOUT_SUFFIX
+from qq_lib.constants import QQ_INFO_SUFFIX, QQ_SUFFIXES, STDERR_SUFFIX, STDOUT_SUFFIX
 
 logger = get_logger(__name__)
 

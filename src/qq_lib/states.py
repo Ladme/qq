@@ -75,7 +75,10 @@ class BatchState(Enum):
 
     @classmethod
     def fromCode(cls, code: str) -> Self:
-        """Convert one-letter code to enum variant."""
+        """Convert one-letter code to enum variant.
+        
+        Returns BatchState.UNKNOWN if the code is unknown.
+        """
         code = code.upper()
         if code not in cls._codeToState():
             return cls.UNKNOWN
@@ -92,7 +95,7 @@ class BatchState(Enum):
         return "?"
 
 
-class QQState(Enum):
+class RealState(Enum):
     """
     Precise state of the job obtained by combining information from NaiveState and BatchState.
     """
@@ -114,7 +117,7 @@ class QQState(Enum):
 
     @classmethod
     def fromStates(cls, naive_state: NaiveState, batch_state: BatchState) -> Self:
-        logger.debug(f"Converting to QQState from '{naive_state}' and '{batch_state}'.")
+        logger.debug(f"Converting to RealState from '{naive_state}' and '{batch_state}'.")
         match (naive_state, batch_state):
             case (NaiveState.UNKNOWN, _):
                 return cls.UNKNOWN
@@ -150,63 +153,6 @@ class QQState(Enum):
 
         return cls.UNKNOWN
 
-    def info(
-        self,
-        start_time: datetime,
-        end_time: datetime,
-        return_code: int | None,
-        node: str | None,
-    ) -> tuple[str, str]:
-        match self:
-            case QQState.QUEUED:
-                return (
-                    "Job is queued",
-                    f"In queue for {format_duration(end_time - start_time)}",
-                )
-            case QQState.HELD:
-                return (
-                    "Job is held",
-                    f"In queue for {format_duration(end_time - start_time)}",
-                )
-            case QQState.SUSPENDED:
-                return ("Job is suspended", "")
-            case QQState.WAITING:
-                return (
-                    "Job is waiting",
-                    f"In queue for {format_duration(end_time - start_time)}",
-                )
-            case QQState.RUNNING:
-                return (
-                    "Job is running",
-                    f"Running for {format_duration(end_time - start_time)} on '{node}'",
-                )
-            case QQState.BOOTING:
-                return ("Job is booting", "Preparing the working directory...")
-            case QQState.KILLED:
-                return ("Job has been killed", f"Killed at {end_time}")
-            case QQState.FAILED:
-                return (
-                    "Job has failed",
-                    f"Failed at {end_time} [exit code: {return_code}]",
-                )
-            case QQState.FINISHED:
-                return ("Job has finished", f"Completed at {end_time}")
-            case QQState.IN_AN_INCONSISTENT_STATE:
-                return (
-                    "Job is in an inconsistent state",
-                    "The batch system and qq disagree on the status of the job",
-                )
-            case QQState.UNKNOWN:
-                return (
-                    "Job is in an unknown state",
-                    "Job is in a state that qq does not recognize",
-                )
-
-        return (
-            "Job is in an unknown state",
-            "Job is in a state that qq does not recognize",
-        )
-
     @property
     def color(self) -> str:
         return {
@@ -222,24 +168,3 @@ class QQState(Enum):
             self.IN_AN_INCONSISTENT_STATE: "grey70",
             self.UNKNOWN: "grey70",
         }[self]
-
-
-def format_duration(td: timedelta) -> str:
-    """
-    Format a timedelta intelligently, showing only relevant units.
-    """
-    total_seconds = int(td.total_seconds())
-    days, remainder = divmod(total_seconds, 86400)
-    hours, remainder = divmod(remainder, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    parts = []
-    if days > 0:
-        parts.append(f"{days}d")
-    if hours > 0 or days > 0:
-        parts.append(f"{hours}h")
-    if minutes > 0 or hours > 0 or days > 0:
-        parts.append(f"{minutes}m")
-    parts.append(f"{seconds}s")
-
-    return " ".join(parts)

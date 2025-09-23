@@ -7,11 +7,7 @@ import os
 from rich.console import Console
 from rich.logging import RichHandler
 
-from qq_lib.env_vars import DEBUG_MODE
-
-LOG_FORMAT = "%(message)s"
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-
+from qq_lib.constants import DATE_FORMAT, DEBUG_MODE
 
 def get_logger(name: str) -> logging.Logger:
     """

@@ -1,17 +1,22 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from rich.panel import Panel
+from rich.table import Table
+from rich.console import Group, Console
 
 import pytest
 import yaml
 
+from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
-from qq_lib.states import NaiveState
+from qq_lib.states import NaiveState, RealState
 
 
 @pytest.fixture
@@ -24,6 +29,7 @@ def sample_info(sample_resources):
     return QQInfo(
         batch_system=QQPBS,
         qq_version="0.1.0",
+        username="fake_user",
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
         script_name="script.sh",
@@ -31,7 +37,7 @@ def sample_info(sample_resources):
         input_machine="fake.machine.com",
         job_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
-        submission_time="2025-09-21 12:00:00",
+        submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",
         stderr_file="stderr.log",
         resources=sample_resources,
@@ -50,6 +56,7 @@ def test_to_dict_skips_none(sample_info):
     assert result["resources"]["ncpus"] == 8
     assert result["work_dir"] == "/scratch/job_12345.fake.server.com"
     assert result["job_dir"] == "/shared/storage"
+    assert result["submission_time"] == "2025-09-21 12:00:00"
 
 
 def test_to_dict_contains_all_non_none_fields(sample_info):
@@ -57,6 +64,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
     expected_fields = {
         "batch_system",
         "qq_version",
+        "username",
         "job_id",
         "job_name",
         "script_name",
@@ -153,21 +161,22 @@ def test_from_dict_roundtrip(sample_info):
 
     # basic fields
     for field_name in [
+        "batch_system",
+        "qq_version",
+        "username",
         "job_id",
         "job_name",
-        "batch_system",
         "script_name",
         "job_type",
         "input_machine",
         "job_dir",
+        "job_state",
         "submission_time",
         "stdout_file",
         "stderr_file",
     ]:
         assert getattr(reconstructed, field_name) == getattr(sample_info, field_name)
-
-    # job state enum
-    assert reconstructed.job_state == sample_info.job_state
+        assert type(getattr(reconstructed, field_name)) == type(getattr(sample_info, field_name))
 
     # resources
     assert isinstance(reconstructed.resources, QQResources)
@@ -304,3 +313,138 @@ def test_export_informer_to_file_contains_yaml(sample_info, tmp_path):
     assert "main_node" not in data
     assert "job_exit_code" not in data
     
+def test_set_running(sample_info):
+    informer = QQInformer(sample_info)
+    start_time = datetime(2025, 9, 22, 14, 30, 0)
+    informer.setRunning(start_time, "main.node", Path("/scratch/new_dir"))
+
+    assert informer.info.job_state == NaiveState.RUNNING
+    assert informer.info.start_time == start_time
+    assert informer.info.main_node == "main.node"
+    assert informer.info.work_dir == Path("/scratch/new_dir")
+
+
+def test_set_finished(sample_info):
+    informer = QQInformer(sample_info)
+    finish_time = datetime(2025, 9, 22, 16, 0, 0)
+    informer.setFinished(finish_time)
+
+    assert informer.info.job_state == NaiveState.FINISHED
+    assert informer.info.completion_time == finish_time
+    assert informer.info.job_exit_code == 0
+
+
+def test_set_failed(sample_info):
+    informer = QQInformer(sample_info)
+    fail_time = datetime(2025, 9, 22, 16, 15, 0)
+    informer.setFailed(fail_time, exit_code=42)
+
+    assert informer.info.job_state == NaiveState.FAILED
+    assert informer.info.completion_time == fail_time
+    assert informer.info.job_exit_code == 42
+
+
+def test_set_killed(sample_info):
+    informer = QQInformer(sample_info)
+    killed_time = datetime(2025, 9, 22, 16, 30, 0)
+    informer.setKilled(killed_time)
+
+    assert informer.info.job_state == NaiveState.KILLED
+    assert informer.info.completion_time == killed_time
+    # no exit_code set by setKilled
+    assert informer.info.job_exit_code is None
+
+def test_use_scratch_true(sample_info):
+    informer = QQInformer(sample_info)
+    assert informer.useScratch()
+
+def test_use_scratch_false(sample_info):
+    informer = QQInformer(sample_info)
+    informer.info.resources.work_dir = None
+    assert not informer.useScratch()
+
+def test_get_destination_exists(sample_info):
+    informer = QQInformer(sample_info)
+    informer.info.main_node = "random.node.org"
+
+    assert informer.getDestination() == ("random.node.org", Path("/scratch/job_12345.fake.server.com"))
+
+def test_get_destination_no_workdir(sample_info):
+    informer = QQInformer(sample_info)
+    informer.info.main_node = "random.node.org"
+    informer.info.work_dir = None
+
+    assert informer.getDestination() is None
+
+def test_get_destination_no_node(sample_info):
+    informer = QQInformer(sample_info)
+
+    assert informer.getDestination() is None
+
+def test_get_destination_no_node_no_workdir(sample_info):
+    informer = QQInformer(sample_info)
+    informer.info.work_dir = None
+
+    assert informer.getDestination() is None
+
+
+@pytest.mark.parametrize(
+    "state,expected_first_keyword,expected_second_keyword",
+    [
+        (RealState.QUEUED, "queued", "queue"),
+        (RealState.HELD, "held", "queue"),
+        (RealState.SUSPENDED, "suspended", ""),
+        (RealState.WAITING, "waiting", "queue"),
+        (RealState.RUNNING, "running", "running"),
+        (RealState.BOOTING, "booting", "preparing"),
+        (RealState.KILLED, "killed", "killed"),
+        (RealState.FAILED, "failed", "failed"),
+        (RealState.FINISHED, "finished", "completed"),
+        (RealState.IN_AN_INCONSISTENT_STATE, "inconsistent", "disagree"),
+        (RealState.UNKNOWN, "unknown", "does not recognize"),
+    ],
+)
+def test_informer_state_messages(sample_info, state, expected_first_keyword, expected_second_keyword):
+    informer = QQInformer(sample_info)
+    
+    # Set required fields for running/finished/failed states
+    if state == RealState.RUNNING:
+        sample_info.main_node = "node1"
+
+    if state == RealState.FAILED:
+        sample_info.job_exit_code = 1
+    
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=1)
+
+    first_msg, second_msg = informer._getStateMessages(state, start_time, end_time)
+
+    assert expected_first_keyword.lower() in first_msg.lower()
+    assert expected_second_keyword.lower() in second_msg.lower()
+
+def test_create_job_status_panel(sample_info):
+    informer = QQInformer(sample_info)
+
+    panel_group: Group = informer.createJobStatusPanel()
+
+    # group
+    assert isinstance(panel_group, Group)
+    assert len(panel_group.renderables) == 3
+
+    # panel
+    panel: Panel = panel_group.renderables[1]
+    assert isinstance(panel, Panel)
+    assert informer.info.job_id in panel.title.plain
+
+    # table
+    table: Table = panel.renderable
+    assert isinstance(table, Table)
+    assert len(table.columns) == 2
+
+    # printed content
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "Job state:" in output
+    assert str(informer.getRealState()).lower() in output.lower()

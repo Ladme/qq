@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+from datetime import timedelta
 from pathlib import Path
 
 import readchar
@@ -10,7 +11,7 @@ from rich.text import Text
 from qq_lib.batch import QQBatchInterface
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
-from qq_lib.suffixes import QQ_INFO_SUFFIX
+from qq_lib.constants import QQ_INFO_SUFFIX
 from qq_lib.supported_batch_systems import BATCH_SYSTEMS
 
 logger = get_logger(__name__)
@@ -79,3 +80,23 @@ def yes_or_no_prompt(prompt: str) -> bool:
         )
 
     return key == "y"
+
+def format_duration(td: timedelta) -> str:
+    """
+    Format a timedelta intelligently, showing only relevant units.
+    """
+    total_seconds = int(td.total_seconds())
+    days, remainder = divmod(total_seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0 or days > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0 or hours > 0 or days > 0:
+        parts.append(f"{minutes}m")
+    parts.append(f"{seconds}s")
+
+    return " ".join(parts)

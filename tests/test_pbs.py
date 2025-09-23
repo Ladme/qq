@@ -3,17 +3,13 @@
 
 # ruff: noqa: W291
 
-from qq_lib.pbs import _parse_pbs_dump_to_dictionary
+import pytest
+from qq_lib.pbs import PBSJobInfo
+from qq_lib.states import BatchState
 
-
-def test_parse_pbs_dump_empty_string():
-    text = ""
-    result = _parse_pbs_dump_to_dictionary(text)
-    assert result == {}
-
-
-def test_parse_pbs_dump_real_file():
-    text = """
+@pytest.fixture
+def sample_dump_file():
+    return """
 Job Id: 123456.fake-cluster.example.com
     Job_Name = example_job
     Job_Owner = user@EXAMPLE
@@ -72,7 +68,14 @@ Job Id: 123456.fake-cluster.example.com
     credential_validity = Mon Sep 22 06:38:19 2025
 """
 
-    result = _parse_pbs_dump_to_dictionary(text)
+def test_parse_pbs_dump_empty_string():
+    text = ""
+    result = PBSJobInfo._parse_pbs_dump_to_dictionary(text)
+    assert result == {}
+
+
+def test_parse_pbs_dump_real_file(sample_dump_file):
+    result = PBSJobInfo._parse_pbs_dump_to_dictionary(sample_dump_file)
 
     assert isinstance(result, dict)
     assert result["Job_Name"].strip() == "example_job"
@@ -98,9 +101,25 @@ KEY =
 NORMAL = OK
 CONTINUATION
 """
-    result = _parse_pbs_dump_to_dictionary(text)
+    result = PBSJobInfo._parse_pbs_dump_to_dictionary(text)
 
     assert result.get("NORMAL") == "OKCONTINUATION"
 
     assert "This is not a key-value" not in result
     assert "KEY" not in result
+
+
+def test_get_job_state(sample_dump_file):
+    pbs_job_info = object.__new__(PBSJobInfo)
+    pbs_job_info._info = PBSJobInfo._parse_pbs_dump_to_dictionary(sample_dump_file)
+
+    assert pbs_job_info.getJobState() == BatchState.RUNNING
+
+    pbs_job_info._info["job_state"] = "Q"
+    assert pbs_job_info.getJobState() == BatchState.QUEUED
+
+    pbs_job_info._info["job_state"] = "F"
+    assert pbs_job_info.getJobState() == BatchState.FINISHED
+
+    pbs_job_info._info["job_state"] = "z"
+    assert pbs_job_info.getJobState() == BatchState.UNKNOWN    

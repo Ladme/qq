@@ -20,8 +20,8 @@ from qq_lib.common import get_files_with_suffix, get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
-from qq_lib.states import QQState
-from qq_lib.suffixes import QQ_SUFFIXES
+from qq_lib.states import RealState
+from qq_lib.constants import QQ_SUFFIXES
 
 logger = get_logger(__name__)
 
@@ -131,9 +131,9 @@ class QQClearer:
             logger.debug(f"Job state: {str(state)}.")
 
             return state in [
-                QQState.KILLED,
-                QQState.FAILED,
-                QQState.IN_AN_INCONSISTENT_STATE,
+                RealState.KILLED,
+                RealState.FAILED,
+                RealState.IN_AN_INCONSISTENT_STATE,
             ]
         except QQError:
             # if this fails, we know we are not in a valid qq directory,

@@ -1,16 +1,17 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import os
 import socket
 import subprocess
 from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch import QQBatchMeta, QQBatchInterface
+from qq_lib.batch import BatchJobInfoInterface, BatchOperationResult, QQBatchMeta, QQBatchInterface
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
-from qq_lib.suffixes import QQ_OUT_SUFFIX
+from qq_lib.constants import QQ_OUT_SUFFIX
 
 logger = get_logger(__name__)
 
@@ -19,8 +20,11 @@ CD_FAIL = 94
 # exit code of ssh if connection fails
 SSH_FAIL = 255
 
+# forward declaration
+class PBSJobInfo(BatchJobInfoInterface):
+    pass
 
-class QQPBS(QQBatchInterface, metaclass=QQBatchMeta):
+class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     """
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
@@ -28,66 +32,61 @@ class QQPBS(QQBatchInterface, metaclass=QQBatchMeta):
     def envName() -> str:
         return "PBS"
 
-    def usernameEnvVar() -> str:
-        return "PBS_O_LOGNAME"
+    def getScratchDir(job_id: int) -> BatchOperationResult:
+        scratch_dir = os.environ.get("SCRATCHDIR")
+        if not scratch_dir:
+            return BatchOperationResult.error(1, f"Scratch directory for job '{job_id}' is undefined.")
+        
+        return BatchOperationResult.success(scratch_dir)
+    
+    def jobSubmit(res: QQResources, queue: str, script: Path) -> BatchOperationResult:
+        # get the submission command
+        command = QQPBS._translateSubmit(
+            res, queue, str(script)
+        )
+        logger.debug(command)
 
-    def jobIdEnvVar() -> str:
-        return "PBS_JOBID"
+        # submit the script
+        result = subprocess.run(
+            ["bash"], input=command, text=True, check=False, capture_output=True
+        )
 
-    def scratchDirEnvVar() -> str:
-        return "SCRATCHDIR"
+        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip())
+        
+    def jobKill(job_id: str) -> BatchOperationResult:
+        command = QQPBS._translateKill(job_id)
+        logger.debug(command)
 
-    def jobState() -> str:
-        return "job_state"
+        # run the kill command
+        result = subprocess.run(
+            ["bash"], input=command, text=True, check=False, capture_output=True
+        )
 
-    def translateJobState(state: str) -> BatchState:
-        return BatchState.fromCode(state)
+        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip())
+    
+    def jobKillForce(job_id: str) -> BatchOperationResult:
+        command = QQPBS._translateKillForce(job_id)
+        logger.debug(command)
 
-    def translateSubmit(res: QQResources, queue: str, script: str) -> str:
-        qq_output = str(Path(script).with_suffix(QQ_OUT_SUFFIX))
-        command = f"qsub -q {queue} -j eo -e {qq_output} -V "
+        # run the kill command
+        result = subprocess.run(
+            ["bash"], input=command, text=True, check=False, capture_output=True
+        )
 
-        # handle resources
-        trans_res = QQPBS.translateResources(res)
-
-        if len(trans_res) > 0:
-            command += "-l "
-
-        command += ",".join(trans_res) + " " + script
-
-        return command
-
-    def translateResources(res: QQResources) -> list[str]:
-        trans_res = []
-        for f in fields(res):
-            name = f.name
-
-            if name in ["workdir", "worksize"]:
-                continue
-
-            attribute = getattr(res, name)
-            if attribute:
-                trans_res.append(f"{name}={attribute}")
-
-        return trans_res
-
-    def translateKillForce(job_id: str) -> str:
-        return f"qdel -W force {job_id}"
-
-    def translateKill(job_id: str) -> str:
-        return f"qdel {job_id}"
-
-    def navigateToDestination(host: str, directory: Path) -> int:
+        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip())
+    
+    def navigateToDestination(host: str, directory: Path) -> BatchOperationResult:
         # if the directory is on the current host, we do not need to use ssh
         if host == socket.gethostname():
             logger.debug("Current host is the same as target host. Using 'cd'.")
             if not directory.is_dir():
-                return 1
+                return BatchOperationResult.error(1)
 
             subprocess.run(["bash"], cwd=directory)
 
-            # if the directory exists, always return 0, no matter what the user does inside the terminal
-            return 0
+            # if the directory exists, always report success, 
+            # no matter what the user does inside the terminal
+            return BatchOperationResult.success()
 
         # the directory is on an another node
         ssh_command = [
@@ -108,50 +107,106 @@ class QQPBS(QQBatchInterface, metaclass=QQBatchMeta):
         #
         # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
         if exit_code == SSH_FAIL:
-            return SSH_FAIL
+            return BatchOperationResult.error(SSH_FAIL)
         if exit_code == CD_FAIL:
-            return CD_FAIL
-        return 0
+            return BatchOperationResult.error(CD_FAIL)
+        return BatchOperationResult.success()
 
-    def getJobInfo(jobid: str) -> dict[str, str]:
-        command = f"qstat -fx {jobid}"
+    def getJobInfo(job_id: str) -> PBSJobInfo:
+        return PBSJobInfo(job_id)
 
-        result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
-        )
+    def _translateSubmit(res: QQResources, queue: str, script: str) -> str:
+        qq_output = str(Path(script).with_suffix(QQ_OUT_SUFFIX))
+        command = f"qsub -q {queue} -j eo -e {qq_output} -V "
 
-        if result.returncode != 0:
-            return {}
-        return _parse_pbs_dump_to_dictionary(result.stdout)
+        # handle resources
+        trans_res = QQPBS._translateResources(res)
 
+        if len(trans_res) > 0:
+            command += "-l "
+
+        command += ",".join(trans_res) + " " + script
+
+        return command
+
+    def _translateResources(res: QQResources) -> list[str]:
+        trans_res = []
+        for f in fields(res):
+            name = f.name
+
+            if name in ["workdir", "worksize"]:
+                continue
+
+            attribute = getattr(res, name)
+            if attribute:
+                trans_res.append(f"{name}={attribute}")
+
+        return trans_res
+
+    def _translateKillForce(job_id: str) -> str:
+        return f"qdel -W force {job_id}"
+
+    def _translateKill(job_id: str) -> str:
+        return f"qdel {job_id}"
 
 # register the QQPBS class
 QQBatchMeta.register(QQPBS)
 
-
-def _parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
+class PBSJobInfo(BatchJobInfoInterface):
     """
-    Parse a PBS/Torque-style job status dump into a dictionary.
-
-    Returns:
-        Dictionary mapping keys to values.
+    Implementation of BatchJobInterface for PBS.
     """
-    result: dict[str, str] = {}
-    current_key = None
+    def __init__(self, job_id: str):
+        self._job_id = job_id
+        self._info: dict[str, str] = {}
 
-    for raw_line in text.splitlines():
-        line = raw_line.rstrip()
+        self.update()
+        
+    def update(self):
+        # get job info from PBS
+        command = f"qstat -fx {self._job_id}"
 
-        if " = " in line and not line.lstrip().startswith("="):
-            # new key
-            key, value = line.split(" = ", 1)
-            current_key = key.strip()
-            result[current_key] = value.strip()
-        elif current_key is not None:
-            # multiline values
-            result[current_key] += line.strip()
+        result = subprocess.run(
+            ["bash"], input = command, text = True, check = False, capture_output = True
+        )
+
+        if result.returncode != 0:
+            # if qstat fails, information is empty
+            self._info: dict[str, str] = {}
         else:
-            pass
+            self._info = PBSJobInfo._parse_pbs_dump_to_dictionary(result.stdout)
+    
+    def getJobState(self) -> BatchState:
+        state = self._info.get("job_state")
+        if not state:
+            return BatchState.UNKNOWN
+        
+        return BatchState.fromCode(state)
 
-    logger.debug(f"PBS qstat dump file: {result}")
-    return result
+    @staticmethod
+    def _parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
+        """
+        Parse a PBS job status dump into a dictionary.
+
+        Returns:
+            Dictionary mapping keys to values.
+        """
+        result: dict[str, str] = {}
+        current_key = None
+
+        for raw_line in text.splitlines():
+            line = raw_line.rstrip()
+
+            if " = " in line and not line.lstrip().startswith("="):
+                # new key
+                key, value = line.split(" = ", 1)
+                current_key = key.strip()
+                result[current_key] = value.strip()
+            elif current_key is not None:
+                # multiline values
+                result[current_key] += line.strip()
+            else:
+                pass
+
+        logger.debug(f"PBS qstat dump file: {result}")
+        return result

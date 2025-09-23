@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from qq_lib.states import BatchState, NaiveState, QQState
+from qq_lib.states import BatchState, NaiveState, RealState
 
 
 @pytest.mark.parametrize(
@@ -28,7 +28,7 @@ from qq_lib.states import BatchState, NaiveState, QQState
         ("random", NaiveState.UNKNOWN),
     ],
 )
-def test_naive_state_fromStr(input_str, expected_state):
+def test_naive_state_from_str(input_str, expected_state):
     assert NaiveState.fromStr(input_str) == expected_state
 
 
@@ -48,7 +48,7 @@ def test_naive_state_fromStr(input_str, expected_state):
         ("", BatchState.UNKNOWN),
     ],
 )
-def test_batch_state_fromCode(code, expected_state):
+def test_batch_state_from_code(code, expected_state):
     assert BatchState.fromCode(code) == expected_state
 
 
@@ -66,7 +66,7 @@ def test_batch_state_fromCode(code, expected_state):
         (BatchState.UNKNOWN, "?"),
     ],
 )
-def test_batch_state_toCode(state, expected_code):
+def test_batch_state_to_code(state, expected_code):
     assert state.toCode() == expected_code
 
 
@@ -74,65 +74,37 @@ def test_batch_state_toCode(state, expected_code):
     "naive_state,batch_state,expected_state",
     [
         # UNKNOWN naive state - always UNKNOWN
-        (NaiveState.UNKNOWN, BatchState.QUEUED, QQState.UNKNOWN),
-        (NaiveState.UNKNOWN, BatchState.FINISHED, QQState.UNKNOWN),
+        (NaiveState.UNKNOWN, BatchState.QUEUED, RealState.UNKNOWN),
+        (NaiveState.UNKNOWN, BatchState.FINISHED, RealState.UNKNOWN),
         # QUEUED naive state
-        (NaiveState.QUEUED, BatchState.QUEUED, QQState.QUEUED),
-        (NaiveState.QUEUED, BatchState.MOVING, QQState.QUEUED),
-        (NaiveState.QUEUED, BatchState.HELD, QQState.HELD),
-        (NaiveState.QUEUED, BatchState.SUSPENDED, QQState.SUSPENDED),
-        (NaiveState.QUEUED, BatchState.WAITING, QQState.WAITING),
-        (NaiveState.QUEUED, BatchState.RUNNING, QQState.BOOTING),
-        (NaiveState.QUEUED, BatchState.EXITING, QQState.IN_AN_INCONSISTENT_STATE),
-        (NaiveState.QUEUED, BatchState.UNKNOWN, QQState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.QUEUED, BatchState.QUEUED, RealState.QUEUED),
+        (NaiveState.QUEUED, BatchState.MOVING, RealState.QUEUED),
+        (NaiveState.QUEUED, BatchState.HELD, RealState.HELD),
+        (NaiveState.QUEUED, BatchState.SUSPENDED, RealState.SUSPENDED),
+        (NaiveState.QUEUED, BatchState.WAITING, RealState.WAITING),
+        (NaiveState.QUEUED, BatchState.RUNNING, RealState.BOOTING),
+        (NaiveState.QUEUED, BatchState.EXITING, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.QUEUED, BatchState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE),
         # RUNNING naive state
-        (NaiveState.RUNNING, BatchState.RUNNING, QQState.RUNNING),
-        (NaiveState.RUNNING, BatchState.SUSPENDED, QQState.SUSPENDED),
-        (NaiveState.RUNNING, BatchState.EXITING, QQState.IN_AN_INCONSISTENT_STATE),
-        (NaiveState.RUNNING, BatchState.QUEUED, QQState.IN_AN_INCONSISTENT_STATE),
-        (NaiveState.RUNNING, BatchState.HELD, QQState.IN_AN_INCONSISTENT_STATE),
-        (NaiveState.RUNNING, BatchState.FINISHED, QQState.IN_AN_INCONSISTENT_STATE),
-        (NaiveState.RUNNING, BatchState.UNKNOWN, QQState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.RUNNING, BatchState.RUNNING, RealState.RUNNING),
+        (NaiveState.RUNNING, BatchState.SUSPENDED, RealState.SUSPENDED),
+        (NaiveState.RUNNING, BatchState.EXITING, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.RUNNING, BatchState.QUEUED, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.RUNNING, BatchState.HELD, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.RUNNING, BatchState.FINISHED, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.RUNNING, BatchState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE),
         # KILLED naive state - always KILLED
-        (NaiveState.KILLED, BatchState.QUEUED, QQState.KILLED),
-        (NaiveState.KILLED, BatchState.FINISHED, QQState.KILLED),
+        (NaiveState.KILLED, BatchState.QUEUED, RealState.KILLED),
+        (NaiveState.KILLED, BatchState.FINISHED, RealState.KILLED),
         # FINISHED naive state - always FINISHED
-        (NaiveState.FINISHED, BatchState.QUEUED, QQState.FINISHED),
-        (NaiveState.FINISHED, BatchState.RUNNING, QQState.FINISHED),
-        (NaiveState.FINISHED, BatchState.EXITING, QQState.FINISHED),
+        (NaiveState.FINISHED, BatchState.QUEUED, RealState.FINISHED),
+        (NaiveState.FINISHED, BatchState.RUNNING, RealState.FINISHED),
+        (NaiveState.FINISHED, BatchState.EXITING, RealState.FINISHED),
         # FAILED naive state - always FAILED
-        (NaiveState.FAILED, BatchState.RUNNING, QQState.FAILED),
-        (NaiveState.FAILED, BatchState.UNKNOWN, QQState.FAILED),
+        (NaiveState.FAILED, BatchState.RUNNING, RealState.FAILED),
+        (NaiveState.FAILED, BatchState.UNKNOWN, RealState.FAILED),
     ],
 )
-def test_qqstate_fromStates(naive_state, batch_state, expected_state):
-    result = QQState.fromStates(naive_state, batch_state)
+def test_real_state_from_states(naive_state, batch_state, expected_state):
+    result = RealState.fromStates(naive_state, batch_state)
     assert result == expected_state
-
-
-@pytest.mark.parametrize(
-    "state,expected_first_keyword,expected_second_keyword",
-    [
-        (QQState.QUEUED, "queued", "queue"),
-        (QQState.HELD, "held", "queue"),
-        (QQState.SUSPENDED, "suspended", ""),
-        (QQState.WAITING, "waiting", "queue"),
-        (QQState.RUNNING, "running", "running"),
-        (QQState.BOOTING, "booting", "preparing"),
-        (QQState.KILLED, "killed", "killed"),
-        (QQState.FAILED, "failed", "failed"),
-        (QQState.FINISHED, "finished", "completed"),
-        (QQState.IN_AN_INCONSISTENT_STATE, "inconsistent", "disagree"),
-        (QQState.UNKNOWN, "unknown", "does not recognize"),
-    ],
-)
-def test_qqstate_info_keywords(state, expected_first_keyword, expected_second_keyword):
-    start_time = datetime.now()
-    end_time = start_time + timedelta(seconds=3600)
-    return_code = 1
-    node = "node1"
-
-    first, second = state.info(start_time, end_time, return_code, node)
-
-    assert expected_first_keyword.lower() in first.lower()
-    assert expected_second_keyword.lower() in second.lower()

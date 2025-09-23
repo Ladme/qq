@@ -128,7 +128,7 @@ def test_export_to_file_contains_yaml(sample_info, tmp_path):
     assert data["batch_system"] == str(sample_info.batch_system)
     assert data["job_state"] == str(sample_info.job_state)
 
-    resources_dict = sample_info.resources._toDict()
+    resources_dict = sample_info.resources.toDict()
     assert data["resources"] == resources_dict
 
     assert data["excluded_files"] == [str(p) for p in sample_info.excluded_files]
@@ -303,7 +303,7 @@ def test_export_informer_to_file_contains_yaml(sample_info, tmp_path):
     assert data["batch_system"] == str(informer.batch_system)
     assert data["job_state"] == str(informer.info.job_state)
 
-    resources_dict = informer.info.resources._toDict()
+    resources_dict = informer.info.resources.toDict()
     assert data["resources"] == resources_dict
 
     assert data["excluded_files"] == [str(p) for p in informer.info.excluded_files]

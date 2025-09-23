@@ -51,7 +51,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip())
+        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip(), success_message = result.stdout.strip())
         
     def jobKill(job_id: str) -> BatchOperationResult:
         command = QQPBS._translateKill(job_id)
@@ -62,7 +62,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip())
+        return BatchOperationResult.fromExitCode(result.returncode, success_message = result.stdout.strip(), error_message = result.stderr.strip())
     
     def jobKillForce(job_id: str) -> BatchOperationResult:
         command = QQPBS._translateKillForce(job_id)
@@ -129,23 +129,32 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         return command
 
+    @staticmethod
     def _translateResources(res: QQResources) -> list[str]:
         trans_res = []
-        for f in fields(res):
-            name = f.name
-
-            if name in ["workdir", "worksize"]:
+        for (name, value) in res.toDict().items():
+            print(name, value)
+            if name in ["work_dir", "work_size"]:
                 continue
 
-            attribute = getattr(res, name)
-            if attribute:
-                trans_res.append(f"{name}={attribute}")
+            trans_res.append(f"{name}={value}")
+        
+        trans_res.append(QQPBS._translateWorkDir(res))
 
         return trans_res
+    
+    @staticmethod
+    def _translateWorkDir(res: QQResources) -> str:
+        if not res.work_dir:
+            return ""
 
+        return f"{res.work_dir}={res.work_size}"
+
+    @staticmethod
     def _translateKillForce(job_id: str) -> str:
         return f"qdel -W force {job_id}"
 
+    @staticmethod
     def _translateKill(job_id: str) -> str:
         return f"qdel {job_id}"
 

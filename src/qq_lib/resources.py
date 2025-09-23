@@ -17,12 +17,15 @@ class QQResources:
         # enforce workdir logic
         if self.work_dir == "jobdir":
             self.work_dir = None
+        else:
+            # enforce worksize logic
+            if self.work_size is None and self.ncpus is not None:
+                self.work_size = f"{self.ncpus}gb"
+            else:
+                # TODO: select better default
+                self.work_size = f"8gb"
 
-        # enforce worksize logic
-        if self.work_size is None and self.ncpus is not None:
-            self.work_size = f"{self.ncpus}gb"
-
-    def _toDict(self) -> dict[str, object]:
+    def toDict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""
         return {k: v for k, v in asdict(self).items() if v is not None}
 

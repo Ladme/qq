@@ -65,7 +65,13 @@ class VirtualBatchSystem:
                 shutil.rmtree(node)
         self.nodes.clear()
     
-    def submitJob(self, script: Path, use_scratch: bool):
+    def clearJobs(self):
+        """
+        Removes all jobs from the batch system (does not terminate their threads).
+        """
+        self.jobs.clear()
+
+    def submitJob(self, script: Path, use_scratch: bool) -> str:
         """Register a new job in a queued state."""
         # generate a unique job id
         job_id = str(len(self.jobs))
@@ -75,6 +81,8 @@ class VirtualBatchSystem:
 
         # submit the job
         self.jobs[job_id] = VirtualJob(job_id=job_id, script=script, use_scratch=use_scratch)
+
+        return job_id
     
     def runJob(self, job_id: str, freeze: bool = False):
         """Assign a node to the target job and run it asynchronously."""
@@ -164,8 +172,8 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     
     def jobSubmit(res: QQResources, _queue: str, script: Path) -> BatchOperationResult:
         try:
-            QQVBS._batch_system.submitJob(script, res.useScratch())
-            return BatchOperationResult.success()
+            job_id = QQVBS._batch_system.submitJob(script, res.useScratch())
+            return BatchOperationResult.success(job_id)
         except VBSError as e:
             return BatchOperationResult.error(1, str(e))
     

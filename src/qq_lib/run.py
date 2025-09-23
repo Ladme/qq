@@ -90,13 +90,13 @@ def run(script_path: str):
             a temporary copy. The original script in the working directory
             is used instead.
 
-    Raises:
-        SystemExit: Exits with the script's exit code, or with specific
-            error codes:
-              - 91: Guard check failure or an error logged into an info file
-              - 92: Fatal error not logged into an info file
-              - 99: Fatal unexpected error (indicates a bug)
-              - 143: Execution terminated by SIGTERM.
+    Exits:
+        Exits with the script's exit code, or with specific
+        error codes:
+            91: Guard check failure or an error logged into an info file
+            92: Fatal error not logged into an info file
+            99: Fatal unexpected error (indicates a bug)
+            143: Execution terminated by SIGTERM.
     """
 
     # the script path provided points to a script copied to a temporary

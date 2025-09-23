@@ -35,11 +35,10 @@ def clear(force: bool = False):
     Args:
         force (bool): If set, allows clearing even if the job is active.
 
-    Raises:
-        SystemExit: Exits with
-            - 0 on successful clearing,
-            - 91 if a QQError occurs,
-            - 99 for any other unexpected exception.
+    Exits:
+        0 on successful clearing,
+        91 if a QQError occurs,
+        99 for any other unexpected exception.
     """
     try:
         clearer = QQClearer(Path())
@@ -130,11 +129,11 @@ class QQClearer:
             state = info.getRealState()
             logger.debug(f"Job state: {str(state)}.")
 
-            return state in [
+            return state in {
                 RealState.KILLED,
                 RealState.FAILED,
                 RealState.IN_AN_INCONSISTENT_STATE,
-            ]
+            }
         except QQError:
             # if this fails, we know we are not in a valid qq directory,
             # so we clear everything

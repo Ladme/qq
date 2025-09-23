@@ -56,6 +56,19 @@ def test_submitter_init_script_not_in_cwd(script_with_shebang, sample_resources)
     with pytest.raises(QQError, match="is not in the submission directory"):
         QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
 
+def test_submitter_init_script_not_in_cwd_matching(script_with_shebang, sample_resources, tmp_path):
+    # submission must fail even if there is a script of the same name in the current directory
+    inner_dir = tmp_path / "inner"
+    inner_dir.mkdir()
+    os.chdir(inner_dir)
+
+    script = tmp_path / "inner" / "test.sh"
+    script.write_text("#!/bin/bash\necho 'nope'\n")
+    script.chmod(script.stat().st_mode | 0o111)
+
+    with pytest.raises(QQError, match="is not in the submission directory"):
+        QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
+
 def test_submitter_init_invalid_shebang(script_invalid_shebang, sample_resources, tmp_path):
     os.chdir(tmp_path)
     with pytest.raises(QQError, match="invalid shebang"):

@@ -689,11 +689,11 @@ def test_cleanup_marks_job_killed(tmp_path, sample_info):
     os.environ[INFO_FILE] = str(info_file)
 
     runner = QQRunner()
-    runner.process = subprocess.Popen(["sleep", "5"])
+    runner._process = subprocess.Popen(["sleep", "5"])
 
     runner._cleanup()
 
-    assert runner.process.poll() is not None
+    assert runner._process.poll() is not None
     
     loaded_info = QQInfo.fromFile(info_file)
     assert loaded_info.job_state == NaiveState.KILLED
@@ -708,14 +708,14 @@ def test_handle_sigterm_marks_job_killed_and_exits(tmp_path, sample_info):
     os.environ[INFO_FILE] = str(info_file)
 
     runner = QQRunner()
-    runner.process = subprocess.Popen(["sleep", "5"])
+    runner._process = subprocess.Popen(["sleep", "5"])
 
     with pytest.raises(SystemExit) as exc:
         runner._handle_sigterm(_signum=15, _frame=None)
     
     assert exc.value.code == 143
 
-    assert runner.process.poll() is not None
+    assert runner._process.poll() is not None
     
     loaded_info = QQInfo.fromFile(info_file)
     assert loaded_info.job_state == NaiveState.KILLED

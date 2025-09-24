@@ -3,8 +3,12 @@
 
 # ruff: noqa: W291
 
+from pathlib import Path
+from unittest.mock import patch
 import pytest
-from qq_lib.pbs import PBSJobInfo
+from qq_lib.batch import BatchOperationResult
+from qq_lib.pbs import QQPBS, PBSJobInfo
+from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
 
 @pytest.fixture
@@ -123,3 +127,90 @@ def test_get_job_state(sample_dump_file):
 
     pbs_job_info._info["job_state"] = "z"
     assert pbs_job_info.getJobState() == BatchState.UNKNOWN    
+
+@pytest.fixture
+def resources():
+    return QQResources(ncpus=4, work_dir="scratch_local", work_size="16gb")
+
+def test_translate_submit(resources):
+    script = "myscript.sh"
+    queue = "default"
+    cmd = QQPBS._translateSubmit(resources, queue, script)
+    
+    assert cmd == f"qsub -q {queue} -j eo -e myscript.qqout -V -l ncpus={resources.ncpus},{resources.work_dir}={resources.work_size} myscript.sh"
+
+def test_translate_resources(resources):
+    trans = QQPBS._translateResources(resources)
+    assert trans == [f"ncpus={resources.ncpus}", f"{resources.work_dir}={resources.work_size}"]
+
+def test_translate_work_dir(resources):
+    assert QQPBS._translateWorkDir(resources) == f"{resources.work_dir}={resources.work_size}"
+    assert QQPBS._translateWorkDir(QQResources()) is None
+
+def test_translate_kill_force():
+    job_id = "123"
+    cmd = QQPBS._translateKillForce(job_id)
+    assert cmd == f"qdel -W force {job_id}"
+
+def test_translate_kill():
+    job_id = "123"
+    cmd = QQPBS._translateKill(job_id)
+    assert cmd == f"qdel {job_id}"
+
+def test_translate_ssh_command():
+    host = "node1"
+    directory = Path("/tmp/work")
+    cmd = QQPBS._translateSSHCommand(host, directory)
+    assert cmd == ["ssh", host, "-t", f"cd {directory} || exit {QQPBS.CD_FAIL} && exec bash -l"]
+
+
+@pytest.mark.parametrize("exit_code, expected_success", [
+    (QQPBS.SSH_FAIL, False),
+    (QQPBS.CD_FAIL, False),
+    (0, True),
+    (1, True)
+])
+def test_translate_ssh_exit_code_to_result(exit_code, expected_success):
+    result = QQPBS._translateSSHExitToResult(exit_code)
+    assert isinstance(result, BatchOperationResult)
+    assert (result.exit_code == 0) == expected_success
+
+def test_navigate_same_host_success(tmp_path):
+    result = QQPBS._navigateSameHost(tmp_path)
+    assert Path.cwd() == tmp_path
+    assert result.exit_code == 0
+
+
+def test_navigate_same_host_error(tmp_path):
+    bad_dir = tmp_path / "does_not_exist"
+
+    orig_cwd = Path.cwd()
+    result = QQPBS._navigateSameHost(bad_dir)
+
+    # directory should not change
+    assert Path.cwd() == orig_cwd
+    assert result.exit_code != 0
+
+
+def test_navigate_same_host_success(tmp_path):
+    directory = tmp_path
+
+    with patch("subprocess.run") as mock_run:
+        result = QQPBS._navigateSameHost(directory)
+        
+        # check that subprocess was called properly
+        mock_run.assert_called_once_with(["bash"], cwd=directory)
+        
+        assert result.exit_code == 0
+
+def test_navigate_same_host_error():
+    # nonexistent directory
+    directory = Path("/non/existent/directory")
+
+    with patch("subprocess.run") as mock_run:
+        result = QQPBS._navigateSameHost(directory)
+        
+        # check that subprocess was not called
+        mock_run.assert_not_called()
+        
+        assert result.exit_code != 0

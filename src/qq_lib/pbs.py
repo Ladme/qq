@@ -274,7 +274,7 @@ class PBSJobInfo(BatchJobInfoInterface):
 
     def update(self):
         # get job info from PBS
-        command = f"qstat -fx {self._job_id}"
+        command = f"qstat -fxw {self._job_id}"
 
         result = subprocess.run(
             ["bash"], input=command, text=True, check=False, capture_output=True
@@ -302,21 +302,15 @@ class PBSJobInfo(BatchJobInfoInterface):
             Dictionary mapping keys to values.
         """
         result: dict[str, str] = {}
-        current_key = None
 
         for raw_line in text.splitlines():
             line = raw_line.rstrip()
 
-            if " = " in line and not line.lstrip().startswith("="):
-                # new key
-                key, value = line.split(" = ", 1)
-                current_key = key.strip()
-                result[current_key] = value.strip()
-            elif current_key is not None:
-                # multiline values
-                result[current_key] += line.strip()
-            else:
-                pass
+            if " = " not in line:
+                continue
+
+            key, value = line.split(" = ", 1)
+            result[key.strip()] = value.strip()
 
         logger.debug(f"PBS qstat dump file: {result}")
         return result

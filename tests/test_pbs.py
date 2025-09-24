@@ -51,20 +51,13 @@ Job Id: 123456.fake-cluster.example.com
     Resource_List.nodect = 1
     Resource_List.place = free
     Resource_List.scratch_local = 8gb
-    Resource_List.select = 1:ncpus=8:ngpus=1:mpiprocs=8:mem=8gb:scratch_local=8
-        gb:cl_two=true:ompthreads=1:node_owner=everybody
+    Resource_List.select = 1:ncpus=8:ngpus=1:mpiprocs=8:mem=8gb:scratch_local=8gb:cl_two=true:ompthreads=1:node_owner=everybody
     Resource_List.walltime = 24:00:00
     stime = Sun Sep 21 00:00:00 2025
     session_id = 123456
     jobdir = /fake/home/user
     substate = 42
-    Variable_List = QQ_DEBUG=true,QQ_ENV_SET=true,
-        AMS_SITE_SUPPORT=linuxsupport@example.com,PBS_O_LOGNAME=user,
-        PBS_O_QUEUE=gpu,PBS_O_HOST=host.example.com,
-        SCRATCHDIR=/scratch/user/job_123456,
-        SCRATCH=/scratch/user/job_123456,
-        SINGULARITY_TMPDIR=/scratch/user/job_123456,
-        SINGULARITY_CACHEDIR=/scratch/user/job_123456
+    Variable_List = QQ_DEBUG=true,QQ_ENV_SET=true,AMS_SITE_SUPPORT=linuxsupport@example.com,PBS_O_LOGNAME=user,PBS_O_QUEUE=gpu,PBS_O_HOST=host.example.com,SCRATCHDIR=/scratch/user/job_123456,SCRATCH=/scratch/user/job_123456,SINGULARITY_TMPDIR=/scratch/user/job_123456,SINGULARITY_CACHEDIR=/scratch/user/job_123456
     etime = Sun Sep 21 00:00:00 2025
     umask = 77
     run_count = 1
@@ -107,11 +100,11 @@ Another line without equal
 KEY = 
 =VALUE
 NORMAL = OK
-CONTINUATION
+NOTCONTINUATION
 """
     result = PBSJobInfo._parse_pbs_dump_to_dictionary(text)
 
-    assert result.get("NORMAL") == "OKCONTINUATION"
+    assert result.get("NORMAL") == "OK"
 
     assert "This is not a key-value" not in result
     assert "KEY" not in result

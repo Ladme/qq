@@ -3,24 +3,32 @@ repos:
     hooks:
       - id: ruff-check
         name: ruff check
-        entry: ruff
-        args: [check, ., --fix]
+        entry: uv
+        args: [run, ruff, check, ., --fix]
         language: system
-        types: [python]
         pass_filenames: false
+        always_run: true
 
       - id: ruff-format
         name: ruff format
-        entry: ruff
-        args: [format, .]
+        entry: uv
+        args: [run, ruff, format, .]
         language: system
-        types: [python]
         pass_filenames: false
+        always_run: true
 
       - id: ty-check
         name: ty check
-        entry: ty
-        args: [check, .]
+        entry: uv
+        args: [run, ty, check, .]
         language: system
-        types: [python]
         pass_filenames: false
+        always_run: true
+
+      - id: pytest
+        name: pytest
+        entry: uv
+        args: [run, pytest]
+        language: system
+        pass_filenames: false
+        always_run: true

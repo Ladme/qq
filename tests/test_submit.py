@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.batch import BatchOperationResult
-from qq_lib.constants import QQ_INFO_SUFFIX
+from qq_lib.constants import QQ_INFO_SUFFIX, QQ_OUT_SUFFIX, STDERR_SUFFIX, STDOUT_SUFFIX
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.resources import QQResources
@@ -122,40 +122,60 @@ def test_has_valid_shebang(script_with_shebang, sample_resources, tmp_path):
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
     assert submitter._hasValidShebang(script_with_shebang)
 
-def test_guard_no_qq_files(script_with_shebang, sample_resources, tmp_path):
+def make_dummy_files(tmp_path):
+    """Helper: create dummy qq runtime files in tmp_path."""
+    files = [
+        tmp_path / f"job{QQ_INFO_SUFFIX}",
+        tmp_path / f"job{QQ_OUT_SUFFIX}",
+        tmp_path / f"job{STDOUT_SUFFIX}",
+        tmp_path / f"job{STDERR_SUFFIX}",
+    ]
+    for f in files:
+        f.write_text("dummy")
+    return files
+
+
+def test_guard_or_clear_no_files(script_with_shebang, sample_resources, tmp_path):
     os.chdir(tmp_path)
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
 
     # no raise
-    submitter.guard()
+    submitter.guardOrClear()
 
-def test_guard_invalid_info_file(script_with_shebang, sample_resources, tmp_path):
+def test_guard_or_clear_invalid_files_user_clears(script_with_shebang, sample_resources, tmp_path):
     os.chdir(tmp_path)
-
-    dummy = tmp_path / "job.qqinfo"
-    dummy.write_text("dummy content")
+    files = make_dummy_files(tmp_path)
 
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
 
-    with pytest.raises(QQError, match="Detected qq runtime files, likely from an invalid or failed run"):
-        submitter.guard()
-
-@pytest.mark.parametrize("state", [
-    RealState.KILLED,
-    RealState.FAILED,
-    RealState.IN_AN_INCONSISTENT_STATE
-])
-def test_guard_unproblematic_states_raise(script_with_shebang, sample_resources, tmp_path, state):
-    os.chdir(tmp_path)
-    (tmp_path / "job.qqinfo").write_text("dummy")
-
-    submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
     informer_mock = MagicMock()
-    informer_mock.getRealState.return_value = state
+    informer_mock.getRealState.return_value = RealState.FAILED
 
     with patch.object(QQInformer, "fromFile", return_value=informer_mock):
-        with pytest.raises(QQError, match="Detected qq runtime files, likely from an invalid or failed run"):
-            submitter.guard()
+        with patch("readchar.readkey", return_value="y"):
+            submitter.guardOrClear()
+
+    # files should be deleted
+    for f in files:
+        assert not f.exists()
+
+def test_guard_or_clear_invalid_files_user_declines(script_with_shebang, sample_resources, tmp_path):
+    os.chdir(tmp_path)
+    files = make_dummy_files(tmp_path)
+
+    submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
+
+    informer_mock = MagicMock()
+    informer_mock.getRealState.return_value = RealState.FAILED
+
+    with patch.object(QQInformer, "fromFile", return_value=informer_mock):
+        with patch("readchar.readkey", return_value="n"):
+            with pytest.raises(QQError, match="Submission aborted."):
+                submitter.guardOrClear()
+    
+    # files should exist
+    for f in files:
+        assert f.exists()
 
 @pytest.mark.parametrize("state", [
     RealState.QUEUED,
@@ -164,17 +184,18 @@ def test_guard_unproblematic_states_raise(script_with_shebang, sample_resources,
     RealState.WAITING,
     RealState.BOOTING,
 ])
-def test_guard_active_or_finished_states_raise(script_with_shebang, sample_resources, tmp_path, state):
+def test_guard_or_clear_active_or_finished_always_raises(script_with_shebang, sample_resources, tmp_path, state):
     os.chdir(tmp_path)
-    (tmp_path / "job.qqinfo").write_text("dummy")
+    make_dummy_files(tmp_path)
 
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
+
     informer_mock = MagicMock()
     informer_mock.getRealState.return_value = state
 
     with patch.object(QQInformer, "fromFile", return_value=informer_mock):
-        with pytest.raises(QQError, match="Detected qq runtime files from an active or successfully finished job"):
-            submitter.guard()
+        with pytest.raises(QQError, match="Detected qq runtime files from an active or successful run"):
+            submitter.guardOrClear()
 
 def test_submit_success(tmp_path, script_with_shebang):
     os.chdir(tmp_path)

@@ -65,7 +65,7 @@ class QQClearer:
         Args:
             directory (Path): The directory to clear qq run files from.
         """
-        self.directory = directory
+        self._directory = directory
 
     def getQQFiles(self) -> list[Path]:
         """
@@ -76,7 +76,7 @@ class QQClearer:
         """
         files = []
         for suffix in QQ_SUFFIXES:
-            files.extend(get_files_with_suffix(self.directory, suffix))
+            files.extend(get_files_with_suffix(self._directory, suffix))
 
         return files
 
@@ -94,7 +94,7 @@ class QQClearer:
         if len(files) == 0:
             return
 
-        if self._shouldClear(force):
+        if self.shouldClear(force):
             for file in files:
                 logger.debug(f"Removing file '{file}'.")
                 Path.unlink(file)
@@ -106,7 +106,7 @@ class QQClearer:
                 "Clearing this qq job directory may corrupt or delete useful data. Use 'qq clear --force' if sure."
             )
 
-    def _shouldClear(self, force: bool) -> bool:
+    def shouldClear(self, force: bool) -> bool:
         """
         Determine whether it is safe to clear qq files from the directory.
 
@@ -124,9 +124,9 @@ class QQClearer:
             return True
 
         try:
-            info_file = get_info_file(self.directory)
-            info = QQInformer.loadFromFile(info_file)
-            state = info.getRealState()
+            info_file = get_info_file(self._directory)
+            informer = QQInformer.fromFile(info_file)
+            state = informer.getRealState()
             logger.debug(f"Job state: {str(state)}.")
 
             return state in {

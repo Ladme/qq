@@ -160,6 +160,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def _translateKill(job_id: str) -> str:
         return f"qdel {job_id}"
 
+# register the batch system
+QQBatchMeta.register(QQPBS)
+
 class PBSJobInfo(BatchJobInfoInterface):
     """
     Implementation of BatchJobInterface for PBS.

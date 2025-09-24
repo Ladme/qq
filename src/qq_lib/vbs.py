@@ -201,7 +201,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     def getJobInfo(job_id: str) -> VBSJobInfo:
         return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))
 
-# register the QQVBS class
+# register the batch system
 QQBatchMeta.register(QQVBS)
 
 class VBSJobInfo(BatchJobInfoInterface):

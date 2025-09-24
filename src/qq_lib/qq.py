@@ -28,6 +28,3 @@ cli.add_command(clear)
 cli.add_command(info)
 cli.add_command(go)
 cli.add_command(kill)
-
-# register supported batch systems
-QQBatchMeta.register(QQPBS)

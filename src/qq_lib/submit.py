@@ -16,7 +16,8 @@ import click
 
 import qq_lib
 from qq_lib.batch import QQBatchInterface, QQBatchMeta
-from qq_lib.common import get_info_file
+from qq_lib.clear import QQClearer
+from qq_lib.common import get_info_file, yes_or_no_prompt
 from qq_lib.constants import (
     GUARD,
     INFO_FILE,
@@ -51,7 +52,7 @@ def submit(queue, script, **kwargs):
         del kwargs["batch_system"]
         resources = QQResources(**kwargs)
         submitter = QQSubmitter(BatchSystem, queue, Path(script), resources)
-        submitter.guard()
+        submitter.guardOrClear()
         submitter.submit()
         sys.exit(0)
     except QQError as e:
@@ -161,48 +162,34 @@ class QQSubmitter:
             # submission failed
             raise QQError(f"Failed to submit script '{self._script}': {result.error_message}.")
 
-    def guard(self):
+    def guardOrClear(self):
         """
         Prevent multiple submissions from the same directory.
 
+        If no qq runtime files are present, return immediately.
+        If invalid qq runtime files are detected, warn the user and prompt whether to clear them.
+        - If the user agrees, clear the files and continue.
+        - If the user declines, raise QQError.
+
+        If the files belong to an active or successfully finished job, always raise QQError.
+
         Raises:
-            QQError: If qq runtime files are detected in the current directory.
+            QQError: If QQ runtime files from an active/successful run are detected,
+                    or if invalid QQ files are present and the user chooses not to clear them.
         """
         if not self._qqFilesPresent():
-            return  # no qq files present, all good
-
-        # weaker warning
-        error_msg_soft = (
-            "Detected qq runtime files, likely from an invalid or failed run. "
-            "Submission not allowed until these files are cleared. "
-            "To clear the files, run 'qq clear'."
-        )
-
-        # attempt to locate a single qq info file
-        try:
-            info_file = get_info_file(Path.cwd())
-            informer = QQInformer.fromFile(info_file)
-        except QQError as e:
-            # no, multiple, or an invalid qq info file
-            logger.debug(e)
-            raise QQError(error_msg_soft)
-
-        unproblematic_states = {
-            RealState.KILLED,
-            RealState.FAILED,
-            RealState.IN_AN_INCONSISTENT_STATE,
-        }
-
-        if informer.getRealState() in unproblematic_states:
-            # job is killed, failed, or in an inconsistent state
-            raise QQError(error_msg_soft)
-
-        # job is active or successfully finished -- stronger warning
-        raise QQError(
-            "Detected qq runtime files from an active or successfully finished job. "
-            "SUBMISSION NOT ALLOWED! "
-            "If you know what you are doing, run 'qq clear --force'."
-        )
+            return # no qq files present, all good
+        
+        clearer = QQClearer(Path.cwd())
+        if clearer.shouldClear(force = False):
+            logger.warning("Detected qq runtime files from an invalid run. Submission suspended.")
+            if yes_or_no_prompt("Do you want to remove these files and submit the job?"):
+                files = clearer.getQQFiles()
+                clearer.clearFiles(files, False)
+            else:
+                raise QQError("Submission aborted.")
+        else:
+            raise QQError("Detected qq runtime files from an active or successful run. Submission aborted!")
 
     def _qqFilesPresent(self) -> bool:
         """

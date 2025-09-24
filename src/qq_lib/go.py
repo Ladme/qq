@@ -13,7 +13,6 @@ from qq_lib.common import get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
-from qq_lib.retry import QQRetryer
 from qq_lib.states import RealState
 
 logger = get_logger(__name__)
@@ -39,11 +38,13 @@ def go():
         logger.critical(e, exc_info=True, stack_info=True)
         sys.exit(99)
 
+
 class QQGoer:
     """
     Provides utilities to navigate to the working directory of a qq job
-    submitted from the current directory. 
+    submitted from the current directory.
     """
+
     def __init__(self, current_dir: Path):
         """
         Initialize a QQGoer instance for a given directory.
@@ -153,7 +154,7 @@ class QQGoer:
             and Path(self._directory).resolve() == Path.cwd().resolve()
             and self._host == socket.gethostname()
         )
-    
+
     def _setDestination(self):
         """
         Determine the job's host and working directory from the QQInformer.
@@ -173,7 +174,12 @@ class QQGoer:
 
     def _isQueued(self) -> bool:
         """Check if the job is queued, booting, held, or waiting."""
-        return self._state in {RealState.QUEUED, RealState.BOOTING, RealState.HELD, RealState.WAITING}
+        return self._state in {
+            RealState.QUEUED,
+            RealState.BOOTING,
+            RealState.HELD,
+            RealState.WAITING,
+        }
 
     def _isKilled(self) -> bool:
         """Check if the job has been killed."""
@@ -182,7 +188,7 @@ class QQGoer:
     def _isFinished(self) -> bool:
         """Check if the job has finished succesfully."""
         return self._state == RealState.FINISHED
-    
+
     def _isFailed(self) -> bool:
         """Check if the job has failed."""
         return self._state == RealState.FAILED

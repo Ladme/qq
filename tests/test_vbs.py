@@ -1,38 +1,50 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import os
+import time
 from pathlib import Path
+from typing import TYPE_CHECKING
+
 import pytest
-from qq_lib.batch import BatchOperationResult
+
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
 from qq_lib.vbs import QQVBS, VBSError, VBSJobInfo, VirtualBatchSystem, VirtualJob
-import time
+
+if TYPE_CHECKING:
+    from qq_lib.batch import BatchOperationResult
 
 
 def test_try_create_scratch_creates_directory(tmp_path):
-    job = VirtualJob(job_id="1", script=tmp_path / "dummy.sh", use_scratch=True, node=tmp_path)
+    job = VirtualJob(
+        job_id="1", script=tmp_path / "dummy.sh", use_scratch=True, node=tmp_path
+    )
     job.tryCreateScratch()
+    assert job.scratch is not None
     assert job.scratch.exists() and job.scratch.is_dir()
     assert job.scratch.name == "1"
 
+
 def test_try_create_scratch_no_scratch(tmp_path):
-    job = VirtualJob(job_id="1", script=tmp_path / "dummy.sh", use_scratch=False, node=tmp_path)
+    job = VirtualJob(
+        job_id="1", script=tmp_path / "dummy.sh", use_scratch=False, node=tmp_path
+    )
     job.tryCreateScratch()
     assert job.scratch is None
+
 
 def test_submit_job_adds_job(tmp_path):
     vbs = VirtualBatchSystem()
     script = tmp_path / "dummy.sh"
     script.write_text("echo hello")
     job_id = vbs.submitJob(script, use_scratch=True)
-    
+
     assert job_id in vbs.jobs
     job = vbs.jobs[job_id]
     assert job.script == script
     assert job.state == BatchState.QUEUED
     assert job.use_scratch is True
+
 
 def test_run_job_starts_job(tmp_path):
     vbs = VirtualBatchSystem()
@@ -48,7 +60,9 @@ def test_run_job_starts_job(tmp_path):
     job = vbs.jobs[job_id]
     assert job.state == BatchState.FINISHED
     assert "hello" in job.output
+    assert job.node is not None
     assert job.node.exists()
+
 
 def test_run_job_frozen_starts_job(tmp_path):
     vbs = VirtualBatchSystem()
@@ -57,13 +71,14 @@ def test_run_job_frozen_starts_job(tmp_path):
     script.chmod(script.stat().st_mode | 0o111)
 
     job_id = vbs.submitJob(script, use_scratch=True)
-    vbs.runJob(job_id, freeze = True)
+    vbs.runJob(job_id, freeze=True)
 
     time.sleep(0.1)
 
     job = vbs.jobs[job_id]
     assert job.state == BatchState.RUNNING
     assert "" in job.output
+    assert job.node is not None
     assert job.node.exists()
 
     vbs.releaseFrozenJob(job_id)
@@ -73,14 +88,16 @@ def test_run_job_frozen_starts_job(tmp_path):
     job = vbs.jobs[job_id]
     assert job.state == BatchState.FINISHED
     assert "hello" in job.output
+    assert job.node is not None
     assert job.node.exists()
+
 
 def test_kill_job(tmp_path):
     vbs = VirtualBatchSystem()
     script = tmp_path / "sleep.sh"
     script.write_text("#!/bin/bash\nsleep 1\n")
     script.chmod(script.stat().st_mode | 0o111)
-    
+
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
@@ -90,12 +107,13 @@ def test_kill_job(tmp_path):
     vbs.killJob(job_id, hard=False)
     assert job.state == BatchState.FINISHED
 
+
 def test_kill_job_hard(tmp_path):
     vbs = VirtualBatchSystem()
     script = tmp_path / "sleep.sh"
     script.write_text("#!/bin/bash\nsleep 1\n")
     script.chmod(script.stat().st_mode | 0o111)
-    
+
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
@@ -105,12 +123,13 @@ def test_kill_job_hard(tmp_path):
     vbs.killJob(job_id, hard=True)
     assert job.state == BatchState.FINISHED
 
+
 def test_kill_finished_job(tmp_path):
     vbs = VirtualBatchSystem()
     script = tmp_path / "sleep.sh"
     script.write_text("#!/bin/bash\necho hello\n")
     script.chmod(script.stat().st_mode | 0o111)
-    
+
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
@@ -120,9 +139,11 @@ def test_kill_finished_job(tmp_path):
     with pytest.raises(VBSError, match="is finished"):
         vbs.killJob(job_id, hard=False)
 
+
 @pytest.fixture
 def sample_resources():
     return QQResources(ncpus=1, work_dir="scratch_local")
+
 
 def test_qqvbs_job_submit_and_get_job_info(tmp_path, sample_resources):
     # we need to always clear the jobs from the batch system, because batch system is global
@@ -164,11 +185,14 @@ def test_qqvbs_get_scratch_dir_success(tmp_path, sample_resources):
     assert result.exit_code == 0
     assert Path(result.success_message).exists()
 
+
 def test_qqvbs_get_scratch_dir_job_not_exist():
     QQVBS._batch_system.clearJobs()
-    result = QQVBS.getScratchDir("999")
+    result: BatchOperationResult = QQVBS.getScratchDir("999")
     assert result.exit_code != 0
+    assert result.error_message is not None
     assert "does not exist" in result.error_message
+
 
 def test_qqvbs_get_scratch_dir_no_scratch(tmp_path):
     QQVBS._batch_system.clearJobs()
@@ -178,9 +202,10 @@ def test_qqvbs_get_scratch_dir_no_scratch(tmp_path):
 
     # submit without scratch
     QQVBS._batch_system.submitJob(script, use_scratch=False)
-    result = QQVBS.getScratchDir("0")
+    result: BatchOperationResult = QQVBS.getScratchDir("0")
 
     assert result.exit_code != 0
+    assert result.error_message is not None
     assert "does not have a scratch" in result.error_message
 
 
@@ -214,6 +239,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     assert job.state == BatchState.FINISHED
     assert job.process is None
 
+
 def test_job_kill_fails_if_finished(tmp_path, sample_resources):
     QQVBS._batch_system.clearJobs()
     script = tmp_path / "dummy.sh"
@@ -228,9 +254,11 @@ def test_job_kill_fails_if_finished(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
-    result = QQVBS.jobKill(job_id)
+    result: BatchOperationResult = QQVBS.jobKill(job_id)
     assert result.exit_code == 1
+    assert result.error_message is not None
     assert "is finished" in result.error_message
+
 
 def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
     QQVBS._batch_system.clearJobs()
@@ -246,9 +274,11 @@ def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
-    result = QQVBS.jobKillForce(job_id)
+    result: BatchOperationResult = QQVBS.jobKillForce(job_id)
     assert result.exit_code == 1
+    assert result.error_message is not None
     assert "is finished" in result.error_message
+
 
 def test_qqvbs_navigate_to_destination(tmp_path):
     target = tmp_path / "workdir"
@@ -256,12 +286,20 @@ def test_qqvbs_navigate_to_destination(tmp_path):
 
     result = QQVBS.navigateToDestination(str(tmp_path), Path("workdir"))
     assert result.exit_code == 0
-    assert os.getcwd() == str(target)
+    assert Path.cwd() == target
+
 
 def test_qqvbs_navigate_to_destination_failure(tmp_path):
-    result = QQVBS.navigateToDestination(str(tmp_path), Path("does_not_exist"))
+    result: BatchOperationResult = QQVBS.navigateToDestination(
+        str(tmp_path), Path("does_not_exist")
+    )
     assert result.exit_code == 1
-    assert "No such file" in result.error_message or "does not exist" in result.error_message
+    assert result.error_message is not None
+    assert (
+        "No such file" in result.error_message
+        or "does not exist" in result.error_message
+    )
+
 
 def test_vbs_job_info_get_job_state_returns_state(tmp_path, sample_resources):
     QQVBS._batch_system.clearJobs()
@@ -277,6 +315,7 @@ def test_vbs_job_info_get_job_state_returns_state(tmp_path, sample_resources):
 
     job.state = BatchState.RUNNING
     assert info.getJobState() == BatchState.RUNNING
+
 
 def test_VBSJobInfo_getJobState_job_none():
     QQVBS._batch_system.clearJobs()

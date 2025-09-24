@@ -13,7 +13,6 @@ from qq_lib.common import (
     yes_or_no_prompt,
 )
 from qq_lib.error import QQError
-from qq_lib.pbs import QQPBS
 
 
 def test_no_files_with_matching_suffix():

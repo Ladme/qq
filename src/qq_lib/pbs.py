@@ -4,25 +4,32 @@
 import os
 import socket
 import subprocess
-from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch import BatchJobInfoInterface, BatchOperationResult, QQBatchMeta, QQBatchInterface
+from qq_lib.batch import (
+    BatchJobInfoInterface,
+    BatchOperationResult,
+    QQBatchInterface,
+    QQBatchMeta,
+)
+from qq_lib.constants import QQ_OUT_SUFFIX
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
-from qq_lib.constants import QQ_OUT_SUFFIX
 
 logger = get_logger(__name__)
+
 
 # forward declaration
 class PBSJobInfo(BatchJobInfoInterface):
     pass
 
+
 class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     """
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
+
     # magic number indicating unreachable directory when navigating to it
     CD_FAIL = 94
     # exit code of ssh if connection fails
@@ -31,18 +38,18 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def envName() -> str:
         return "PBS"
 
-    def getScratchDir(job_id: int) -> BatchOperationResult:
+    def getScratchDir(job_id: str) -> BatchOperationResult:
         scratch_dir = os.environ.get("SCRATCHDIR")
         if not scratch_dir:
-            return BatchOperationResult.error(1, f"Scratch directory for job '{job_id}' is undefined.")
-        
+            return BatchOperationResult.error(
+                1, f"Scratch directory for job '{job_id}' is undefined."
+            )
+
         return BatchOperationResult.success(scratch_dir)
-    
+
     def jobSubmit(res: QQResources, queue: str, script: Path) -> BatchOperationResult:
         # get the submission command
-        command = QQPBS._translateSubmit(
-            res, queue, str(script)
-        )
+        command = QQPBS._translateSubmit(res, queue, str(script))
         logger.debug(command)
 
         # submit the script
@@ -50,8 +57,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip(), success_message = result.stdout.strip())
-        
+        return BatchOperationResult.fromExitCode(
+            result.returncode,
+            error_message=result.stderr.strip(),
+            success_message=result.stdout.strip(),
+        )
+
     def jobKill(job_id: str) -> BatchOperationResult:
         command = QQPBS._translateKill(job_id)
         logger.debug(command)
@@ -61,8 +72,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(result.returncode, success_message = result.stdout.strip(), error_message = result.stderr.strip())
-    
+        return BatchOperationResult.fromExitCode(
+            result.returncode,
+            success_message=result.stdout.strip(),
+            error_message=result.stderr.strip(),
+        )
+
     def jobKillForce(job_id: str) -> BatchOperationResult:
         command = QQPBS._translateKillForce(job_id)
         logger.debug(command)
@@ -72,8 +87,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(result.returncode, error_message = result.stderr.strip())
-    
+        return BatchOperationResult.fromExitCode(
+            result.returncode, error_message=result.stderr.strip()
+        )
+
     def navigateToDestination(host: str, directory: Path) -> BatchOperationResult:
         # if the directory is on the current host, we do not need to use ssh
         if host == socket.gethostname():
@@ -86,7 +103,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return QQPBS._translateSSHExitToResult(subprocess.run(ssh_command).returncode)
 
     def getJobInfo(job_id: str) -> PBSJobInfo:
-        return PBSJobInfo(job_id)
+        return PBSJobInfo(job_id)  # ty: ignore[invalid-return-type]
 
     def _translateSubmit(res: QQResources, queue: str, script: str) -> str:
         """
@@ -125,19 +142,19 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             list[str]: List of resource specifications for inclusion in the qsub command.
         """
         trans_res = []
-        for (name, value) in res.toDict().items():
+        for name, value in res.toDict().items():
             if name in ["work_dir", "work_size"]:
                 continue
 
             trans_res.append(f"{name}={value}")
-        
+
         # translate working directory resource
         workdir = QQPBS._translateWorkDir(res)
         if workdir:
             trans_res.append(workdir)
 
         return trans_res
-    
+
     @staticmethod
     def _translateWorkDir(res: QQResources) -> str | None:
         """
@@ -179,7 +196,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             str: The qdel command without force flag.
         """
         return f"qdel {job_id}"
-    
+
     @staticmethod
     def _translateSSHCommand(host: str, directory: Path) -> list[str]:
         """
@@ -198,7 +215,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             "-t",
             f"cd {directory} || exit {QQPBS.CD_FAIL} && exec bash -l",
         ]
-    
+
     @staticmethod
     def _translateSSHExitToResult(exit_code: int) -> BatchOperationResult:
         """
@@ -239,7 +256,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         subprocess.run(["bash"], cwd=directory)
 
-        # if the directory exists, always report success, 
+        # if the directory exists, always report success,
         # no matter what the user does inside the terminal
         return BatchOperationResult.success()
 
@@ -247,35 +264,37 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 # register the batch system
 QQBatchMeta.register(QQPBS)
 
+
 class PBSJobInfo(BatchJobInfoInterface):
     """
     Implementation of BatchJobInterface for PBS.
     """
+
     def __init__(self, job_id: str):
         self._job_id = job_id
         self._info: dict[str, str] = {}
 
         self.update()
-        
+
     def update(self):
         # get job info from PBS
         command = f"qstat -fx {self._job_id}"
 
         result = subprocess.run(
-            ["bash"], input = command, text = True, check = False, capture_output = True
+            ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
         if result.returncode != 0:
             # if qstat fails, information is empty
             self._info: dict[str, str] = {}
         else:
-            self._info = PBSJobInfo._parse_pbs_dump_to_dictionary(result.stdout)
-    
+            self._info = PBSJobInfo._parse_pbs_dump_to_dictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+
     def getJobState(self) -> BatchState:
         state = self._info.get("job_state")
         if not state:
             return BatchState.UNKNOWN
-        
+
         return BatchState.fromCode(state)
 
     @staticmethod

@@ -4,15 +4,46 @@
 from abc import ABC, ABCMeta, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic, Self, TypeVar
+from typing import Self
 
 from qq_lib.error import QQError
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
 
-# forward declaration
-class BatchJobInfoInterface(ABC): 
-    pass  
+
+class BatchJobInfoInterface(ABC):
+    """
+    Abstract base class for retrieving and maintaining job information
+    from a batch scheduling system.
+
+    Must support situations where the job information no longer exists.
+
+    The implementation of the constructor is arbitrary and should only
+    be used inside the corresponding implementation of ``QQBatchInterface.getJobInfo``.
+    """
+
+    @abstractmethod
+    def update(self):
+        """
+        Refresh the stored job information from the batch system.
+
+        Raises:
+            QQError: If the job cannot be queried or updated.
+        """
+        pass
+
+    @abstractmethod
+    def getJobState(self) -> BatchState:
+        """
+        Return the current state of the job as reported by the batch system.
+
+        If the job information is no longer available, return ``BatchState.UNKNOWN``.
+
+        Returns:
+            BatchState: The job state according to the batch system.
+        """
+        pass
+
 
 @dataclass
 class BatchOperationResult:
@@ -23,6 +54,7 @@ class BatchOperationResult:
         success_message (str | None): Optional message returned on success.
         error_message (str | None): Optional message returned on error.
     """
+
     # exit code of the operation
     exit_code: int
 
@@ -44,7 +76,7 @@ class BatchOperationResult:
         Returns:
             BatchOperationResult: Instance representing an error.
         """
-        return cls(exit_code = code, error_message = msg)
+        return cls(exit_code=code, error_message=msg)
 
     @classmethod
     def success(cls, msg: str | None = None) -> Self:
@@ -57,10 +89,15 @@ class BatchOperationResult:
         Returns:
             BatchOperationResult: Instance representing success with exit_code 0.
         """
-        return cls(exit_code = 0, success_message = msg)
-    
+        return cls(exit_code=0, success_message=msg)
+
     @classmethod
-    def fromExitCode(cls, code: int, success_message: str | None = None, error_message: str | None = None) -> Self:
+    def fromExitCode(
+        cls,
+        code: int,
+        success_message: str | None = None,
+        error_message: str | None = None,
+    ) -> Self:
         """
         Create a BatchOperationResult instance based on an exit code.
 
@@ -72,11 +109,14 @@ class BatchOperationResult:
         Returns:
             BatchOperationResult: Success or error instance depending on the exit code.
         """
-        return cls.success(success_message) if code == 0 else cls.error(code, error_message)
+        return (
+            cls.success(success_message)
+            if code == 0
+            else cls.error(code, error_message)
+        )
 
-TBatchInfo = TypeVar("TBatchInfo", bound=BatchJobInfoInterface)
 
-class QQBatchInterface(ABC, Generic[TBatchInfo]):
+class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     """
     Abstract base class for batch system integrations.
 
@@ -99,7 +139,7 @@ class QQBatchInterface(ABC, Generic[TBatchInfo]):
 
     @staticmethod
     @abstractmethod
-    def getScratchDir(job_id: int) -> BatchOperationResult:
+    def getScratchDir(job_id: str) -> BatchOperationResult:
         """
         Retrieve the scratch directory for a given job.
 
@@ -108,7 +148,7 @@ class QQBatchInterface(ABC, Generic[TBatchInfo]):
 
         Returns:
             BatchOperationResult: Result of the operation.
-                                  Success message must contain path to the 
+                                  Success message must contain path to the
                                   scratch directory as a string.
                                   Error message can contain anything reasonable.
         """
@@ -197,37 +237,6 @@ class QQBatchInterface(ABC, Generic[TBatchInfo]):
         """
         pass
 
-class BatchJobInfoInterface(ABC):
-    """
-    Abstract base class for retrieving and maintaining job information
-    from a batch scheduling system.
-
-    Must support situations where the job information no longer exists.
-
-    The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of ``QQBatchInterface.getJobInfo``.
-    """
-    @abstractmethod
-    def update(self):
-        """
-        Refresh the stored job information from the batch system.
-
-        Raises:
-            QQError: If the job cannot be queried or updated.
-        """
-        pass
-
-    @abstractmethod
-    def getJobState(self) -> BatchState:
-        """
-        Return the current state of the job as reported by the batch system.
-
-        If the job information is no longer available, return ``BatchState.UNKNOWN``.
-
-        Returns:
-            BatchState: The job state according to the batch system.
-        """
-        pass
 
 class QQBatchMeta(ABCMeta):
     """

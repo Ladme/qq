@@ -1,14 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-from datetime import datetime
 import os
-from pathlib import Path
 import socket
 import subprocess
-import pytest
+from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from qq_lib.batch import BatchOperationResult
@@ -20,9 +20,11 @@ from qq_lib.run import QQRunner, _log_fatal_qq_error, _log_fatal_unexpected_erro
 from qq_lib.states import NaiveState
 from qq_lib.vbs import QQVBS
 
+
 @pytest.fixture
 def sample_resources():
     return QQResources(ncpus=8, work_dir="scratch_local")
+
 
 @pytest.fixture
 def sample_info(sample_resources):
@@ -45,7 +47,8 @@ def sample_info(sample_resources):
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )
 
-def write_info_file_no_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info):
+
+def write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info):
     """Helper to write qqinfo file and set env var."""
     # activate qq environment
     os.environ[GUARD] = "true"
@@ -64,6 +67,7 @@ def write_info_file_no_scratch_and_set_env_var(monkeypatch, tmp_path, sample_inf
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
 
+
 def test_run_no_scratch_finishes(monkeypatch, tmp_path, sample_info):
     write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
 
@@ -75,6 +79,7 @@ def test_run_no_scratch_finishes(monkeypatch, tmp_path, sample_info):
 
     assert result.exit_code == 0
     assert "hello" in (tmp_path / "job" / "script.out").read_text()
+
 
 def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info):
     """Helper to write qqinfo file and set env var."""
@@ -90,12 +95,17 @@ def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_i
     # create a scratch dir & set a monkeypatch for it
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
-    monkeypatch.setattr(QQVBS, "getScratchDir", staticmethod(lambda job_id: BatchOperationResult.success(str(scratch_dir))))
+    monkeypatch.setattr(
+        QQVBS,
+        "getScratchDir",
+        staticmethod(lambda _: BatchOperationResult.success(str(scratch_dir))),
+    )
 
     info_file = job_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
+
 
 def test_run_scratch_finishes(monkeypatch, tmp_path, sample_info):
     write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
@@ -109,6 +119,7 @@ def test_run_scratch_finishes(monkeypatch, tmp_path, sample_info):
     assert result.exit_code == 0
     assert "hello" in (tmp_path / "job" / "script.out").read_text()
 
+
 def test_run_scratch_fails(monkeypatch, tmp_path, sample_info):
     write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
 
@@ -121,6 +132,7 @@ def test_run_scratch_fails(monkeypatch, tmp_path, sample_info):
     assert result.exit_code == 2
     # should not be copied from work directory
     assert "hello" in (tmp_path / "scratch" / "script.out").read_text()
+
 
 def test_run_scratch_guard_fail(monkeypatch, tmp_path, sample_info):
     write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
@@ -136,6 +148,7 @@ def test_run_scratch_guard_fail(monkeypatch, tmp_path, sample_info):
 
     assert result.exit_code == 91
 
+
 def test_run_scratch_nonexistent_info_file(monkeypatch, tmp_path, sample_info):
     write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
 
@@ -150,11 +163,13 @@ def test_run_scratch_nonexistent_info_file(monkeypatch, tmp_path, sample_info):
 
     assert result.exit_code == 92
 
+
 def write_info_file(path: Path, sample_info: QQInfo):
     """Helper to dump a valid QQInfo into a YAML file."""
     informer = QQInformer(sample_info)
     informer.toFile(path)
     return path
+
 
 def test_runner_init_ok(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
@@ -167,11 +182,13 @@ def test_runner_init_ok(tmp_path, sample_info):
     assert runner._info_file == info_file
     assert isinstance(runner._informer, QQInformer)
 
+
 def test_runner_init_env_not_set(monkeypatch):
     monkeypatch.delenv(INFO_FILE, raising=False)
 
     with pytest.raises(QQError, match="not set"):
         QQRunner()
+
 
 def test_runner_init_info_file_missing(tmp_path):
     info_file = tmp_path / "missing.qqinfo"
@@ -180,11 +197,13 @@ def test_runner_init_info_file_missing(tmp_path):
     with pytest.raises(QQError, match="does not exist"):
         QQRunner()
 
+
 def test_runner_init_info_file_incomplete(tmp_path, sample_info):
     info_file = tmp_path / "bad.qqinfo"
     # write info file missing a single field
     informer = QQInformer(sample_info)
-    informer.info.job_id = None
+    # intentionally making info invalid
+    informer.info.job_id = None  # ty: ignore[invalid-assignment]
     informer.toFile(info_file)
 
     os.environ[INFO_FILE] = str(info_file)
@@ -207,6 +226,7 @@ def test_set_up_initializes_runner(tmp_path, sample_info):
     assert runner._batch_system == sample_info.batch_system
     assert runner._use_scratch == sample_info.resources.useScratch()
 
+
 @pytest.fixture
 def runner_with_dirs(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
@@ -225,24 +245,30 @@ def runner_with_dirs(tmp_path, sample_info):
     runner._job_dir.mkdir()
     return runner
 
+
 def test_set_up_work_dir_calls_correct_method(runner_with_dirs):
     runner = runner_with_dirs
 
     # use scratch
     runner._use_scratch = True
-    with patch.object(runner, "_setUpScratchDir") as mock_scratch, \
-         patch.object(runner, "_setUpSharedDir") as mock_shared:
+    with (
+        patch.object(runner, "_setUpScratchDir") as mock_scratch,
+        patch.object(runner, "_setUpSharedDir") as mock_shared,
+    ):
         runner.setUpWorkDir()
         mock_scratch.assert_called_once()
         mock_shared.assert_not_called()
 
     # no scratch
     runner._use_scratch = False
-    with patch.object(runner, "_setUpScratchDir") as mock_scratch, \
-         patch.object(runner, "_setUpSharedDir") as mock_shared:
+    with (
+        patch.object(runner, "_setUpScratchDir") as mock_scratch,
+        patch.object(runner, "_setUpSharedDir") as mock_shared,
+    ):
         runner.setUpWorkDir()
         mock_shared.assert_called_once()
         mock_scratch.assert_not_called()
+
 
 def test_execute_script_success(tmp_path, runner_with_dirs):
     runner = runner_with_dirs
@@ -270,6 +296,7 @@ def test_execute_script_success(tmp_path, runner_with_dirs):
     updated_info = QQInfo.fromFile(tmp_path / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 
+
 def test_execute_script_failure(tmp_path, runner_with_dirs):
     runner = runner_with_dirs
 
@@ -295,6 +322,7 @@ def test_execute_script_failure(tmp_path, runner_with_dirs):
     assert "stderr success" in (tmp_path / "stderr_success.log").read_text()
     updated_info = QQInfo.fromFile(tmp_path / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
+
 
 @pytest.fixture
 def runner_with_dirs_and_files(tmp_path, sample_info):
@@ -325,7 +353,7 @@ def runner_with_dirs_and_files(tmp_path, sample_info):
         (True, 1),
         (False, 0),
         (False, 1),
-    ]
+    ],
 )
 def test_finalize(tmp_path, runner_with_dirs_and_files, use_scratch, returncode):
     runner = runner_with_dirs_and_files
@@ -370,6 +398,7 @@ def test_finalize(tmp_path, runner_with_dirs_and_files, use_scratch, returncode)
             assert not (runner._work_dir / "file_job.txt").exists()
             assert (runner._work_dir / "file_work.txt").exists()
 
+
 def test_setUpSharedDir(runner_with_dirs):
     runner = runner_with_dirs
 
@@ -382,7 +411,7 @@ def test_setUpSharedDir(runner_with_dirs):
 
     # working directory should now be the job directory
     assert runner._work_dir == runner._job_dir
-    assert os.getcwd() == str(runner._job_dir)
+    assert Path.cwd() == runner._job_dir
 
     # files in job_dir should still exist
     assert (runner._work_dir / "dummy.txt").exists()
@@ -401,28 +430,34 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
     runner._batch_system = MagicMock()
-    runner._batch_system.getScratchDir.return_value = BatchOperationResult.success(str(scratch_dir))
+    runner._batch_system.getScratchDir.return_value = BatchOperationResult.success(
+        str(scratch_dir)
+    )
 
     runner._setUpScratchDir()
 
     # working directory should now be scratch_dir
     assert runner._work_dir == scratch_dir
-    assert os.getcwd() == str(scratch_dir)
+    assert Path.cwd() == scratch_dir
 
     # files should be copied from job_dir to work_dir
     for f in ["file1.txt", "file2.log"]:
         assert (runner._work_dir / f).exists()
         assert (runner._job_dir / f).exists()
 
+
 def test_set_up_scratch_dir_failure(runner_with_dirs):
     runner = runner_with_dirs
 
     # mock batch system to fail
     runner._batch_system = MagicMock()
-    runner._batch_system.getScratchDir.return_value = BatchOperationResult.error(1, "failed to get scratch")
+    runner._batch_system.getScratchDir.return_value = BatchOperationResult.error(
+        1, "failed to get scratch"
+    )
 
     with pytest.raises(QQError, match="failed to get scratch"):
         runner._setUpScratchDir()
+
 
 def test_copy_files_from_workdir_some_files(runner_with_dirs):
     # create files and directories in work_dir
@@ -448,10 +483,12 @@ def test_copy_files_from_workdir_some_files(runner_with_dirs):
             assert nested_file.exists()
             assert nested_file.read_text() == "nested"
 
+
 def test_copy_files_from_workdir_no_files(runner_with_dirs):
     # nothing in work_dir
     runner_with_dirs._copyFilesFromWorkDir()
     assert list(runner_with_dirs._job_dir.iterdir()) == []
+
 
 @pytest.fixture
 def runner(tmp_path, sample_info):
@@ -466,6 +503,7 @@ def runner(tmp_path, sample_info):
     Path.unlink(info_file)
     return runner
 
+
 def test_copy_files_to_dst(runner, tmp_path):
     # create job directory
     dest = tmp_path / "job"
@@ -474,7 +512,7 @@ def test_copy_files_to_dst(runner, tmp_path):
     # create files and directories
     f1 = tmp_path / "file1.txt"
     f2 = tmp_path / "file2.txt"
-    f3 = tmp_path / "file3.txt" # should not be copied
+    f3 = tmp_path / "file3.txt"  # should not be copied
     d1 = tmp_path / "dir1"
     f1.write_text("content1")
     f2.write_text("content2")
@@ -495,10 +533,10 @@ def test_copy_files_to_dst(runner, tmp_path):
             nested_file = dest_path / "nested.txt"
             assert nested_file.exists()
             assert nested_file.read_text() == "nested"
-    
+
     # not copied
     assert not (dest / f3.name).exists()
-    
+
 
 def test_remove_files_from_workdir_some_files(runner, tmp_path):
     # set-up work dir
@@ -518,6 +556,7 @@ def test_remove_files_from_workdir_some_files(runner, tmp_path):
     # assert everything removed
     assert not any(tmp_path.iterdir())
 
+
 def test_remove_files_from_workdir_no_files(runner, tmp_path):
     # set-up work dir
     runner._work_dir = tmp_path
@@ -528,6 +567,7 @@ def test_remove_files_from_workdir_no_files(runner, tmp_path):
     # nothing should break and directory remains empty
     assert list(tmp_path.iterdir()) == []
 
+
 def test_get_files_to_copy_some_files_no_excluded(tmp_path, runner):
     # create some files
     (tmp_path / "file1.txt").write_text("hello")
@@ -536,19 +576,25 @@ def test_get_files_to_copy_some_files_no_excluded(tmp_path, runner):
     d1 = tmp_path / "dir1"
     d1.mkdir()
     (d1 / "nested.txt").write_text("nested")
-    
+
     result = runner._getFilesToCopy(tmp_path)
-    assert set(result) == {tmp_path / "file1.txt", tmp_path / "file2.txt", tmp_path / "dir1"}
+    assert set(result) == {
+        tmp_path / "file1.txt",
+        tmp_path / "file2.txt",
+        tmp_path / "dir1",
+    }
+
 
 def test_get_files_to_copy_no_files_excluded(tmp_path, runner):
     # create some files
     (tmp_path / "file1.txt").write_text("hello")
     (tmp_path / "file2.txt").write_text("world")
-    
+
     # exclude both files
     excluded = [tmp_path / "file1.txt", tmp_path / "file2.txt"]
     result = runner._getFilesToCopy(tmp_path, filter_out=excluded)
     assert result == []
+
 
 def test_get_files_to_copy_some_files_some_excluded(tmp_path, runner):
     # create files
@@ -559,7 +605,7 @@ def test_get_files_to_copy_some_files_some_excluded(tmp_path, runner):
     d1 = tmp_path / "dir1"
     d1.mkdir()
     (d1 / "nested.txt").write_text("nested")
-    
+
     # exclude file2 and dir1
     excluded = [tmp_path / "file2.txt", tmp_path / "dir1"]
     result = runner._getFilesToCopy(tmp_path, filter_out=excluded)
@@ -570,6 +616,7 @@ def test_get_files_to_copy_no_files_no_excluded(tmp_path, runner):
     # empty directory
     result = runner._getFilesToCopy(tmp_path)
     assert result == []
+
 
 def test_update_info_running(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
@@ -589,6 +636,7 @@ def test_update_info_running(tmp_path, sample_info):
     # unchanged
     assert updated_info.script_name == "script.sh"
 
+
 def test_update_info_finished(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
@@ -604,6 +652,7 @@ def test_update_info_finished(tmp_path, sample_info):
     assert updated_info.job_exit_code == 0
     # unchanged
     assert updated_info.script_name == "script.sh"
+
 
 def test_update_info_failed(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
@@ -622,6 +671,7 @@ def test_update_info_failed(tmp_path, sample_info):
     # unchanged
     assert updated_info.script_name == "script.sh"
 
+
 def test_update_info_killed(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
@@ -637,6 +687,7 @@ def test_update_info_killed(tmp_path, sample_info):
     # unchanged
     assert updated_info.script_name == "script.sh"
 
+
 def test_log_failure_into_info_file(tmp_path, sample_info):
     # create a QQ info file
     info_file = tmp_path / "job.qqinfo"
@@ -650,7 +701,7 @@ def test_log_failure_into_info_file(tmp_path, sample_info):
     # the function should update the info file and then exit
     with pytest.raises(SystemExit) as exc:
         runner.logFailureIntoInfoFile(exit_code)
-    
+
     # check that the exit code is propagated
     assert exc.value.code == exit_code
 
@@ -660,6 +711,7 @@ def test_log_failure_into_info_file(tmp_path, sample_info):
     assert updated_info.job_exit_code == exit_code
     # unchanged
     assert updated_info.script_name == "script.sh"
+
 
 def test_log_failure_into_info_file_failure(tmp_path, sample_info):
     # create a QQ info file
@@ -682,6 +734,7 @@ def test_log_failure_into_info_file_failure(tmp_path, sample_info):
     # the exit code is still propagated
     assert exc.value.code == exit_code
 
+
 def test_cleanup_marks_job_killed(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
@@ -689,17 +742,18 @@ def test_cleanup_marks_job_killed(tmp_path, sample_info):
     os.environ[INFO_FILE] = str(info_file)
 
     runner = QQRunner()
-    runner._process = subprocess.Popen(["sleep", "5"])
+    runner._process = subprocess.Popen(["sleep", "5"], text=True)
 
     runner._cleanup()
 
     assert runner._process.poll() is not None
-    
+
     loaded_info = QQInfo.fromFile(info_file)
     assert loaded_info.job_state == NaiveState.KILLED
     assert loaded_info.completion_time is not None
     # unchanged
     assert loaded_info.script_name == "script.sh"
+
 
 def test_handle_sigterm_marks_job_killed_and_exits(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
@@ -708,28 +762,28 @@ def test_handle_sigterm_marks_job_killed_and_exits(tmp_path, sample_info):
     os.environ[INFO_FILE] = str(info_file)
 
     runner = QQRunner()
-    runner._process = subprocess.Popen(["sleep", "5"])
+    runner._process = subprocess.Popen(["sleep", "5"], text=True)
 
     with pytest.raises(SystemExit) as exc:
         runner._handle_sigterm(_signum=15, _frame=None)
-    
-    assert exc.value.code == 143
+
+    assert exc.value.code == 143  # ty: ignore[unresolved-attribute] # ty thinks SystemExit has no 'code'
 
     assert runner._process.poll() is not None
-    
+
     loaded_info = QQInfo.fromFile(info_file)
     assert loaded_info.job_state == NaiveState.KILLED
     assert loaded_info.completion_time is not None
     # unchanged
     assert loaded_info.script_name == "script.sh"
 
+
 def test_log_fatal_qq_error_logs_and_exits():
     exc = QQError("Something went wrong")
     exit_code = 42
 
-    with patch("qq_lib.run.logger") as mock_logger:
-        with pytest.raises(SystemExit) as e:
-            _log_fatal_qq_error(exc, exit_code)
+    with patch("qq_lib.run.logger") as mock_logger, pytest.raises(SystemExit) as e:
+        _log_fatal_qq_error(exc, exit_code)
 
     assert e.value.code == exit_code
 
@@ -738,13 +792,13 @@ def test_log_fatal_qq_error_logs_and_exits():
         "Failure state could not be logged into the job info file. Consider the job to be in an INCONSISTENT state!"
     )
 
+
 def test_log_fatal_unexpected_error_logs_and_exits():
     exc = ValueError("Unexpected problem")
     exit_code = 99
 
-    with patch("qq_lib.run.logger") as mock_logger:
-        with pytest.raises(SystemExit) as e:
-            _log_fatal_unexpected_error(exc, exit_code)
+    with patch("qq_lib.run.logger") as mock_logger, pytest.raises(SystemExit) as e:
+        _log_fatal_unexpected_error(exc, exit_code)
 
     assert e.value.code == exit_code
 

@@ -8,10 +8,9 @@ import readchar
 from rich.live import Live
 from rich.text import Text
 
-from qq_lib.batch import QQBatchInterface
+from qq_lib.constants import QQ_INFO_SUFFIX
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
-from qq_lib.constants import QQ_INFO_SUFFIX
 
 logger = get_logger(__name__)
 
@@ -37,6 +36,7 @@ def get_info_file(current_directory: Path) -> Path:
         raise QQError(f"Multiple ({len(info_files)}) qq job info files detected.")
 
     return info_files[0]
+
 
 def yes_or_no_prompt(prompt: str) -> bool:
     prompt = f"   {prompt} "
@@ -68,6 +68,7 @@ def yes_or_no_prompt(prompt: str) -> bool:
         )
 
     return key == "y"
+
 
 def format_duration(td: timedelta) -> str:
     """

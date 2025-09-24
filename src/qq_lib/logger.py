@@ -9,6 +9,7 @@ from rich.logging import RichHandler
 
 from qq_lib.constants import DATE_FORMAT, DEBUG_MODE
 
+
 def get_logger(name: str, show_time: bool = False) -> logging.Logger:
     """
     Return a logger with unified formatting.

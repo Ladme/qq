@@ -14,7 +14,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch import BatchJobInfoInterface, QQBatchMeta, QQBatchInterface
+from qq_lib.batch import BatchJobInfoInterface, QQBatchInterface, QQBatchMeta
 from qq_lib.common import format_duration, get_info_file
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
@@ -23,6 +23,7 @@ from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
 
 logger = get_logger(__name__)
+
 
 @click.command(help="Get information about the qq job.")
 def info():
@@ -42,6 +43,7 @@ def info():
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
         sys.exit(99)
+
 
 @dataclass
 class QQInfo:
@@ -197,10 +199,12 @@ class QQInfo:
             if f.type == QQResources:
                 result[f.name] = value.toDict()
             # convert the state and the batch system
-            elif f.type == NaiveState or f.type == type[QQBatchInterface]:
-                result[f.name] = str(value)
-            # convert paths (incl. optional paths)
-            elif f.type == Path or f.type == Path | None:
+            elif (
+                f.type == NaiveState
+                or f.type == type[QQBatchInterface]
+                or f.type == Path
+                or f.type == Path | None
+            ):
                 result[f.name] = str(value)
             # convert list of excluded files
             elif f.type == list[Path] or f.type == list[Path] | None:
@@ -240,10 +244,10 @@ class QQInfo:
             if f.type == QQResources:
                 init_kwargs[name] = QQResources(**value)
             # convert the batch system
-            elif f.type == type[QQBatchInterface]:
+            elif f.type == type[QQBatchInterface] and isinstance(value, str):
                 init_kwargs[name] = QQBatchMeta.fromStr(value)
             # convert the job state
-            elif f.type == NaiveState:
+            elif f.type == NaiveState and isinstance(value, str):
                 init_kwargs[name] = (
                     NaiveState.fromStr(value) if value else NaiveState.UNKNOWN
                 )
@@ -251,17 +255,20 @@ class QQInfo:
             elif f.type == Path or f.type == Path | None:
                 init_kwargs[name] = Path(value)
             # convert the list of excluded paths
-            elif f.type == list[Path] | None:
+            elif f.type == list[Path] | None and isinstance(value, list):
                 init_kwargs[name] = [
                     Path(v) if isinstance(v, str) else v for v in value
                 ]
             # convert timestamp
-            elif f.type == datetime or f.type == datetime | None:
+            elif (f.type == datetime or f.type == datetime | None) and isinstance(
+                value, str
+            ):
                 init_kwargs[name] = datetime.strptime(value, DATE_FORMAT)
             else:
                 init_kwargs[name] = value
 
         return cls(**init_kwargs)
+
 
 class QQInformer:
     """
@@ -303,7 +310,7 @@ class QQInformer:
             An instance of QQInformer initialized with the loaded QQInfo.
         """
         return cls(QQInfo.fromFile(file))
-    
+
     def toFile(self, file: Path):
         """
         Export the job information to a file.
@@ -312,7 +319,7 @@ class QQInformer:
             file: Path to the output YAML file.
         """
         self.info.toFile(file)
-    
+
     def setRunning(self, time: datetime, main_node: str, work_dir: Path):
         """
         Mark the job as running and set associated metadata.
@@ -384,12 +391,12 @@ class QQInformer:
         """
         Return the job's state as reported by the batch system.
 
-        Uses cached information if available; otherwise queries the batch system 
+        Uses cached information if available; otherwise queries the batch system
         via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
         """
         if not self._batch_info:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
-        
+
         return self._batch_info.getJobState()
 
     def getRealState(self) -> RealState:
@@ -397,16 +404,20 @@ class QQInformer:
         Get the job's real state by combining qq's internal state (`NaiveState`)
         with the state reported by the batch system (`BatchState`).
 
-        Uses cached information if available; otherwise queries the batch system 
+        Uses cached information if available; otherwise queries the batch system
         via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
         """
         # shortcut: if the naive state is finished, failed, killed or unknown,
         # there is no need to check batch state
-        if self.info.job_state in {NaiveState.FINISHED, NaiveState.FAILED, NaiveState.KILLED, NaiveState.UNKNOWN}:
+        if self.info.job_state in {
+            NaiveState.FINISHED,
+            NaiveState.FAILED,
+            NaiveState.KILLED,
+            NaiveState.UNKNOWN,
+        }:
             return RealState.fromStates(self.info.job_state, BatchState.UNKNOWN)
 
         return RealState.fromStates(self.info.job_state, self.getBatchState())
-
 
     def createJobStatusPanel(self, console: Console | None = None) -> Group:
         """
@@ -423,7 +434,7 @@ class QQInformer:
         (message, details) = self._getStateMessages(
             state,
             self.info.start_time or self.info.submission_time,
-            self.info.completion_time or datetime.now()
+            self.info.completion_time or datetime.now(),
         )
 
         console = console or Console()
@@ -447,8 +458,10 @@ class QQInformer:
         )
 
         return Group(Text(""), panel, Text(""))
-    
-    def _getStateMessages(self, state: RealState, start_time: datetime, end_time: datetime) -> tuple[str, str]:
+
+    def _getStateMessages(
+        self, state: RealState, start_time: datetime, end_time: datetime
+    ) -> tuple[str, str]:
         """
         Map a RealState to user-friendly messages for display.
 
@@ -463,28 +476,28 @@ class QQInformer:
         match state:
             case RealState.QUEUED:
                 return (
-                        "Job is queued",
-                        f"In queue for {format_duration(end_time - start_time)}",
-                    )
+                    "Job is queued",
+                    f"In queue for {format_duration(end_time - start_time)}",
+                )
             case RealState.HELD:
                 return (
-                        "Job is held",
-                        f"In queue for {format_duration(end_time - start_time)}",
-                    )
+                    "Job is held",
+                    f"In queue for {format_duration(end_time - start_time)}",
+                )
             case RealState.SUSPENDED:
                 return ("Job is suspended", "")
             case RealState.WAITING:
                 return (
-                        "Job is waiting",
-                        f"In queue for {format_duration(end_time - start_time)}",
-                    )
+                    "Job is waiting",
+                    f"In queue for {format_duration(end_time - start_time)}",
+                )
             case RealState.RUNNING:
                 return (
-                        "Job is running",
-                        f"Running for {format_duration(end_time - start_time)} on '{self.info.main_node}'",
-                    )
+                    "Job is running",
+                    f"Running for {format_duration(end_time - start_time)} on '{self.info.main_node}'",
+                )
             case RealState.BOOTING:
-                    return ("Job is booting", "Preparing the working directory...")
+                return ("Job is booting", "Preparing the working directory...")
             case RealState.KILLED:
                 return ("Job has been killed", f"Killed at {end_time}")
             case RealState.FAILED:
@@ -504,8 +517,8 @@ class QQInformer:
                     "Job is in an unknown state",
                     "Job is in a state that qq does not recognize",
                 )
-        
+
         return (
-                "Job is in an unknown state",
-                "Job is in a state that qq does not recognize",
-            )
+            "Job is in an unknown state",
+            "Job is in a state that qq does not recognize",
+        )

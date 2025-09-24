@@ -1,11 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+from collections.abc import Callable
 from time import sleep
-from typing import Any, Callable
+from typing import Any
+
 from qq_lib.logger import get_logger
 
-logger = get_logger(__name__, show_time = True)
+logger = get_logger(__name__, show_time=True)
+
 
 class QQRetryer:
     """
@@ -19,7 +22,14 @@ class QQRetryer:
         wait_seconds (float): Time to wait between attempts.
     """
 
-    def __init__(self, func: Callable, *args: Any, max_tries: int, wait_seconds: float, **kwargs: Any):
+    def __init__(
+        self,
+        func: Callable,
+        *args: Any,
+        max_tries: int,
+        wait_seconds: float,
+        **kwargs: Any,
+    ):
         self._func = func
         self._args = args
         self._kwargs = kwargs
@@ -48,3 +58,6 @@ class QQRetryer:
                     f"{e}\nAttempting again in {self._wait_seconds} seconds ({attempt}/{self._max_tries})"
                 )
                 sleep(self._wait_seconds)
+
+        # should never get here
+        return None

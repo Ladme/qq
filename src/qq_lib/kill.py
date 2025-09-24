@@ -86,7 +86,7 @@ def kill(yes: bool = False, force: bool = False):
             if force or yes or killer.askForConfirm():
                 should_update = killer.shouldUpdateInfoFile()
                 killer.terminate()
-                if should_update: 
+                if should_update:
                     killer.updateInfoFile()
                 logger.info(f"Killed the job '{killer.getJobId()}'.")
         else:
@@ -122,7 +122,7 @@ class QQKiller:
         self._batch_system = self._informer.batch_system
         self._state = self._informer.getRealState()
         self._forced = forced
-    
+
     def getJobId(self) -> str:
         """
         Get the job ID of the job to kill.

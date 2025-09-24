@@ -17,17 +17,19 @@ from pathlib import Path
 import click
 
 from qq_lib.common import get_files_with_suffix, get_info_file
+from qq_lib.constants import QQ_SUFFIXES
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
 from qq_lib.states import RealState
-from qq_lib.constants import QQ_SUFFIXES
 
 logger = get_logger(__name__)
 
 
 @click.command(help="Delete qq run files.")
-@click.option("--force", is_flag=True, help="Clear directory with an active job.", default = False)
+@click.option(
+    "--force", is_flag=True, help="Clear directory with an active job.", default=False
+)
 def clear(force: bool):
     """
     Delete all qq run files in the current directory.

@@ -67,7 +67,7 @@ from qq_lib.logger import get_logger
 # to the running process and sending a SIGKILL signal
 SIGTERM_TO_SIGKILL = 5
 
-logger = get_logger(__name__, show_time = True)
+logger = get_logger(__name__, show_time=True)
 
 
 @click.command(
@@ -188,8 +188,10 @@ class QQRunner:
         Raises:
             QQError: If required environment variables are missing or invalid.
         """
-        logger.info(f"[{str(self._informer.batch_system)}-qq v{qq_lib.__version__}] Initializing " 
-                    f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'.")
+        logger.info(
+            f"[{str(self._informer.batch_system)}-qq v{qq_lib.__version__}] Initializing "
+            f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
+        )
 
         # get job directory
         self._job_dir = Path(self._informer.info.job_dir)
@@ -265,17 +267,17 @@ class QQRunner:
         """
         Finalize the execution of the job script.
 
-        This method handles post-processing depending on the success or failure 
+        This method handles post-processing depending on the success or failure
         of the script:
 
         - On success (process return code 0):
             - Updates the qq info file to indicate the job is "finished".
-            - If `use_scratch` is True, copies job files back from the scratch 
+            - If `use_scratch` is True, copies job files back from the scratch
             directory to the submission directory and removes them from scratch.
 
         - On failure (non-zero return code):
             - Updates the qq info file to indicate the job "failed".
-            - If `use_scratch` is True, files remain in the scratch directory 
+            - If `use_scratch` is True, files remain in the scratch directory
             for debugging purposes.
 
         Raises:
@@ -341,7 +343,7 @@ class QQRunner:
             self._work_dir = Path(result.success_message)
         else:
             raise QQError(result.error_message)
-        
+
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
 
         # move to the working directory
@@ -433,7 +435,9 @@ class QQRunner:
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
         try:
-            self._informer.setRunning(datetime.now(), socket.gethostname(), self._work_dir)
+            self._informer.setRunning(
+                datetime.now(), socket.gethostname(), self._work_dir
+            )
             self._informer.toFile(self._info_file)
         except Exception as e:
             raise QQError(

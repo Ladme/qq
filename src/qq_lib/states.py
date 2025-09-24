@@ -1,7 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-from datetime import datetime, timedelta
 from enum import Enum
 from typing import Self
 
@@ -76,7 +75,7 @@ class BatchState(Enum):
     @classmethod
     def fromCode(cls, code: str) -> Self:
         """Convert one-letter code to enum variant.
-        
+
         Returns BatchState.UNKNOWN if the code is unknown.
         """
         code = code.upper()
@@ -117,7 +116,9 @@ class RealState(Enum):
 
     @classmethod
     def fromStates(cls, naive_state: NaiveState, batch_state: BatchState) -> Self:
-        logger.debug(f"Converting to RealState from '{naive_state}' and '{batch_state}'.")
+        logger.debug(
+            f"Converting to RealState from '{naive_state}' and '{batch_state}'."
+        )
         match (naive_state, batch_state):
             case (NaiveState.UNKNOWN, _):
                 return cls.UNKNOWN

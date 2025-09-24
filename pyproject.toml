@@ -37,7 +37,6 @@ extend-select = [
     "TID", # Some good import practices
     "TC",  # Enforce importing certain types in a TYPE_CHECKING block
     "PTH", # Use pathlib instead of os.path
-    "TD",  # Be diligent with TODO comments
     "NPY", # Some numpy-specific things
     "ARG", # Catch incorrect use of arguments
 ]

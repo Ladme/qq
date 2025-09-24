@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
-from rich.panel import Panel
-from rich.table import Table
-from rich.console import Group, Console
 
 import pytest
 import yaml
+from rich.console import Console, Group
+from rich.panel import Panel
+from rich.table import Table
 
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
@@ -177,7 +177,9 @@ def test_from_dict_roundtrip(sample_info):
         "stderr_file",
     ]:
         assert getattr(reconstructed, field_name) == getattr(sample_info, field_name)
-        assert type(getattr(reconstructed, field_name)) == type(getattr(sample_info, field_name))
+        assert type(getattr(reconstructed, field_name)) is type(
+            getattr(sample_info, field_name)
+        )
 
     # resources
     assert isinstance(reconstructed.resources, QQResources)
@@ -276,6 +278,7 @@ def test_from_file_missing_required_field(tmp_path):
     with pytest.raises(QQError, match=r"Mandatory information missing"):
         QQInfo.fromFile(file)
 
+
 def test_load_informer_from_file(tmp_path, sample_info):
     file_path = tmp_path / "qqinfo.yaml"
 
@@ -286,6 +289,7 @@ def test_load_informer_from_file(tmp_path, sample_info):
     assert loaded_informer.info.input_machine == sample_info.input_machine
     assert loaded_informer.info.work_dir == sample_info.work_dir
     assert loaded_informer.info.resources.work_dir == sample_info.resources.work_dir
+
 
 def test_export_informer_to_file_contains_yaml(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
@@ -307,13 +311,15 @@ def test_export_informer_to_file_contains_yaml(sample_info, tmp_path):
     resources_dict = informer.info.resources.toDict()
     assert data["resources"] == resources_dict
 
+    assert informer.info.excluded_files is not None
     assert data["excluded_files"] == [str(p) for p in informer.info.excluded_files]
 
     assert "start_time" not in data
     assert "completion_time" not in data
     assert "main_node" not in data
     assert "job_exit_code" not in data
-    
+
+
 def test_set_running(sample_info):
     informer = QQInformer(sample_info)
     start_time = datetime(2025, 9, 22, 14, 30, 0)
@@ -355,20 +361,27 @@ def test_set_killed(sample_info):
     # no exit_code set by setKilled
     assert informer.info.job_exit_code is None
 
+
 def test_use_scratch_true(sample_info):
     informer = QQInformer(sample_info)
     assert informer.useScratch()
+
 
 def test_use_scratch_false(sample_info):
     informer = QQInformer(sample_info)
     informer.info.resources.work_dir = None
     assert not informer.useScratch()
 
+
 def test_get_destination_exists(sample_info):
     informer = QQInformer(sample_info)
     informer.info.main_node = "random.node.org"
 
-    assert informer.getDestination() == ("random.node.org", Path("/scratch/job_12345.fake.server.com"))
+    assert informer.getDestination() == (
+        "random.node.org",
+        Path("/scratch/job_12345.fake.server.com"),
+    )
+
 
 def test_get_destination_no_workdir(sample_info):
     informer = QQInformer(sample_info)
@@ -377,10 +390,12 @@ def test_get_destination_no_workdir(sample_info):
 
     assert informer.getDestination() is None
 
+
 def test_get_destination_no_node(sample_info):
     informer = QQInformer(sample_info)
 
     assert informer.getDestination() is None
+
 
 def test_get_destination_no_node_no_workdir(sample_info):
     informer = QQInformer(sample_info)
@@ -405,16 +420,18 @@ def test_get_destination_no_node_no_workdir(sample_info):
         (RealState.UNKNOWN, "unknown", "does not recognize"),
     ],
 )
-def test_informer_state_messages(sample_info, state, expected_first_keyword, expected_second_keyword):
+def test_informer_state_messages(
+    sample_info, state, expected_first_keyword, expected_second_keyword
+):
     informer = QQInformer(sample_info)
-    
+
     # Set required fields for running/finished/failed states
     if state == RealState.RUNNING:
         sample_info.main_node = "node1"
 
     if state == RealState.FAILED:
         sample_info.job_exit_code = 1
-    
+
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
 
@@ -422,6 +439,7 @@ def test_informer_state_messages(sample_info, state, expected_first_keyword, exp
 
     assert expected_first_keyword.lower() in first_msg.lower()
     assert expected_second_keyword.lower() in second_msg.lower()
+
 
 def test_create_job_status_panel(sample_info):
     informer = QQInformer(sample_info)
@@ -449,6 +467,7 @@ def test_create_job_status_panel(sample_info):
 
     assert "Job state:" in output
     assert str(informer.getRealState()).lower() in output.lower()
+
 
 @pytest.mark.parametrize("naive_state", list(NaiveState))
 @pytest.mark.parametrize("batch_state", list(BatchState))

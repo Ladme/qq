@@ -1,14 +1,15 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-from datetime import datetime
 import os
-from pathlib import Path
 import stat
+from datetime import datetime
+from pathlib import Path
 from time import sleep
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import CliRunner
 
 from qq_lib.batch import BatchOperationResult
 from qq_lib.constants import DATE_FORMAT
@@ -20,11 +21,11 @@ from qq_lib.states import BatchState, NaiveState, RealState
 from qq_lib.submit import QQSubmitter, submit
 from qq_lib.vbs import QQVBS
 
-from click.testing import CliRunner
 
 @pytest.fixture
 def sample_resources():
     return QQResources(ncpus=8, work_dir="scratch_local")
+
 
 @pytest.fixture
 def sample_info(sample_resources):
@@ -46,6 +47,7 @@ def sample_info(sample_resources):
         excluded_files=[Path("ignore.txt")],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )
+
 
 def test_lock_file_removes_write_permissions(tmp_path):
     f = tmp_path / "job.qqinfo"
@@ -69,6 +71,7 @@ def test_lock_file_removes_write_permissions(tmp_path):
     # but read permissions should remain
     assert mode_after & stat.S_IRUSR
     assert mode_after & stat.S_IRGRP
+
 
 def test_update_info_file_writes_and_locks(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
@@ -96,39 +99,30 @@ def test_update_info_file_writes_and_locks(tmp_path, sample_info):
     assert not (mode & stat.S_IWGRP)
     assert not (mode & stat.S_IWOTH)
 
+
 @pytest.mark.parametrize(
     "state,forced,expected",
     [
         (RealState.QUEUED, True, True),
         (RealState.QUEUED, False, True),
-
         (RealState.HELD, True, True),
         (RealState.HELD, False, True),
-
         (RealState.SUSPENDED, True, True),
         (RealState.SUSPENDED, False, True),
-
         (RealState.WAITING, True, True),
         (RealState.WAITING, False, True),
-
         (RealState.RUNNING, True, True),
         (RealState.RUNNING, False, False),
-    
         (RealState.BOOTING, True, True),
         (RealState.BOOTING, False, True),
-
         (RealState.KILLED, True, False),
         (RealState.KILLED, False, False),
-
         (RealState.FAILED, True, False),
         (RealState.FAILED, False, False),
-
         (RealState.FINISHED, True, False),
         (RealState.FINISHED, False, False),
-
         (RealState.IN_AN_INCONSISTENT_STATE, True, False),
         (RealState.IN_AN_INCONSISTENT_STATE, False, False),
-
         (RealState.UNKNOWN, True, False),
         (RealState.UNKNOWN, False, False),
     ],
@@ -140,50 +134,41 @@ def test_should_update_info_file(state, forced, expected):
 
     assert killer.shouldUpdateInfoFile() == expected
 
+
 @pytest.mark.parametrize(
     "state,forced,expected",
     [
         (RealState.QUEUED, True, True),
         (RealState.QUEUED, False, True),
-
         (RealState.HELD, True, True),
         (RealState.HELD, False, True),
-
         (RealState.SUSPENDED, True, True),
         (RealState.SUSPENDED, False, True),
-
         (RealState.WAITING, True, True),
         (RealState.WAITING, False, True),
-
         (RealState.RUNNING, True, True),
         (RealState.RUNNING, False, True),
-
         (RealState.BOOTING, True, True),
         (RealState.BOOTING, False, True),
-
         (RealState.KILLED, True, True),
         (RealState.KILLED, False, False),
-
         (RealState.FAILED, True, True),
         (RealState.FAILED, False, False),
-
         (RealState.FINISHED, True, True),
         (RealState.FINISHED, False, False),
-
         (RealState.IN_AN_INCONSISTENT_STATE, True, True),
         (RealState.IN_AN_INCONSISTENT_STATE, False, True),
-
         (RealState.UNKNOWN, True, True),
         (RealState.UNKNOWN, False, True),
     ],
 )
-
 def test_should_terminate_explicit(state, forced, expected):
     killer = object.__new__(QQKiller)
     killer._state = state
     killer._forced = forced
 
     assert killer.shouldTerminate() == expected
+
 
 @pytest.mark.parametrize("forced", [True, False])
 @pytest.mark.parametrize("success", [True, False])
@@ -193,10 +178,7 @@ def test_terminate(forced, success):
     informer_mock.info.job_id = "12345"
 
     batch_mock = MagicMock()
-    if forced:
-        method_name = "jobKillForce"
-    else:
-        method_name = "jobKill"
+    method_name = "jobKillForce" if forced else "jobKill"
 
     if success:
         result = BatchOperationResult.success()
@@ -220,6 +202,7 @@ def test_terminate(forced, success):
             killer.terminate()
         getattr(batch_mock, method_name).assert_called_once_with("12345")
 
+
 @pytest.mark.parametrize("forced", [False, True])
 def test_kill_queued_integration(tmp_path, forced):
     QQVBS._batch_system.clearJobs()
@@ -239,10 +222,7 @@ def test_kill_queued_integration(tmp_path, forced):
             )
         assert result_submit.exit_code == 0
 
-        result_kill = runner.invoke(
-            kill,
-            ["--force"] if forced else ["-y"]
-        )
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
 
         assert result_kill.exit_code == 0
 
@@ -257,6 +237,7 @@ def test_kill_queued_integration(tmp_path, forced):
         job_id = informer.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
         assert job.state == BatchState.FINISHED
+
 
 @pytest.mark.parametrize("forced", [False, True])
 def test_kill_booting_integration(tmp_path, forced):
@@ -283,10 +264,7 @@ def test_kill_booting_integration(tmp_path, forced):
         job_id = informer.info.job_id
         QQVBS._batch_system.runJob(job_id)
 
-        result_kill = runner.invoke(
-            kill,
-            ["--force"] if forced else ["-y"]
-        )
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
 
         assert result_kill.exit_code == 0
 
@@ -297,11 +275,11 @@ def test_kill_booting_integration(tmp_path, forced):
         assert informer.info.job_state == NaiveState.KILLED
         assert isinstance(informer.info.completion_time, datetime)
 
-
         # check that the VBS job is marked finished
         job_id = informer.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
         assert job.state == BatchState.FINISHED
+
 
 @pytest.mark.parametrize("forced", [False, True])
 def test_kill_running_integration(tmp_path, forced):
@@ -334,10 +312,7 @@ def test_kill_running_integration(tmp_path, forced):
         informer.setRunning(datetime.now(), "main.node.org", tmp_path)
         informer.toFile(info_file)
 
-        result_kill = runner.invoke(
-            kill,
-            ["--force"] if forced else ["-y"]
-        )
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
 
         assert result_kill.exit_code == 0
 
@@ -351,7 +326,6 @@ def test_kill_running_integration(tmp_path, forced):
         else:
             assert informer.info.job_state == NaiveState.RUNNING
             assert informer.info.completion_time is None
-
 
         # check that the VBS job is marked finished
         job_id = informer.info.job_id
@@ -392,10 +366,7 @@ def test_kill_finished_integration(tmp_path, forced):
         informer.setFinished(datetime.now())
         informer.toFile(info_file)
 
-        result_kill = runner.invoke(
-            kill,
-            ["--force"] if forced else ["-y"]
-        )
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
 
         # check that the qq info file exists and is not updated
         assert result_kill.exit_code == 91

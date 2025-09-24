@@ -2,7 +2,9 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import pytest
+
 from qq_lib.batch import BatchOperationResult
+
 
 def test_error_method():
     result = BatchOperationResult.error(1, "Something went wrong")
@@ -10,11 +12,13 @@ def test_error_method():
     assert result.error_message == "Something went wrong"
     assert result.success_message is None
 
+
 def test_success_method():
     result = BatchOperationResult.success("Operation succeeded")
     assert result.exit_code == 0
     assert result.success_message == "Operation succeeded"
     assert result.error_message is None
+
 
 @pytest.mark.parametrize(
     "code,success_msg,error_msg,expected_exit,expected_success,expected_error",
@@ -25,9 +29,11 @@ def test_success_method():
         (1, "ok", None, 1, None, None),
         (1, None, None, 1, None, None),
         (0, None, None, 0, None, None),
-    ]
+    ],
 )
-def test_from_exit_code(code, success_msg, error_msg, expected_exit, expected_success, expected_error):
+def test_from_exit_code(
+    code, success_msg, error_msg, expected_exit, expected_success, expected_error
+):
     result = BatchOperationResult.fromExitCode(code, success_msg, error_msg)
     assert result.exit_code == expected_exit
     assert result.success_message == expected_success

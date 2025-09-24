@@ -2,7 +2,6 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 from dataclasses import asdict, dataclass
-from typing import Any
 
 
 @dataclass
@@ -15,7 +14,10 @@ class QQResources:
 
     def __post_init__(self):
         # enforce workdir logic
-        if self.work_dir and self.work_dir.lower().replace("-", "").replace("_", "") == "jobdir":
+        if (
+            self.work_dir
+            and self.work_dir.lower().replace("-", "").replace("_", "") == "jobdir"
+        ):
             self.work_dir = None
         else:
             # enforce worksize logic
@@ -23,7 +25,7 @@ class QQResources:
                 self.work_size = f"{self.ncpus}gb"
             else:
                 # TODO: select better default
-                self.work_size = f"8gb"
+                self.work_size = "8gb"
 
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""

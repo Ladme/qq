@@ -54,6 +54,7 @@ from typing import NoReturn
 
 import click
 
+import qq_lib
 from qq_lib.constants import (
     INFO_FILE,
 )
@@ -66,7 +67,7 @@ from qq_lib.logger import get_logger
 # to the running process and sending a SIGKILL signal
 SIGTERM_TO_SIGKILL = 5
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, show_time = True)
 
 
 @click.command(
@@ -187,6 +188,9 @@ class QQRunner:
         Raises:
             QQError: If required environment variables are missing or invalid.
         """
+        logger.info(f"[{str(self._informer.batch_system)}-qq v{qq_lib.__version__}] Initializing " 
+                    f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'.")
+
         # get job directory
         self._job_dir = Path(self._informer.info.job_dir)
         logger.debug(f"Job directory: {self._job_dir}.")
@@ -210,8 +214,6 @@ class QQRunner:
         Raises:
             QQError: If working directory setup fails.
         """
-        logger.info("Setting up working directory.")
-
         if self._use_scratch:
             self._setUpScratchDir()
         else:
@@ -339,6 +341,8 @@ class QQRunner:
             self._work_dir = Path(result.success_message)
         else:
             raise QQError(result.error_message)
+        
+        logger.info(f"Setting up working directory in '{self._work_dir}'.")
 
         # move to the working directory
         os.chdir(self._work_dir)

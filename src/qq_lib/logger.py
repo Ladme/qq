@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 
 from qq_lib.constants import DATE_FORMAT, DEBUG_MODE
 
-def get_logger(name: str) -> logging.Logger:
+def get_logger(name: str, show_time: bool = False) -> logging.Logger:
     """
     Return a logger with unified formatting.
     If colored=True, use rich's RichHandler with colored levels.
@@ -25,7 +25,7 @@ def get_logger(name: str) -> logging.Logger:
         rich_tracebacks=True,
         show_path=False,
         show_level=True,
-        show_time=debug_mode,
+        show_time=show_time or debug_mode,
         log_time_format=DATE_FORMAT,
         tracebacks_width=None,
         tracebacks_code_width=None,

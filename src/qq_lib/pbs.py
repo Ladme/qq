@@ -261,10 +261,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return BatchOperationResult.success()
 
 
-# register the batch system
-QQBatchMeta.register(QQPBS)
-
-
 class PBSJobInfo(BatchJobInfoInterface):
     """
     Implementation of BatchJobInterface for PBS.

@@ -27,8 +27,8 @@ logger = get_logger(__name__)
 
 
 @click.command(help="Delete qq run files.")
-@click.option("--force", is_flag=True, help="Clear directory with an active job.")
-def clear(force: bool = False):
+@click.option("--force", is_flag=True, help="Clear directory with an active job.", default = False)
+def clear(force: bool):
     """
     Delete all qq run files in the current directory.
 

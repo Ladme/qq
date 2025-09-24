@@ -16,7 +16,13 @@ class BatchJobInfoInterface(ABC):
 
 @dataclass
 class BatchOperationResult:
-    """Class reporting results of batch system operations."""
+    """Class representing the result of a batch system operation.
+
+    Attributes:
+        exit_code (int): Exit code of the operation. 0 indicates success.
+        success_message (str | None): Optional message returned on success.
+        error_message (str | None): Optional message returned on error.
+    """
     # exit code of the operation
     exit_code: int
 
@@ -28,26 +34,56 @@ class BatchOperationResult:
 
     @classmethod
     def error(cls, code: int, msg: str | None = None) -> Self:
+        """
+        Create a BatchOperationResult representing a failure.
+
+        Args:
+            code (int): Non-zero exit code representing the error.
+            msg (str | None): Optional error message describing the failure.
+
+        Returns:
+            BatchOperationResult: Instance representing an error.
+        """
         return cls(exit_code = code, error_message = msg)
 
     @classmethod
     def success(cls, msg: str | None = None) -> Self:
+        """
+        Create a BatchOperationResult representing a success.
+
+        Args:
+            msg (str | None): Optional message describing the success.
+
+        Returns:
+            BatchOperationResult: Instance representing success with exit_code 0.
+        """
         return cls(exit_code = 0, success_message = msg)
     
     @classmethod
     def fromExitCode(cls, code: int, success_message: str | None = None, error_message: str | None = None) -> Self:
-        """Create a BatchOperationResult instance based on an exit code."""
+        """
+        Create a BatchOperationResult instance based on an exit code.
+
+        Args:
+            code (int): Exit code of the operation. 0 indicates success.
+            success_message (str | None): Optional message if the operation succeeded.
+            error_message (str | None): Optional message if the operation failed.
+
+        Returns:
+            BatchOperationResult: Success or error instance depending on the exit code.
+        """
         return cls.success(success_message) if code == 0 else cls.error(code, error_message)
 
 TBatchInfo = TypeVar("TBatchInfo", bound=BatchJobInfoInterface)
 
 class QQBatchInterface(ABC, Generic[TBatchInfo]):
     """
-    Abstract base class for batch system classes.
+    Abstract base class for batch system integrations.
 
-    Defines the methods that concrete batch system classes must implement.
+    Concrete batch system classes must implement these methods to allow
+    qq to interact with different batch systems uniformly.
 
-    Note that methods of QQBatchInterface should never raise!
+    All methods are static and should never raise exceptions!
     """
 
     @staticmethod
@@ -64,38 +100,100 @@ class QQBatchInterface(ABC, Generic[TBatchInfo]):
     @staticmethod
     @abstractmethod
     def getScratchDir(job_id: int) -> BatchOperationResult:
+        """
+        Retrieve the scratch directory for a given job.
+
+        Args:
+            job_id (int): Unique identifier of the job.
+
+        Returns:
+            BatchOperationResult: Result of the operation.
+                                  Success message must contain path to the 
+                                  scratch directory as a string.
+                                  Error message can contain anything reasonable.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def jobSubmit(res: QQResources, queue: str, script: Path) -> BatchOperationResult:
+        """
+        Submit a job to the batch system.
+
+        Args:
+            res (QQResources): Resources required for the job.
+            queue (str): Target queue for the job submission.
+            script (Path): Path to the script to execute.
+
+        Returns:
+            BatchOperationResult: Result of the submission.
+                                  Success message must contain the job id.
+                                  Error message should contain stderr of the command.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def jobKill(job_id: str) -> BatchOperationResult:
+        """
+        Terminate a job gracefully. This assumes that job has time for cleanup.
+
+        Args:
+            job_id (str): Identifier of the job to terminate.
+
+        Returns:
+            BatchOperationResult: Result of the kill operation.
+                                  Success message is unused.
+                                  Error message should contain stderr of the command.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def jobKillForce(job_id: str) -> BatchOperationResult:
+        """
+        Forcefully terminate a job. This assumes that the job has no time for cleanup.
+
+        Args:
+            job_id (str): Identifier of the job to forcefully terminate.
+
+        Returns:
+            BatchOperationResult: Result of the forced kill operation.
+                                  Success message is unused.
+                                  Error message should contains stderr of the command.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def navigateToDestination(host: str, directory: Path) -> BatchOperationResult:
+        """
+        Navigate to a directory on the specified host.
+
+        Args:
+            host (str): Target hostname where the directory resides.
+            directory (Path): Path to navigate to.
+
+        Returns:
+            BatchOperationResult: Result of the operation.
+                                  Both success and error message are unused.
+        """
         pass
 
     @staticmethod
     @abstractmethod
     def getJobInfo(job_id: str) -> TBatchInfo:
         """
-        Retrieve information about a job from the batch system.
+        Retrieve comprehensive information about a job.
 
-        The returned object must be fully initialized even if the job
-        information is no longer available.
+        The returned object should be fully initialized, even if the job
+        no longer exists or its information is unavailable.
 
-        This method should never raise.
+        Args:
+            job_id (str): Identifier of the job.
+
+        Returns:
+            TBatchInfo: Object containing the job's metadata and state.
         """
         pass
 

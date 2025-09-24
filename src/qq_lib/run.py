@@ -18,7 +18,7 @@ Lifecycle of a qq job:
        The qq info file is updated to record the "running" state.
        The job script is executed.
 
-    3. Completion
+    3. Finalization
        - On success:
          - The qq info file is updated to "finished".
          - If running on scratch, job files are copied back to the submission
@@ -127,7 +127,7 @@ def run(script_path: str):
         runner.setUp()
         runner.setUpWorkDir()
         exit_code = runner.executeScript()
-        runner.complete()
+        runner.finalize()
         sys.exit(exit_code)
     except QQError as e:
         # if the execution fails, log this error into both stderr and the info file
@@ -261,7 +261,7 @@ class QQRunner:
 
         return self._process.returncode
 
-    def complete(self):
+    def finalize(self):
         """
         Finalize the execution of the job script.
 
@@ -281,7 +281,7 @@ class QQRunner:
         Raises:
             QQError: If copying or deletion of files fails.
         """
-        logger.info("Completing the execution.")
+        logger.info("Finalizing the execution.")
 
         # update the qqinfo file
         if self._process.returncode == 0:

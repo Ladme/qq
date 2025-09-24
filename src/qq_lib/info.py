@@ -369,7 +369,7 @@ class QQInformer:
         """
         return self.info.resources.useScratch()
 
-    def getDestination(self) -> tuple[str, str] | None:
+    def getDestination(self) -> tuple[str, Path] | None:
         """
         Retrieve the job's main node and working directory.
 
@@ -400,6 +400,11 @@ class QQInformer:
         Uses cached information if available; otherwise queries the batch system 
         via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
         """
+        # shortcut: if the naive state is finished, failed, killed or unknown,
+        # there is no need to check batch state
+        if self.info.job_state in {NaiveState.FINISHED, NaiveState.FAILED, NaiveState.KILLED, NaiveState.UNKNOWN}:
+            return RealState.fromStates(self.info.job_state, BatchState.UNKNOWN)
+
         return RealState.fromStates(self.info.job_state, self.getBatchState())
 
 

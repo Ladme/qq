@@ -224,7 +224,7 @@ class QQKiller:
 
     def _isQueued(self) -> bool:
         """Check if the job is queued, held, or waiting."""
-        return self._state in [RealState.QUEUED, RealState.HELD, RealState.WAITING]
+        return self._state in {RealState.QUEUED, RealState.HELD, RealState.WAITING}
 
     def _isKilled(self) -> bool:
         """Check if the job has already been killed."""
@@ -232,11 +232,11 @@ class QQKiller:
 
     def _isFinished(self) -> bool:
         """Check if the job has finished or failed."""
-        return self._state in [RealState.FINISHED, RealState.FAILED]
+        return self._state in {RealState.FINISHED, RealState.FAILED}
 
     def _isUnknownInconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""
-        return self._state in [RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE]
+        return self._state in {RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE}
 
     def _lockFile(self, file_path: Path):
         """

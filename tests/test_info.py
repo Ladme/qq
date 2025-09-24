@@ -4,6 +4,7 @@
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 from rich.panel import Panel
 from rich.table import Table
 from rich.console import Group, Console
@@ -16,7 +17,7 @@ from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
-from qq_lib.states import NaiveState, RealState
+from qq_lib.states import BatchState, NaiveState, RealState
 
 
 @pytest.fixture
@@ -448,3 +449,12 @@ def test_create_job_status_panel(sample_info):
 
     assert "Job state:" in output
     assert str(informer.getRealState()).lower() in output.lower()
+
+@pytest.mark.parametrize("naive_state", list(NaiveState))
+@pytest.mark.parametrize("batch_state", list(BatchState))
+def test_get_real_state(sample_info, naive_state, batch_state):
+    informer = QQInformer(sample_info)
+    informer.info.job_state = naive_state
+
+    with patch.object(QQInformer, "getBatchState", return_value=batch_state):
+        assert informer.getRealState() == RealState.fromStates(naive_state, batch_state)

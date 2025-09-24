@@ -327,7 +327,7 @@ def runner_with_dirs_and_files(tmp_path, sample_info):
         (False, 1),
     ]
 )
-def test_complete(tmp_path, runner_with_dirs_and_files, use_scratch, returncode):
+def test_finalize(tmp_path, runner_with_dirs_and_files, use_scratch, returncode):
     runner = runner_with_dirs_and_files
     runner._use_scratch = use_scratch
 
@@ -337,7 +337,7 @@ def test_complete(tmp_path, runner_with_dirs_and_files, use_scratch, returncode)
 
     runner._process = DummyProcess(returncode)
 
-    runner.complete()
+    runner.finalize()
 
     updated_info = QQInfo.fromFile(tmp_path / "job.qqinfo")
 

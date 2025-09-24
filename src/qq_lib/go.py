@@ -13,6 +13,7 @@ from qq_lib.common import get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
+from qq_lib.retry import QQRetryer
 from qq_lib.states import RealState
 
 logger = get_logger(__name__)
@@ -27,7 +28,7 @@ def go():
     try:
         goer = QQGoer(Path())
         goer.printInfo()
-        goer.navigate()
+        goer.checkAndNavigate()
         print()
         sys.exit(0)
     except QQError as e:
@@ -38,105 +39,154 @@ def go():
         logger.critical(e, exc_info=True, stack_info=True)
         sys.exit(99)
 
-
 class QQGoer:
+    """
+    Provides utilities to navigate to the working directory of a qq job
+    submitted from the current directory. 
+    """
     def __init__(self, current_dir: Path):
-        self.info_file = get_info_file(current_dir)
-        self.info = QQInformer.loadFromFile(self.info_file)
-        self.batch_system = self.info.batch_system
+        """
+        Initialize a QQGoer instance for a given directory.
 
-        self.state = self.info.getRealState()
-        destination = self._getDestination()
-        if destination:
-            (self.host, self.directory) = destination
-        else:
-            self.host = None
-            self.directory = None
+        Args:
+            current_dir (Path): Directory from which the qq job was submitted.
+
+        Notes:
+            Reads the qq info file and sets up the initial state and destination.
+        """
+        self._info_file = get_info_file(current_dir)
+        # time in seconds to wait before rechecking job state when queued
+        self._wait_time = 5
+        self.update()
 
     def printInfo(self):
-        panel = self.info.getJobStatusPanel(console)
+        """
+        Display the current job status using a formatted panel.
+        """
+        panel = self._informer.createJobStatusPanel(console)
         console.print(panel)
 
-    def navigate(self):
+    def update(self):
+        """
+        Refresh internal state from the QQ info file.
+        """
+        self._informer = QQInformer.fromFile(self._info_file)
+        self._batch_system = self._informer.info.batch_system
+        self._state = self._informer.getRealState()
+        self._setDestination()
+
+    def checkAndNavigate(self):
+        """
+        Check the job state and navigate to the working directory if appropriate.
+
+        Behavior:
+            - If already in the working directory, logs info and returns.
+            - Raises QQError if the job has finished and synchronized (working directory does not exist).
+            - Logs warnings if the job failed or was killed (working directory may not exist).
+            - If the job is queued, retries until the job leaves the queue, updating the state every 5 seconds.
+            - Navigates to the working directory for running jobs.
+
+        Raises:
+            QQError: If navigation to the working directory fails.
+        """
         if self._isInWorkDir():
             logger.info("You are already in the working directory.")
             return
 
-        if self.state in [RealState.FINISHED]:
+        if self._isFinished():
             raise QQError(
                 "Job has finished and was synchronized: working directory does not exist."
             )
-        if self.state in [RealState.FAILED]:
+        if self._isFailed():
             logger.warning(
                 "Job has finished with an error code: working directory may no longer exist."
             )
-        elif self.state == RealState.KILLED:
+        elif self._isKilled():
             logger.warning("Job has been killed: working directory may not exist.")
-        elif self.state in [
-            RealState.QUEUED,
-            RealState.BOOTING,
-            RealState.HELD,
-            RealState.WAITING,
-        ]:
+        elif self._isQueued():
             logger.warning(
-                f"Job is {self.state}: working directory does not yet exist. Will retry every 5 seconds."
+                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {self._wait_time} seconds."
             )
             # keep retrying until the job gets run
-            while self.state in [
-                RealState.QUEUED,
-                RealState.BOOTING,
-                RealState.HELD,
-                RealState.WAITING,
-            ]:
-                sleep(5)
-                self.info = QQInformer.loadFromFile(self.info_file)
-                self.state = self.info.getRealState()
-                destination = self._getDestination()
-                if destination:
-                    (self.host, self.directory) = destination
+            while self._isQueued():
+                sleep(self._wait_time)
+                self.update()
 
                 if self._isInWorkDir():
                     logger.info("You are already in the working directory.")
                     return
-
-        elif self.state in [RealState.RUNNING, RealState.SUSPENDED]:
+        elif self._isRunning():
             pass
         else:
             logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")
 
-        if not self.directory or not self.host:
+        # navigate to the working directory
+        self._navigate()
+
+    def _navigate(self):
+        """
+        Navigate to the job's working directory using batch system-specific commands.
+
+        Raises:
+            QQError: If host or directory are undefined, or if navigation fails.
+        """
+        if not self._directory or not self._host:
             raise QQError(
-                "Host ('main_node') or working directory ('work_dir') are not defined in the qqinfo file."
+                "Host ('main_node') or working directory ('work_dir') are not defined."
             )
 
-        logger.info(f"Navigating to '{self.directory}' on '{self.host}'.")
-        try:
-            return_code = self.batch_system.navigateToDestination(
-                self.host, Path(self.directory)
-            )
-            if return_code != 0:
-                raise Exception
-        except KeyboardInterrupt:
-            pass
-        except Exception as e:
-            if str(e) != "":
-                raise QQError(
-                    f"Could not reach '{self.host}:{self.directory}': {e}."
-                ) from e
-            raise QQError(f"Could not reach '{self.host}:{self.directory}'.") from e
+        logger.info(f"Navigating to '{str(self._directory)}' on '{self._host}'.")
+        result = self._batch_system.navigateToDestination(self._host, self._directory)
+
+        if result.exit_code != 0:
+            raise QQError(f"Could not reach '{self._host}:{str(self._directory)}'.")
 
     def _isInWorkDir(self) -> bool:
+        """
+        Check if the current process is already in the job's working directory.
+
+        Returns:
+            bool: True if the current directory matches the job's work_dir and host matches local hostname.
+        """
         return (
-            self.directory
-            and Path(self.directory).resolve() == Path.cwd().resolve()
-            and self.host == socket.gethostname()
+            self._directory is not None
+            and Path(self._directory).resolve() == Path.cwd().resolve()
+            and self._host == socket.gethostname()
         )
+    
+    def _setDestination(self):
+        """
+        Determine the job's host and working directory from the QQInformer.
 
-    def _getDestination(self) -> tuple[str, str] | None:
-        destination = self.info.getDestination()
+        Updates:
+            - _host: hostname of the node where the job runs
+            - _directory: absolute path to the working directory
+        """
+        destination = self._informer.getDestination()
+        logger.debug(f"Destination: {destination}.")
+
         if destination:
-            logger.debug(f"Destination is {destination}.")
+            (self._host, self._directory) = destination
         else:
-            logger.debug("Destination is not specified.")
+            self._host = None
+            self._directory = None
 
-        return destination
+    def _isQueued(self) -> bool:
+        """Check if the job is queued, booting, held, or waiting."""
+        return self._state in {RealState.QUEUED, RealState.BOOTING, RealState.HELD, RealState.WAITING}
+
+    def _isKilled(self) -> bool:
+        """Check if the job has been killed."""
+        return self._state == RealState.KILLED
+
+    def _isFinished(self) -> bool:
+        """Check if the job has finished succesfully."""
+        return self._state == RealState.FINISHED
+    
+    def _isFailed(self) -> bool:
+        """Check if the job has failed."""
+        return self._state == RealState.FAILED
+
+    def _isRunning(self) -> bool:
+        """Check if the job is currently running or suspended."""
+        return self._state in {RealState.RUNNING, RealState.SUSPENDED}

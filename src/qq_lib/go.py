@@ -54,7 +54,7 @@ class QQGoer:
             self.directory = None
 
     def printInfo(self):
-        panel = self.info.getJobStatusPanel()
+        panel = self.info.getJobStatusPanel(console)
         console.print(panel)
 
     def navigate(self):

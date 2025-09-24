@@ -8,7 +8,6 @@ Read the documentation of the `kill` function for more details.
 """
 
 import stat
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -82,12 +81,14 @@ def kill(yes: bool = False, force: bool = False):
     try:
         killer = QQKiller(Path(), force)
         killer.printInfo()
+
         if killer.shouldTerminate():
             if force or yes or killer.askForConfirm():
+                should_update = killer.shouldUpdateInfoFile()
                 killer.terminate()
-                if killer.shouldUpdateInfoFile():
+                if should_update: 
                     killer.updateInfoFile()
-                logger.info(f"Killed the job '{killer.jobid}'.")
+                logger.info(f"Killed the job '{killer.getJobId()}'.")
         else:
             raise QQError(
                 "Job is already completed or terminated. Try using the '--force' option."
@@ -116,20 +117,23 @@ class QQKiller:
             current_dir (Path): Directory containing the qq job info file.
             forced (bool): Whether to forcefully terminate the job.
         """
-        self.info_file = get_info_file(current_dir)
-        self.info = QQInformer.loadFromFile(self.info_file)
-        self.batch_system = self.info.batch_system
-
-        self.state = self.info.getRealState()
-        self.jobid = self.info.getJobId()
-
-        self.forced = forced
+        self._info_file = get_info_file(current_dir)
+        self._informer = QQInformer.fromFile(self._info_file)
+        self._batch_system = self._informer.batch_system
+        self._state = self._informer.getRealState()
+        self._forced = forced
+    
+    def getJobId(self) -> str:
+        """
+        Get the job ID of the job to kill.
+        """
+        return self._informer.info.job_id
 
     def printInfo(self):
         """
         Display the current job status using a formatted panel.
         """
-        panel = self.info.getJobStatusPanel()
+        panel = self._informer.createJobStatusPanel(console)
         console.print(panel)
 
     def askForConfirm(self) -> bool:
@@ -149,7 +153,7 @@ class QQKiller:
         Returns:
             bool: True if termination should proceed, False otherwise.
         """
-        return self.forced or (not self._isFinished() and not self._isKilled())
+        return self._forced or (not self._isFinished() and not self._isKilled())
 
     def terminate(self):
         """
@@ -158,18 +162,13 @@ class QQKiller:
         Raises:
             QQError: If the kill command fails.
         """
-        if self.forced:
-            command = self.batch_system.translateKillForce(self.jobid)
+        if self._forced:
+            result = self._batch_system.jobKillForce(self._informer.info.job_id)
         else:
-            command = self.batch_system.translateKill(self.jobid)
+            result = self._batch_system.jobKill(self._informer.info.job_id)
 
-        logger.debug(command)
-        result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
-        )
-
-        if result.returncode != 0:
-            raise QQError(f"Could not kill the job: {result.stderr.strip()}.")
+        if result.exit_code != 0:
+            raise QQError(f"Could not kill the job: {result.error_message}.")
 
     def shouldUpdateInfoFile(self) -> bool:
         """
@@ -194,7 +193,7 @@ class QQKiller:
         """
         return (
             (
-                self.forced
+                self._forced
                 or self._isQueued()
                 or self._isBooting()
                 or self._isSuspended()
@@ -208,36 +207,36 @@ class QQKiller:
         """
         Mark the job as killed in the info file and lock it to prevent overwriting.
         """
-        self.info.setKilled(datetime.now())
-        self.info.exportToFile(self.info_file)
+        self._informer.setKilled(datetime.now())
+        self._informer.toFile(self._info_file)
         # strictly speaking, we only need to lock the info file
         # when dealing with a booting job but doing it for the other jobs
         # which state is managed by `qq kill` does not hurt anything
-        self._lockFile(self.info_file)
+        self._lockFile(self._info_file)
 
     def _isBooting(self) -> bool:
         """Check if the job is currently booting."""
-        return self.state == RealState.BOOTING
+        return self._state == RealState.BOOTING
 
     def _isSuspended(self) -> bool:
         """Check if the job is currently suspended."""
-        return self.state == RealState.SUSPENDED
+        return self._state == RealState.SUSPENDED
 
     def _isQueued(self) -> bool:
         """Check if the job is queued, held, or waiting."""
-        return self.state in [RealState.QUEUED, RealState.HELD, RealState.WAITING]
+        return self._state in [RealState.QUEUED, RealState.HELD, RealState.WAITING]
 
     def _isKilled(self) -> bool:
         """Check if the job has already been killed."""
-        return self.state == RealState.KILLED
+        return self._state == RealState.KILLED
 
     def _isFinished(self) -> bool:
         """Check if the job has finished or failed."""
-        return self.state in [RealState.FINISHED, RealState.FAILED]
+        return self._state in [RealState.FINISHED, RealState.FAILED]
 
     def _isUnknownInconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""
-        return self.state in [RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE]
+        return self._state in [RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE]
 
     def _lockFile(self, file_path: Path):
         """

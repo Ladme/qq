@@ -77,12 +77,12 @@ def test_submitter_init_invalid_shebang(script_invalid_shebang, sample_resources
 def test_submitter_submit_success(script_with_shebang, sample_resources, tmp_path):
     os.chdir(tmp_path)
     submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
-    submitter.submit()
+    job_id = submitter.submit()
 
     # check if qq info file was created
     assert submitter._info_file.exists()
     info = QQInfo.fromFile(submitter._info_file)
-    assert info.job_id == "0"
+    assert info.job_id == job_id
     assert info.job_state == NaiveState.QUEUED
     assert info.username == getpass.getuser()
     assert info.input_machine == socket.gethostname()

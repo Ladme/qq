@@ -140,19 +140,29 @@ class QQGoer:
         result = self._batch_system.navigateToDestination(self._host, self._directory)
 
         if result.exit_code != 0:
-            raise QQError(f"Could not reach '{self._host}:{str(self._directory)}'.")
+            raise QQError(
+                f"Could not reach '{self._host}:{str(self._directory)}': {result.error_message}."
+            )
 
     def _isInWorkDir(self) -> bool:
         """
         Check if the current process is already in the job's working directory.
 
         Returns:
-            bool: True if the current directory matches the job's work_dir and host matches local hostname.
+            bool: True if the current directory matches the job's work_dir and:
+              a) either a job_dir was used to run the job, or
+              b) local hostname matches the job's main node
         """
+        # note that we cannot just compare directory paths, since
+        # the same directory path may point to different directories
+        # on the current machine and on the execution node
+        # we also need to check that
+        #   a) job was running in shared storage or
+        #   b) we are on the same machine
         return (
             self._directory is not None
             and Path(self._directory).resolve() == Path.cwd().resolve()
-            and self._host == socket.gethostname()
+            and (not self._informer.useScratch() or self._host == socket.gethostname())
         )
 
     def _setDestination(self):

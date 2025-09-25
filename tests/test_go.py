@@ -19,153 +19,6 @@ from qq_lib.states import NaiveState, RealState
 from qq_lib.vbs import QQVBS
 
 
-def test_set_destination_with_valid_destination():
-    goer = QQGoer.__new__(QQGoer)
-    goer._informer = MagicMock()
-    goer._informer.getDestination.return_value = ("host123", Path("/tmp/workdir"))
-
-    goer._setDestination()
-
-    assert goer._host == "host123"
-    assert goer._directory == Path("/tmp/workdir")
-    goer._informer.getDestination.assert_called_once()
-
-
-def test_set_destination_with_none():
-    goer = QQGoer.__new__(QQGoer)
-    goer._informer = MagicMock()
-    goer._informer.getDestination.return_value = None
-
-    goer._setDestination()
-
-    assert goer._host is None
-    assert goer._directory is None
-    goer._informer.getDestination.assert_called_once()
-
-
-def test_is_in_work_dir_true(tmp_path):
-    goer = QQGoer.__new__(QQGoer)
-    goer._directory = tmp_path
-    goer._host = socket.gethostname()
-
-    with patch("pathlib.Path.cwd", return_value=tmp_path):
-        assert goer._isInWorkDir() is True
-
-
-def test_is_in_work_dir_false_different_directory(tmp_path):
-    goer = QQGoer.__new__(QQGoer)
-    goer._directory = tmp_path / "other_dir"
-    goer._host = socket.gethostname()
-
-    with patch("pathlib.Path.cwd", return_value=tmp_path):
-        assert goer._isInWorkDir() is False
-
-
-def test_is_in_work_dir_false_different_host(tmp_path):
-    goer = QQGoer.__new__(QQGoer)
-    goer._directory = tmp_path
-    goer._host = "fake_host"
-
-    with patch("pathlib.Path.cwd", return_value=tmp_path):
-        assert goer._isInWorkDir() is False
-
-
-def test_is_in_work_dir_false_directory_none(tmp_path):
-    goer = QQGoer.__new__(QQGoer)
-    goer._directory = None
-    goer._host = socket.gethostname()
-
-    with patch("pathlib.Path.cwd", return_value=tmp_path):
-        assert goer._isInWorkDir() is False
-
-
-def test_navigate_success():
-    goer = QQGoer.__new__(QQGoer)
-    goer._host = "host123"
-    goer._directory = Path("/tmp/workdir")
-    goer._batch_system = MagicMock()
-    goer._batch_system.navigateToDestination.return_value.exit_code = 0
-
-    goer._navigate()
-    goer._batch_system.navigateToDestination.assert_called_once_with(
-        "host123", Path("/tmp/workdir")
-    )
-
-
-def test_navigate_failure():
-    goer = QQGoer.__new__(QQGoer)
-    goer._host = "host123"
-    goer._directory = Path("/tmp/workdir")
-    goer._batch_system = MagicMock()
-    goer._batch_system.navigateToDestination.return_value.exit_code = 1
-
-    with pytest.raises(QQError, match="Could not reach 'host123:/tmp/workdir'"):
-        goer._navigate()
-    goer._batch_system.navigateToDestination.assert_called_once_with(
-        "host123", Path("/tmp/workdir")
-    )
-
-
-def test_navigate_no_host():
-    goer = QQGoer.__new__(QQGoer)
-    goer._host = None
-    goer._directory = Path("/tmp/workdir")
-    goer._batch_system = MagicMock()
-
-    with pytest.raises(QQError, match="Host.*work_dir.*not defined"):
-        goer._navigate()
-
-
-def test_navigate_no_directory():
-    goer = QQGoer.__new__(QQGoer)
-    goer._host = "host123"
-    goer._directory = None
-    goer._batch_system = MagicMock()
-
-    with pytest.raises(QQError, match="Host.*work_dir.*not defined"):
-        goer._navigate()
-
-
-@pytest.mark.parametrize("state", list(RealState))
-@pytest.mark.parametrize("in_workdir", [True, False])
-def test_check_and_navigate(tmp_path, state, in_workdir):
-    print(state, in_workdir)
-    goer = QQGoer.__new__(QQGoer)
-
-    goer._state = state
-    goer._directory = tmp_path
-    goer._host = socket.gethostname()
-    goer._batch_system = MagicMock()
-    goer._info_file = tmp_path / "dummy.qqinfo"
-    goer._wait_time = 0.1
-
-    goer._navigate = MagicMock()
-
-    # for queued states, break the loop immediately
-    def fake_update():
-        goer._state = RealState.RUNNING
-
-    goer.update = fake_update
-
-    cwd_patch = tmp_path if in_workdir else tmp_path / "other_dir"
-    with patch("pathlib.Path.cwd", return_value=cwd_patch):
-        if state == RealState.FINISHED and not in_workdir:
-            with pytest.raises(QQError):
-                goer.checkAndNavigate()
-        else:
-            goer.checkAndNavigate()
-
-    if state == RealState.FINISHED and not in_workdir:
-        # should raise so we check nothing
-        return
-    if in_workdir:
-        # already in workdir - navigate not called
-        assert goer._navigate.call_count == 0
-    else:
-        # else navigate called once
-        assert goer._navigate.call_count == 1
-
-
 @pytest.fixture
 def sample_resources():
     return QQResources(ncpus=8, work_dir="scratch_local")
@@ -197,6 +50,175 @@ def sample_info(tmp_path, sample_resources):
         work_dir=work_dir,
         main_node=str(main_node),
     )
+
+
+def test_set_destination_with_valid_destination():
+    goer = QQGoer.__new__(QQGoer)
+    goer._informer = MagicMock()
+    goer._informer.getDestination.return_value = ("host123", Path("/tmp/workdir"))
+
+    goer._setDestination()
+
+    assert goer._host == "host123"
+    assert goer._directory == Path("/tmp/workdir")
+    goer._informer.getDestination.assert_called_once()
+
+
+def test_set_destination_with_none():
+    goer = QQGoer.__new__(QQGoer)
+    goer._informer = MagicMock()
+    goer._informer.getDestination.return_value = None
+
+    goer._setDestination()
+
+    assert goer._host is None
+    assert goer._directory is None
+    goer._informer.getDestination.assert_called_once()
+
+
+def test_is_in_work_dir_true(tmp_path, sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._directory = tmp_path
+    goer._host = socket.gethostname()
+    goer._informer = QQInformer(sample_info)
+
+    with patch("pathlib.Path.cwd", return_value=tmp_path):
+        assert goer._isInWorkDir() is True
+
+
+def test_is_in_work_dir_false_different_directory(tmp_path, sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._directory = tmp_path / "other_dir"
+    goer._host = socket.gethostname()
+    goer._informer = QQInformer(sample_info)
+
+    with patch("pathlib.Path.cwd", return_value=tmp_path):
+        assert goer._isInWorkDir() is False
+
+
+def test_is_in_work_dir_false_different_host(tmp_path, sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._directory = tmp_path
+    goer._host = "fake_host"
+    goer._informer = QQInformer(sample_info)
+
+    with patch("pathlib.Path.cwd", return_value=tmp_path):
+        assert goer._isInWorkDir() is False
+
+
+def test_is_in_work_dir_false_directory_none(tmp_path, sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._directory = None
+    goer._host = socket.gethostname()
+    goer._informer = QQInformer(sample_info)
+
+    with patch("pathlib.Path.cwd", return_value=tmp_path):
+        assert goer._isInWorkDir() is False
+
+
+def test_is_in_work_dir_true_different_host_job_dir(tmp_path, sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._directory = tmp_path
+    # different host
+    goer._host = "fake_host"
+    goer._informer = QQInformer(sample_info)
+    # set work_dir to job_dir
+    goer._informer.info.resources.work_dir = None
+
+    with patch("pathlib.Path.cwd", return_value=tmp_path):
+        assert goer._isInWorkDir() is True
+
+
+def test_navigate_success(sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._host = "host123"
+    goer._directory = Path("/tmp/workdir")
+    goer._informer = QQInformer(sample_info)
+    goer._batch_system = MagicMock()
+    goer._batch_system.navigateToDestination.return_value.exit_code = 0
+
+    goer._navigate()
+    goer._batch_system.navigateToDestination.assert_called_once_with(
+        "host123", Path("/tmp/workdir")
+    )
+
+
+def test_navigate_failure(sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._host = "host123"
+    goer._directory = Path("/tmp/workdir")
+    goer._informer = QQInformer(sample_info)
+    goer._batch_system = MagicMock()
+    goer._batch_system.navigateToDestination.return_value.exit_code = 1
+
+    with pytest.raises(QQError, match="Could not reach 'host123:/tmp/workdir'"):
+        goer._navigate()
+    goer._batch_system.navigateToDestination.assert_called_once_with(
+        "host123", Path("/tmp/workdir")
+    )
+
+
+def test_navigate_no_host(sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._host = None
+    goer._directory = Path("/tmp/workdir")
+    goer._batch_system = MagicMock()
+    goer._informer = QQInformer(sample_info)
+
+    with pytest.raises(QQError, match="Host.*work_dir.*not defined"):
+        goer._navigate()
+
+
+def test_navigate_no_directory(sample_info):
+    goer = QQGoer.__new__(QQGoer)
+    goer._host = "host123"
+    goer._directory = None
+    goer._batch_system = MagicMock()
+    goer._informer = QQInformer(sample_info)
+
+    with pytest.raises(QQError, match="Host.*work_dir.*not defined"):
+        goer._navigate()
+
+
+@pytest.mark.parametrize("state", list(RealState))
+@pytest.mark.parametrize("in_workdir", [True, False])
+def test_check_and_navigate(tmp_path, state, in_workdir, sample_info):
+    print(state, in_workdir)
+    goer = QQGoer.__new__(QQGoer)
+
+    goer._state = state
+    goer._directory = tmp_path
+    goer._host = socket.gethostname()
+    goer._batch_system = MagicMock()
+    goer._info_file = tmp_path / "dummy.qqinfo"
+    goer._wait_time = 0.1
+    goer._informer = QQInformer(sample_info)
+
+    goer._navigate = MagicMock()
+
+    # for queued states, break the loop immediately
+    def fake_update():
+        goer._state = RealState.RUNNING
+
+    goer.update = fake_update
+
+    cwd_patch = tmp_path if in_workdir else tmp_path / "other_dir"
+    with patch("pathlib.Path.cwd", return_value=cwd_patch):
+        if state == RealState.FINISHED and not in_workdir:
+            with pytest.raises(QQError):
+                goer.checkAndNavigate()
+        else:
+            goer.checkAndNavigate()
+
+    if state == RealState.FINISHED and not in_workdir:
+        # should raise so we check nothing
+        return
+    if in_workdir:
+        # already in workdir - navigate not called
+        assert goer._navigate.call_count == 0
+    else:
+        # else navigate called once
+        assert goer._navigate.call_count == 1
 
 
 def test_go_command_success(tmp_path, sample_info):

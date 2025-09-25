@@ -55,7 +55,7 @@ def test_run_job_starts_job(tmp_path):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
-    time.sleep(0.2)
+    time.sleep(0.3)
 
     job = vbs.jobs[job_id]
     assert job.state == BatchState.FINISHED
@@ -73,7 +73,7 @@ def test_run_job_frozen_starts_job(tmp_path):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id, freeze=True)
 
-    time.sleep(0.1)
+    time.sleep(0.3)
 
     job = vbs.jobs[job_id]
     assert job.state == BatchState.RUNNING
@@ -83,7 +83,7 @@ def test_run_job_frozen_starts_job(tmp_path):
 
     vbs.releaseFrozenJob(job_id)
 
-    time.sleep(0.2)
+    time.sleep(0.3)
 
     job = vbs.jobs[job_id]
     assert job.state == BatchState.FINISHED
@@ -101,7 +101,7 @@ def test_kill_job(tmp_path):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     job = vbs.jobs[job_id]
     vbs.killJob(job_id, hard=False)
@@ -117,7 +117,7 @@ def test_kill_job_hard(tmp_path):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     job = vbs.jobs[job_id]
     vbs.killJob(job_id, hard=True)
@@ -133,7 +133,7 @@ def test_kill_finished_job(tmp_path):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
-    time.sleep(0.2)
+    time.sleep(0.3)
     assert vbs.jobs[job_id].state == BatchState.FINISHED
 
     with pytest.raises(VBSError, match="is finished"):
@@ -179,7 +179,7 @@ def test_qqvbs_get_scratch_dir_success(tmp_path, sample_resources):
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
 
-    time.sleep(0.1)
+    time.sleep(0.2)
     result = QQVBS.getScratchDir(job_id)
 
     assert result.exit_code == 0
@@ -219,7 +219,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     QQVBS.jobSubmit(sample_resources, "", script)
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
-    time.sleep(0.1)
+    time.sleep(0.3)
 
     result = QQVBS.jobKill(job_id)
     assert result.exit_code == 0
@@ -231,7 +231,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     QQVBS._batch_system.submitJob(script, sample_resources.useScratch())
     job_id2 = "1"
     QQVBS._batch_system.runJob(job_id2)
-    time.sleep(0.1)
+    time.sleep(0.3)
 
     result2 = QQVBS.jobKillForce(job_id2)
     assert result2.exit_code == 0
@@ -250,7 +250,7 @@ def test_job_kill_fails_if_finished(tmp_path, sample_resources):
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
 
-    time.sleep(0.3)
+    time.sleep(0.5)
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
@@ -270,7 +270,7 @@ def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
 
-    time.sleep(0.3)
+    time.sleep(0.5)
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 

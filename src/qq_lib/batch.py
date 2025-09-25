@@ -216,7 +216,8 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
         Returns:
             BatchOperationResult: Result of the operation.
-                                  Both success and error message are unused.
+                                  Success message is unused.
+                                  Error message should contain anything reasonable.
         """
         pass
 

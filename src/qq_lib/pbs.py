@@ -234,9 +234,13 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         #
         # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
         if exit_code == QQPBS.SSH_FAIL:
-            return BatchOperationResult.error(QQPBS.SSH_FAIL)
+            return BatchOperationResult.error(
+                QQPBS.SSH_FAIL, "Could not connect to host."
+            )
         if exit_code == QQPBS.CD_FAIL:
-            return BatchOperationResult.error(QQPBS.CD_FAIL)
+            return BatchOperationResult.error(
+                QQPBS.CD_FAIL, "Could not change to target directory."
+            )
         return BatchOperationResult.success()
 
     @staticmethod

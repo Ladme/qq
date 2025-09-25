@@ -110,7 +110,6 @@ class QQSubmitter:
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
         # script must exist in the current directory
-        logger.debug(f"{self._script.parent}, {Path.cwd()}")
         if self._script.parent.resolve() != Path.cwd():
             raise QQError(f"Script '{script}' is not in the submission directory.")
 

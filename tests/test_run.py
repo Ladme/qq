@@ -235,7 +235,10 @@ def test_set_up_initializes_runner(tmp_path, sample_info):
 
 @pytest.fixture
 def runner_with_dirs(tmp_path, sample_info):
-    info_file = tmp_path / "job.qqinfo"
+    job_dir = tmp_path / "job"
+    job_dir.mkdir()
+
+    info_file = job_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
@@ -247,8 +250,7 @@ def runner_with_dirs(tmp_path, sample_info):
 
     runner._work_dir = tmp_path / "work"
     runner._work_dir.mkdir()
-    runner._job_dir = tmp_path / "job"
-    runner._job_dir.mkdir()
+    runner._job_dir = job_dir
     return runner
 
 
@@ -299,7 +301,7 @@ def test_execute_script_success(tmp_path, runner_with_dirs):
 
     assert "stdout success" in (tmp_path / "stdout_success.log").read_text()
     assert "stderr success" in (tmp_path / "stderr_success.log").read_text()
-    updated_info = QQInfo.fromFile(tmp_path / "job.qqinfo")
+    updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 
 
@@ -326,23 +328,25 @@ def test_execute_script_failure(tmp_path, runner_with_dirs):
 
     assert "stdout success" in (tmp_path / "stdout_success.log").read_text()
     assert "stderr success" in (tmp_path / "stderr_success.log").read_text()
-    updated_info = QQInfo.fromFile(tmp_path / "job.qqinfo")
+    updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 
 
 @pytest.fixture
 def runner_with_dirs_and_files(tmp_path, sample_info):
+    job_dir = tmp_path / "job"
+    job_dir.mkdir()
+
     # setup info file
-    info_file = tmp_path / "job.qqinfo"
+    info_file = job_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
 
     # setup runner
     runner = QQRunner()
-    runner._job_dir = tmp_path / "job"
+    runner._job_dir = job_dir
     runner._work_dir = tmp_path / "work"
-    runner._job_dir.mkdir()
     runner._work_dir.mkdir()
 
     # sample file in work_dir and job_dir
@@ -361,7 +365,7 @@ def runner_with_dirs_and_files(tmp_path, sample_info):
         (False, 1),
     ],
 )
-def test_finalize(tmp_path, runner_with_dirs_and_files, use_scratch, returncode):
+def test_finalize(runner_with_dirs_and_files, use_scratch, returncode):
     runner = runner_with_dirs_and_files
     runner._use_scratch = use_scratch
 
@@ -373,7 +377,7 @@ def test_finalize(tmp_path, runner_with_dirs_and_files, use_scratch, returncode)
 
     runner.finalize()
 
-    updated_info = QQInfo.fromFile(tmp_path / "job.qqinfo")
+    updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
 
     if returncode == 0:
         assert updated_info.job_state == NaiveState.FINISHED
@@ -465,35 +469,159 @@ def test_set_up_scratch_dir_failure(runner_with_dirs):
         runner._setUpScratchDir()
 
 
-def test_copy_files_from_workdir_some_files(runner_with_dirs):
-    # create files and directories in work_dir
-    f1 = runner_with_dirs._work_dir / "file1.txt"
-    f2 = runner_with_dirs._work_dir / "file2.txt"
-    d1 = runner_with_dirs._work_dir / "dir1"
-    f1.write_text("data1")
-    f2.write_text("data2")
-    d1.mkdir()
-    (d1 / "nested.txt").write_text("nested")
+def test_convert_absolute_to_relative_success(tmp_path):
+    target = tmp_path
+    file1 = target / "a.txt"
+    file2 = target / "subdir" / "b.txt"
+    file2.parent.mkdir()
+    file1.write_text("data1")
+    file2.write_text("data2")
 
-    runner_with_dirs._copyFilesFromWorkDir()
+    runner = QQRunner.__new__(QQRunner)
+    result = runner._convertAbsoluteToRelative([file1, file2], target)
 
-    for path in runner_with_dirs._work_dir.iterdir():
-        target_path = runner_with_dirs._job_dir / path.name
-        assert target_path.exists()
-        if path.is_file():
-            # files content must match
-            assert target_path.read_text() == path.read_text()
-        elif path.is_dir():
-            # directories and nested files must exist
-            nested_file = target_path / "nested.txt"
-            assert nested_file.exists()
-            assert nested_file.read_text() == "nested"
+    assert result == [Path("a.txt"), Path("subdir") / "b.txt"]
 
 
-def test_copy_files_from_workdir_no_files(runner_with_dirs):
-    # nothing in work_dir
-    runner_with_dirs._copyFilesFromWorkDir()
-    assert list(runner_with_dirs._job_dir.iterdir()) == []
+def test_convert_absolute_to_relative_file_outside_target(tmp_path):
+    target = tmp_path / "target"
+    outside = tmp_path / "outside.txt"
+    target.mkdir()
+    outside.write_text("oops")
+
+    runner = QQRunner.__new__(QQRunner)
+
+    with pytest.raises(QQError, match="is not in target directory"):
+        runner._convertAbsoluteToRelative([outside], target)
+
+
+def test_convert_absolute_to_relative_empty_list(tmp_path):
+    target = tmp_path
+    runner = QQRunner.__new__(QQRunner)
+    result = runner._convertAbsoluteToRelative([], target)
+    assert result == []
+
+
+def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
+    target = tmp_path / "target"
+    target.mkdir()
+    inside = target / "file.txt"
+    inside.write_text("inside")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside")
+
+    runner = QQRunner.__new__(QQRunner)
+
+    with pytest.raises(QQError):
+        runner._convertAbsoluteToRelative([inside, outside], target)
+
+
+def test_sync_directories_copies_new_files(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    # create files in src
+    (src / "file1.txt").write_text("data1")
+    (src / "file2.txt").write_text("data2")
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._syncDirectories(src, dest)
+
+    # all files from src should exist in dest with same content
+    for f in src.iterdir():
+        dest_file = dest / f.name
+        assert dest_file.exists()
+        assert dest_file.read_text() == f.read_text()
+
+
+def test_sync_directories_preserves_dest_files(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    # file in dest that is not in src
+    (dest / "keep.txt").write_text("keep_me")
+    # file in src
+    (src / "new.txt").write_text("new_data")
+
+    runner = QQRunner.__new__(QQRunner)
+
+    runner._syncDirectories(src, dest)
+
+    # new file copied
+    assert (dest / "new.txt").exists()
+    assert (dest / "new.txt").read_text() == "new_data"
+    # old file preserved
+    assert (dest / "keep.txt").exists()
+    assert (dest / "keep.txt").read_text() == "keep_me"
+    # destination file not copied to src
+    assert not (src / "keep.txt").exists()
+
+
+def test_sync_directories_skips_excluded_files(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    (src / "include.txt").write_text("include")
+    (src / "exclude.txt").write_text("exclude")
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._syncDirectories(src, dest, exclude_files=[src / "exclude.txt"])
+
+    assert (dest / "include.txt").exists()
+    assert not (dest / "exclude.txt").exists()
+
+
+def test_sync_directories_updates_changed_files(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    # same file in both, dest outdated
+    # note that these files have the same time of creation,
+    # so they have to have different size for rsync to work properly
+    (src / "file.txt").write_text("new")
+    (dest / "file.txt").write_text("older")
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._syncDirectories(src, dest)
+
+    assert (dest / "file.txt").exists()
+    assert (dest / "file.txt").read_text() == "new"
+
+
+def test_sync_directories_rsync_failure(tmp_path, monkeypatch):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    # create a file to sync
+    (src / "file.txt").write_text("data")
+
+    runner = QQRunner.__new__(QQRunner)
+
+    # patch subprocess.run to simulate rsync failure
+    def fake_run(_command, capture_output=True, text=True):
+        _ = capture_output
+        _ = text
+
+        class Result:
+            returncode = 1
+            stderr = "rsync error"
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(QQError, match="Could not rsync files between"):
+        runner._syncDirectories(src, dest)
 
 
 @pytest.fixture
@@ -508,40 +636,6 @@ def runner(tmp_path, sample_info):
 
     Path.unlink(info_file)
     return runner
-
-
-def test_copy_files_to_dst(runner, tmp_path):
-    # create job directory
-    dest = tmp_path / "job"
-    dest.mkdir()
-
-    # create files and directories
-    f1 = tmp_path / "file1.txt"
-    f2 = tmp_path / "file2.txt"
-    f3 = tmp_path / "file3.txt"  # should not be copied
-    d1 = tmp_path / "dir1"
-    f1.write_text("content1")
-    f2.write_text("content2")
-    d1.mkdir()
-    (d1 / "nested.txt").write_text("nested")
-
-    # list of paths to copy
-    src_paths = [f1, f2, d1]
-
-    runner._copyFilesToDst(src_paths, dest)
-
-    for path in src_paths:
-        dest_path = dest / path.name
-        assert dest_path.exists()
-        if path.is_file():
-            assert dest_path.read_text() == path.read_text()
-        elif path.is_dir():
-            nested_file = dest_path / "nested.txt"
-            assert nested_file.exists()
-            assert nested_file.read_text() == "nested"
-
-    # not copied
-    assert not (dest / f3.name).exists()
 
 
 def test_delete_work_dir_some_files(runner, tmp_path):

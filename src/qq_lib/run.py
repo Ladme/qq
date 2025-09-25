@@ -46,7 +46,6 @@ import signal
 import socket
 import subprocess
 import sys
-from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from types import FrameType
@@ -291,7 +290,10 @@ class QQRunner:
             self._updateInfoFinished()
             if self._use_scratch:
                 # copy files back to the submission (job) directory
-                self._copyFilesFromWorkDir()
+                self._syncDirectories(
+                    self._work_dir,
+                    self._job_dir,
+                )
                 # remove the working directory from scratch
                 # directory is retained on scratch if the run fails for any reason
                 self._deleteWorkDir()
@@ -338,14 +340,18 @@ class QQRunner:
         Raises:
             QQError: If scratch directory cannot be determined.
         """
-        # get scratch directory
+        # get scratch directory (this directory should be created and allocated by the batch system)
         result = self._batch_system.getScratchDir(self._informer.info.job_id)
         if result.exit_code == 0:
             scratch_dir = Path(result.success_message)
         else:
             raise QQError(result.error_message)
 
-        # create working directory on scratch
+        # create working directory inside the scratch directory allocated by the batch system
+        # we create this directory because other processes may write files
+        # into allocated scratch directory and we do not want these files
+        # to affect the job execution or be copied back to job_dir
+        # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
         Path.mkdir(self._work_dir)
 
@@ -355,47 +361,78 @@ class QQRunner:
         os.chdir(self._work_dir)
 
         # copy files to the working directory excluding the qq info file
-        self._copyFilesToDst(
-            self._getFilesToCopy(self._job_dir, [self._info_file]), self._work_dir
-        )
+        self._syncDirectories(self._job_dir, self._work_dir, [self._info_file])
 
-    def _copyFilesToDst(self, src: Sequence[Path], directory: Path):
+    def _syncDirectories(
+        self, src_dir: Path, dest_dir: Path, exclude_files: list[Path] | None = None
+    ):
         """
-        Copy multiple files or directories into a destination directory.
+        Synchronize the contents of 'src_dir' into 'dest_dir' without removing any files from 'dest_dir'.
+
+        Excluded files from 'src_dir' are not synced.
 
         Args:
-            src (Sequence[Path]): Paths of files/directories to copy.
-            directory (Path): Destination directory.
+            src_dir (Path): Source directory whose content will be copied.
+            dest_dir (Path): Destination directory to which content should be copied.
+            exclude_files (list[Path] | None): Optional list of files in 'src_dir' to exclude from syncing.
 
         Raises:
-            QQError: If any file cannot be copied.
+            QQError: If rsync fails for any reason.
         """
-        for item in src:
-            dest = directory / item.name
-            logger.debug(f"Copying '{item}' to '{dest}'.")
+        relative_excluded = (
+            self._convertAbsoluteToRelative(exclude_files, src_dir)
+            if exclude_files
+            else []
+        )
 
+        # build the rsync command
+        # not using --checksum nor --ignore-times for performance reasons
+        # some files may potentially not be correctly synced if they were
+        # modified in both src_dir and dest_dir at the same time and have
+        # the same size -> this should be so extremely rare that we do not care
+        command = ["rsync", "-a"]
+        for file in relative_excluded:
+            command.extend(["--exclude", str(file)])
+        command.extend([str(src_dir) + "/", str(dest_dir)])
+
+        logger.debug(f"Rsync command: {command}.")
+
+        # run the rsync command
+        result = subprocess.run(command, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not rsync files between '{src_dir}' and '{dest_dir}': {result.stderr}."
+            )
+
+    def _convertAbsoluteToRelative(self, files: list[Path], target: Path) -> list[Path]:
+        """
+        Convert a list of absolute paths into paths relative to a target directory.
+
+        Each file in 'files' must be located inside 'target' or one of its
+        subdirectories. If any file is outside 'target', a 'QQError' is raised.
+
+        Args:
+            files (list[Path]): A list of absolute file paths to convert.
+            target (Path): The target directory against which paths are made relative.
+
+        Returns:
+            list[Path]: A list of paths relative to 'target'.
+
+        Raises:
+            QQError: If any file in 'files' is not located within 'target'.
+        """
+        relative = []
+        for file in files:
             try:
-                if item.is_file():
-                    shutil.copy2(item, dest)
-                elif item.is_dir():
-                    shutil.copytree(item, dest, dirs_exist_ok=True)
-                else:
-                    logger.warning(
-                        f"Not copying '{item}' to working directory: not a file or directory."
-                    )
-            except Exception as e:
+                relative.append(file.relative_to(target))
+            except ValueError as e:
                 raise QQError(
-                    f"Could not copy '{item}' into directory '{directory}': {e}."
+                    f"Item '{file}' is not in target directory '{target}'."
                 ) from e
 
-    def _copyFilesFromWorkDir(self):
-        """
-        Copy all files and directories from the working directory back into the job directory.
-        """
-        logger.debug(f"Copying files from {self._work_dir} to {self._job_dir}.")
-        files_to_copy = self._getFilesToCopy(self._work_dir, [])
-        logger.debug(f"Copying the following paths: {files_to_copy}.")
-        self._copyFilesToDst(files_to_copy, self._job_dir)
+        logger.debug(f"Converted paths: {relative}.")
+        return relative
 
     def _deleteWorkDir(self):
         """

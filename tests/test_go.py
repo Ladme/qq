@@ -148,14 +148,10 @@ def test_navigate_failure(sample_info):
     goer._host = "host123"
     goer._directory = Path("/tmp/workdir")
     goer._informer = QQInformer(sample_info)
-    goer._batch_system = MagicMock()
-    goer._batch_system.navigateToDestination.return_value.exit_code = 1
+    goer._batch_system = QQVBS
 
     with pytest.raises(QQError, match="Could not reach 'host123:/tmp/workdir'"):
         goer._navigate()
-    goer._batch_system.navigateToDestination.assert_called_once_with(
-        "host123", Path("/tmp/workdir")
-    )
 
 
 def test_navigate_no_host(sample_info):

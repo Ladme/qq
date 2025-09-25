@@ -137,12 +137,7 @@ class QQGoer:
             )
 
         logger.info(f"Navigating to '{str(self._directory)}' on '{self._host}'.")
-        result = self._batch_system.navigateToDestination(self._host, self._directory)
-
-        if result.exit_code != 0:
-            raise QQError(
-                f"Could not reach '{self._host}:{str(self._directory)}': {result.error_message}."
-            )
+        self._batch_system.navigateToDestination(self._host, self._directory)
 
     def _isInWorkDir(self) -> bool:
         """

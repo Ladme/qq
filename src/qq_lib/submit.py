@@ -39,12 +39,39 @@ logger = get_logger(__name__)
 @click.command(short_help="Submit a qq job to the batch system.")
 @click.argument("queue", type=str)
 @click.argument("script", type=str)
-@click.option("--ncpus", type=int, default=None)
+@click.option(
+    "--ncpus",
+    type=int,
+    default=None,
+    help="Number of CPU cores to use for the job. Default is chosen based on the submission queue.",
+)
 @click.option("--vnode", type=str, default=None)
-@click.option("--walltime", type=str, default=None)
-@click.option("--work-dir", type=str, default="scratch_local")
-@click.option("--work-size", type=str, default=None)
-@click.option("--batch-system", type=str, default="PBS")
+@click.option(
+    "--walltime",
+    type=str,
+    default=None,
+    help="Maximum allowed runtime for the job. Default is chosen based on the submission queue.",
+)
+@click.option(
+    "--work-dir",
+    "--workdir",
+    type=str,
+    default="from_batch_system",
+    help="Type of working directory: 'scratch_local', 'scratch_ssd', 'scratch_shared', 'scratch_hsm', or 'job_dir'. If not set, the batch system selects one.",
+)
+@click.option(
+    "--work-size",
+    "--worksize",
+    type=str,
+    default=None,
+    help="Size of storage requested for running the job. Integer type, specified as 'Ngb'.",
+)
+@click.option(
+    "--batch-system",
+    type=str,
+    default="PBS",
+    help="Batch system to submit the job into. Default is PBS.",
+)
 def submit(queue, script, **kwargs):
     """
     Submit a qq job to a batch system from the command line.
@@ -53,9 +80,9 @@ def submit(queue, script, **kwargs):
     """
     try:
         BatchSystem = QQBatchMeta.fromStr(kwargs["batch_system"])
-        del kwargs["batch_system"]
-        resources = QQResources(**kwargs)
-        submitter = QQSubmitter(BatchSystem, queue, Path(script), resources)
+        submitter = QQSubmitter(
+            BatchSystem, queue, Path(script), BatchSystem.buildResources(**kwargs)
+        )
         if not submitter.isShared(Path()):
             raise QQError(
                 "Submitting qq jobs is only possible from a shared filesystem."
@@ -140,39 +167,34 @@ class QQSubmitter:
         self._setEnvVars()
 
         # submit the job
-        result = self._batch_system.jobSubmit(
+        job_id = self._batch_system.jobSubmit(
             self._resources, self._queue, self._script
         )
 
-        if result.exit_code == 0:
-            # submission succesful
-            job_id = result.success_message
-            logger.info(f"Job '{job_id}' submitted successfully.")
-            informer = QQInformer(
-                QQInfo(
-                    batch_system=self._batch_system,
-                    qq_version=qq_lib.__version__,
-                    username=getpass.getuser(),
-                    job_id=job_id,
-                    job_name=self._script_name,
-                    script_name=self._script_name,
-                    job_type="standard",
-                    input_machine=socket.gethostname(),
-                    job_dir=Path.cwd(),
-                    job_state=NaiveState.QUEUED,
-                    submission_time=datetime.now(),
-                    stdout_file=str(Path(self._script_name).with_suffix(STDOUT_SUFFIX)),
-                    stderr_file=str(Path(self._script_name).with_suffix(STDERR_SUFFIX)),
-                    resources=self._resources,
-                )
-            )
+        logger.info(f"Job '{job_id}' submitted successfully.")
 
-            informer.toFile(self._info_file)
-            return job_id
-        # submission failed
-        raise QQError(
-            f"Failed to submit script '{self._script}': {result.error_message}."
+        # create info file
+        informer = QQInformer(
+            QQInfo(
+                batch_system=self._batch_system,
+                qq_version=qq_lib.__version__,
+                username=getpass.getuser(),
+                job_id=job_id,
+                job_name=self._script_name,
+                script_name=self._script_name,
+                job_type="standard",
+                input_machine=socket.gethostname(),
+                job_dir=Path.cwd(),
+                job_state=NaiveState.QUEUED,
+                submission_time=datetime.now(),
+                stdout_file=str(Path(self._script_name).with_suffix(STDOUT_SUFFIX)),
+                stderr_file=str(Path(self._script_name).with_suffix(STDERR_SUFFIX)),
+                resources=self._resources,
+            )
         )
+
+        informer.toFile(self._info_file)
+        return job_id
 
     def isShared(self, directory: Path) -> bool:
         """

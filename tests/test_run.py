@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch import BatchOperationResult
 from qq_lib.constants import DATE_FORMAT, GUARD, INFO_FILE, SCRATCH_DIR_INNER
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
@@ -98,7 +97,7 @@ def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_i
     monkeypatch.setattr(
         QQVBS,
         "getScratchDir",
-        staticmethod(lambda _: BatchOperationResult.success(str(scratch_dir))),
+        staticmethod(lambda _: str(scratch_dir)),
     )
 
     info_file = job_dir / "job.qqinfo"
@@ -443,9 +442,7 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
     runner._batch_system = MagicMock()
-    runner._batch_system.getScratchDir.return_value = BatchOperationResult.success(
-        str(scratch_dir)
-    )
+    runner._batch_system.getScratchDir.return_value = str(scratch_dir)
 
     runner._setUpScratchDir()
 
@@ -466,11 +463,13 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
 def test_set_up_scratch_dir_failure(runner_with_dirs):
     runner = runner_with_dirs
 
-    # mock batch system to fail
+    # mock batch system to raise QQError directly
     runner._batch_system = MagicMock()
-    runner._batch_system.getScratchDir.return_value = BatchOperationResult.error(
-        1, "failed to get scratch"
-    )
+
+    def fail_scratch(_arg):
+        raise QQError("failed to get scratch")
+
+    runner._batch_system.getScratchDir.side_effect = fail_scratch
 
     with pytest.raises(QQError, match="failed to get scratch"):
         runner._setUpScratchDir()

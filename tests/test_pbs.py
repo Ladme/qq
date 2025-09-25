@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from qq_lib.batch import BatchOperationResult
+from qq_lib.error import QQError
 from qq_lib.pbs import QQPBS, PBSJobInfo
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
@@ -183,36 +183,26 @@ def test_translate_ssh_command():
     ]
 
 
-@pytest.mark.parametrize(
-    "exit_code, expected_success",
-    [(QQPBS.SSH_FAIL, False), (QQPBS.CD_FAIL, False), (0, True), (1, True)],
-)
-def test_translate_ssh_exit_code_to_result(exit_code, expected_success):
-    result = QQPBS._translateSSHExitToResult(exit_code)
-    assert isinstance(result, BatchOperationResult)
-    assert (result.exit_code == 0) == expected_success
-
-
 def test_navigate_same_host_success(tmp_path):
     directory = tmp_path
 
     with patch("subprocess.run") as mock_run:
-        result = QQPBS._navigateSameHost(directory)
-
+        QQPBS._navigateSameHost(directory)
         # check that subprocess was called properly
         mock_run.assert_called_once_with(["bash"], cwd=directory)
 
-        assert result.exit_code == 0
+        # should not raise
 
 
 def test_navigate_same_host_error():
     # nonexistent directory
     directory = Path("/non/existent/directory")
 
-    with patch("subprocess.run") as mock_run:
-        result = QQPBS._navigateSameHost(directory)
+    with (
+        patch("subprocess.run") as mock_run,
+        pytest.raises(QQError, match="Could not reach"),
+    ):
+        QQPBS._navigateSameHost(directory)
 
         # check that subprocess was not called
         mock_run.assert_not_called()
-
-        assert result.exit_code != 0

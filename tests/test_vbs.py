@@ -3,16 +3,13 @@
 
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
+from qq_lib.error import QQError
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
 from qq_lib.vbs import QQVBS, VBSError, VBSJobInfo, VirtualBatchSystem, VirtualJob
-
-if TYPE_CHECKING:
-    from qq_lib.batch import BatchOperationResult
 
 
 def test_try_create_scratch_creates_directory(tmp_path):
@@ -152,9 +149,7 @@ def test_qqvbs_job_submit_and_get_job_info(tmp_path, sample_resources):
     script.write_text("#!/bin/bash\necho hello\n")
     script.chmod(script.stat().st_mode | 0o111)
 
-    result: BatchOperationResult = QQVBS.jobSubmit(sample_resources, "", script)
-    assert result.exit_code == 0
-    assert result.success_message == "0"
+    QQVBS.jobSubmit(sample_resources, "", script)
 
     job = QQVBS._batch_system.jobs["0"]
     assert job.script == script
@@ -180,18 +175,15 @@ def test_qqvbs_get_scratch_dir_success(tmp_path, sample_resources):
     QQVBS._batch_system.runJob(job_id)
 
     time.sleep(0.2)
-    result = QQVBS.getScratchDir(job_id)
+    scratch = QQVBS.getScratchDir(job_id)
 
-    assert result.exit_code == 0
-    assert Path(result.success_message).exists()
+    assert Path(scratch).exists()
 
 
 def test_qqvbs_get_scratch_dir_job_not_exist():
     QQVBS._batch_system.clearJobs()
-    result: BatchOperationResult = QQVBS.getScratchDir("999")
-    assert result.exit_code != 0
-    assert result.error_message is not None
-    assert "does not exist" in result.error_message
+    with pytest.raises(QQError, match="does not exist"):
+        QQVBS.getScratchDir("999")
 
 
 def test_qqvbs_get_scratch_dir_no_scratch(tmp_path):
@@ -202,11 +194,8 @@ def test_qqvbs_get_scratch_dir_no_scratch(tmp_path):
 
     # submit without scratch
     QQVBS._batch_system.submitJob(script, use_scratch=False)
-    result: BatchOperationResult = QQVBS.getScratchDir("0")
-
-    assert result.exit_code != 0
-    assert result.error_message is not None
-    assert "does not have a scratch" in result.error_message
+    with pytest.raises(QQError, match="does not have a scratch"):
+        QQVBS.getScratchDir("0")
 
 
 def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
@@ -221,8 +210,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     QQVBS._batch_system.runJob(job_id)
     time.sleep(0.3)
 
-    result = QQVBS.jobKill(job_id)
-    assert result.exit_code == 0
+    QQVBS.jobKill(job_id)
     job = QQVBS._batch_system.jobs["0"]
     assert job.state == BatchState.FINISHED
     assert job.process is None
@@ -233,8 +221,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     QQVBS._batch_system.runJob(job_id2)
     time.sleep(0.3)
 
-    result2 = QQVBS.jobKillForce(job_id2)
-    assert result2.exit_code == 0
+    QQVBS.jobKillForce(job_id2)
     job = QQVBS._batch_system.jobs["1"]
     assert job.state == BatchState.FINISHED
     assert job.process is None
@@ -254,10 +241,8 @@ def test_job_kill_fails_if_finished(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
-    result: BatchOperationResult = QQVBS.jobKill(job_id)
-    assert result.exit_code == 1
-    assert result.error_message is not None
-    assert "is finished" in result.error_message
+    with pytest.raises(QQError, match="is finished"):
+        QQVBS.jobKill(job_id)
 
 
 def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
@@ -274,31 +259,21 @@ def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
-    result: BatchOperationResult = QQVBS.jobKillForce(job_id)
-    assert result.exit_code == 1
-    assert result.error_message is not None
-    assert "is finished" in result.error_message
+    with pytest.raises(QQError, match="is finished"):
+        QQVBS.jobKillForce(job_id)
 
 
 def test_qqvbs_navigate_to_destination(tmp_path):
     target = tmp_path / "workdir"
     target.mkdir()
 
-    result = QQVBS.navigateToDestination(str(tmp_path), Path("workdir"))
-    assert result.exit_code == 0
+    QQVBS.navigateToDestination(str(tmp_path), Path("workdir"))
     assert Path.cwd() == target
 
 
 def test_qqvbs_navigate_to_destination_failure(tmp_path):
-    result: BatchOperationResult = QQVBS.navigateToDestination(
-        str(tmp_path), Path("does_not_exist")
-    )
-    assert result.exit_code == 1
-    assert result.error_message is not None
-    assert (
-        "No such file" in result.error_message
-        or "does not exist" in result.error_message
-    )
+    with pytest.raises(QQError, match=r"Could not reach.*Could not change directory"):
+        QQVBS.navigateToDestination(str(tmp_path), Path("does_not_exist"))
 
 
 def test_vbs_job_info_get_job_state_returns_state(tmp_path, sample_resources):
@@ -317,7 +292,7 @@ def test_vbs_job_info_get_job_state_returns_state(tmp_path, sample_resources):
     assert info.getJobState() == BatchState.RUNNING
 
 
-def test_VBSJobInfo_getJobState_job_none():
+def test_vbs_job_info_get_job_state_job_none():
     QQVBS._batch_system.clearJobs()
 
     info = VBSJobInfo(None)

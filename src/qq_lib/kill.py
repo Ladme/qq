@@ -163,12 +163,9 @@ class QQKiller:
             QQError: If the kill command fails.
         """
         if self._forced:
-            result = self._batch_system.jobKillForce(self._informer.info.job_id)
+            self._batch_system.jobKillForce(self._informer.info.job_id)
         else:
-            result = self._batch_system.jobKill(self._informer.info.job_id)
-
-        if result.exit_code != 0:
-            raise QQError(f"Could not kill the job: {result.error_message}.")
+            self._batch_system.jobKill(self._informer.info.job_id)
 
     def shouldUpdateInfoFile(self) -> bool:
         """

@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from qq_lib.common import (
+    equals_normalized,
     get_files_with_suffix,
     get_info_file,
     yes_or_no_prompt,
@@ -92,3 +93,33 @@ def test_other_key():
     with patch("readchar.readkey", return_value="x"):
         result = yes_or_no_prompt("Do you agree?")
         assert result is False
+
+
+@pytest.mark.parametrize(
+    "a, b",
+    [
+        ("hello", "hello"),
+        ("Hello", "hello"),
+        ("WORLD", "world"),
+        ("hello-world", "helloworld"),
+        ("a-b-c", "abc"),
+        ("hello_world", "helloworld"),
+        ("a_b_c", "abc"),
+        ("Hello-World_test", "helloworldtest"),
+        ("", ""),
+    ],
+)
+def test_equals_normalized_true(a, b):
+    assert equals_normalized(a, b) is True
+
+
+@pytest.mark.parametrize(
+    "a, b",
+    [
+        ("hello", "world"),
+        ("hello_world", "hello-worldx"),
+        ("", "nonempty"),
+    ],
+)
+def test_equals_normalized_false(a, b):
+    assert equals_normalized(a, b) is False

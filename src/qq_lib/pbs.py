@@ -8,11 +8,12 @@ from pathlib import Path
 
 from qq_lib.batch import (
     BatchJobInfoInterface,
-    BatchOperationResult,
     QQBatchInterface,
     QQBatchMeta,
 )
+from qq_lib.common import equals_normalized
 from qq_lib.constants import QQ_OUT_SUFFIX
+from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
@@ -34,20 +35,20 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     CD_FAIL = 94
     # exit code of ssh if connection fails
     SSH_FAIL = 255
+    # default work-dir type to use with PBS
+    DEFAULT_WORK_DIR = "scratch_local"
 
     def envName() -> str:
         return "PBS"
 
-    def getScratchDir(job_id: str) -> BatchOperationResult:
+    def getScratchDir(job_id: str) -> Path:
         scratch_dir = os.environ.get("SCRATCHDIR")
         if not scratch_dir:
-            return BatchOperationResult.error(
-                1, f"Scratch directory for job '{job_id}' is undefined."
-            )
+            raise QQError(f"Scratch directory for job '{job_id}' is undefined")
 
-        return BatchOperationResult.success(scratch_dir)
+        return Path(scratch_dir)
 
-    def jobSubmit(res: QQResources, queue: str, script: Path) -> BatchOperationResult:
+    def jobSubmit(res: QQResources, queue: str, script: Path) -> str:
         # get the submission command
         command = QQPBS._translateSubmit(res, queue, str(script))
         logger.debug(command)
@@ -57,13 +58,14 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(
-            result.returncode,
-            error_message=result.stderr.strip(),
-            success_message=result.stdout.strip(),
-        )
+        if result.returncode != 0:
+            raise QQError(
+                f"Failed to submit script '{str(script)}': {result.stderr.strip()}."
+            )
 
-    def jobKill(job_id: str) -> BatchOperationResult:
+        return result.stdout.strip()
+
+    def jobKill(job_id: str):
         command = QQPBS._translateKill(job_id)
         logger.debug(command)
 
@@ -72,13 +74,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(
-            result.returncode,
-            success_message=result.stdout.strip(),
-            error_message=result.stderr.strip(),
-        )
+        if result.returncode != 0:
+            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def jobKillForce(job_id: str) -> BatchOperationResult:
+    def jobKillForce(job_id: str):
         command = QQPBS._translateKillForce(job_id)
         logger.debug(command)
 
@@ -87,20 +86,42 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             ["bash"], input=command, text=True, check=False, capture_output=True
         )
 
-        return BatchOperationResult.fromExitCode(
-            result.returncode, error_message=result.stderr.strip()
-        )
+        if result.returncode != 0:
+            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def navigateToDestination(host: str, directory: Path) -> BatchOperationResult:
+    def navigateToDestination(host: str, directory: Path):
         # if the directory is on the current host, we do not need to use ssh
         if host == socket.gethostname():
-            return QQPBS._navigateSameHost(directory)
+            QQPBS._navigateSameHost(directory)
 
         # the directory is on an another node
         ssh_command = QQPBS._translateSSHCommand(host, directory)
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
+        result = subprocess.run(ssh_command)
 
-        return QQPBS._translateSSHExitToResult(subprocess.run(ssh_command).returncode)
+        # the subprocess exit code can come from:
+        # - SSH itself failing - returns SSH_FAIL
+        # - the explicit exit code we set if 'cd' to the directory fails - returns CD_FAIL
+        # - the exit code of the last command the user runs in the interactive shell
+        #
+        # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
+        if result.returncode == QQPBS.SSH_FAIL:
+            raise QQError(
+                f"Could not reach '{host}:{str(directory)}': Could not connect to host."
+            )
+        if result.returncode == QQPBS.CD_FAIL:
+            raise QQError(
+                f"Could not reach '{host}:{str(directory)}': Could not change directory."
+            )
+
+    def buildResources(**kwargs) -> QQResources:
+        try:
+            res = QQBatchInterface.buildResources(**kwargs)
+            QQPBS._handleWorkDirRes(res)
+        except Exception as e:
+            raise QQError(f"Specification of resources is invalid: {e}.") from e
+
+        return res
 
     def getJobInfo(job_id: str) -> PBSJobInfo:
         return PBSJobInfo(job_id)  # ty: ignore[invalid-return-type]
@@ -169,6 +190,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         if not res.work_dir:
             return None
 
+        # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
+        if res.work_dir == "scratch_shm":
+            return f"{res.work_dir}=True"
+
         return f"{res.work_dir}={res.work_size}"
 
     @staticmethod
@@ -218,34 +243,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         ]
 
     @staticmethod
-    def _translateSSHExitToResult(exit_code: int) -> BatchOperationResult:
-        """
-        Convert SSH exit code into a BatchOperationResult.
-
-        Args:
-            exit_code (int): Exit code returned by the SSH command.
-
-        Returns:
-            BatchOperationResult: Success if exit code is not SSH_FAIL or CD_FAIL, error otherwise.
-        """
-        # the subprocess exit code can come from:
-        # - SSH itself failing - returns SSH_FAIL
-        # - the explicit exit code we set if 'cd' to the directory fails - returns CD_FAIL
-        # - the exit code of the last command the user runs in the interactive shell
-        #
-        # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
-        if exit_code == QQPBS.SSH_FAIL:
-            return BatchOperationResult.error(
-                QQPBS.SSH_FAIL, "Could not connect to host"
-            )
-        if exit_code == QQPBS.CD_FAIL:
-            return BatchOperationResult.error(
-                QQPBS.CD_FAIL, "Could not change to target directory"
-            )
-        return BatchOperationResult.success()
-
-    @staticmethod
-    def _navigateSameHost(directory: Path) -> BatchOperationResult:
+    def _navigateSameHost(directory: Path):
         """
         Navigate to a directory on the current host using a subprocess.
 
@@ -257,13 +255,37 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         """
         logger.debug("Current host is the same as target host. Using 'cd'.")
         if not directory.is_dir():
-            return BatchOperationResult.error(1)
+            raise QQError(
+                f"Could not reach '{socket.gethostname()}:{str(directory)}': Could not change directory."
+            )
 
         subprocess.run(["bash"], cwd=directory)
 
         # if the directory exists, always report success,
         # no matter what the user does inside the terminal
-        return BatchOperationResult.success()
+
+    @staticmethod
+    def _handleWorkDirRes(res: QQResources):
+        # working directory was not specified by the user, select the default type
+        if res.work_dir and res.work_dir == "from_batch_system":
+            res.work_dir = QQPBS.DEFAULT_WORK_DIR
+            logger.debug(f"Using default work-dir resource for PBS: '{res.work_dir}'.")
+
+        # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
+        if res.work_dir and res.work_dir == "shared_hsm" and res.work_size is not None:
+            raise QQError(
+                f"Setting work-size is not supported for work-dir='{res.work_dir}'.\n"
+                "Size of the in-RAM scratch is specified using the --mem property."
+            )
+
+        # running the job in the submission directory
+        if res.work_dir and equals_normalized(res.work_dir, "jobdir"):
+            res.work_dir = None
+            if res.work_size is not None:
+                raise QQError(
+                    "Setting work-size is not supported for work-dir='job-dir'.\n"
+                    'Job will run in the submission directory with "unlimited" capacity.'
+                )
 
 
 class PBSJobInfo(BatchJobInfoInterface):

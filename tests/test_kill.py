@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch import BatchOperationResult
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
@@ -181,11 +180,16 @@ def test_terminate(forced, success):
     method_name = "jobKillForce" if forced else "jobKill"
 
     if success:
-        result = BatchOperationResult.success()
+        # successful call returns nothing
+        mock_method = MagicMock(return_value=None)
     else:
-        result = BatchOperationResult.error(1, "fail")
+        # failed call raises QQError
+        def raise_error(_job_id):
+            raise QQError("Could not kill the job: fail")
 
-    setattr(batch_mock, method_name, MagicMock(return_value=result))
+        mock_method = MagicMock(side_effect=raise_error)
+
+    setattr(batch_mock, method_name, mock_method)
 
     killer = object.__new__(QQKiller)
     killer._forced = forced

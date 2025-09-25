@@ -339,11 +339,7 @@ class QQRunner:
             QQError: If scratch directory cannot be determined.
         """
         # get scratch directory (this directory should be created and allocated by the batch system)
-        result = self._batch_system.getScratchDir(self._informer.info.job_id)
-        if result.exit_code == 0:
-            scratch_dir = Path(result.success_message)
-        else:
-            raise QQError(result.error_message)
+        scratch_dir = Path(self._batch_system.getScratchDir(self._informer.info.job_id))
 
         # create working directory inside the scratch directory allocated by the batch system
         # we create this directory because other processes may write files

@@ -17,10 +17,10 @@ from pathlib import Path
 
 from qq_lib.batch import (
     BatchJobInfoInterface,
-    BatchOperationResult,
     QQBatchInterface,
     QQBatchMeta,
 )
+from qq_lib.error import QQError
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
 
@@ -174,46 +174,42 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     def envName() -> str:
         return "VBS"
 
-    def getScratchDir(job_id: str) -> BatchOperationResult:
+    def getScratchDir(job_id: str) -> Path:
         job = QQVBS._batch_system.jobs.get(job_id)
         if not job:
-            return BatchOperationResult.error(1, f"Job '{job_id}' does not exist.")
+            raise QQError(f"Job '{job_id}' does not exist.")
 
         scratch = job.scratch
         if not scratch:
-            return BatchOperationResult.error(
-                2, f"Job '{job_id}' does not have a scratch directory."
-            )
+            raise QQError(f"Job '{job_id}' does not have a scratch directory.")
 
-        return BatchOperationResult.success(str(scratch))
+        return scratch
 
-    def jobSubmit(res: QQResources, _queue: str, script: Path) -> BatchOperationResult:
+    def jobSubmit(res: QQResources, _queue: str, script: Path) -> str:
         try:
-            job_id = QQVBS._batch_system.submitJob(script, res.useScratch())
-            return BatchOperationResult.success(job_id)
+            return QQVBS._batch_system.submitJob(script, res.useScratch())
         except VBSError as e:
-            return BatchOperationResult.error(1, str(e))
+            raise QQError(f"Failed to submit script '{str(script)}': {e}.")
 
-    def jobKill(job_id: str) -> BatchOperationResult:
+    def jobKill(job_id: str):
         try:
             QQVBS._batch_system.killJob(job_id)
-            return BatchOperationResult.success()
         except VBSError as e:
-            return BatchOperationResult.error(1, str(e))
+            raise QQError(f"Failed to kill job '{job_id}': {e}.")
 
-    def jobKillForce(job_id: str) -> BatchOperationResult:
+    def jobKillForce(job_id: str):
         try:
             QQVBS._batch_system.killJob(job_id, hard=True)
-            return BatchOperationResult.success()
         except VBSError as e:
-            return BatchOperationResult.error(1, str(e))
+            raise QQError(f"Failed to kill job '{job_id}': {e}.")
 
-    def navigateToDestination(host: str, directory: Path) -> BatchOperationResult:
+    def navigateToDestination(host: str, directory: Path):
         try:
             os.chdir(Path(host) / directory)
-            return BatchOperationResult.success()
-        except Exception as e:
-            return BatchOperationResult.error(1, str(e))
+        except Exception:
+            raise QQError(
+                f"Could not reach '{host}:{str(directory)}': Could not change directory."
+            )
 
     def getJobInfo(job_id: str) -> VBSJobInfo:
         return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]

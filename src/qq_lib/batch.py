@@ -2,9 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 from abc import ABC, ABCMeta, abstractmethod
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Self
 
 from qq_lib.error import QQError
 from qq_lib.resources import QQResources
@@ -45,77 +43,6 @@ class BatchJobInfoInterface(ABC):
         pass
 
 
-@dataclass
-class BatchOperationResult:
-    """Class representing the result of a batch system operation.
-
-    Attributes:
-        exit_code (int): Exit code of the operation. 0 indicates success.
-        success_message (str | None): Optional message returned on success.
-        error_message (str | None): Optional message returned on error.
-    """
-
-    # exit code of the operation
-    exit_code: int
-
-    # optional message in case of a success
-    success_message: str | None = None
-
-    # optional message in case of an error
-    error_message: str | None = None
-
-    @classmethod
-    def error(cls, code: int, msg: str | None = None) -> Self:
-        """
-        Create a BatchOperationResult representing a failure.
-
-        Args:
-            code (int): Non-zero exit code representing the error.
-            msg (str | None): Optional error message describing the failure.
-
-        Returns:
-            BatchOperationResult: Instance representing an error.
-        """
-        return cls(exit_code=code, error_message=msg)
-
-    @classmethod
-    def success(cls, msg: str | None = None) -> Self:
-        """
-        Create a BatchOperationResult representing a success.
-
-        Args:
-            msg (str | None): Optional message describing the success.
-
-        Returns:
-            BatchOperationResult: Instance representing success with exit_code 0.
-        """
-        return cls(exit_code=0, success_message=msg)
-
-    @classmethod
-    def fromExitCode(
-        cls,
-        code: int,
-        success_message: str | None = None,
-        error_message: str | None = None,
-    ) -> Self:
-        """
-        Create a BatchOperationResult instance based on an exit code.
-
-        Args:
-            code (int): Exit code of the operation. 0 indicates success.
-            success_message (str | None): Optional message if the operation succeeded.
-            error_message (str | None): Optional message if the operation failed.
-
-        Returns:
-            BatchOperationResult: Success or error instance depending on the exit code.
-        """
-        return (
-            cls.success(success_message)
-            if code == 0
-            else cls.error(code, error_message)
-        )
-
-
 class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     """
     Abstract base class for batch system integrations.
@@ -123,7 +50,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     Concrete batch system classes must implement these methods to allow
     qq to interact with different batch systems uniformly.
 
-    All methods are static and should never raise exceptions!
+    All functions should raise QQError when encountering an error.
     """
 
     @staticmethod
@@ -139,7 +66,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def getScratchDir(job_id: str) -> BatchOperationResult:
+    def getScratchDir(job_id: str) -> Path:
         """
         Retrieve the scratch directory for a given job.
 
@@ -147,16 +74,16 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             job_id (int): Unique identifier of the job.
 
         Returns:
-            BatchOperationResult: Result of the operation.
-                                  Success message must contain path to the
-                                  scratch directory as a string.
-                                  Error message can contain anything reasonable.
+            Path: Path to the scratch directory.
+
+        Raises:
+            QQError: If there is no scratch directory available for this job.
         """
         pass
 
     @staticmethod
     @abstractmethod
-    def jobSubmit(res: QQResources, queue: str, script: Path) -> BatchOperationResult:
+    def jobSubmit(res: QQResources, queue: str, script: Path) -> str:
         """
         Submit a job to the batch system.
 
@@ -166,47 +93,44 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             script (Path): Path to the script to execute.
 
         Returns:
-            BatchOperationResult: Result of the submission.
-                                  Success message must contain the job id.
-                                  Error message should contain stderr of the command.
+            str: Unique ID of the submitted job.
+
+        Raises:
+            QQError: If the job submission fails.
         """
         pass
 
     @staticmethod
     @abstractmethod
-    def jobKill(job_id: str) -> BatchOperationResult:
+    def jobKill(job_id: str):
         """
         Terminate a job gracefully. This assumes that job has time for cleanup.
 
         Args:
             job_id (str): Identifier of the job to terminate.
 
-        Returns:
-            BatchOperationResult: Result of the kill operation.
-                                  Success message is unused.
-                                  Error message should contain stderr of the command.
+        Raises:
+            QQError: If the job could not be killed.
         """
         pass
 
     @staticmethod
     @abstractmethod
-    def jobKillForce(job_id: str) -> BatchOperationResult:
+    def jobKillForce(job_id: str):
         """
         Forcefully terminate a job. This assumes that the job has no time for cleanup.
 
         Args:
             job_id (str): Identifier of the job to forcefully terminate.
 
-        Returns:
-            BatchOperationResult: Result of the forced kill operation.
-                                  Success message is unused.
-                                  Error message should contains stderr of the command.
+        Raises:
+            QQError: If the job could not be killed.
         """
         pass
 
     @staticmethod
     @abstractmethod
-    def navigateToDestination(host: str, directory: Path) -> BatchOperationResult:
+    def navigateToDestination(host: str, directory: Path):
         """
         Navigate to a directory on the specified host.
 
@@ -214,10 +138,8 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             host (str): Target hostname where the directory resides.
             directory (Path): Path to navigate to.
 
-        Returns:
-            BatchOperationResult: Result of the operation.
-                                  Success message is unused.
-                                  Error message should contain anything reasonable.
+        Raises:
+            QQError: If the navigation fails.
         """
         pass
 
@@ -237,6 +159,22 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             TBatchInfo: Object containing the job's metadata and state.
         """
         pass
+
+    @staticmethod
+    def buildResources(**kwargs) -> QQResources:
+        """
+        Build a QQResources object for the target batch system using input parameters.
+
+        By default, this method constructs basic resources directly from `kwargs`
+        without performing any additional validation. The `kwargs` dictionary contains
+        parameters provided to `qq submit`. Implementations can override this method
+        to add validation or transform the input as needed.
+
+        Raises:
+            QQError: If any required parameters are missing or invalid.
+        """
+        del kwargs["batch_system"]
+        return QQResources(**kwargs)
 
 
 class QQBatchMeta(ABCMeta):

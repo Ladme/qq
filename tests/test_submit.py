@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch import BatchOperationResult
 from qq_lib.constants import QQ_INFO_SUFFIX, QQ_OUT_SUFFIX, STDERR_SUFFIX, STDOUT_SUFFIX
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
@@ -110,9 +109,9 @@ def test_submitter_submit_failure(
 ):
     os.chdir(tmp_path)
 
-    # force jobSubmit to fail
+    # force jobSubmit to raise QQError
     def fake_jobSubmit(_res, _queue, _script):
-        return BatchOperationResult.error(1, "failure")
+        raise QQError("Failed to submit")
 
     monkeypatch.setattr(QQVBS, "jobSubmit", fake_jobSubmit)
 

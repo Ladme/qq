@@ -213,14 +213,6 @@ def test_from_dict_multiple_excluded_files(sample_info):
     assert reconstructed.excluded_files == [Path(p) for p in sample_info.excluded_files]
 
 
-def test_from_dict_with_empty_resources(sample_info):
-    data = sample_info._toDict()
-    data["resources"] = {}
-
-    reconstructed = QQInfo._fromDict(data)
-    assert isinstance(reconstructed.resources, QQResources)
-
-
 def test_from_dict_empty_excluded(sample_info):
     data = sample_info._toDict()
     data["excluded_files"] = []

@@ -17,7 +17,14 @@ logger = get_logger(__name__)
 
 def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
     """
-    Get the list of files inside the directory with the specified suffix.
+    Retrieve all files in a directory that have the specified file suffix.
+
+    Args:
+        directory (Path): The directory to search in.
+        suffix (str): The file suffix to match (including the dot, e.g., '.txt').
+
+    Returns:
+        list[Path]: A list of Path objects representing files with the given suffix.
     """
     files = []
     for file in directory.iterdir():
@@ -28,6 +35,21 @@ def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
 
 
 def get_info_file(current_directory: Path) -> Path:
+    """
+    Locate the qq job info file in a directory.
+
+    This function searches for files matching the `QQ_INFO_SUFFIX` in the
+    provided directory. It raises an error if none or multiple info files are found.
+
+    Args:
+        current_directory (Path): The directory to search in.
+
+    Returns:
+        Path: The Path object of the detected qq job info file.
+
+    Raises:
+        QQError: If no info file is found or multiple info files are detected.
+    """
     info_files = get_files_with_suffix(current_directory, QQ_INFO_SUFFIX)
     logger.debug(f"Detected the following qq info files: {info_files}.")
     if len(info_files) == 0:
@@ -39,6 +61,18 @@ def get_info_file(current_directory: Path) -> Path:
 
 
 def yes_or_no_prompt(prompt: str) -> bool:
+    """
+    Display an interactive yes/no prompt to the user and return the selection.
+
+    The prompt highlights the pressed key ('y' in green for yes, 'N' in red for no)
+    and defaults to 'No' if the user presses any key other than 'y'.
+
+    Args:
+        prompt (str): The text to display as the question.
+
+    Returns:
+        bool: True if the user selects 'yes' (presses 'y'), False otherwise.
+    """
     prompt = f"   {prompt} "
     text = (
         Text("PROMPT", style="magenta")
@@ -72,7 +106,16 @@ def yes_or_no_prompt(prompt: str) -> bool:
 
 def format_duration(td: timedelta) -> str:
     """
-    Format a timedelta intelligently, showing only relevant units.
+    Convert a timedelta into a human-readable string showing only relevant units.
+
+    The output string includes days, hours, minutes, and seconds, but omits
+    units that are zero unless a larger unit is present.
+
+    Args:
+        td (timedelta): The duration to format.
+
+    Returns:
+        str: A formatted string representing the duration, e.g., '1d 2h 3m 4s'.
     """
     total_seconds = int(td.total_seconds())
     days, remainder = divmod(total_seconds, 86400)
@@ -89,3 +132,21 @@ def format_duration(td: timedelta) -> str:
     parts.append(f"{seconds}s")
 
     return " ".join(parts)
+
+
+def equals_normalized(a: str, b: str) -> bool:
+    """
+    Compare two strings for equality, ignoring case, hyphens, and underscores.
+
+    Args:
+        a (str): First string to compare.
+        b (str): Second string to compare.
+
+    Returns:
+        bool: True if the normalized strings are equal, False otherwise.
+    """
+
+    def normalize(s: str) -> str:
+        return s.lower().replace("-", "").replace("_", "")
+
+    return normalize(a) == normalize(b)

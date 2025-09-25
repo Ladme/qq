@@ -3,6 +3,10 @@
 
 from dataclasses import asdict, dataclass
 
+from qq_lib.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class QQResources:
@@ -12,24 +16,13 @@ class QQResources:
     work_dir: str | None = None
     work_size: str | None = None
 
-    def __post_init__(self):
-        # enforce workdir logic
-        if (
-            self.work_dir
-            and self.work_dir.lower().replace("-", "").replace("_", "") == "jobdir"
-        ):
-            self.work_dir = None
-        else:
-            # enforce worksize logic
-            if self.work_size is None and self.ncpus is not None:
-                self.work_size = f"{self.ncpus}gb"
-            else:
-                # TODO: select better default
-                self.work_size = "8gb"
-
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""
-        return {k: v for k, v in asdict(self).items() if v is not None}
+        return {
+            k: v
+            for k, v in asdict(self).items()
+            if v is not None and k != "batch_system"
+        }
 
     def useScratch(self) -> bool:
         """

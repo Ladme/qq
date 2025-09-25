@@ -8,6 +8,7 @@ This module manages submission of qq jobs using the QQSubmitter class.
 import getpass
 import os
 import socket
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +56,10 @@ def submit(queue, script, **kwargs):
         del kwargs["batch_system"]
         resources = QQResources(**kwargs)
         submitter = QQSubmitter(BatchSystem, queue, Path(script), resources)
+        if not submitter.isShared(Path()):
+            raise QQError(
+                "Submitting qq jobs is only possible from a shared filesystem."
+            )
         submitter.guardOrClear()
         submitter.submit()
         sys.exit(0)
@@ -168,6 +173,19 @@ class QQSubmitter:
         raise QQError(
             f"Failed to submit script '{self._script}': {result.error_message}."
         )
+
+    def isShared(self, directory: Path) -> bool:
+        """
+        Checks that the specified directory is on a shared filesystem.
+        """
+        # df -l exits with zero if the filesystem is local; otherwise it exits with a non-zero code
+        result = subprocess.run(
+            ["df", "-l", directory],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        return result.returncode != 0
 
     def guardOrClear(self):
         """

@@ -215,7 +215,10 @@ def test_kill_queued_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "isShared", return_value=True),
+        ):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],
@@ -251,7 +254,10 @@ def test_kill_booting_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "isShared", return_value=True),
+        ):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],
@@ -293,7 +299,10 @@ def test_kill_running_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "isShared", return_value=True),
+        ):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],
@@ -345,7 +354,10 @@ def test_kill_finished_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "isShared", return_value=True),
+        ):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],

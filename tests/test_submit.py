@@ -4,6 +4,7 @@
 import getpass
 import os
 import socket
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -240,14 +241,68 @@ def test_guard_or_clear_active_or_finished_always_raises(
         submitter.guardOrClear()
 
 
+def test_is_shared_returns_false_for_local(monkeypatch, tmp_path):
+    def fake_run(cmd, **kwargs):
+        _ = cmd
+        _ = kwargs
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    submitter = QQSubmitter.__new__(QQSubmitter)
+    assert submitter.isShared(tmp_path) is False
+
+
+def test_is_shared_returns_true_for_shared(monkeypatch, tmp_path):
+    def fake_run(cmd, **kwargs):
+        _ = cmd
+        _ = kwargs
+
+        class Result:
+            returncode = 1
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    submitter = QQSubmitter.__new__(QQSubmitter)
+    assert submitter.isShared(tmp_path) is True
+
+
+def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        _ = kwargs
+        captured["cmd"] = cmd
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter.isShared(tmp_path)
+
+    assert captured["cmd"][0:2] == ["df", "-l"]
+    assert Path(captured["cmd"][2]) == tmp_path
+
+
 def test_submit_success(tmp_path, script_with_shebang):
     os.chdir(tmp_path)
 
     runner = CliRunner()
 
-    result = runner.invoke(
-        submit, ["default", script_with_shebang.name, "--batch-system", "VBS"]
-    )
+    with patch.object(QQSubmitter, "isShared", return_value=True):
+        result = runner.invoke(
+            submit, ["default", script_with_shebang.name, "--batch-system", "VBS"]
+        )
 
     assert result.exit_code == 0
 
@@ -263,7 +318,10 @@ def test_submit_missing_script(tmp_path):
 
     runner = CliRunner()
 
-    result = runner.invoke(submit, ["default", "missing.sh", "--batch-system", "VBS"])
+    with patch.object(QQSubmitter, "isShared", return_value=True):
+        result = runner.invoke(
+            submit, ["default", "missing.sh", "--batch-system", "VBS"]
+        )
 
     assert result.exit_code == 91
     assert "does not exist" in result.output
@@ -277,9 +335,10 @@ def test_submit_invalid_shebang(tmp_path, script_invalid_shebang):
 
     runner = CliRunner()
 
-    result = runner.invoke(
-        submit, ["default", script_invalid_shebang.name, "--batch-system", "VBS"]
-    )
+    with patch.object(QQSubmitter, "isShared", return_value=True):
+        result = runner.invoke(
+            submit, ["default", script_invalid_shebang.name, "--batch-system", "VBS"]
+        )
 
     assert result.exit_code == 91
     assert "invalid shebang" in result.output

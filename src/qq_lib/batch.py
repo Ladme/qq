@@ -173,6 +173,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If any required parameters are missing or invalid.
         """
+        # batch_system is not part of resources
         del kwargs["batch_system"]
         return QQResources(**kwargs)
 

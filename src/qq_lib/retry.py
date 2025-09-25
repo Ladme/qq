@@ -5,6 +5,7 @@ from collections.abc import Callable
 from time import sleep
 from typing import Any
 
+from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 
 logger = get_logger(__name__, show_time=True)
@@ -60,4 +61,6 @@ class QQRetryer:
                 sleep(self._wait_seconds)
 
         # should never get here
-        return None
+        raise QQError(
+            "QQRetryer got into an unexpected part of the QQRetryer.run method. This is a bug, please report it."
+        )

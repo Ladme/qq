@@ -59,7 +59,7 @@ def get_info_file(directory: Path) -> Path:
 
 def get_info_files(directory: Path) -> list[Path]:
     """
-    Retrieve all QQ job info files in a directory.
+    Retrieve all qq job info files in a directory.
 
     This function searches for files matching the `QQ_INFO_SUFFIX` in the
     provided directory. It raises an error if no info files are found.

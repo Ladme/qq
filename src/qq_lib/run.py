@@ -12,7 +12,7 @@ Lifecycle of a qq job:
          submission directory itself.
        - Scratch-using jobs: A dedicated scratch directory (created by the
          batch system) is used as a working directory. Job files are copied
-         to the working directory.
+         to a specific directory inside the working directory.
 
     2. Execution
        The qq info file is updated to record the "running" state.
@@ -283,8 +283,8 @@ class QQRunner:
         """
         logger.info("Finalizing the execution.")
 
-        # update the qqinfo file
         if self._process.returncode == 0:
+            # update the qqinfo file
             self._updateInfoFinished()
             if self._use_scratch:
                 # copy files back to the submission (job) directory
@@ -296,6 +296,7 @@ class QQRunner:
                 # directory is retained on scratch if the run fails for any reason
                 self._deleteWorkDir()
         else:
+            # only update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
 
     def logFailureIntoInfoFile(self, exit_code: int) -> NoReturn:
@@ -339,11 +340,11 @@ class QQRunner:
             QQError: If scratch directory cannot be determined.
         """
         # get scratch directory (this directory should be created and allocated by the batch system)
-        scratch_dir = Path(self._batch_system.getScratchDir(self._informer.info.job_id))
+        scratch_dir = self._batch_system.getScratchDir(self._informer.info.job_id)
 
         # create working directory inside the scratch directory allocated by the batch system
         # we create this directory because other processes may write files
-        # into allocated scratch directory and we do not want these files
+        # into the allocated scratch directory and we do not want these files
         # to affect the job execution or be copied back to job_dir
         # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
@@ -396,7 +397,7 @@ class QQRunner:
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not rsync files between '{src_dir}' and '{dest_dir}': {result.stderr}."
+                f"Could not rsync files between '{src_dir}' and '{dest_dir}': {result.stderr.strip()}."
             )
 
     def _convertAbsoluteToRelative(self, files: list[Path], target: Path) -> list[Path]:
@@ -430,32 +431,12 @@ class QQRunner:
 
     def _deleteWorkDir(self):
         """
-        Delete all files and directories from the working directory.
+        Delete the entire working directory.
 
         Used only after successful execution in scratch space.
         """
         logger.debug(f"Removing working directory '{self._work_dir}'.")
         shutil.rmtree(self._work_dir)
-
-    def _getFilesToCopy(
-        self, directory: Path, filter_out: list[Path] | None = None
-    ) -> list[Path]:
-        """
-        List files and directories in a source directory, excluding certain paths.
-
-        Args:
-            directory (Path): Source directory to scan.
-            filter_out (list[Path] | None): Paths to exclude.
-
-        Returns:
-            list[Path]: Paths of files/directories to be copied.
-        """
-        root = Path(directory).resolve()
-        # normalize filter_out to absolute paths
-        filter_paths = {Path(p).resolve() for p in filter_out} if filter_out else set()
-        logger.debug(f"Paths to filter out: {filter_paths}.")
-
-        return [p for p in root.iterdir() if p.resolve() not in filter_paths]
 
     def _updateInfoRunning(self):
         """

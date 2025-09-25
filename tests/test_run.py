@@ -97,7 +97,7 @@ def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_i
     monkeypatch.setattr(
         QQVBS,
         "getScratchDir",
-        staticmethod(lambda _: str(scratch_dir)),
+        staticmethod(lambda _: scratch_dir),
     )
 
     info_file = job_dir / "job.qqinfo"
@@ -442,7 +442,7 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
     runner._batch_system = MagicMock()
-    runner._batch_system.getScratchDir.return_value = str(scratch_dir)
+    runner._batch_system.getScratchDir.return_value = scratch_dir
 
     runner._setUpScratchDir()
 
@@ -672,56 +672,6 @@ def test_delete_work_dir_no_files(runner, tmp_path):
 
     # directory should not exist
     assert not tmp_path.exists()
-
-
-def test_get_files_to_copy_some_files_no_excluded(tmp_path, runner):
-    # create some files
-    (tmp_path / "file1.txt").write_text("hello")
-    (tmp_path / "file2.txt").write_text("world")
-    # directory
-    d1 = tmp_path / "dir1"
-    d1.mkdir()
-    (d1 / "nested.txt").write_text("nested")
-
-    result = runner._getFilesToCopy(tmp_path)
-    assert set(result) == {
-        tmp_path / "file1.txt",
-        tmp_path / "file2.txt",
-        tmp_path / "dir1",
-    }
-
-
-def test_get_files_to_copy_no_files_excluded(tmp_path, runner):
-    # create some files
-    (tmp_path / "file1.txt").write_text("hello")
-    (tmp_path / "file2.txt").write_text("world")
-
-    # exclude both files
-    excluded = [tmp_path / "file1.txt", tmp_path / "file2.txt"]
-    result = runner._getFilesToCopy(tmp_path, filter_out=excluded)
-    assert result == []
-
-
-def test_get_files_to_copy_some_files_some_excluded(tmp_path, runner):
-    # create files
-    (tmp_path / "file1.txt").write_text("hello")
-    (tmp_path / "file2.txt").write_text("world")
-    (tmp_path / "file3.txt").write_text("!")
-    # directory
-    d1 = tmp_path / "dir1"
-    d1.mkdir()
-    (d1 / "nested.txt").write_text("nested")
-
-    # exclude file2 and dir1
-    excluded = [tmp_path / "file2.txt", tmp_path / "dir1"]
-    result = runner._getFilesToCopy(tmp_path, filter_out=excluded)
-    assert set(result) == {tmp_path / "file1.txt", tmp_path / "file3.txt"}
-
-
-def test_get_files_to_copy_no_files_no_excluded(tmp_path, runner):
-    # empty directory
-    result = runner._getFilesToCopy(tmp_path)
-    assert result == []
 
 
 def test_update_info_running(tmp_path, sample_info):

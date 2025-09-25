@@ -12,7 +12,7 @@ import pytest
 from click.testing import CliRunner
 
 from qq_lib.batch import BatchOperationResult
-from qq_lib.constants import DATE_FORMAT, GUARD, INFO_FILE
+from qq_lib.constants import DATE_FORMAT, GUARD, INFO_FILE, SCRATCH_DIR_INNER
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.resources import QQResources
@@ -68,8 +68,8 @@ def write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info):
     os.environ[INFO_FILE] = str(info_file)
 
 
-def test_run_no_scratch_finishes(monkeypatch, tmp_path, sample_info):
-    write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
+def test_run_no_scratch_finishes(tmp_path, sample_info):
+    write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info)
 
     script = tmp_path / "job" / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\necho hello\n")
@@ -118,6 +118,10 @@ def test_run_scratch_finishes(monkeypatch, tmp_path, sample_info):
 
     assert result.exit_code == 0
     assert "hello" in (tmp_path / "job" / "script.out").read_text()
+    # scratch should exist
+    assert (tmp_path / "scratch").exists()
+    # but working directory should not
+    assert not (tmp_path / "scratch" / SCRATCH_DIR_INNER).exists()
 
 
 def test_run_scratch_fails(monkeypatch, tmp_path, sample_info):
@@ -131,7 +135,9 @@ def test_run_scratch_fails(monkeypatch, tmp_path, sample_info):
 
     assert result.exit_code == 2
     # should not be copied from work directory
-    assert "hello" in (tmp_path / "scratch" / "script.out").read_text()
+    assert (
+        "hello" in (tmp_path / "scratch" / SCRATCH_DIR_INNER / "script.out").read_text()
+    )
 
 
 def test_run_scratch_guard_fail(monkeypatch, tmp_path, sample_info):
@@ -399,7 +405,7 @@ def test_finalize(tmp_path, runner_with_dirs_and_files, use_scratch, returncode)
             assert (runner._work_dir / "file_work.txt").exists()
 
 
-def test_setUpSharedDir(runner_with_dirs):
+def test_set_up_shared_dir_success(runner_with_dirs):
     runner = runner_with_dirs
 
     # create a dummy file in the job directory
@@ -436,9 +442,9 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
 
     runner._setUpScratchDir()
 
-    # working directory should now be scratch_dir
-    assert runner._work_dir == scratch_dir
-    assert Path.cwd() == scratch_dir
+    # working directory should now be scratch_dir / inner_dir
+    assert runner._work_dir == scratch_dir / SCRATCH_DIR_INNER
+    assert Path.cwd() == scratch_dir / SCRATCH_DIR_INNER
 
     # files should be copied from job_dir to work_dir
     for f in ["file1.txt", "file2.log"]:
@@ -538,7 +544,7 @@ def test_copy_files_to_dst(runner, tmp_path):
     assert not (dest / f3.name).exists()
 
 
-def test_remove_files_from_workdir_some_files(runner, tmp_path):
+def test_delete_work_dir_some_files(runner, tmp_path):
     # set-up work dir
     runner._work_dir = tmp_path
 
@@ -551,21 +557,21 @@ def test_remove_files_from_workdir_some_files(runner, tmp_path):
     d1.mkdir()
     (d1 / "nested.txt").write_text("nested")
 
-    runner._removeFilesFromWorkDir()
+    runner._deleteWorkDir()
 
-    # assert everything removed
-    assert not any(tmp_path.iterdir())
+    # assert working directory removed
+    assert not tmp_path.exists()
 
 
-def test_remove_files_from_workdir_no_files(runner, tmp_path):
+def test_delete_work_dir_no_files(runner, tmp_path):
     # set-up work dir
     runner._work_dir = tmp_path
 
     # empty directory
-    runner._removeFilesFromWorkDir()
+    runner._deleteWorkDir()
 
-    # nothing should break and directory remains empty
-    assert list(tmp_path.iterdir()) == []
+    # directory should not exist
+    assert not tmp_path.exists()
 
 
 def test_get_files_to_copy_some_files_no_excluded(tmp_path, runner):

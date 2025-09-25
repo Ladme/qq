@@ -34,3 +34,6 @@ INFO_FILE = "QQ_INFO"
 # OTHER CONSTANTS
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# name of the directory that is created inside the scratch directory and used as a work_dir
+SCRATCH_DIR_INNER = "main"

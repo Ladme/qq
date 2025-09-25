@@ -57,6 +57,7 @@ import click
 import qq_lib
 from qq_lib.constants import (
     INFO_FILE,
+    SCRATCH_DIR_INNER,
 )
 from qq_lib.error import QQError
 from qq_lib.guard import guard
@@ -291,9 +292,9 @@ class QQRunner:
             if self._use_scratch:
                 # copy files back to the submission (job) directory
                 self._copyFilesFromWorkDir()
-                # remove the files from scratch
-                # files are retained on scratch if the run fails for any reason
-                self._removeFilesFromWorkDir()
+                # remove the working directory from scratch
+                # directory is retained on scratch if the run fails for any reason
+                self._deleteWorkDir()
         else:
             self._updateInfoFailed(self._process.returncode)
 
@@ -337,12 +338,16 @@ class QQRunner:
         Raises:
             QQError: If scratch directory cannot be determined.
         """
-        # set qq working directory to scratch directory
+        # get scratch directory
         result = self._batch_system.getScratchDir(self._informer.info.job_id)
         if result.exit_code == 0:
-            self._work_dir = Path(result.success_message)
+            scratch_dir = Path(result.success_message)
         else:
             raise QQError(result.error_message)
+
+        # create working directory on scratch
+        self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
+        Path.mkdir(self._work_dir)
 
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
 
@@ -392,19 +397,14 @@ class QQRunner:
         logger.debug(f"Copying the following paths: {files_to_copy}.")
         self._copyFilesToDst(files_to_copy, self._job_dir)
 
-    def _removeFilesFromWorkDir(self):
+    def _deleteWorkDir(self):
         """
         Delete all files and directories from the working directory.
 
         Used only after successful execution in scratch space.
         """
-        for item in self._work_dir.iterdir():
-            if item.is_file() or item.is_symlink():
-                logger.debug(f"Removing file {item}.")
-                item.unlink()
-            elif item.is_dir():
-                logger.debug(f"Removing directory {item}.")
-                shutil.rmtree(item)
+        logger.debug(f"Removing working directory '{self._work_dir}'.")
+        shutil.rmtree(self._work_dir)
 
     def _getFilesToCopy(
         self, directory: Path, filter_out: list[Path] | None = None

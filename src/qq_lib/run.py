@@ -79,17 +79,15 @@ def run(script_path: str):
     """
     Entrypoint for executing a script inside the qq batch environment.
 
-    This function:
-      - Ensures the script is running in a batch job context
-      - Prepares the job working directory (scratch or shared)
-      - Executes the script and handles exit codes
-      - Logs errors or unexpected failures into the qq info file
+    - Ensures the script is running in a batch job context
+    - Prepares the job working directory (scratch or shared)
+    - Executes the script and handles exit codes
+    - Logs errors or unexpected failures into the qq info file
 
-    Args:
-        script_path (str): Path to the script.
-            Note: This argument is ignored because the batch system provides
-            a temporary copy. The original script in the working directory
-            is used instead.
+    Note that the 'script_path' provided here is ignored.
+    That's because the batch system provides only a temporary
+    copy of the job. The original script in the working directory
+     is used instead.
 
     Exits:
         Exits with the script's exit code, or with specific

@@ -28,19 +28,14 @@ logger = get_logger(__name__)
 
 @click.command(help="Delete qq run files.")
 @click.option(
-    "--force", is_flag=True, help="Clear directory with an active job.", default=False
+    "--force",
+    is_flag=True,
+    help="Clear directory with an active or successful job.",
+    default=False,
 )
 def clear(force: bool):
     """
     Delete all qq run files in the current directory.
-
-    Args:
-        force (bool): If set, allows clearing even if the job is active.
-
-    Exits:
-        0 on successful clearing,
-        91 if a QQError occurs,
-        99 for any other unexpected exception.
     """
     try:
         clearer = QQClearer(Path())

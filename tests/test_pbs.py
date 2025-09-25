@@ -176,6 +176,7 @@ def test_translate_ssh_command():
     cmd = QQPBS._translateSSHCommand(host, directory)
     assert cmd == [
         "ssh",
+        "-o PasswordAuthentication=no",
         host,
         "-t",
         f"cd {directory} || exit {QQPBS.CD_FAIL} && exec bash -l",

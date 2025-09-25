@@ -436,6 +436,9 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     file2 = runner._job_dir / "file2.log"
     file2.write_text("world")
 
+    # create info file in job_dir
+    runner._informer.toFile(runner._info_file)
+
     # mock batch system to return success
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
@@ -454,6 +457,10 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     for f in ["file1.txt", "file2.log"]:
         assert (runner._work_dir / f).exists()
         assert (runner._job_dir / f).exists()
+
+    # info file should exist in job_dir but not in work_dir
+    assert (runner._job_dir / "job.qqinfo").exists()
+    assert not (runner._work_dir / "job.qqinfo").exists()
 
 
 def test_set_up_scratch_dir_failure(runner_with_dirs):

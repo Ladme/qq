@@ -7,7 +7,7 @@ This module provides a tool for safely clearing qq run files from a job director
 The process goes as follows:
     - the QQClearer scans the directory for files with qq-specific suffixes.
     - it checks whether it is safe to remove files
-      (job must be in a failed/killed/inconsistent state or `--force` must be used).
+      (all jobs must be in a failed/killed/inconsistent state or `--force` must be used).
     - files are removed if clearing is allowed.
 """
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import click
 
-from qq_lib.common import get_files_with_suffix, get_info_file
+from qq_lib.common import get_files_with_suffix, get_info_files
 from qq_lib.constants import QQ_SUFFIXES
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
@@ -115,23 +115,28 @@ class QQClearer:
 
         Notes:
             - Jobs in KILLED, FAILED, or INCONSISTENT states are safe to clear.
-            - If the qq info file cannot be loaded, the directory is assumed safe to clear.
+            - If no qq info file can be loaded, the directory is assumed safe to clear.
         """
         if force:
             return True
 
-        try:
-            info_file = get_info_file(self._directory)
-            informer = QQInformer.fromFile(info_file)
-            state = informer.getRealState()
-            logger.debug(f"Job state: {str(state)}.")
+        # iterate through info files
+        for file in get_info_files(self._directory):
+            try:
+                informer = QQInformer.fromFile(file)
+                state = informer.getRealState()
+                logger.debug(f"Job state: {str(state)}.")
+            except QQError:
+                # ignore the file if it cannot be read
+                continue
 
-            return state in {
+            # if any info file is active or finished, return False
+            if state not in {
                 RealState.KILLED,
                 RealState.FAILED,
                 RealState.IN_AN_INCONSISTENT_STATE,
-            }
-        except QQError:
-            # if this fails, we know we are not in a valid qq directory,
-            # so we clear everything
-            return True
+            }:
+                return False
+
+        # we return true if all info files are from invalid runs
+        return True

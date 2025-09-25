@@ -240,6 +240,36 @@ def test_guard_or_clear_active_or_finished_always_raises(
         submitter.guardOrClear()
 
 
+def test_guard_or_clear_multiple_combination_of_states_always_raises(
+    script_with_shebang,
+    sample_resources,
+    tmp_path,
+):
+    os.chdir(tmp_path)
+    make_dummy_files(tmp_path)
+
+    for file in ["job2.qqinfo", "job3.qqinfo"]:
+        info_file = tmp_path / file
+        info_file.write_text("dummy")
+
+    submitter = QQSubmitter(QQVBS, "default", script_with_shebang, sample_resources)
+
+    informer_mock = MagicMock()
+    informer_mock.getRealState.side_effect = [
+        RealState.FAILED,
+        RealState.KILLED,
+        RealState.RUNNING,
+    ]
+
+    with (
+        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+        pytest.raises(
+            QQError, match="Detected qq runtime files from an active or successful run"
+        ),
+    ):
+        submitter.guardOrClear()
+
+
 def test_is_shared_returns_false_for_local(monkeypatch, tmp_path):
     def fake_run(cmd, **kwargs):
         _ = cmd

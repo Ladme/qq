@@ -19,7 +19,7 @@ from qq_lib.constants import (
     STDOUT_SUFFIX,
 )
 from qq_lib.error import QQError
-from qq_lib.info import QQInfo
+from qq_lib.info import QQInfo, QQInformer
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
@@ -91,7 +91,7 @@ def test_should_clear_true_when_force(tmp_path):
         RealState.IN_AN_INCONSISTENT_STATE,
     ],
 )
-def test_shouldClear_true_for_safe_states(tmp_path, state):
+def test_should_clear_true_for_safe_states(tmp_path, state):
     clearer = QQClearer(tmp_path)
     info_file = tmp_path / "job.qqinfo"
     info_file.write_text("dummy")
@@ -131,11 +131,70 @@ def test_should_clear_false_for_active_states(tmp_path, state):
         assert not clearer.shouldClear(force=False)
 
 
-def test_shiuld_clear_true_if_get_info_file_raises(tmp_path):
+def test_should_clear_true_for_multiple_safe_states(tmp_path):
+    info_files = ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]
+    for file in ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]:
+        info_file = tmp_path / file
+        info_file.write_text("dummy")
+
     clearer = QQClearer(tmp_path)
 
-    with patch("qq_lib.common.get_info_file", side_effect=QQError("bad dir")):
+    informer_mock = MagicMock()
+    informer_mock.getRealState.side_effect = [
+        RealState.FAILED,
+        RealState.KILLED,
+        RealState.IN_AN_INCONSISTENT_STATE,
+    ]
+
+    with (
+        patch("qq_lib.common.get_info_files", return_value=info_files),
+        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+    ):
         assert clearer.shouldClear(force=False)
+
+
+def test_should_clear_false_for_multiple_unsafe_states(tmp_path):
+    info_files = ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]
+    for file in ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]:
+        info_file = tmp_path / file
+        info_file.write_text("dummy")
+
+    clearer = QQClearer(tmp_path)
+
+    informer_mock = MagicMock()
+    informer_mock.getRealState.side_effect = [
+        RealState.RUNNING,
+        RealState.FINISHED,
+        RealState.QUEUED,
+    ]
+
+    with (
+        patch("qq_lib.common.get_info_files", return_value=info_files),
+        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+    ):
+        assert not clearer.shouldClear(force=False)
+
+
+def test_should_clear_false_for_combination_of_safe_unsafe_states(tmp_path):
+    info_files = ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]
+    for file in ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]:
+        info_file = tmp_path / file
+        info_file.write_text("dummy")
+
+    clearer = QQClearer(tmp_path)
+
+    informer_mock = MagicMock()
+    informer_mock.getRealState.side_effect = [
+        RealState.KILLED,
+        RealState.FAILED,
+        RealState.QUEUED,
+    ]
+
+    with (
+        patch("qq_lib.common.get_info_files", return_value=info_files),
+        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+    ):
+        assert not clearer.shouldClear(force=False)
 
 
 @pytest.fixture
@@ -163,6 +222,40 @@ def sample_info(sample_resources):
         excluded_files=[Path("ignore.txt")],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )
+
+
+def test_should_clear_true_for_multiple_safe_states_and_invalid_file(
+    tmp_path, sample_info
+):
+    for file, state in zip(
+        ["job1.qqinfo", "job2.qqinfo"], [NaiveState.KILLED, NaiveState.FAILED]
+    ):
+        sample_info.job_state = state
+        QQInformer(sample_info).toFile(tmp_path / file)
+
+    Path(tmp_path / "jobINVALID.qqinfo").write_text("dummy")
+
+    os.chdir(tmp_path)
+    clearer = QQClearer(tmp_path)
+
+    # getBatchState will return BatchState.UNKNOWN which is ignored for these states
+    assert clearer.shouldClear(force=False)
+
+
+def test_should_clear_false_for_multiple_states_and_invalid_file(tmp_path, sample_info):
+    for file, state in zip(
+        ["job1.qqinfo", "job2.qqinfo"], [NaiveState.FINISHED, NaiveState.FAILED]
+    ):
+        sample_info.job_state = state
+        QQInformer(sample_info).toFile(tmp_path / file)
+
+    Path(tmp_path / "jobINVALID.qqinfo").write_text("dummy")
+
+    os.chdir(tmp_path)
+    clearer = QQClearer(tmp_path)
+
+    # getBatchState will return BatchState.UNKNOWN which is ignored for these states
+    assert not clearer.shouldClear(force=False)
 
 
 def _make_runtime_files(

@@ -15,7 +15,7 @@ from rich.table import Table
 from rich.text import Text
 
 from qq_lib.batch import BatchJobInfoInterface, QQBatchInterface, QQBatchMeta
-from qq_lib.common import format_duration, get_info_file
+from qq_lib.common import format_duration, get_info_files
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
@@ -31,11 +31,11 @@ def info():
     Get information about the qq job submitted from this directory.
     """
     try:
-        info_file = get_info_file(Path())
-        informer = QQInformer.fromFile(info_file)
-        console = Console()
-        panel = informer.createJobStatusPanel(console)
-        console.print(panel)
+        for file in get_info_files(Path()):
+            informer = QQInformer.fromFile(file)
+            console = Console()
+            panel = informer.createJobStatusPanel(console)
+            console.print(panel)
         sys.exit(0)
     except QQError as e:
         logger.error(e)

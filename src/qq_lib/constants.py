@@ -53,3 +53,12 @@ SCRATCH_DIR_INNER = "main"
 
 # SSH connection timeout in seconds
 SSH_TIMEOUT = 60
+
+# Maximum number of retry attempts for operations in QQRunner.
+RUNNER_RETRY_TRIES = 5
+
+# Wait time in seconds between retry attempts in QQRunner.
+RUNNER_RETRY_WAIT = 60
+
+# Time in seconds between sending a SIGTERM signal to the running process and sending a SIGKILL signal
+RUNNER_SIGTERM_TO_SIGKILL = 5

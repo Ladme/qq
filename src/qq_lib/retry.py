@@ -54,9 +54,11 @@ class QQRetryer:
                 return self._func(*self._args, **self._kwargs)
             except Exception as e:
                 if attempt == self._max_tries:
-                    raise
+                    raise type(e)(
+                        f"{e}\nThis was attempt {attempt} of {self._max_tries}. Attempts exhausted."
+                    ) from e
                 logger.warning(
-                    f"{e}\nAttempting again in {self._wait_seconds} seconds ({attempt}/{self._max_tries})"
+                    f"{e}\nThis was attempt {attempt} of {self._max_tries}. Attempting again in {self._wait_seconds} seconds."
                 )
                 sleep(self._wait_seconds)
 

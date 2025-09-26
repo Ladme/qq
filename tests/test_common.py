@@ -12,6 +12,7 @@ from qq_lib.common import (
     equals_normalized,
     get_files_with_suffix,
     get_info_file,
+    get_info_files,
     yes_or_no_prompt,
 )
 from qq_lib.error import QQError
@@ -46,7 +47,7 @@ def test_multiple_files_with_matching_suffix():
         assert sorted(result) == sorted(matching_files)
 
 
-def test_no_info_file():
+def test_get_info_file_no_info_file():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
 
@@ -54,7 +55,7 @@ def test_no_info_file():
             get_info_file(tmp_path)
 
 
-def test_one_info_file():
+def test_get_info_file_one_info_file():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
 
@@ -65,7 +66,7 @@ def test_one_info_file():
         assert result == file
 
 
-def test_multiple_info_files():
+def test_get_info_file_multiple_info_files():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
 
@@ -76,6 +77,59 @@ def test_multiple_info_files():
 
         with pytest.raises(QQError, match="Multiple"):
             get_info_file(tmp_path)
+
+
+def test_get_info_file_no_info_files():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        result = get_info_files(tmp_path)
+        assert result == []
+
+
+def test_get_info_file_single_info_file():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        file1 = tmp_path / "job1.qqinfo"
+        file1.write_text("info1")
+
+        result = get_info_files(tmp_path)
+        assert result == [file1]
+
+
+def test_get_info_files_multiple_info_files():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        file1 = tmp_path / "job1.qqinfo"
+        file1.write_text("info1")
+        file2 = tmp_path / "job2.qqinfo"
+        file2.write_text("info2")
+
+        result = get_info_files(tmp_path)
+        assert set(result) == {file1, file2}
+
+
+def test_get_info_files_ignore_non_info_files():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        qq_file = tmp_path / "job1.qqinfo"
+        qq_file.write_text("info1")
+        other_file = tmp_path / "readme.txt"
+        other_file.write_text("not info")
+
+        result = get_info_files(tmp_path)
+        assert result == [qq_file]
+
+
+def test_get_info_files_info_files_in_subdirectories_not_included():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        sub_dir = tmp_path / "sub"
+        sub_dir.mkdir()
+        file_in_sub = sub_dir / "job1.qqinfo"
+        file_in_sub.write_text("info1")
+
+        result = get_info_files(tmp_path)
+        assert result == []
 
 
 def test_yes_key():

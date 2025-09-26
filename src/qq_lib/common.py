@@ -51,6 +51,8 @@ def get_info_file(directory: Path) -> Path:
         QQError: If no info file is found or multiple info files are detected.
     """
     info_files = get_info_files(directory)
+    if len(info_files) == 0:
+        raise QQError("No qq job info file found.")
     if len(info_files) > 1:
         raise QQError("Multiple qq job info files found.")
 
@@ -62,21 +64,16 @@ def get_info_files(directory: Path) -> list[Path]:
     Retrieve all qq job info files in a directory.
 
     This function searches for files matching the `QQ_INFO_SUFFIX` in the
-    provided directory. It raises an error if no info files are found.
+    provided directory.
 
     Args:
         directory (Path): The directory to search in.
 
     Returns:
         list[Path]: A list of Path objects representing the detected qq job info files.
-
-    Raises:
-        QQError: If no info files are found in the directory.
     """
     info_files = get_files_with_suffix(directory, QQ_INFO_SUFFIX)
     logger.debug(f"Detected the following qq info files: {info_files}.")
-    if len(info_files) == 0:
-        raise QQError("No qq job info file found.")
 
     return info_files
 

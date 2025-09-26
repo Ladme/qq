@@ -57,16 +57,17 @@ import qq_lib
 from qq_lib.constants import (
     INFO_FILE,
     INPUT_MACHINE,
+    RUNNER_RETRY_TRIES,
+    RUNNER_RETRY_WAIT,
+    RUNNER_SIGTERM_TO_SIGKILL,
     SCRATCH_DIR_INNER,
 )
 from qq_lib.error import QQError
 from qq_lib.guard import guard
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
-
-# time in seconds between sending a SIGTERM signal
-# to the running process and sending a SIGKILL signal
-SIGTERM_TO_SIGKILL = 5
+from qq_lib.retry import QQRetryer
+from qq_lib.states import NaiveState
 
 logger = get_logger(__name__, show_time=True)
 
@@ -95,6 +96,7 @@ def run(script_path: str):
         error codes:
             91: Guard check failure or an error logged into an info file
             92: Fatal error not logged into an info file
+            93: Job killed without qq run being notified.
             99: Fatal unexpected error (indicates a bug)
             143: Execution terminated by SIGTERM.
     """
@@ -184,7 +186,13 @@ class QQRunner:
         logger.debug(f"Input machine: '{self._input_machine}'.")
 
         # load the info file
-        self._informer = QQInformer.fromFile(self._info_file, host=self._input_machine)
+        self._informer = QQRetryer(
+            QQInformer.fromFile,
+            self._info_file,
+            host=self._input_machine,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
     def setUp(self):
         """
@@ -295,12 +303,15 @@ class QQRunner:
             self._updateInfoFinished()
             if self._use_scratch:
                 # copy files back to the submission (job) directory
-                self._batch_system.syncDirectories(
+                QQRetryer(
+                    self._batch_system.syncDirectories,
                     self._work_dir,
                     self._job_dir,
                     socket.gethostname(),
                     self._informer.info.input_machine,
-                )
+                    max_tries=RUNNER_RETRY_TRIES,
+                    wait_seconds=RUNNER_RETRY_WAIT,
+                ).run()
                 # remove the working directory from scratch
                 # directory is retained on scratch if the run fails for any reason
                 self._deleteWorkDir()
@@ -336,7 +347,12 @@ class QQRunner:
         self._work_dir = self._job_dir
 
         # move to the working directory
-        os.chdir(self._work_dir)
+        QQRetryer(
+            os.chdir,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
     def _setUpScratchDir(self):
         """
@@ -349,7 +365,12 @@ class QQRunner:
             QQError: If scratch directory cannot be determined.
         """
         # get scratch directory (this directory should be created and allocated by the batch system)
-        scratch_dir = self._batch_system.getScratchDir(self._informer.info.job_id)
+        scratch_dir = QQRetryer(
+            self._batch_system.getScratchDir,
+            self._informer.info.job_id,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
         # create working directory inside the scratch directory allocated by the batch system
         # we create this directory because other processes may write files
@@ -357,21 +378,34 @@ class QQRunner:
         # to affect the job execution or be copied back to job_dir
         # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
-        Path.mkdir(self._work_dir)
+        QQRetryer(
+            Path.mkdir,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
 
         # move to the working directory
-        os.chdir(self._work_dir)
+        QQRetryer(
+            os.chdir,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
         # copy files to the working directory excluding the qq info file
-        self._batch_system.syncDirectories(
+        QQRetryer(
+            self._batch_system.syncDirectories,
             self._job_dir,
             self._work_dir,
             self._informer.info.input_machine,
             socket.gethostname(),
             [self._info_file],
-        )
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
     def _deleteWorkDir(self):
         """
@@ -380,7 +414,12 @@ class QQRunner:
         Used only after successful execution in scratch space.
         """
         logger.debug(f"Removing working directory '{self._work_dir}'.")
-        shutil.rmtree(self._work_dir)
+        QQRetryer(
+            shutil.rmtree,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
     def _updateInfoRunning(self):
         """
@@ -391,10 +430,18 @@ class QQRunner:
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
         try:
+            self._reloadInfoAndCheckKill()
             self._informer.setRunning(
                 datetime.now(), socket.gethostname(), self._work_dir
             )
-            self._informer.toFile(self._info_file, host=self._input_machine)
+
+            QQRetryer(
+                self._informer.toFile,
+                self._info_file,
+                host=self._input_machine,
+                max_tries=RUNNER_RETRY_TRIES,
+                wait_seconds=RUNNER_RETRY_WAIT,
+            ).run()
         except Exception as e:
             raise QQError(
                 f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
@@ -408,8 +455,15 @@ class QQRunner:
         """
         logger.debug(f"Updating '{self._info_file}' at job completion.")
         try:
+            self._reloadInfoAndCheckKill()
             self._informer.setFinished(datetime.now())
-            self._informer.toFile(self._info_file, host=self._input_machine)
+            QQRetryer(
+                self._informer.toFile,
+                self._info_file,
+                host=self._input_machine,
+                max_tries=RUNNER_RETRY_TRIES,
+                wait_seconds=RUNNER_RETRY_WAIT,
+            ).run()
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB COMPLETION: {e}."
@@ -426,8 +480,15 @@ class QQRunner:
         """
         logger.debug(f"Updating '{self._info_file}' at job failure.")
         try:
+            self._reloadInfoAndCheckKill()
             self._informer.setFailed(datetime.now(), return_code)
-            self._informer.toFile(self._info_file, host=self._input_machine)
+            QQRetryer(
+                self._informer.toFile,
+                self._info_file,
+                host=self._input_machine,
+                max_tries=RUNNER_RETRY_TRIES,
+                wait_seconds=RUNNER_RETRY_WAIT,
+            ).run()
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB FAILURE: {e}."
@@ -440,15 +501,41 @@ class QQRunner:
         Used during SIGTERM cleanup.
 
         Logs errors as warnings if updating fails.
+
+        No retrying since there is no time for that.
         """
         logger.debug(f"Updating '{self._info_file}' at job kill.")
         try:
             self._informer.setKilled(datetime.now())
+            # no retrying here since we cannot affort multiple attempts here
             self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
+
+    def _reloadInfoAndCheckKill(self):
+        """
+        Reload the QQ job info file and check the job's state.
+
+        If the job state is `KILLED`, the process exits immediately with code 93.
+
+        Raises:
+            QQError: If the qq info file cannot be reached or read.
+        """
+        self._informer = QQRetryer(
+            QQInformer.fromFile,
+            self._info_file,
+            host=self._input_machine,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
+
+        if self._informer.info.job_state == NaiveState.KILLED:
+            logger.error(
+                "Job has been killed without informing qq run. Aborting the job!"
+            )
+            sys.exit(93)
 
     def _cleanup(self) -> None:
         """
@@ -465,7 +552,7 @@ class QQRunner:
             logger.info("Cleaning up: terminating subprocess.")
             self._process.terminate()
             try:
-                self._process.wait(timeout=SIGTERM_TO_SIGKILL)
+                self._process.wait(timeout=RUNNER_SIGTERM_TO_SIGKILL)
             # kill the running process if this takes too long
             except subprocess.TimeoutExpired:
                 logger.info("Subprocess did not exit, killing.")

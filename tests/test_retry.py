@@ -52,7 +52,7 @@ def test_retryer_logs_warning_on_failure():
     # log message includes the exception text and attempt info
     logged_message = mock_logger.warning.call_args[0][0]
     assert "fail" in logged_message
-    assert "Attempting again in 0.1 seconds (1/3)" in logged_message
+    assert "Attempting again in 0.1 seconds" in logged_message
 
 
 def test_retryer_passes_args_and_kwargs():

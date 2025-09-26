@@ -30,6 +30,12 @@ from qq_lib.vbs import QQVBS
 
 
 @pytest.fixture(autouse=True)
+def autopatch_retry_wait():
+    with patch("qq_lib.run.RUNNER_RETRY_WAIT", 0.0):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def register():
     QQBatchMeta.register(QQPBS)
     QQBatchMeta.register(QQVBS)
@@ -181,6 +187,7 @@ def test_run_scratch_guard_fail(monkeypatch, tmp_path, sample_info):
 
 def test_run_scratch_nonexistent_info_file(monkeypatch, tmp_path, sample_info):
     write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_info)
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
 
     script = tmp_path / "job" / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\necho hello\n")
@@ -270,7 +277,7 @@ def runner_with_dirs(monkeypatch, tmp_path, sample_info):
     runner = QQRunner()
     runner.setUp()
 
-    Path.unlink(info_file)
+    # Path.unlink(info_file)
 
     runner._work_dir = tmp_path / "work"
     runner._work_dir.mkdir()
@@ -305,7 +312,7 @@ def test_set_up_work_dir_calls_correct_method(runner_with_dirs):
 def test_execute_script_success(tmp_path, runner_with_dirs):
     runner = runner_with_dirs
 
-    success_script = tmp_path / "success.sh"
+    success_script = tmp_path / "script.sh"
     success_script.write_text(
         "#!/usr/bin/env -S qq run\n"
         "echo 'stdout success'\n"
@@ -316,15 +323,11 @@ def test_execute_script_success(tmp_path, runner_with_dirs):
 
     os.chdir(tmp_path)
 
-    runner._informer.info.script_name = success_script.name
-    runner._informer.info.stdout_file = str(tmp_path / "stdout_success.log")
-    runner._informer.info.stderr_file = str(tmp_path / "stderr_success.log")
-
     ret_code = runner.executeScript()
     assert ret_code == 0
 
-    assert "stdout success" in (tmp_path / "stdout_success.log").read_text()
-    assert "stderr success" in (tmp_path / "stderr_success.log").read_text()
+    assert "stdout success" in (tmp_path / "script.out").read_text()
+    assert "stderr success" in (tmp_path / "script.err").read_text()
     updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 
@@ -332,7 +335,7 @@ def test_execute_script_success(tmp_path, runner_with_dirs):
 def test_execute_script_failure(tmp_path, runner_with_dirs):
     runner = runner_with_dirs
 
-    success_script = tmp_path / "success.sh"
+    success_script = tmp_path / "script.sh"
     success_script.write_text(
         "#!/usr/bin/env -S qq run\n"
         "echo 'stdout success'\n"
@@ -343,15 +346,11 @@ def test_execute_script_failure(tmp_path, runner_with_dirs):
 
     os.chdir(tmp_path)
 
-    runner._informer.info.script_name = success_script.name
-    runner._informer.info.stdout_file = str(tmp_path / "stdout_success.log")
-    runner._informer.info.stderr_file = str(tmp_path / "stderr_success.log")
-
     ret_code = runner.executeScript()
     assert ret_code == 1
 
-    assert "stdout success" in (tmp_path / "stdout_success.log").read_text()
-    assert "stderr success" in (tmp_path / "stderr_success.log").read_text()
+    assert "stdout success" in (tmp_path / "script.out").read_text()
+    assert "stderr success" in (tmp_path / "script.err").read_text()
     updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 

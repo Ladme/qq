@@ -15,6 +15,7 @@ from rich.table import Table
 from rich.text import Text
 
 from qq_lib.batch import BatchJobInfoInterface, QQBatchInterface, QQBatchMeta
+from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import format_duration, get_info_files
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
@@ -25,7 +26,12 @@ from qq_lib.states import BatchState, NaiveState, RealState
 logger = get_logger(__name__)
 
 
-@click.command(help="Get information about the qq job.")
+@click.command(
+    short_help="Get information about the qq job.",
+    help="Get information about the state and properties of the qq job(s) in this directory.",
+    cls=GNUHelpColorsCommand,
+    help_options_color="blue",
+)
 def info():
     """
     Get information about the qq job submitted from this directory.

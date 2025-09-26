@@ -15,6 +15,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
+from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import get_info_file, yes_or_no_prompt
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
@@ -26,7 +27,8 @@ console = Console()
 
 
 @click.command(
-    help="""Terminate the qq job.
+    short_help="Terminate the qq job.",
+    help="""Terminate the qq job in this directory.
 
 Unless the `-y` or `--force` flag is used, `qq kill` always
 asks for confirmation before killing a job.
@@ -36,7 +38,9 @@ that are queued, held, booting, or running but not yet finished or already kille
 
 When the --force flag is used, `qq kill` will attempt to terminate any job
 regardless of its state, including jobs that are, according to the qq,
-already finished or killed. This can be used to remove lingering (stuck) jobs."""
+already finished or killed. This can be used to remove lingering (stuck) jobs.""",
+    cls=GNUHelpColorsCommand,
+    help_options_color="blue",
 )
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."

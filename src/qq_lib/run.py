@@ -73,9 +73,9 @@ logger = get_logger(__name__, show_time=True)
 
 @click.command(
     hidden=True,
-    help="Execute a script inside qq environment. Do not run directly.",
+    help=f"Execute a script inside qq environment. {click.style('Do not run directly!', fg='red')}",
 )
-@click.argument("script_path", type=str)
+@click.argument("script_path", type=str, metavar=click.style("SCRIPT"))
 def run(script_path: str):
     """
     Entrypoint for executing a script inside the qq batch environment.

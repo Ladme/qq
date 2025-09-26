@@ -17,6 +17,7 @@ import click
 import qq_lib
 from qq_lib.batch import QQBatchInterface, QQBatchMeta
 from qq_lib.clear import QQClearer
+from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import yes_or_no_prompt
 from qq_lib.constants import (
     GUARD,
@@ -36,9 +37,22 @@ from qq_lib.states import NaiveState
 logger = get_logger(__name__)
 
 
-@click.command(short_help="Submit a qq job to the batch system.")
-@click.argument("queue", type=str)
-@click.argument("script", type=str)
+@click.command(
+    short_help="Submit a qq job to the batch system.",
+    help=f"""
+Submit a qq job to a batch system from the command line.
+
+{click.style("QUEUE", fg="bright_magenta")}    Name of the queue to submit the job to.\n
+{click.style("SCRIPT", fg="green")}   Path to the script to submit.
+
+The submitted script must be located in the directory from which
+'qq submit' is invoked.
+""",
+    cls=GNUHelpColorsCommand,
+    help_options_color="blue",
+)
+@click.argument("queue", type=str, metavar=click.style("QUEUE", fg="bright_magenta"))
+@click.argument("script", type=str, metavar=click.style("SCRIPT", fg="green"))
 @click.option(
     "--ncpus",
     type=int,
@@ -57,7 +71,13 @@ logger = get_logger(__name__)
     "--workdir",
     type=str,
     default="from_batch_system",
-    help="Type of working directory: 'scratch_local', 'scratch_ssd', 'scratch_shared', 'scratch_hsm', or 'job_dir'. If not set, the batch system selects one.",
+    help="""Type of working directory:
+        scratch_local
+        scratch_ssd
+        scratch_shared
+        scratch_hsm
+        job_dir
+    If not set, the batch system selects one.""",
 )
 @click.option(
     "--work-size",

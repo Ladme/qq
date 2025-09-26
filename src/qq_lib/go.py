@@ -9,6 +9,7 @@ from time import sleep
 import click
 from rich.console import Console
 
+from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import get_info_file
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
@@ -19,7 +20,12 @@ logger = get_logger(__name__)
 console = Console()
 
 
-@click.command(help="Change to the qq job's working directory.")
+@click.command(
+    short_help="Change to the qq job's working directory.",
+    help="Go to the qq job's working directory, using `cd` locally or `ssh` if the directory is on a remote host.",
+    cls=GNUHelpColorsCommand,
+    help_options_color="blue",
+)
 def go():
     """
     Go to the working directory of the qq job submitted from this directory.

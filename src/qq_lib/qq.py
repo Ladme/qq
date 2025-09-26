@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import click
+from click_help_colors import HelpColorsGroup
 
 from qq_lib.batch import QQBatchMeta
 from qq_lib.clear import clear
@@ -13,7 +14,7 @@ from qq_lib.run import run
 from qq_lib.submit import submit
 
 
-@click.group()
+@click.group(cls=HelpColorsGroup, help_options_color="bright_blue")
 def cli():
     """
     Run any qq subcommand.

@@ -16,6 +16,7 @@ from pathlib import Path
 
 import click
 
+from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import get_files_with_suffix, get_info_files
 from qq_lib.constants import QQ_SUFFIXES
 from qq_lib.error import QQError
@@ -26,11 +27,19 @@ from qq_lib.states import RealState
 logger = get_logger(__name__)
 
 
-@click.command(help="Delete qq run files.")
+@click.command(
+    short_help="Delete qq run files.",
+    help="""Delete qq run files from the current directory.
+
+By default, `qq clear` only removes files if the directory does not contain an active or successfully completed job.
+To force deletion of the files regardless of job status, use the `--force` flag.""",
+    cls=GNUHelpColorsCommand,
+    help_options_color="blue",
+)
 @click.option(
     "--force",
     is_flag=True,
-    help="Clear directory with an active or successful job.",
+    help="Force deletion of all qq run files, even if jobs are active or successfully completed.",
     default=False,
 )
 def clear(force: bool):

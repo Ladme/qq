@@ -171,3 +171,40 @@ def equals_normalized(a: str, b: str) -> bool:
         return s.lower().replace("-", "").replace("_", "")
 
     return normalize(a) == normalize(b)
+
+
+def convert_absolute_to_relative(files: list[Path], target: Path) -> list[Path]:
+    """
+    Convert a list of absolute paths into paths relative to a target directory.
+
+    Each file in 'files' must be located inside 'target' or one of its
+    subdirectories. If any file is outside 'target', a 'QQError' is raised.
+
+    This function works even for remote files or paths to non-existent files.
+
+    Args:
+        files (list[Path]): A list of absolute file paths to convert.
+        target (Path): The target directory against which paths are made relative.
+
+    Returns:
+        list[Path]: A list of paths relative to 'target'.
+
+    Raises:
+        QQError: If any file in 'files' is not located within 'target'.
+    """
+    relative = []
+    target_parts = target.parts
+
+    for file in files:
+        file_parts = file.parts
+
+        # file must starts with the target path
+        if file_parts[: len(target_parts)] != target_parts:
+            raise QQError(f"Item '{file}' is not in target directory '{target}'.")
+
+        # create a relative path
+        rel_path = Path(*file_parts[len(target_parts) :])
+        relative.append(rel_path)
+
+    logger.debug(f"Converted paths: {relative}.")
+    return relative

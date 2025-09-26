@@ -1,12 +1,19 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import socket
+import subprocess
 from abc import ABC, ABCMeta, abstractmethod
 from pathlib import Path
 
+from qq_lib.common import convert_absolute_to_relative
+from qq_lib.constants import SSH_TIMEOUT
 from qq_lib.error import QQError
+from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState
+
+logger = get_logger(__name__)
 
 
 class BatchJobInfoInterface(ABC):
@@ -26,7 +33,7 @@ class BatchJobInfoInterface(ABC):
         Refresh the stored job information from the batch system.
 
         Raises:
-            QQError: If the job cannot be queried or updated.
+            QQError: If the job cannot be queried or its info updated.
         """
         pass
 
@@ -53,6 +60,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     All functions should raise QQError when encountering an error.
     """
 
+    # magic number indicating unreachable directory when navigating to it
+    CD_FAIL = 94
+    # exit code of ssh if connection fails
+    SSH_FAIL = 255
+
     @staticmethod
     @abstractmethod
     def envName() -> str:
@@ -61,6 +73,20 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
         Returns:
             str: The batch system name.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def isAvailable() -> bool:
+        """
+        Determine whether the batch system is available on the current host.
+
+        Implementations typically verify this by checking for the presence
+        of required commands or other environment-specific indicators.
+
+        Returns:
+            bool: True if the batch system is available, False otherwise.
         """
         pass
 
@@ -130,21 +156,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def navigateToDestination(host: str, directory: Path):
-        """
-        Navigate to a directory on the specified host.
-
-        Args:
-            host (str): Target hostname where the directory resides.
-            directory (Path): Path to navigate to.
-
-        Raises:
-            QQError: If the navigation fails.
-        """
-        pass
-
-    @staticmethod
-    @abstractmethod
     def getJobInfo(job_id: str) -> TBatchInfo:
         """
         Retrieve comprehensive information about a job.
@@ -161,13 +172,14 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         pass
 
     @staticmethod
+    @abstractmethod
     def buildResources(**kwargs) -> QQResources:
         """
         Build a QQResources object for the target batch system using input parameters.
 
         By default, this method constructs basic resources directly from `kwargs`
         without performing any additional validation. The `kwargs` dictionary contains
-        parameters provided to `qq submit`. Implementations can override this method
+        parameters provided to `qq submit`. Implementations must override this method
         to add validation or transform the input as needed.
 
         Raises:
@@ -176,6 +188,286 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         # batch_system is not part of resources
         del kwargs["batch_system"]
         return QQResources(**kwargs)
+
+    @staticmethod
+    @abstractmethod
+    def navigateToDestination(host: str, directory: Path):
+        """
+        Open a new terminal on the specified host and change the working directory
+        to the given path, handing control over to the user.
+
+        Default behavior:
+            - If the target host is different from the current host, SSH is used
+            to connect and `cd` is executed to switch to the directory.
+            Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+            - If the target host matches the current host, only `cd` is used.
+
+        A new terminal should always be opened, regardless of the host.
+
+        Args:
+            host (str): Hostname where the directory is located.
+            directory (Path): Directory path to navigate to.
+
+        Raises:
+            QQError: If the navigation fails.
+        """
+        # if the directory is on the current host, we do not need to use ssh
+        if host == socket.gethostname():
+            QQBatchInterface._navigateSameHost(directory)
+            return
+
+        # the directory is on an another node
+        ssh_command = QQBatchInterface._translateSSHCommand(host, directory)
+        logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
+        result = subprocess.run(ssh_command)
+
+        # the subprocess exit code can come from:
+        # - SSH itself failing - returns SSH_FAIL
+        # - the explicit exit code we set if 'cd' to the directory fails - returns CD_FAIL
+        # - the exit code of the last command the user runs in the interactive shell
+        #
+        # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
+        if result.returncode == QQBatchInterface.SSH_FAIL:
+            raise QQError(
+                f"Could not reach '{host}:{str(directory)}': Could not connect to host."
+            )
+        if result.returncode == QQBatchInterface.CD_FAIL:
+            raise QQError(
+                f"Could not reach '{host}:{str(directory)}': Could not change directory."
+            )
+
+    @staticmethod
+    @abstractmethod
+    def readRemoteFile(host: str, file: Path) -> str:
+        """
+        Read the contents of a file on a remote host and return it as a string.
+
+        The default implementation uses SSH to retrieve the file contents.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the file resides.
+            file (Path): The path to the file on the remote host.
+
+        Returns:
+            str: The contents of the remote file.
+
+        Raises:
+            QQError: If the file cannot be read or SSH fails.
+        """
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                "-q",  # suppress some SSH messages
+                host,
+                f"cat {file}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not read remote file '{file}' on '{host}': {result.stderr.strip()}."
+            )
+        return result.stdout
+
+    @staticmethod
+    @abstractmethod
+    def writeRemoteFile(host: str, file: Path, content: str):
+        """
+        Write the given content to a file on a remote host, overwriting it if it exists.
+
+        The default implementation uses SSH to send the content to the remote file.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the file resides.
+            file (Path): The path to the file on the remote host.
+            content (str): The content to write to the remote file.
+
+        Raises:
+            QQError: If the file cannot be written or SSH fails.
+        """
+
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                host,
+                f"cat > {file}",
+            ],
+            input=content,
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not write to remote file '{file}' on '{host}': {result.stderr.strip()}."
+            )
+
+    @staticmethod
+    @abstractmethod
+    def submitGuard():
+        """
+        Perform an optional pre-submission check for the batch system.
+
+        This method can be used to enforce custom rules or constraints before
+        submitting a job. If the submission should be rejected, it must raise a QQError.
+
+        Raises:
+            QQError: If the submission violates any rules or should otherwise be rejected.
+
+        Notes:
+            The default implementation does nothing.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def syncDirectories(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        exclude_files: list[Path] | None = None,
+    ):
+        """
+        Synchronize the contents of two directories using rsync, optionally across remote hosts.
+        Files are never removed from the destination directory.
+
+        Args:
+            src_dir (Path): Source directory to sync from.
+            dest_dir (Path): Destination directory to sync to.
+            src_host (str | None): Optional hostname of the source machine if remote;
+                None if the source is local.
+            dest_host (str | None): Optional hostname of the destination machine if remote;
+                None if the destination is local.
+            exclude_files (list[Path] | None): Optional list of absolute file paths to exclude from syncing.
+                These will be converted to paths relative to `src_dir`.
+
+        Raises:
+            QQError: If the rsync command fails for any reason.
+        """
+        # convert absolute paths of files to exclude into relative to src_dir
+        relative_excluded = (
+            convert_absolute_to_relative(exclude_files, src_dir)
+            if exclude_files
+            else []
+        )
+
+        command = QQBatchInterface._buildRsyncCommand(
+            src_dir, dest_dir, src_host, dest_host, relative_excluded
+        )
+        logger.debug(f"Rsync command: {command}.")
+
+        # run the rsync command
+        result = subprocess.run(command, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
+            dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
+            raise QQError(
+                f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}."
+            )
+
+    @staticmethod
+    def _translateSSHCommand(host: str, directory: Path) -> list[str]:
+        """
+        Construct the SSH command to navigate to a remote directory.
+        Internal method of QQBatchInterface, you should probably not override it.
+
+        Args:
+            host (str): The hostname of the remote machine.
+            directory (Path): The target directory to navigate to.
+
+        Returns:
+            list[str]: SSH command as a list suitable for subprocess execution.
+        """
+        return [
+            "ssh",
+            "-o PasswordAuthentication=no",  # never ask for password
+            f"-o ConnectTimeout={SSH_TIMEOUT}",
+            host,
+            "-t",
+            f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
+        ]
+
+    @staticmethod
+    def _navigateSameHost(directory: Path):
+        """
+        Navigate to a directory on the current host using a subprocess.
+        Internal method of QQBatchInterface, you should probably not override it.
+
+        Args:
+            directory (Path): Directory to navigate to.
+        """
+        logger.debug("Current host is the same as target host. Using 'cd'.")
+        if not directory.is_dir():
+            raise QQError(
+                f"Could not reach '{socket.gethostname()}:{str(directory)}': Could not change directory."
+            )
+
+        subprocess.run(["bash"], cwd=directory)
+
+        # if the directory exists, always report success,
+        # no matter what the user does inside the terminal
+
+    @staticmethod
+    def _buildRsyncCommand(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        relative_excluded: list[Path],
+    ) -> list[str]:
+        """
+        Build an rsync command for syncing files between local and/or remote directories.
+
+        Both `src_host` and `dest_host` should not be set simultaneously,
+        otherwise the resulting rsync command will be invalid.
+
+        This is an internal method of `QQBatchInterface`; you typically should not override it.
+
+        Args:
+            src_dir (Path): Source directory path.
+            dest_dir (Path): Destination directory path.
+            src_host (str | None): Hostname of the source machine if remote;
+                None if the source is local.
+            dest_host (str | None): Hostname of the destination machine if remote;
+                None if the destination is local.
+            relative_excluded (list[Path] | None): List of paths relative to `src_dir`
+                to exclude from syncing. Can be None.
+
+            Returns:
+                list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
+        """
+
+        # not using --checksum nor --ignore-times for performance reasons
+        # some files may potentially not be correctly synced if they were
+        # modified in both src_dir and dest_dir at the same time and have
+        # the same size -> this should be so extremely rare that we do not care
+        command = ["rsync", "-a"]
+        for file in relative_excluded:
+            command.extend(["--exclude", str(file)])
+
+        src = src_host + ":" + str(src_dir) + "/" if src_host else str(src_dir) + "/"
+        dest = dest_host + ":" + str(dest_dir) if dest_host else str(dest_dir)
+        command.extend([src, dest])
+
+        return command
 
 
 class QQBatchMeta(ABCMeta):
@@ -211,5 +503,50 @@ class QQBatchMeta(ABCMeta):
             QQError: If no class is registered for the given name.
         """
         if name not in mcs._registry:
-            raise QQError(f"No batch system registered for '{name}'.")
+            raise QQError(f"No batch system registered as '{name}'.")
         return mcs._registry[name]
+
+    @classmethod
+    def guess(mcs) -> type[QQBatchInterface]:
+        """
+        Attempt to select an appropriate batch system implementation.
+
+        The method scans through all registered batch systems in the order
+        they were registered and returns the first one that reports itself
+        as available.
+
+        Raises:
+            QQError: If no available batch system is found among the registered ones.
+
+        Returns:
+            type[QQBatchInterface]: The first available batch system class.
+        """
+        for BatchSystem in mcs._registry.values():
+            if BatchSystem.isAvailable():
+                logger.debug(f"Guessed batch system: {str(BatchSystem)}.")
+                return BatchSystem
+
+        # raise error if there is no available batch system
+        raise QQError(
+            "Could not guess a batch system. No registered batch system available."
+        )
+
+    @classmethod
+    def fromStrOrGuess(mcs, name: str | None) -> type[QQBatchInterface]:
+        """
+        Return a registered batch system class by name, or guess one if no name is given.
+
+        Args:
+            name (str | None): Name of the batch system to retrieve, or None to guess.
+
+        Returns:
+            type[QQBatchInterface]: The batch system class corresponding to `name` or
+            the first available registered batch system.
+
+        Raises:
+            QQError: If the named batch system is not registered, or if no batch system
+            can be guessed when `name` is None.
+        """
+        if name:
+            return mcs.fromStr(name)
+        return mcs.guess()

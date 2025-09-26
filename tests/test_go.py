@@ -10,13 +10,21 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
+from qq_lib.batch import QQBatchMeta
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.go import QQGoer, go
 from qq_lib.info import QQInfo, QQInformer
+from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.states import NaiveState, RealState
 from qq_lib.vbs import QQVBS
+
+
+@pytest.fixture(autouse=True)
+def register():
+    QQBatchMeta.register(QQPBS)
+    QQBatchMeta.register(QQVBS)
 
 
 @pytest.fixture

@@ -11,13 +11,34 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.constants import DATE_FORMAT, GUARD, INFO_FILE, SCRATCH_DIR_INNER
+from qq_lib.batch import QQBatchMeta
+from qq_lib.constants import (
+    DATE_FORMAT,
+    GUARD,
+    INFO_FILE,
+    INPUT_MACHINE,
+    SCRATCH_DIR_INNER,
+    SHARED_SUBMIT,
+)
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
+from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.run import QQRunner, _log_fatal_qq_error, _log_fatal_unexpected_error, run
 from qq_lib.states import NaiveState
 from qq_lib.vbs import QQVBS
+
+
+@pytest.fixture(autouse=True)
+def register():
+    QQBatchMeta.register(QQPBS)
+    QQBatchMeta.register(QQVBS)
+
+
+@pytest.fixture(autouse=True)
+def autopatch_guess():
+    with patch.object(QQBatchMeta, "guess", return_value=QQPBS):
+        yield
 
 
 @pytest.fixture
@@ -51,6 +72,7 @@ def write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info):
     """Helper to write qqinfo file and set env var."""
     # activate qq environment
     os.environ[GUARD] = "true"
+    os.environ[SHARED_SUBMIT] = "true"
 
     # create a job dir
     job_dir = tmp_path / "job"
@@ -65,6 +87,7 @@ def write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info):
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
+    os.environ[INPUT_MACHINE] = sample_info.input_machine
 
 
 def test_run_no_scratch_finishes(tmp_path, sample_info):
@@ -104,6 +127,7 @@ def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_i
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
+    os.environ[INPUT_MACHINE] = sample_info.input_machine
 
 
 def test_run_scratch_finishes(monkeypatch, tmp_path, sample_info):
@@ -129,8 +153,9 @@ def test_run_scratch_fails(monkeypatch, tmp_path, sample_info):
     script = tmp_path / "job" / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\necho hello\nexit 2\n")
 
-    runner = CliRunner()
-    result = runner.invoke(run, [str(tmp_path / "job" / "script.sh")])
+    with patch.object(QQBatchMeta, "guess", return_value=QQPBS):
+        runner = CliRunner()
+        result = runner.invoke(run, [str(tmp_path / "job" / "script.sh")])
 
     assert result.exit_code == 2
     # should not be copied from work directory
@@ -146,7 +171,7 @@ def test_run_scratch_guard_fail(monkeypatch, tmp_path, sample_info):
     script.write_text("#!/usr/bin/env -S qq run\necho hello\n")
 
     # unset guard
-    del os.environ[GUARD]
+    monkeypatch.delenv(GUARD)
 
     runner = CliRunner()
     result = runner.invoke(run, [str(tmp_path / "job" / "script.sh")])
@@ -176,10 +201,10 @@ def write_info_file(path: Path, sample_info: QQInfo):
     return path
 
 
-def test_runner_init_ok(tmp_path, sample_info):
+def test_runner_init_ok(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     write_info_file(info_file, sample_info)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
 
@@ -195,15 +220,15 @@ def test_runner_init_env_not_set(monkeypatch):
         QQRunner()
 
 
-def test_runner_init_info_file_missing(tmp_path):
+def test_runner_init_info_file_missing(monkeypatch, tmp_path):
     info_file = tmp_path / "missing.qqinfo"
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
-    with pytest.raises(QQError, match="does not exist"):
+    with pytest.raises(QQError, match="Could not read file"):
         QQRunner()
 
 
-def test_runner_init_info_file_incomplete(tmp_path, sample_info):
+def test_runner_init_info_file_incomplete(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "bad.qqinfo"
     # write info file missing a single field
     informer = QQInformer(sample_info)
@@ -211,17 +236,17 @@ def test_runner_init_info_file_incomplete(tmp_path, sample_info):
     informer.info.job_id = None  # ty: ignore[invalid-assignment]
     informer.toFile(info_file)
 
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     with pytest.raises(QQError, match="Mandatory information missing"):
         QQRunner()
 
 
-def test_set_up_initializes_runner(tmp_path, sample_info):
+def test_set_up_initializes_runner(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
 
@@ -233,14 +258,14 @@ def test_set_up_initializes_runner(tmp_path, sample_info):
 
 
 @pytest.fixture
-def runner_with_dirs(tmp_path, sample_info):
+def runner_with_dirs(monkeypatch, tmp_path, sample_info):
     job_dir = tmp_path / "job"
     job_dir.mkdir()
 
     info_file = job_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner.setUp()
@@ -332,7 +357,7 @@ def test_execute_script_failure(tmp_path, runner_with_dirs):
 
 
 @pytest.fixture
-def runner_with_dirs_and_files(tmp_path, sample_info):
+def runner_with_dirs_and_files(monkeypatch, tmp_path, sample_info):
     job_dir = tmp_path / "job"
     job_dir.mkdir()
 
@@ -340,7 +365,7 @@ def runner_with_dirs_and_files(tmp_path, sample_info):
     info_file = job_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     # setup runner
     runner = QQRunner()
@@ -367,6 +392,7 @@ def runner_with_dirs_and_files(tmp_path, sample_info):
 def test_finalize(runner_with_dirs_and_files, use_scratch, returncode):
     runner = runner_with_dirs_and_files
     runner._use_scratch = use_scratch
+    runner._batch_system = QQPBS
 
     class DummyProcess:
         def __init__(self, code):
@@ -441,10 +467,10 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     # mock batch system to return success
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
-    runner._batch_system = MagicMock()
-    runner._batch_system.getScratchDir.return_value = scratch_dir
+    runner._batch_system = QQPBS
 
-    runner._setUpScratchDir()
+    with patch.object(QQPBS, "getScratchDir", return_value=scratch_dir):
+        runner._setUpScratchDir()
 
     # working directory should now be scratch_dir / inner_dir
     assert runner._work_dir == scratch_dir / SCRATCH_DIR_INNER
@@ -475,167 +501,12 @@ def test_set_up_scratch_dir_failure(runner_with_dirs):
         runner._setUpScratchDir()
 
 
-def test_convert_absolute_to_relative_success(tmp_path):
-    target = tmp_path
-    file1 = target / "a.txt"
-    file2 = target / "subdir" / "b.txt"
-    file2.parent.mkdir()
-    file1.write_text("data1")
-    file2.write_text("data2")
-
-    runner = QQRunner.__new__(QQRunner)
-    result = runner._convertAbsoluteToRelative([file1, file2], target)
-
-    assert result == [Path("a.txt"), Path("subdir") / "b.txt"]
-
-
-def test_convert_absolute_to_relative_file_outside_target(tmp_path):
-    target = tmp_path / "target"
-    outside = tmp_path / "outside.txt"
-    target.mkdir()
-    outside.write_text("oops")
-
-    runner = QQRunner.__new__(QQRunner)
-
-    with pytest.raises(QQError, match="is not in target directory"):
-        runner._convertAbsoluteToRelative([outside], target)
-
-
-def test_convert_absolute_to_relative_empty_list(tmp_path):
-    target = tmp_path
-    runner = QQRunner.__new__(QQRunner)
-    result = runner._convertAbsoluteToRelative([], target)
-    assert result == []
-
-
-def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
-    target = tmp_path / "target"
-    target.mkdir()
-    inside = target / "file.txt"
-    inside.write_text("inside")
-    outside = tmp_path / "outside.txt"
-    outside.write_text("outside")
-
-    runner = QQRunner.__new__(QQRunner)
-
-    with pytest.raises(QQError):
-        runner._convertAbsoluteToRelative([inside, outside], target)
-
-
-def test_sync_directories_copies_new_files(tmp_path):
-    src = tmp_path / "src"
-    dest = tmp_path / "dest"
-    src.mkdir()
-    dest.mkdir()
-
-    # create files in src
-    (src / "file1.txt").write_text("data1")
-    (src / "file2.txt").write_text("data2")
-
-    runner = QQRunner.__new__(QQRunner)
-    runner._syncDirectories(src, dest)
-
-    # all files from src should exist in dest with same content
-    for f in src.iterdir():
-        dest_file = dest / f.name
-        assert dest_file.exists()
-        assert dest_file.read_text() == f.read_text()
-
-
-def test_sync_directories_preserves_dest_files(tmp_path):
-    src = tmp_path / "src"
-    dest = tmp_path / "dest"
-    src.mkdir()
-    dest.mkdir()
-
-    # file in dest that is not in src
-    (dest / "keep.txt").write_text("keep_me")
-    # file in src
-    (src / "new.txt").write_text("new_data")
-
-    runner = QQRunner.__new__(QQRunner)
-
-    runner._syncDirectories(src, dest)
-
-    # new file copied
-    assert (dest / "new.txt").exists()
-    assert (dest / "new.txt").read_text() == "new_data"
-    # old file preserved
-    assert (dest / "keep.txt").exists()
-    assert (dest / "keep.txt").read_text() == "keep_me"
-    # destination file not copied to src
-    assert not (src / "keep.txt").exists()
-
-
-def test_sync_directories_skips_excluded_files(tmp_path):
-    src = tmp_path / "src"
-    dest = tmp_path / "dest"
-    src.mkdir()
-    dest.mkdir()
-
-    (src / "include.txt").write_text("include")
-    (src / "exclude.txt").write_text("exclude")
-
-    runner = QQRunner.__new__(QQRunner)
-    runner._syncDirectories(src, dest, exclude_files=[src / "exclude.txt"])
-
-    assert (dest / "include.txt").exists()
-    assert not (dest / "exclude.txt").exists()
-
-
-def test_sync_directories_updates_changed_files(tmp_path):
-    src = tmp_path / "src"
-    dest = tmp_path / "dest"
-    src.mkdir()
-    dest.mkdir()
-
-    # same file in both, dest outdated
-    # note that these files have the same time of creation,
-    # so they have to have different size for rsync to work properly
-    (src / "file.txt").write_text("new")
-    (dest / "file.txt").write_text("older")
-
-    runner = QQRunner.__new__(QQRunner)
-    runner._syncDirectories(src, dest)
-
-    assert (dest / "file.txt").exists()
-    assert (dest / "file.txt").read_text() == "new"
-
-
-def test_sync_directories_rsync_failure(tmp_path, monkeypatch):
-    src = tmp_path / "src"
-    dest = tmp_path / "dest"
-    src.mkdir()
-    dest.mkdir()
-
-    # create a file to sync
-    (src / "file.txt").write_text("data")
-
-    runner = QQRunner.__new__(QQRunner)
-
-    # patch subprocess.run to simulate rsync failure
-    def fake_run(_command, capture_output=True, text=True):
-        _ = capture_output
-        _ = text
-
-        class Result:
-            returncode = 1
-            stderr = "rsync error"
-
-        return Result()
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    with pytest.raises(QQError, match="Could not rsync files between"):
-        runner._syncDirectories(src, dest)
-
-
 @pytest.fixture
-def runner(tmp_path, sample_info):
+def runner(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner.setUp()
@@ -674,11 +545,11 @@ def test_delete_work_dir_no_files(runner, tmp_path):
     assert not tmp_path.exists()
 
 
-def test_update_info_running(tmp_path, sample_info):
+def test_update_info_running(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner._work_dir = Path("/scratch/job_54321.fake.server.com")
@@ -693,11 +564,11 @@ def test_update_info_running(tmp_path, sample_info):
     assert updated_info.script_name == "script.sh"
 
 
-def test_update_info_finished(tmp_path, sample_info):
+def test_update_info_finished(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner._updateInfoFinished()
@@ -710,11 +581,11 @@ def test_update_info_finished(tmp_path, sample_info):
     assert updated_info.script_name == "script.sh"
 
 
-def test_update_info_failed(tmp_path, sample_info):
+def test_update_info_failed(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     exit_code = 91
@@ -728,11 +599,11 @@ def test_update_info_failed(tmp_path, sample_info):
     assert updated_info.script_name == "script.sh"
 
 
-def test_update_info_killed(tmp_path, sample_info):
+def test_update_info_killed(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner._updateInfoKilled()
@@ -744,12 +615,12 @@ def test_update_info_killed(tmp_path, sample_info):
     assert updated_info.script_name == "script.sh"
 
 
-def test_log_failure_into_info_file(tmp_path, sample_info):
+def test_log_failure_into_info_file(monkeypatch, tmp_path, sample_info):
     # create a QQ info file
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     exit_code = 98
@@ -769,12 +640,12 @@ def test_log_failure_into_info_file(tmp_path, sample_info):
     assert updated_info.script_name == "script.sh"
 
 
-def test_log_failure_into_info_file_failure(tmp_path, sample_info):
+def test_log_failure_into_info_file_failure(monkeypatch, tmp_path, sample_info):
     # create a QQ info file
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
 
@@ -791,11 +662,11 @@ def test_log_failure_into_info_file_failure(tmp_path, sample_info):
     assert exc.value.code == exit_code
 
 
-def test_cleanup_marks_job_killed(tmp_path, sample_info):
+def test_cleanup_marks_job_killed(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner._process = subprocess.Popen(["sleep", "5"], text=True)
@@ -811,11 +682,11 @@ def test_cleanup_marks_job_killed(tmp_path, sample_info):
     assert loaded_info.script_name == "script.sh"
 
 
-def test_handle_sigterm_marks_job_killed_and_exits(tmp_path, sample_info):
+def test_handle_sigterm_marks_job_killed_and_exits(monkeypatch, tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
-    os.environ[INFO_FILE] = str(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
 
     runner = QQRunner()
     runner._process = subprocess.Popen(["sleep", "5"], text=True)

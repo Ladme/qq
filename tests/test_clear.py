@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
+from qq_lib.batch import QQBatchMeta
 from qq_lib.clear import QQClearer, clear
 from qq_lib.constants import (
     DATE_FORMAT,
@@ -23,6 +24,11 @@ from qq_lib.info import QQInfo, QQInformer
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
+
+
+@pytest.fixture(autouse=True)
+def register():
+    QQBatchMeta.register(QQPBS)
 
 
 def _create_files(tmp_path) -> list[Path]:

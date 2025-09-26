@@ -56,6 +56,7 @@ import click
 import qq_lib
 from qq_lib.constants import (
     INFO_FILE,
+    INPUT_MACHINE,
     SCRATCH_DIR_INNER,
 )
 from qq_lib.error import QQError
@@ -176,8 +177,14 @@ class QQRunner:
         self._info_file = Path(info_file_string)
         logger.debug(f"Info file: '{self._info_file}'.")
 
+        # get input machine
+        self._input_machine = os.environ.get(INPUT_MACHINE)
+        if not self._input_machine:
+            raise QQError(f"'{INPUT_MACHINE}' environment variable is not set.")
+        logger.debug(f"Input machine: '{self._input_machine}'.")
+
         # load the info file
-        self._informer = QQInformer.fromFile(self._info_file)
+        self._informer = QQInformer.fromFile(self._info_file, host=self._input_machine)
 
     def setUp(self):
         """
@@ -288,9 +295,11 @@ class QQRunner:
             self._updateInfoFinished()
             if self._use_scratch:
                 # copy files back to the submission (job) directory
-                self._syncDirectories(
+                self._batch_system.syncDirectories(
                     self._work_dir,
                     self._job_dir,
+                    socket.gethostname(),
+                    self._informer.info.input_machine,
                 )
                 # remove the working directory from scratch
                 # directory is retained on scratch if the run fails for any reason
@@ -356,78 +365,13 @@ class QQRunner:
         os.chdir(self._work_dir)
 
         # copy files to the working directory excluding the qq info file
-        self._syncDirectories(self._job_dir, self._work_dir, [self._info_file])
-
-    def _syncDirectories(
-        self, src_dir: Path, dest_dir: Path, exclude_files: list[Path] | None = None
-    ):
-        """
-        Synchronize the contents of 'src_dir' into 'dest_dir' without removing any files from 'dest_dir'.
-
-        Excluded files from 'src_dir' are not synced.
-
-        Args:
-            src_dir (Path): Source directory whose content will be copied.
-            dest_dir (Path): Destination directory to which content should be copied.
-            exclude_files (list[Path] | None): Optional list of files in 'src_dir' to exclude from syncing.
-
-        Raises:
-            QQError: If rsync fails for any reason.
-        """
-        relative_excluded = (
-            self._convertAbsoluteToRelative(exclude_files, src_dir)
-            if exclude_files
-            else []
+        self._batch_system.syncDirectories(
+            self._job_dir,
+            self._work_dir,
+            self._informer.info.input_machine,
+            socket.gethostname(),
+            [self._info_file],
         )
-
-        # build the rsync command
-        # not using --checksum nor --ignore-times for performance reasons
-        # some files may potentially not be correctly synced if they were
-        # modified in both src_dir and dest_dir at the same time and have
-        # the same size -> this should be so extremely rare that we do not care
-        command = ["rsync", "-a"]
-        for file in relative_excluded:
-            command.extend(["--exclude", str(file)])
-        command.extend([str(src_dir) + "/", str(dest_dir)])
-
-        logger.debug(f"Rsync command: {command}.")
-
-        # run the rsync command
-        result = subprocess.run(command, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            raise QQError(
-                f"Could not rsync files between '{src_dir}' and '{dest_dir}': {result.stderr.strip()}."
-            )
-
-    def _convertAbsoluteToRelative(self, files: list[Path], target: Path) -> list[Path]:
-        """
-        Convert a list of absolute paths into paths relative to a target directory.
-
-        Each file in 'files' must be located inside 'target' or one of its
-        subdirectories. If any file is outside 'target', a 'QQError' is raised.
-
-        Args:
-            files (list[Path]): A list of absolute file paths to convert.
-            target (Path): The target directory against which paths are made relative.
-
-        Returns:
-            list[Path]: A list of paths relative to 'target'.
-
-        Raises:
-            QQError: If any file in 'files' is not located within 'target'.
-        """
-        relative = []
-        for file in files:
-            try:
-                relative.append(file.relative_to(target))
-            except ValueError as e:
-                raise QQError(
-                    f"Item '{file}' is not in target directory '{target}'."
-                ) from e
-
-        logger.debug(f"Converted paths: {relative}.")
-        return relative
 
     def _deleteWorkDir(self):
         """
@@ -450,7 +394,7 @@ class QQRunner:
             self._informer.setRunning(
                 datetime.now(), socket.gethostname(), self._work_dir
             )
-            self._informer.toFile(self._info_file)
+            self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             raise QQError(
                 f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
@@ -465,7 +409,7 @@ class QQRunner:
         logger.debug(f"Updating '{self._info_file}' at job completion.")
         try:
             self._informer.setFinished(datetime.now())
-            self._informer.toFile(self._info_file)
+            self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB COMPLETION: {e}."
@@ -483,7 +427,7 @@ class QQRunner:
         logger.debug(f"Updating '{self._info_file}' at job failure.")
         try:
             self._informer.setFailed(datetime.now(), return_code)
-            self._informer.toFile(self._info_file)
+            self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB FAILURE: {e}."
@@ -500,7 +444,7 @@ class QQRunner:
         logger.debug(f"Updating '{self._info_file}' at job kill.")
         try:
             self._informer.setKilled(datetime.now())
-            self._informer.toFile(self._info_file)
+            self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."

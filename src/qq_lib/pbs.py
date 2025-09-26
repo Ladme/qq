@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import os
+import shutil
 import socket
 import subprocess
 from pathlib import Path
@@ -12,7 +13,7 @@ from qq_lib.batch import (
     QQBatchMeta,
 )
 from qq_lib.common import equals_normalized
-from qq_lib.constants import QQ_OUT_SUFFIX
+from qq_lib.constants import QQ_OUT_SUFFIX, SHARED_SUBMIT
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
@@ -31,15 +32,14 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
 
-    # magic number indicating unreachable directory when navigating to it
-    CD_FAIL = 94
-    # exit code of ssh if connection fails
-    SSH_FAIL = 255
     # default work-dir type to use with PBS
     DEFAULT_WORK_DIR = "scratch_local"
 
     def envName() -> str:
         return "PBS"
+
+    def isAvailable() -> bool:
+        return shutil.which("qsub") is not None
 
     def getScratchDir(job_id: str) -> Path:
         scratch_dir = os.environ.get("SCRATCHDIR")
@@ -90,29 +90,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
     def navigateToDestination(host: str, directory: Path):
-        # if the directory is on the current host, we do not need to use ssh
-        if host == socket.gethostname():
-            QQPBS._navigateSameHost(directory)
-
-        # the directory is on an another node
-        ssh_command = QQPBS._translateSSHCommand(host, directory)
-        logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
-        result = subprocess.run(ssh_command)
-
-        # the subprocess exit code can come from:
-        # - SSH itself failing - returns SSH_FAIL
-        # - the explicit exit code we set if 'cd' to the directory fails - returns CD_FAIL
-        # - the exit code of the last command the user runs in the interactive shell
-        #
-        # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
-        if result.returncode == QQPBS.SSH_FAIL:
-            raise QQError(
-                f"Could not reach '{host}:{str(directory)}': Could not connect to host."
-            )
-        if result.returncode == QQPBS.CD_FAIL:
-            raise QQError(
-                f"Could not reach '{host}:{str(directory)}': Could not change directory."
-            )
+        QQBatchInterface.navigateToDestination(host, directory)
 
     def buildResources(**kwargs) -> QQResources:
         try:
@@ -126,6 +104,100 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def getJobInfo(job_id: str) -> PBSJobInfo:
         return PBSJobInfo(job_id)  # ty: ignore[invalid-return-type]
 
+    def readRemoteFile(host: str, file: Path) -> str:
+        if os.environ.get(SHARED_SUBMIT):
+            # file is on shared storage, we can read it directly
+            # this assumes that this method is only used to read files in job_dir
+            logger.debug(f"Reading a file '{file}' from shared storage.")
+            try:
+                return file.read_text()
+            except Exception as e:
+                raise QQError(f"Could not read file '{file}': {e}.") from e
+        else:
+            # otherwise, we fall back to the default implementation
+            logger.debug(f"Reading a remote file '{file}' on '{host}'.")
+            return QQBatchInterface.readRemoteFile(host, file)
+
+    def writeRemoteFile(host: str, file: Path, content: str):
+        if os.environ.get(SHARED_SUBMIT):
+            # file should be written to shared storage
+            # this assumes that the method is only used to write files into job_dir
+            logger.debug(f"Writing a file '{file}' to shared storage.")
+            try:
+                file.write_text(content)
+            except Exception as e:
+                raise QQError(f"Could not write file '{file}': {e}.") from e
+        else:
+            # otherwise, we fall back to the default implementation
+            logger.debug(f"Writing a remote file '{file}' on '{host}'.")
+            QQBatchInterface.writeRemoteFile(host, file, content)
+
+    def submitGuard():
+        """
+        Set an environment variable indicating whether the job is submitted from shared storage.
+
+        This information is used internally by QQPBS to determine how to copy data
+        to the working directory when booting the job.
+
+        Notes:
+            If the current working directory is on shared storage, the environment
+            variable 'SHARED_SUBMIT' is set.
+        """
+        if QQPBS._isShared(Path()):
+            os.environ[SHARED_SUBMIT] = "true"
+
+    def syncDirectories(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        exclude_files: list[Path] | None = None,
+    ):
+        if os.environ.get(SHARED_SUBMIT):
+            # job_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
+            logger.debug("Syncing directories on local and shared filesystem.")
+            QQBatchInterface.syncDirectories(
+                src_dir, dest_dir, None, None, exclude_files
+            )
+        else:
+            # job_dir is not on shared storage -> fall back to the default implementation
+            logger.debug("Syncing directories on local filesystems.")
+
+            # convert local hosts to none
+            local_hostname = socket.gethostname()
+            src = None if src_host == local_hostname else src_host
+            dest = None if dest_host == local_hostname else dest_host
+
+            if src is None or dest is None:
+                QQBatchInterface.syncDirectories(
+                    src_dir, dest_dir, src, dest, exclude_files
+                )
+            else:
+                raise QQError(
+                    f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
+                )
+
+    @staticmethod
+    def _isShared(directory: Path) -> bool:
+        """
+        Determine whether a given directory resides on a shared filesystem.
+
+        Args:
+            directory (Path): The directory to check.
+
+        Returns:
+            bool: True if the directory is on a shared filesystem, False if it is local.
+        """
+        # df -l exits with zero if the filesystem is local; otherwise it exits with a non-zero code
+        result = subprocess.run(
+            ["df", "-l", directory],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        return result.returncode != 0
+
+    @staticmethod
     def _translateSubmit(res: QQResources, queue: str, script: str) -> str:
         """
         Generate the PBS submission command for a job.
@@ -194,7 +266,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         if res.work_dir == "scratch_shm":
             return f"{res.work_dir}=True"
 
-        return f"{res.work_dir}={res.work_size}"
+        if res.work_size:
+            return f"{res.work_dir}={res.work_size}"
+        if res.ncpus:
+            return f"{res.work_dir}={res.ncpus}gb"
+        # TODO: choose a better default
+        return f"{res.work_dir}=8gb"
 
     @staticmethod
     def _translateKillForce(job_id: str) -> str:
@@ -221,48 +298,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             str: The qdel command without force flag.
         """
         return f"qdel {job_id}"
-
-    @staticmethod
-    def _translateSSHCommand(host: str, directory: Path) -> list[str]:
-        """
-        Construct the SSH command to navigate to a remote directory.
-
-        Args:
-            host (str): The hostname of the remote machine.
-            directory (Path): The target directory to navigate to.
-
-        Returns:
-            list[str]: SSH command as a list suitable for subprocess execution.
-        """
-        return [
-            "ssh",
-            "-o PasswordAuthentication=no",  # never ask for password
-            host,
-            "-t",
-            f"cd {directory} || exit {QQPBS.CD_FAIL} && exec bash -l",
-        ]
-
-    @staticmethod
-    def _navigateSameHost(directory: Path):
-        """
-        Navigate to a directory on the current host using a subprocess.
-
-        Args:
-            directory (Path): Directory to navigate to.
-
-        Returns:
-            BatchOperationResult: Success if directory exists, error if directory does not exist.
-        """
-        logger.debug("Current host is the same as target host. Using 'cd'.")
-        if not directory.is_dir():
-            raise QQError(
-                f"Could not reach '{socket.gethostname()}:{str(directory)}': Could not change directory."
-            )
-
-        subprocess.run(["bash"], cwd=directory)
-
-        # if the directory exists, always report success,
-        # no matter what the user does inside the terminal
 
     @staticmethod
     def _handleWorkDirRes(res: QQResources):

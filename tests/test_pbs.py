@@ -3,11 +3,15 @@
 
 # ruff: noqa: W291
 
+import os
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from qq_lib.batch import QQBatchInterface
+from qq_lib.constants import SHARED_SUBMIT, SSH_TIMEOUT
 from qq_lib.error import QQError
 from qq_lib.pbs import QQPBS, PBSJobInfo
 from qq_lib.resources import QQResources
@@ -170,39 +174,247 @@ def test_translate_kill():
     assert cmd == f"qdel {job_id}"
 
 
-def test_translate_ssh_command():
-    host = "node1"
-    directory = Path("/tmp/work")
-    cmd = QQPBS._translateSSHCommand(host, directory)
-    assert cmd == [
-        "ssh",
-        "-o PasswordAuthentication=no",
-        host,
-        "-t",
-        f"cd {directory} || exit {QQPBS.CD_FAIL} && exec bash -l",
-    ]
-
-
-def test_navigate_same_host_success(tmp_path):
+def test_navigate_success(tmp_path):
     directory = tmp_path
 
     with patch("subprocess.run") as mock_run:
-        QQPBS._navigateSameHost(directory)
+        QQPBS.navigateToDestination("fake.host.org", directory)
         # check that subprocess was called properly
-        mock_run.assert_called_once_with(["bash"], cwd=directory)
+        mock_run.assert_called_once_with(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                "fake.host.org",
+                "-t",
+                f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
+            ]
+        )
 
         # should not raise
 
 
-def test_navigate_same_host_error():
-    # nonexistent directory
-    directory = Path("/non/existent/directory")
+def test_is_shared_returns_false_for_local(monkeypatch, tmp_path):
+    def fake_run(cmd, **kwargs):
+        _ = cmd
+        _ = kwargs
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert QQPBS._isShared(tmp_path) is False
+
+
+def test_is_shared_returns_true_for_shared(monkeypatch, tmp_path):
+    def fake_run(cmd, **kwargs):
+        _ = cmd
+        _ = kwargs
+
+        class Result:
+            returncode = 1
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert QQPBS._isShared(tmp_path) is True
+
+
+def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        _ = kwargs
+        captured["cmd"] = cmd
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    QQPBS._isShared(tmp_path)
+
+    assert captured["cmd"][0:2] == ["df", "-l"]
+    assert Path(captured["cmd"][2]) == tmp_path
+
+
+def test_submit_guard_sets_env_var():
+    os.environ.pop(SHARED_SUBMIT, None)
+
+    # patch _isShared to return True
+    with patch.object(QQPBS, "_isShared", return_value=True):
+        QQPBS.submitGuard()
+        assert os.environ.get(SHARED_SUBMIT) == "true"
+
+    # clean up
+    os.environ.pop(SHARED_SUBMIT, None)
+
+
+def test_submitGuard_does_not_set_env_var():
+    os.environ.pop(SHARED_SUBMIT, None)
+
+    # patch _isShared to return False
+    with patch.object(QQPBS, "_isShared", return_value=False):
+        QQPBS.submitGuard()
+        assert SHARED_SUBMIT not in os.environ
+
+
+def test_sync_directories_shared_storage_sets_local(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    exclude_files = [Path("file1"), Path("file2")]
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with patch.object(QQBatchInterface, "syncDirectories") as mock_sync:
+        QQPBS.syncDirectories(src_dir, dest_dir, "host1", "host2", exclude_files)
+        mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
+
+    monkeypatch.delenv(SHARED_SUBMIT)
+
+
+def test_sync_directories_local_src(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    exclude_files = [Path("file1")]
+    local_host = "myhost"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
 
     with (
-        patch("subprocess.run") as mock_run,
-        pytest.raises(QQError, match="Could not reach"),
+        patch.object(QQBatchInterface, "syncDirectories") as mock_sync,
+        patch("socket.gethostname", return_value=local_host),
     ):
-        QQPBS._navigateSameHost(directory)
+        # source is local, destination is remote
+        QQPBS.syncDirectories(
+            src_dir, dest_dir, local_host, "remotehost", exclude_files
+        )
+        mock_sync.assert_called_once_with(
+            src_dir, dest_dir, None, "remotehost", exclude_files
+        )
 
-        # check that subprocess was not called
-        mock_run.assert_not_called()
+
+def test_sync_directories_local_dest(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    exclude_files = []
+    local_host = "myhost"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch.object(QQBatchInterface, "syncDirectories") as mock_sync,
+        patch("socket.gethostname", return_value=local_host),
+    ):
+        # destination is local, source is remote
+        QQPBS.syncDirectories(
+            src_dir, dest_dir, "remotehost", local_host, exclude_files
+        )
+        mock_sync.assert_called_once_with(
+            src_dir, dest_dir, "remotehost", None, exclude_files
+        )
+
+
+def test_sync_directories_one_remote(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    exclude_files = None
+    local_host = "myhost"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch.object(QQBatchInterface, "syncDirectories") as mock_sync,
+        patch("socket.gethostname", return_value=local_host),
+    ):
+        # source local, destination local -> uses None
+        QQPBS.syncDirectories(src_dir, dest_dir, None, local_host, exclude_files)
+        mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
+
+
+def test_sync_directories_both_remote_raises(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    exclude_files = None
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch("socket.gethostname", return_value="localhost"),
+        pytest.raises(QQError, match="cannot be both remote"),
+    ):
+        # both source and destination are remote and job directory is not shared
+        QQPBS.syncDirectories(src_dir, dest_dir, "remote1", "remote2", exclude_files)
+
+
+def test_read_remote_file_shared_storage(tmp_path, monkeypatch):
+    file_path = tmp_path / "testfile.txt"
+    content = "Hello, QQ!"
+    file_path.write_text(content)
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    result = QQPBS.readRemoteFile("remotehost", file_path)
+    assert result == content
+
+    monkeypatch.delenv(SHARED_SUBMIT)
+
+
+def test_read_remote_file_shared_storage_file_missing(tmp_path, monkeypatch):
+    file_path = tmp_path / "nonexistent.txt"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with pytest.raises(QQError, match="Could not read file"):
+        QQPBS.readRemoteFile("remotehost", file_path)
+
+    monkeypatch.delenv(SHARED_SUBMIT)
+
+
+def test_read_remote_file_remote():
+    file_path = Path("/remote/file.txt")
+    with patch.object(
+        QQBatchInterface, "readRemoteFile", return_value="data"
+    ) as mock_read:
+        result = QQPBS.readRemoteFile("remotehost", file_path)
+        mock_read.assert_called_once_with("remotehost", file_path)
+        assert result == "data"
+
+
+def test_write_remote_file_shared_storage(tmp_path, monkeypatch):
+    file_path = tmp_path / "output.txt"
+    content = "Test content"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    QQPBS.writeRemoteFile("remotehost", file_path, content)
+    assert file_path.read_text() == content
+
+    monkeypatch.delenv(SHARED_SUBMIT)
+
+
+def test_write_remote_file_shared_storage_exception(tmp_path, monkeypatch):
+    # using a directory instead of a file to cause write_text to fail
+    dir_path = tmp_path / "dir"
+    dir_path.mkdir()
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with pytest.raises(QQError, match="Could not write file"):
+        QQPBS.writeRemoteFile("remotehost", dir_path, "content")
+
+    monkeypatch.delenv(SHARED_SUBMIT)
+
+
+def test_write_remote_file_remote():
+    file_path = Path("/remote/output.txt")
+    content = "data"
+
+    with patch.object(QQBatchInterface, "writeRemoteFile") as mock_write:
+        QQPBS.writeRemoteFile("remotehost", file_path, content)
+        mock_write.assert_called_once_with("remotehost", file_path, content)

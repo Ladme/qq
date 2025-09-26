@@ -12,12 +12,18 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 
+from qq_lib.batch import QQBatchMeta
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
+
+
+@pytest.fixture(autouse=True)
+def register():
+    QQBatchMeta.register(QQPBS)
 
 
 @pytest.fixture

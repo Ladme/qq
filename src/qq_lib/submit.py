@@ -8,7 +8,6 @@ This module manages submission of qq jobs using the QQSubmitter class.
 import getpass
 import os
 import socket
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +21,7 @@ from qq_lib.common import yes_or_no_prompt
 from qq_lib.constants import (
     GUARD,
     INFO_FILE,
+    INPUT_MACHINE,
     QQ_INFO_SUFFIX,
     QQ_SUFFIXES,
     STDERR_SUFFIX,
@@ -69,8 +69,8 @@ logger = get_logger(__name__)
 @click.option(
     "--batch-system",
     type=str,
-    default="PBS",
-    help="Batch system to submit the job into. Default is PBS.",
+    default=None,
+    help="Batch system to submit the job into. If not specified, will try to make a guess.",
 )
 def submit(queue, script, **kwargs):
     """
@@ -79,14 +79,13 @@ def submit(queue, script, **kwargs):
     Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
     try:
-        BatchSystem = QQBatchMeta.fromStr(kwargs["batch_system"])
+        BatchSystem = QQBatchMeta.fromStrOrGuess(kwargs.get("batch_system"))
         submitter = QQSubmitter(
             BatchSystem, queue, Path(script), BatchSystem.buildResources(**kwargs)
         )
-        if not submitter.isShared(Path()):
-            raise QQError(
-                "Submitting qq jobs is only possible from a shared filesystem."
-            )
+        # batch system-specific guard
+        BatchSystem.submitGuard()
+        # catching multiple submissions
         submitter.guardOrClear()
         submitter.submit()
         sys.exit(0)
@@ -196,19 +195,6 @@ class QQSubmitter:
         informer.toFile(self._info_file)
         return job_id
 
-    def isShared(self, directory: Path) -> bool:
-        """
-        Checks that the specified directory is on a shared filesystem.
-        """
-        # df -l exits with zero if the filesystem is local; otherwise it exits with a non-zero code
-        result = subprocess.run(
-            ["df", "-l", directory],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        return result.returncode != 0
-
     def guardOrClear(self):
         """
         Prevent multiple submissions from the same directory.
@@ -266,6 +252,9 @@ class QQSubmitter:
 
         # this contains a path to the qq info file
         os.environ[INFO_FILE] = str(self._info_file)
+
+        # this contains the name of the input host
+        os.environ[INPUT_MACHINE] = socket.gethostname()
 
     def _hasValidShebang(self, script: Path) -> bool:
         """

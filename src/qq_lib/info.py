@@ -116,32 +116,45 @@ class QQInfo:
     job_exit_code: int | None = None
 
     @classmethod
-    def fromFile(cls, file: Path) -> Self:
+    def fromFile(cls, file: Path, host: str | None = None) -> Self:
         """
-        Load a QQInfo instance from a YAML file.
+        Load a QQInfo instance from a YAML file, either locally or on a remote host.
 
-        This method always returns a valid QQInfo
-        or raises an Exception.
+        If 'host' is provided, the file will be read from the remote host using
+        the batch system's 'readRemoteFile' method. Otherwise, the file is read locally.
 
         Args:
-            file: Path to the YAML qq info file.
+            file (Path): Path to the YAML qq info file.
+            host (str | None): Optional hostname of the remote machine where the file resides.
+                If None, the file is assumed to be local.
 
         Returns:
-            QQInfo instance constructed from the file.
+            QQInfo: Instance constructed from the file.
 
         Raises:
-            QQError: If the file does not exist, cannot be parsed
-            or does not contain all mandatory information.
+            QQError: If the file does not exist, cannot be reached, cannot be parsed,
+                    or does not contain all mandatory information.
         """
-        logger.debug(f"Loading qq info from '{file}'.")
-
-        if not file.exists():
-            raise QQError(f"qq info file '{file}' does not exist.")
-
         try:
-            with file.open("r") as input:
-                data: dict[str, object] = yaml.safe_load(input)
-                return cls._fromDict(data)
+            if host:
+                # remote file
+                logger.debug(f"Loading qq info from '{file}' on '{host}'.")
+
+                BatchSystem = QQBatchMeta.guess()
+                data: dict[str, object] = yaml.safe_load(
+                    BatchSystem.readRemoteFile(host, file)
+                )
+            else:
+                # local file
+                logger.debug(f"Loading qq info from '{file}'.")
+
+                if not file.exists():
+                    raise QQError(f"qq info file '{file}' does not exist.")
+
+                with file.open("r") as input:
+                    data: dict[str, object] = yaml.safe_load(input)
+
+            return cls._fromDict(data)
         except yaml.YAMLError as e:
             raise QQError(f"Could not parse the qq info file '{file}': {e}.") from e
         except TypeError as e:
@@ -149,23 +162,33 @@ class QQInfo:
                 f"Mandatory information missing from the qq info file '{file}': {e}."
             ) from e
 
-    def toFile(self, file: Path):
+    def toFile(self, file: Path, host: str | None = None):
         """
-        Export this QQInfo instance to a YAML file.
+        Export this QQInfo instance to a YAML file, either locally or on a remote host.
+
+        If 'host' is provided, the file will be written to the remote host using
+        the batch system's 'writeRemoteFile' method. Otherwise, the file is written locally.
 
         Args:
-            file: Path to write the YAML file.
+            file (Path): Path to write the YAML file.
+            host (str | None): Optional hostname of the remote machine where the file should be written.
+                If None, the file is written locally.
 
         Raises:
-            QQError: If the file cannot be created or written to.
+            QQError: If the file cannot be created, reached, or written to.
         """
-        logger.debug(f"Exporting qq info into '{file}'.")
-
         try:
-            with file.open("w") as output:
-                output.write("# qq job info file\n")
-                output.write(self._toYaml())
-                output.write("\n")
+            content = "# qq job info file\n" + self._toYaml() + "\n"
+
+            if host:
+                # remote file
+                logger.debug(f"Exporting qq info into '{file}' on '{host}'.")
+                self.batch_system.writeRemoteFile(host, file, content)
+            else:
+                # local file
+                logger.debug(f"Exporting qq info into '{file}'.")
+                with file.open("w") as output:
+                    output.write(content)
         except Exception as e:
             raise QQError(f"Cannot create or write to file '{file}': {e}") from e
 
@@ -299,26 +322,38 @@ class QQInformer:
         return self.info.batch_system
 
     @classmethod
-    def fromFile(cls, file: Path) -> Self:
+    def fromFile(cls, file: Path, host: str | None = None) -> Self:
         """
         Create a QQInformer by loading job information from a file.
 
+        If 'host' is provided, the file is read from the remote host; otherwise, it is read locally.
+
         Args:
-            file: Path to a YAML file containing job information.
+            file (Path): Path to a YAML file containing job information.
+            host (str | None): Optional remote host from which to read the file.
 
         Returns:
-            An instance of QQInformer initialized with the loaded QQInfo.
-        """
-        return cls(QQInfo.fromFile(file))
+            QQInformer: An instance initialized with the loaded QQInfo.
 
-    def toFile(self, file: Path):
+        Raises:
+            QQError: If the file cannot be read, reached, or parsed correctly.
+        """
+        return cls(QQInfo.fromFile(file, host))
+
+    def toFile(self, file: Path, host: str | None = None):
         """
         Export the job information to a file.
 
+        If 'host' is provided, the file is written to the remote host; otherwise, it is written locally.
+
         Args:
-            file: Path to the output YAML file.
+            file (Path): Path to the output YAML file.
+            host (str | None): Optional remote host where the file should be written.
+
+        Raises:
+            QQError: If the file cannot be created, reached, or written to.
         """
-        self.info.toFile(file)
+        self.info.toFile(file, host)
 
     def setRunning(self, time: datetime, main_node: str, work_dir: Path):
         """
@@ -415,6 +450,9 @@ class QQInformer:
             NaiveState.KILLED,
             NaiveState.UNKNOWN,
         }:
+            logger.debug(
+                "Short-circuiting getRealState: the batch state will not affect the result."
+            )
             return RealState.fromStates(self.info.job_state, BatchState.UNKNOWN)
 
         return RealState.fromStates(self.info.job_state, self.getBatchState())

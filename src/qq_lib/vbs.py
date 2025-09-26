@@ -174,6 +174,10 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     def envName() -> str:
         return "VBS"
 
+    def isAvailable() -> bool:
+        # always available
+        return True
+
     def getScratchDir(job_id: str) -> Path:
         job = QQVBS._batch_system.jobs.get(job_id)
         if not job:
@@ -211,11 +215,35 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
                 f"Could not reach '{host}:{str(directory)}': Could not change directory."
             )
 
+    def readRemoteFile(_host: str, file: Path) -> str:
+        # file is always local
+        try:
+            return file.read_text()
+        except Exception as e:
+            raise QQError(f"Could not read file '{file}': {e}.") from e
+
+    def writeRemoteFile(_host: str, file: Path, content: str):
+        # file is always local
+        try:
+            file.write_text(content)
+        except Exception as e:
+            raise QQError(f"Could not write file '{file}': {e}.") from e
+
+    def syncDirectories(
+        src_dir: Path,
+        dest_dir: Path,
+        _src_host: str | None,
+        _dest_host: str | None,
+        exclude_files: list[Path] | None = None,
+    ):
+        # directories are always local
+        QQBatchInterface.syncDirectories(src_dir, dest_dir, None, None, exclude_files)
+
     def getJobInfo(job_id: str) -> VBSJobInfo:
         return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]
 
 
-# register the batch system
+# register QQVBS
 QQBatchMeta.register(QQVBS)
 
 

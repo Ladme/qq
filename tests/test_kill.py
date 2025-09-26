@@ -11,14 +11,22 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
+from qq_lib.batch import QQBatchMeta
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.kill import QQKiller, kill
+from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
 from qq_lib.submit import QQSubmitter, submit
 from qq_lib.vbs import QQVBS
+
+
+@pytest.fixture(autouse=True)
+def register():
+    QQBatchMeta.register(QQPBS)
+    QQBatchMeta.register(QQVBS)
 
 
 @pytest.fixture
@@ -219,10 +227,7 @@ def test_kill_queued_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with (
-            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "isShared", return_value=True),
-        ):
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],
@@ -258,10 +263,7 @@ def test_kill_booting_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with (
-            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "isShared", return_value=True),
-        ):
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],
@@ -303,10 +305,7 @@ def test_kill_running_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with (
-            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "isShared", return_value=True),
-        ):
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],
@@ -358,10 +357,7 @@ def test_kill_finished_integration(tmp_path, forced):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
-        with (
-            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "isShared", return_value=True),
-        ):
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
                 ["default", str(script_file), "--batch-system", "VBS"],

@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from qq_lib.common import (
+    convert_absolute_to_relative,
     equals_normalized,
     get_files_with_suffix,
     get_info_file,
@@ -123,3 +124,44 @@ def test_equals_normalized_true(a, b):
 )
 def test_equals_normalized_false(a, b):
     assert equals_normalized(a, b) is False
+
+
+def test_convert_absolute_to_relative_success(tmp_path):
+    target = tmp_path
+    file1 = target / "a.txt"
+    file2 = target / "subdir" / "b.txt"
+    file2.parent.mkdir()
+    file1.write_text("data1")
+    file2.write_text("data2")
+
+    result = convert_absolute_to_relative([file1, file2], target)
+
+    assert result == [Path("a.txt"), Path("subdir") / "b.txt"]
+
+
+def test_convert_absolute_to_relative_file_outside_target(tmp_path):
+    target = tmp_path / "target"
+    outside = tmp_path / "outside.txt"
+    target.mkdir()
+    outside.write_text("oops")
+
+    with pytest.raises(QQError, match="is not in target directory"):
+        convert_absolute_to_relative([outside], target)
+
+
+def test_convert_absolute_to_relative_empty_list(tmp_path):
+    target = tmp_path
+    result = convert_absolute_to_relative([], target)
+    assert result == []
+
+
+def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
+    target = tmp_path / "target"
+    target.mkdir()
+    inside = target / "file.txt"
+    inside.write_text("inside")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside")
+
+    with pytest.raises(QQError):
+        convert_absolute_to_relative([inside, outside], target)

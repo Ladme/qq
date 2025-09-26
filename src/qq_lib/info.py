@@ -120,8 +120,8 @@ class QQInfo:
         """
         Load a QQInfo instance from a YAML file, either locally or on a remote host.
 
-        If 'host' is provided, the file will be read from the remote host using
-        the batch system's 'readRemoteFile' method. Otherwise, the file is read locally.
+        If `host` is provided, the file will be read from the remote host using
+        the batch system's `readRemoteFile` method. Otherwise, the file is read locally.
 
         Args:
             file (Path): Path to the YAML qq info file.
@@ -166,8 +166,8 @@ class QQInfo:
         """
         Export this QQInfo instance to a YAML file, either locally or on a remote host.
 
-        If 'host' is provided, the file will be written to the remote host using
-        the batch system's 'writeRemoteFile' method. Otherwise, the file is written locally.
+        If `host` is provided, the file will be written to the remote host using
+        the batch system's `writeRemoteFile` method. Otherwise, the file is written locally.
 
         Args:
             file (Path): Path to write the YAML file.
@@ -344,7 +344,7 @@ class QQInformer:
         """
         Export the job information to a file.
 
-        If 'host' is provided, the file is written to the remote host; otherwise, it is written locally.
+        If `host` is provided, the file is written to the remote host; otherwise, it is written locally.
 
         Args:
             file (Path): Path to the output YAML file.

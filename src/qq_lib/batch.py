@@ -24,7 +24,7 @@ class BatchJobInfoInterface(ABC):
     Must support situations where the job information no longer exists.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of ``QQBatchInterface.getJobInfo``.
+    be used inside the corresponding implementation of `QQBatchInterface.getJobInfo`.
     """
 
     @abstractmethod
@@ -42,7 +42,7 @@ class BatchJobInfoInterface(ABC):
         """
         Return the current state of the job as reported by the batch system.
 
-        If the job information is no longer available, return ``BatchState.UNKNOWN``.
+        If the job information is no longer available, return `BatchState.UNKNOWN`.
 
         Returns:
             BatchState: The job state according to the batch system.

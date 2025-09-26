@@ -177,8 +177,8 @@ def convert_absolute_to_relative(files: list[Path], target: Path) -> list[Path]:
     """
     Convert a list of absolute paths into paths relative to a target directory.
 
-    Each file in 'files' must be located inside 'target' or one of its
-    subdirectories. If any file is outside 'target', a 'QQError' is raised.
+    Each file in `files` must be located inside `target` or one of its
+    subdirectories. If any file is outside `target`, a `QQError` is raised.
 
     This function works even for remote files or paths to non-existent files.
 
@@ -187,10 +187,10 @@ def convert_absolute_to_relative(files: list[Path], target: Path) -> list[Path]:
         target (Path): The target directory against which paths are made relative.
 
     Returns:
-        list[Path]: A list of paths relative to 'target'.
+        list[Path]: A list of paths relative to `target`.
 
     Raises:
-        QQError: If any file in 'files' is not located within 'target'.
+        QQError: If any file in `files` is not located within `target`.
     """
     relative = []
     target_parts = target.parts

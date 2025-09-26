@@ -141,7 +141,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         Notes:
             If the current working directory is on shared storage, the environment
-            variable 'SHARED_SUBMIT' is set.
+            variable `SHARED_SUBMIT` is set.
         """
         if QQPBS._isShared(Path()):
             os.environ[SHARED_SUBMIT] = "true"

@@ -311,9 +311,10 @@ def test_sync_directories_rsync_failure(tmp_path, monkeypatch):
     (src / "file.txt").write_text("data")
 
     # patch subprocess.run to simulate rsync failure
-    def fake_run(_command, capture_output=True, text=True):
+    def fake_run(_command, capture_output=True, text=True, timeout=0.0):
         _ = capture_output
         _ = text
+        _ = timeout
 
         class Result:
             returncode = 1

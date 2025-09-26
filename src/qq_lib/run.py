@@ -365,12 +365,7 @@ class QQRunner:
             QQError: If scratch directory cannot be determined.
         """
         # get scratch directory (this directory should be created and allocated by the batch system)
-        scratch_dir = QQRetryer(
-            self._batch_system.getScratchDir,
-            self._informer.info.job_id,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
-        ).run()
+        scratch_dir = self._batch_system.getScratchDir(self._informer.info.job_id)
 
         # create working directory inside the scratch directory allocated by the batch system
         # we create this directory because other processes may write files
@@ -378,22 +373,12 @@ class QQRunner:
         # to affect the job execution or be copied back to job_dir
         # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
-        QQRetryer(
-            Path.mkdir,
-            self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
-        ).run()
+        Path.mkdir(self._work_dir)
 
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
 
         # move to the working directory
-        QQRetryer(
-            os.chdir,
-            self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
-        ).run()
+        os.chdir(self._work_dir)
 
         # copy files to the working directory excluding the qq info file
         QQRetryer(
@@ -414,12 +399,8 @@ class QQRunner:
         Used only after successful execution in scratch space.
         """
         logger.debug(f"Removing working directory '{self._work_dir}'.")
-        QQRetryer(
-            shutil.rmtree,
-            self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
-        ).run()
+        # even if this fails, the data area already copied
+        shutil.rmtree(self._work_dir)
 
     def _updateInfoRunning(self):
         """
@@ -516,7 +497,7 @@ class QQRunner:
 
     def _reloadInfoAndCheckKill(self):
         """
-        Reload the QQ job info file and check the job's state.
+        Reload the qq job info file and check the job's state.
 
         If the job state is `KILLED`, the process exits immediately with code 93.
 

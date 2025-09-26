@@ -8,7 +8,7 @@ from abc import ABC, ABCMeta, abstractmethod
 from pathlib import Path
 
 from qq_lib.common import convert_absolute_to_relative
-from qq_lib.constants import BATCH_SYSTEM, SSH_TIMEOUT
+from qq_lib.constants import BATCH_SYSTEM, RSYNC_TIMEOUT, SSH_TIMEOUT
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
@@ -360,7 +360,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
                 These will be converted to paths relative to `src_dir`.
 
         Raises:
-            QQError: If the rsync command fails for any reason.
+            QQError: If the rsync command fails for any reason or timeouts.
         """
         # convert absolute paths of files to exclude into relative to src_dir
         relative_excluded = (
@@ -374,12 +374,20 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         )
         logger.debug(f"Rsync command: {command}.")
 
+        src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
+        dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
+
         # run the rsync command
-        result = subprocess.run(command, capture_output=True, text=True)
+        try:
+            result = subprocess.run(
+                command, capture_output=True, text=True, timeout=RSYNC_TIMEOUT
+            )
+        except subprocess.TimeoutExpired as e:
+            raise QQError(
+                f"Could not rsync files between '{src}' and '{dest}': Connection timed out after {RSYNC_TIMEOUT} seconds."
+            ) from e
 
         if result.returncode != 0:
-            src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
-            dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
             raise QQError(
                 f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}."
             )

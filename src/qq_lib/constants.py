@@ -56,11 +56,15 @@ SCRATCH_DIR_INNER = "main"
 # SSH connection timeout in seconds
 SSH_TIMEOUT = 60
 
+# RSYNC operation timeout in seconds
+# (i.e., copying files to/from work_dir cannot take longer than this time)
+RSYNC_TIMEOUT = 600
+
 # Maximum number of retry attempts for operations in QQRunner.
-RUNNER_RETRY_TRIES = 5
+RUNNER_RETRY_TRIES = 3
 
 # Wait time in seconds between retry attempts in QQRunner.
-RUNNER_RETRY_WAIT = 60
+RUNNER_RETRY_WAIT = 120
 
 # Time in seconds between sending a SIGTERM signal to the running process and sending a SIGKILL signal
 RUNNER_SIGTERM_TO_SIGKILL = 5

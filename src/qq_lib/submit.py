@@ -20,6 +20,7 @@ from qq_lib.clear import QQClearer
 from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import yes_or_no_prompt
 from qq_lib.constants import (
+    BATCH_SYSTEM,
     GUARD,
     INFO_FILE,
     INPUT_MACHINE,
@@ -99,7 +100,7 @@ def submit(queue, script, **kwargs):
     Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
     try:
-        BatchSystem = QQBatchMeta.fromStrOrGuess(kwargs.get("batch_system"))
+        BatchSystem = QQBatchMeta.obtain(kwargs.get("batch_system"))
         submitter = QQSubmitter(
             BatchSystem, queue, Path(script), BatchSystem.buildResources(**kwargs)
         )
@@ -275,6 +276,9 @@ class QQSubmitter:
 
         # this contains the name of the input host
         os.environ[INPUT_MACHINE] = socket.gethostname()
+
+        # this contains the name of the used batch system
+        os.environ[BATCH_SYSTEM] = str(self._batch_system)
 
     def _hasValidShebang(self, script: Path) -> bool:
         """

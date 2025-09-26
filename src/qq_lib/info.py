@@ -146,7 +146,7 @@ class QQInfo:
                 # remote file
                 logger.debug(f"Loading qq info from '{file}' on '{host}'.")
 
-                BatchSystem = QQBatchMeta.guess()
+                BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
                 data: dict[str, object] = yaml.safe_load(
                     BatchSystem.readRemoteFile(host, file)
                 )

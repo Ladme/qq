@@ -40,6 +40,8 @@ INPUT_MACHINE = "QQ_INPUT_MACHINE"
 # Indicates whether the job was submitted from shared storage
 SHARED_SUBMIT = "QQ_SHARED_SUBMIT"
 
+# Name of the batch system to use.
+BATCH_SYSTEM = "QQ_BATCH_SYSTEM"
 
 # ----------------------------
 # OTHER CONSTANTS

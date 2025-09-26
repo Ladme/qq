@@ -1,13 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import os
 import socket
 import subprocess
 from abc import ABC, ABCMeta, abstractmethod
 from pathlib import Path
 
 from qq_lib.common import convert_absolute_to_relative
-from qq_lib.constants import SSH_TIMEOUT
+from qq_lib.constants import BATCH_SYSTEM, SSH_TIMEOUT
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.resources import QQResources
@@ -532,21 +533,50 @@ class QQBatchMeta(ABCMeta):
         )
 
     @classmethod
-    def fromStrOrGuess(mcs, name: str | None) -> type[QQBatchInterface]:
+    def fromEnvVarOrGuess(mcs) -> type[QQBatchInterface]:
         """
-        Return a registered batch system class by name, or guess one if no name is given.
+        Select a batch system based on the environment variable or by guessing.
 
-        Args:
-            name (str | None): Name of the batch system to retrieve, or None to guess.
+        This method first checks the `BATCH_SYSTEM` environment variable. If it is set,
+        the method returns the registered batch system class corresponding to its value.
+        If the variable is not set, it falls back to `guess` to select an available
+        batch system from the registered classes.
 
         Returns:
-            type[QQBatchInterface]: The batch system class corresponding to `name` or
-            the first available registered batch system.
+            type[QQBatchInterface]: The selected batch system class.
 
         Raises:
-            QQError: If the named batch system is not registered, or if no batch system
-            can be guessed when `name` is None.
+            QQError: If the environment variable is set to an unknown batch system name,
+                    or if no available batch system can be guessed.
+        """
+        name = os.environ.get(BATCH_SYSTEM)
+        if name:
+            logger.debug(
+                f"Using batch system name from an environment variable: {name}."
+            )
+            return QQBatchMeta.fromStr(name)
+
+        return QQBatchMeta.guess()
+
+    @classmethod
+    def obtain(mcs, name: str | None) -> type[QQBatchInterface]:
+        """
+        Obtain a batch system class by name, environment variable, or guessing.
+
+        Args:
+            name (str | None): Optional name of the batch system to obtain.
+                - If provided, returns the class registered under this name.
+                - If `None`, falls back to `fromEnvVarOrGuess` to determine
+                the batch system from the environment variable or by guessing.
+
+        Returns:
+            type[QQBatchInterface]: The selected batch system class.
+
+        Raises:
+            QQError: If `name` is provided but no batch system with that name is registered,
+                    or if `name` is `None` and `fromEnvVarOrGuess` fails.
         """
         if name:
-            return mcs.fromStr(name)
-        return mcs.guess()
+            return QQBatchMeta.fromStr(name)
+
+        return QQBatchMeta.fromEnvVarOrGuess()

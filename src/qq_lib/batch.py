@@ -511,9 +511,10 @@ class QQBatchMeta(ABCMeta):
         Raises:
             QQError: If no class is registered for the given name.
         """
-        if name not in mcs._registry:
-            raise QQError(f"No batch system registered as '{name}'.")
-        return mcs._registry[name]
+        try:
+            return mcs._registry[name]
+        except KeyError as e:
+            raise QQError(f"No batch system registered as '{name}'.") from e
 
     @classmethod
     def guess(mcs) -> type[QQBatchInterface]:

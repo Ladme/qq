@@ -68,3 +68,6 @@ RUNNER_RETRY_WAIT = 120
 
 # Time in seconds between sending a SIGTERM signal to the running process and sending a SIGKILL signal
 RUNNER_SIGTERM_TO_SIGKILL = 5
+
+# Time in seconds to wait before rechecking job state when queued.
+GOER_WAIT_TIME = 5

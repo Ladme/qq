@@ -90,7 +90,7 @@ def kill(yes: bool = False, force: bool = False):
 
     n_suitable = 0  # number of jobs suitable to be killed
     n_successful_kills = 0  # number of successful kills
-    for i, file in enumerate(info_files):
+    for file in info_files:
         try:
             killer = QQKiller(file, force)
             killer.printInfo()
@@ -122,10 +122,11 @@ def kill(yes: bool = False, force: bool = False):
             sys.exit(99)
 
     if n_suitable == 0:
-        logger.error("No qq job suitable for killing. Try using 'qq kill --force'.\n")
+        logger.error("No qq job suitable for 'qq kill'. Try using 'qq kill --force'.\n")
         sys.exit(91)
 
     if n_successful_kills == 0:
+        print()
         sys.exit(91)
 
     print()

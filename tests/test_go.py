@@ -22,6 +22,12 @@ from qq_lib.vbs import QQVBS
 
 
 @pytest.fixture(autouse=True)
+def patch_wait_time():
+    with patch("qq_lib.go.GOER_WAIT_TIME", 0.1):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def register():
     QQBatchMeta.register(QQPBS)
     QQBatchMeta.register(QQVBS)
@@ -195,7 +201,6 @@ def test_check_and_navigate(tmp_path, state, in_workdir, sample_info):
     goer._host = socket.gethostname()
     goer._batch_system = MagicMock()
     goer._info_file = tmp_path / "dummy.qqinfo"
-    goer._wait_time = 0.1
     goer._informer = QQInformer(sample_info)
 
     goer._navigate = MagicMock()

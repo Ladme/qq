@@ -10,7 +10,8 @@ import click
 from rich.console import Console
 
 from qq_lib.click_format import GNUHelpColorsCommand
-from qq_lib.common import get_info_file
+from qq_lib.common import get_info_files
+from qq_lib.constants import GOER_WAIT_TIME
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
@@ -30,19 +31,48 @@ def go():
     """
     Go to the working directory of the qq job submitted from this directory.
     """
-    try:
-        goer = QQGoer(Path())
-        goer.printInfo()
-        goer.checkAndNavigate()
-        print()
-        sys.exit(0)
-    except QQError as e:
-        logger.error(e)
+    info_files = get_info_files(Path())
+    if not info_files:
+        logger.error("No qq job info file found.\n")
+        sys.exit(91)
+
+    n_suitable = 0  # number of jobs suitable to be navigated to
+    n_successful = 0  # number of jobs succesfully navigated to
+    for file in info_files:
+        try:
+            goer = QQGoer(file)
+            goer.printInfo()
+            if goer.isFinished():
+                if len(info_files) > 1:
+                    logger.info(
+                        "Job has finished and was synchronized: working directory does not exist."
+                    )
+                    continue
+                n_suitable -= 1
+                # continue in the current cycle if only one info file
+                # will fail in the next step and return a proper error
+
+            n_suitable += 1
+            goer.checkAndNavigate()
+            n_successful += 1
+        except QQError as e:
+            logger.error(e)
+        except Exception as e:
+            logger.critical(e, exc_info=True, stack_info=True)
+            print()
+            # exit always, this is a bug
+            sys.exit(99)
+
+    if n_suitable == 0 and len(info_files) > 1:
+        logger.error("No qq job suitable for 'qq go'.\n")
+        sys.exit(91)
+
+    if n_successful == 0:
         print()
         sys.exit(91)
-    except Exception as e:
-        logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(99)
+
+    print()
+    sys.exit(0)
 
 
 class QQGoer:
@@ -51,19 +81,17 @@ class QQGoer:
     submitted from the current directory.
     """
 
-    def __init__(self, current_dir: Path):
+    def __init__(self, info_file: Path):
         """
         Initialize a QQGoer instance for a given directory.
 
         Args:
-            current_dir (Path): Directory from which the qq job was submitted.
+            info_file (Path): Path to the qq info file.
 
         Notes:
             Reads the qq info file and sets up the initial state and destination.
         """
-        self._info_file = get_info_file(current_dir)
-        # time in seconds to wait before rechecking job state when queued
-        self._wait_time = 5
+        self._info_file = info_file
         self.update()
 
     def printInfo(self):
@@ -100,7 +128,7 @@ class QQGoer:
             logger.info("You are already in the working directory.")
             return
 
-        if self._isFinished():
+        if self.isFinished():
             raise QQError(
                 "Job has finished and was synchronized: working directory does not exist."
             )
@@ -112,11 +140,11 @@ class QQGoer:
             logger.warning("Job has been killed: working directory may not exist.")
         elif self._isQueued():
             logger.warning(
-                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {self._wait_time} seconds."
+                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {GOER_WAIT_TIME} seconds."
             )
             # keep retrying until the job gets run
             while self._isQueued():
-                sleep(self._wait_time)
+                sleep(GOER_WAIT_TIME)
                 self.update()
 
                 if self._isInWorkDir():
@@ -196,7 +224,7 @@ class QQGoer:
         """Check if the job has been killed."""
         return self._state == RealState.KILLED
 
-    def _isFinished(self) -> bool:
+    def isFinished(self) -> bool:
         """Check if the job has finished succesfully."""
         return self._state == RealState.FINISHED
 

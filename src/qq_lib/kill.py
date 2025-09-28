@@ -16,7 +16,7 @@ import click
 from rich.console import Console
 
 from qq_lib.click_format import GNUHelpColorsCommand
-from qq_lib.common import get_info_file, yes_or_no_prompt
+from qq_lib.common import get_info_files, yes_or_no_prompt
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
@@ -28,7 +28,7 @@ console = Console()
 
 @click.command(
     short_help="Terminate the qq job.",
-    help="""Terminate the qq job in this directory.
+    help="""Terminate the qq job(s) in this directory.
 
 Unless the `-y` or `--force` flag is used, `qq kill` always
 asks for confirmation before killing a job.
@@ -50,7 +50,7 @@ already finished or killed. This can be used to remove lingering (stuck) jobs.""
 )
 def kill(yes: bool = False, force: bool = False):
     """
-    Terminate a qq job submitted from the current directory.
+    Terminate a qq job or multiple qq jobs submitted from the current directory.
 
     Unless the `-y` or `--force` flag is used, `qq kill` always
     asks for confirmation before killing a job.
@@ -82,30 +82,54 @@ def kill(yes: bool = False, force: bool = False):
         - Normal (non-forced) termination: `qq run` is responsible for
             updating the job state in the info file once the job is terminated.
     """
-    try:
-        killer = QQKiller(Path(), force)
-        killer.printInfo()
+    # get all job info files
+    info_files = get_info_files(Path())
+    if not info_files:
+        logger.error("No qq job info file found.\n")
+        sys.exit(91)
 
-        if killer.shouldTerminate():
+    n_suitable = 0  # number of jobs suitable to be killed
+    n_successful_kills = 0  # number of successful kills
+    for i, file in enumerate(info_files):
+        try:
+            killer = QQKiller(file, force)
+            killer.printInfo()
+
+            # check whether the job can be killed
+            if not killer.shouldTerminate():
+                if len(info_files) > 1:
+                    logger.info("Job not suitable for killing.")
+                continue
+
+            n_suitable += 1
+            # perform the kill if confirmed
             if force or yes or killer.askForConfirm():
+                # shouldUpdate must be called before terminate
+                # since terminate can update the state of the job
                 should_update = killer.shouldUpdateInfoFile()
                 killer.terminate()
                 if should_update:
                     killer.updateInfoFile()
+                n_successful_kills += 1
                 logger.info(f"Killed the job '{killer.getJobId()}'.")
-        else:
-            raise QQError(
-                "Job is already completed or terminated. Try using the '--force' option."
-            )
-        print()
-        sys.exit(0)
-    except QQError as e:
-        logger.error(e)
-        print()
+
+        except QQError as e:
+            logger.error(e)
+        except Exception as e:
+            logger.critical(e, exc_info=True, stack_info=True)
+            print()
+            # exit always, this is a bug
+            sys.exit(99)
+
+    if n_suitable == 0:
+        logger.error("No qq job suitable for killing. Try using 'qq kill --force'.\n")
         sys.exit(91)
-    except Exception as e:
-        logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(99)
+
+    if n_successful_kills == 0:
+        sys.exit(91)
+
+    print()
+    sys.exit(0)
 
 
 class QQKiller:
@@ -113,15 +137,15 @@ class QQKiller:
     Class to manage the termination of a qq job.
     """
 
-    def __init__(self, current_dir: Path, forced: bool):
+    def __init__(self, info_file: Path, forced: bool):
         """
         Initialize a QQKiller instance.
 
         Args:
-            current_dir (Path): Directory containing the qq job info file.
+            info_file (Path): Path to the qq info file.
             forced (bool): Whether to forcefully terminate the job.
         """
-        self._info_file = get_info_file(current_dir)
+        self._info_file = info_file
         self._informer = QQInformer.fromFile(self._info_file)
         self._batch_system = self._informer.batch_system
         self._state = self._informer.getRealState()

@@ -223,10 +223,10 @@ def test_kill_queued_integration(tmp_path, forced):
     script_file.write_text("#!/bin/bash\nsleep 5\n")
     script_file.chmod(0o755)
 
-    # submit the job using VBSS
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
+        # submit the job using VBS
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
@@ -235,6 +235,7 @@ def test_kill_queued_integration(tmp_path, forced):
         assert result_submit.exit_code == 0
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
 
         assert result_kill.exit_code == 0
 
@@ -259,10 +260,10 @@ def test_kill_booting_integration(tmp_path, forced):
     script_file.write_text("#!/bin/bash\nsleep 5\n")
     script_file.chmod(0o755)
 
-    # submit the job using VBSS
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
+        # submit the job using VBS
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
@@ -277,6 +278,7 @@ def test_kill_booting_integration(tmp_path, forced):
         QQVBS._batch_system.runJob(job_id)
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
 
         assert result_kill.exit_code == 0
 
@@ -301,10 +303,10 @@ def test_kill_running_integration(tmp_path, forced):
     script_file.write_text("#!/bin/bash\nsleep 5\n")
     script_file.chmod(0o755)
 
-    # submit the job using VBSS
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
+        # submit the job using VBS
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
@@ -319,12 +321,11 @@ def test_kill_running_integration(tmp_path, forced):
         QQVBS._batch_system.runJob(job_id)
 
         # set the job as running in qq info
-        info_file = tmp_path / "test_script.qqinfo"
-        informer = QQInformer.fromFile(info_file)
         informer.setRunning(datetime.now(), "main.node.org", tmp_path)
         informer.toFile(info_file)
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
 
         assert result_kill.exit_code == 0
 
@@ -353,10 +354,10 @@ def test_kill_finished_integration(tmp_path, forced):
     script_file.write_text("#!/bin/bash\necho Hello\n")
     script_file.chmod(0o755)
 
-    # submit the job using VBSS
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
 
+        # submit the job using VBS
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
@@ -373,12 +374,11 @@ def test_kill_finished_integration(tmp_path, forced):
         sleep(0.3)
 
         # set the job as finished in qq info
-        info_file = tmp_path / "test_script.qqinfo"
-        informer = QQInformer.fromFile(info_file)
         informer.setFinished(datetime.now())
         informer.toFile(info_file)
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
 
         # check that the qq info file exists and is not updated
         assert result_kill.exit_code == 91
@@ -388,5 +388,235 @@ def test_kill_finished_integration(tmp_path, forced):
 
         # check that the VBS job is marked finished
         job_id = informer.info.job_id
+        job = QQVBS._batch_system.jobs[job_id]
+        assert job.state == BatchState.FINISHED
+
+
+@pytest.mark.parametrize("forced", [False, True])
+def test_kill_no_job_integration(tmp_path, forced):
+    QQVBS._batch_system.clearJobs()
+    runner = CliRunner()
+    script_file = tmp_path / "test_script.sh"
+    script_file.write_text("#!/bin/bash\nsleep 5\n")
+    script_file.chmod(0o755)
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        os.chdir(tmp_path)
+
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        assert result_kill.exit_code == 91
+        assert "No qq job info file found" in result_kill.stderr
+
+
+@pytest.mark.parametrize("forced", [False, True])
+def test_kill_finished_and_queued_integration(tmp_path, forced):
+    QQVBS._batch_system.clearJobs()
+    runner = CliRunner()
+    script_file = tmp_path / "test_script.sh"
+    script_file.write_text("#!/bin/bash\necho Hello\n")
+    script_file.chmod(0o755)
+
+    script_file2 = tmp_path / "test_script2.sh"
+    script_file2.write_text("#!/bin/bash\necho Hello\n")
+    script_file2.chmod(0o755)
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        os.chdir(tmp_path)
+
+        # submit the first job using VBS
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+            result_submit = runner.invoke(
+                submit,
+                ["default", str(script_file), "--batch-system", "VBS"],
+            )
+        assert result_submit.exit_code == 0
+
+        # submit the second job (ignore duplicate files)
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+        ):
+            result_submit = runner.invoke(
+                submit,
+                ["default", str(script_file2), "--batch-system", "VBS"],
+            )
+        assert result_submit.exit_code == 0
+
+        # run the first job
+        info_file = tmp_path / "test_script.qqinfo"
+        informer = QQInformer.fromFile(info_file)
+        job_id = informer.info.job_id
+        QQVBS._batch_system.runJob(job_id)
+
+        sleep(0.3)
+
+        # set the first job as finished in qq info
+        informer.setFinished(datetime.now())
+        informer.toFile(info_file)
+
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
+        assert result_kill.exit_code == 0
+
+        # check that the first job info file is not updated
+        info_file = tmp_path / "test_script.qqinfo"
+        informer = QQInformer.fromFile(info_file)
+        informer.info.job_state == NaiveState.FINISHED
+
+        # check that the VBS job is marked finished
+        job_id = informer.info.job_id
+        job = QQVBS._batch_system.jobs[job_id]
+        assert job.state == BatchState.FINISHED
+
+        # check the second job
+        info_file2 = tmp_path / "test_script2.qqinfo"
+        informer2 = QQInformer.fromFile(info_file2)
+        informer2.info.job_state == NaiveState.KILLED
+
+        job_id = informer2.info.job_id
+        job = QQVBS._batch_system.jobs[job_id]
+        assert job.state == BatchState.FINISHED
+
+
+@pytest.mark.parametrize("forced", [False, True])
+def test_kill_finished_and_failed_integration(tmp_path, forced):
+    QQVBS._batch_system.clearJobs()
+    runner = CliRunner()
+    script_file = tmp_path / "test_script.sh"
+    script_file.write_text("#!/bin/bash\necho Hello\n")
+    script_file.chmod(0o755)
+
+    script_file2 = tmp_path / "test_script2.sh"
+    script_file2.write_text("#!/bin/bash\necho Hello\nexit 1\n")
+    script_file2.chmod(0o755)
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        os.chdir(tmp_path)
+
+        # submit the first job using VBS
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+            result_submit = runner.invoke(
+                submit,
+                ["default", str(script_file), "--batch-system", "VBS"],
+            )
+        assert result_submit.exit_code == 0
+
+        # submit the second job (ignore duplicate files)
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+        ):
+            result_submit = runner.invoke(
+                submit,
+                ["default", str(script_file2), "--batch-system", "VBS"],
+            )
+        assert result_submit.exit_code == 0
+
+        # run the first job
+        info_file = tmp_path / "test_script.qqinfo"
+        informer = QQInformer.fromFile(info_file)
+        job_id = informer.info.job_id
+        QQVBS._batch_system.runJob(job_id)
+
+        # run the second job
+        info_file2 = tmp_path / "test_script2.qqinfo"
+        informer2 = QQInformer.fromFile(info_file2)
+        job_id2 = informer2.info.job_id
+        QQVBS._batch_system.runJob(job_id2)
+
+        sleep(0.3)
+
+        # set the first job as finished in qq info
+        informer.setFinished(datetime.now())
+        informer.toFile(info_file)
+
+        # set the second job as failed in qq info
+        informer2.setFailed(datetime.now(), 2)
+        informer2.toFile(info_file2)
+
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
+        assert result_kill.exit_code == 91
+
+        # check that neither info file is updated
+        info_file = tmp_path / "test_script.qqinfo"
+        informer = QQInformer.fromFile(info_file)
+        informer.info.job_state == NaiveState.FINISHED
+
+        # check that the VBS job is marked finished
+        job_id = informer.info.job_id
+        job = QQVBS._batch_system.jobs[job_id]
+        assert job.state == BatchState.FINISHED
+
+        # check the second job
+        info_file2 = tmp_path / "test_script2.qqinfo"
+        informer2 = QQInformer.fromFile(info_file2)
+        informer2.info.job_state == NaiveState.FAILED
+
+        job_id = informer2.info.job_id
+        job = QQVBS._batch_system.jobs[job_id]
+        assert job.state == BatchState.FINISHED
+
+
+@pytest.mark.parametrize("forced", [False, True])
+def test_kill_queued_and_running_integration(tmp_path, forced):
+    QQVBS._batch_system.clearJobs()
+    runner = CliRunner()
+    script_file = tmp_path / "test_script.sh"
+    script_file.write_text("#!/bin/bash\nsleep 5\n")
+    script_file.chmod(0o755)
+
+    script_file2 = tmp_path / "test_script2.sh"
+    script_file2.write_text("#!/bin/bash\necho Hello\n")
+    script_file2.chmod(0o755)
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        os.chdir(tmp_path)
+
+        # submit the first job using VBS
+        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+            result_submit = runner.invoke(
+                submit,
+                ["default", str(script_file), "--batch-system", "VBS"],
+            )
+        assert result_submit.exit_code == 0
+
+        # submit the second job (ignore duplicate files)
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+        ):
+            result_submit = runner.invoke(
+                submit,
+                ["default", str(script_file2), "--batch-system", "VBS"],
+            )
+        assert result_submit.exit_code == 0
+
+        # run the first job
+        info_file = tmp_path / "test_script.qqinfo"
+        informer = QQInformer.fromFile(info_file)
+        job_id = informer.info.job_id
+        QQVBS._batch_system.runJob(job_id)
+
+        result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
+        sleep(0.1)
+        assert result_kill.exit_code == 0
+
+        # the first (running) job's info file should not be updated (responsibility of qq run)
+        info_file = tmp_path / "test_script.qqinfo"
+        informer = QQInformer.fromFile(info_file)
+        informer.info.job_state == NaiveState.RUNNING
+
+        # check that the VBS job is marked finished
+        job_id = informer.info.job_id
+        job = QQVBS._batch_system.jobs[job_id]
+        assert job.state == BatchState.FINISHED
+
+        # check the second job
+        info_file2 = tmp_path / "test_script2.qqinfo"
+        informer2 = QQInformer.fromFile(info_file2)
+        informer2.info.job_state == NaiveState.KILLED
+
+        job_id = informer2.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
         assert job.state == BatchState.FINISHED

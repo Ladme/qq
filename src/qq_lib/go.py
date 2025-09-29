@@ -52,6 +52,14 @@ def go():
                 # continue in the current cycle if only one info file
                 # will fail in the next step and return a proper error
 
+            if goer.isKilled() and not goer.hasDestination():
+                if len(info_files) > 1:
+                    logger.info(
+                        "Job has been killed and no working directory is available."
+                    )
+                    continue
+                n_suitable -= 1
+
             n_suitable += 1
             goer.checkAndNavigate()
             n_successful += 1
@@ -136,7 +144,11 @@ class QQGoer:
             logger.warning(
                 "Job has finished with an error code: working directory may no longer exist."
             )
-        elif self._isKilled():
+        elif self.isKilled():
+            if not self.hasDestination():
+                raise QQError(
+                    "Job has been killed and no working directory is available."
+                )
             logger.warning("Job has been killed: working directory may not exist.")
         elif self._isQueued():
             logger.warning(
@@ -158,6 +170,16 @@ class QQGoer:
         # navigate to the working directory
         self._navigate()
 
+    def hasDestination(self) -> bool:
+        """
+        Check that the job has an assigned host and working directory.
+
+        Returns:
+            bool: True if the job has both a host and a working directory,
+            False otherwise.
+        """
+        return self._directory and self._host
+
     def _navigate(self):
         """
         Navigate to the job's working directory using batch system-specific commands.
@@ -165,7 +187,7 @@ class QQGoer:
         Raises:
             QQError: If host or directory are undefined, or if navigation fails.
         """
-        if not self._directory or not self._host:
+        if not self.hasDestination():
             raise QQError(
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
@@ -190,7 +212,7 @@ class QQGoer:
         #   b) we are on the same machine
         return (
             self._directory is not None
-            and Path(self._directory).resolve() == Path.cwd().resolve()
+            and self._directory.resolve() == Path.cwd().resolve()
             and (not self._informer.useScratch() or self._host == socket.gethostname())
         )
 
@@ -220,7 +242,7 @@ class QQGoer:
             RealState.WAITING,
         }
 
-    def _isKilled(self) -> bool:
+    def isKilled(self) -> bool:
         """Check if the job has been killed."""
         return self._state == RealState.KILLED
 

@@ -375,3 +375,42 @@ def test_clear_failed_job_force_true(tmp_path, sample_info):
         assert not f.exists()
     # non-qq file should exist
     assert files[-1].exists()
+
+
+def _make_runtime_files_no_job(tmp_path: Path) -> list[Path]:
+    """
+    Create some qq files but not qqinfo file.
+    Returns the list of created files.
+    """
+    files = []
+    # make some other dummy qq files
+    for suffix in [QQ_OUT_SUFFIX, STDOUT_SUFFIX, STDERR_SUFFIX]:
+        f = tmp_path / f"job{suffix}"
+        f.write_text("dummy")
+        files.append(f)
+
+    # make dummy non-qq file
+    f = tmp_path / "job.result"
+    f.write_text("dummy")
+    files.append(f)
+
+    return files
+
+
+def test_clear_files_but_no_job(tmp_path):
+    # no job, but qq run files
+    files = _make_runtime_files_no_job(tmp_path)
+
+    runner = CliRunner()
+
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        os.chdir(tmp_path)
+        result = runner.invoke(clear)
+
+    assert result.exit_code == 0
+
+    # qq files should not exist
+    for f in files[:-1]:
+        assert not f.exists()
+    # non-qq file should exist
+    assert files[-1].exists()

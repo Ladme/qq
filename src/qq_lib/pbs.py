@@ -227,6 +227,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def _translateResources(res: QQResources) -> list[str]:
         """
         Convert QQResources into PBS-compatible resource strings.
+        Also performs additional validation.
 
         Args:
             res (QQResources): The resources requested for the job.
@@ -236,6 +237,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         """
         trans_res = []
         for name, value in res.toDict().items():
+            # work_dir handled separately
             if name in ["work_dir", "work_size"]:
                 continue
 

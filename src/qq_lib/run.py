@@ -373,12 +373,21 @@ class QQRunner:
         # to affect the job execution or be copied back to job_dir
         # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
-        Path.mkdir(self._work_dir)
-
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
+        QQRetryer(
+            Path.mkdir,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
         # move to the working directory
-        os.chdir(self._work_dir)
+        QQRetryer(
+            os.chdir,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
         # copy files to the working directory excluding the qq info file
         QQRetryer(

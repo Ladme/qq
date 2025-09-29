@@ -17,7 +17,7 @@ from qq_lib.go import QQGoer, go
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
-from qq_lib.states import NaiveState, RealState
+from qq_lib.states import BatchState, NaiveState, RealState
 from qq_lib.vbs import QQVBS
 
 
@@ -282,3 +282,53 @@ def test_go_command_failure_missing_path(tmp_path, sample_info):
 
         assert result.exit_code == 91
         assert Path.cwd().resolve() == tmp_path.resolve()
+
+
+def test_go_command_killed_workdir_exists(tmp_path, sample_info):
+    info_file = tmp_path / "job.qqinfo"
+    sample_info.toFile(info_file)
+
+    runner = CliRunner()
+    with patch.object(QQInformer, "getRealState", return_value=RealState.KILLED):
+        os.chdir(tmp_path)
+        result = runner.invoke(go)
+
+        assert result.exit_code == 0
+        assert Path.cwd().resolve() == sample_info.work_dir.resolve()
+
+
+def test_go_command_killed_workdir_does_not_exist(tmp_path, sample_info):
+    info_file = tmp_path / "job.qqinfo"
+    sample_info.work_dir = None
+    sample_info.toFile(info_file)
+
+    runner = CliRunner()
+    with patch.object(QQInformer, "getRealState", return_value=RealState.KILLED):
+        os.chdir(tmp_path)
+        result = runner.invoke(go)
+
+        assert result.exit_code == 91
+        assert Path.cwd().resolve() == tmp_path.resolve()
+
+
+def test_go_command_multiple_jobs(tmp_path, sample_info):
+    informer = QQInformer(sample_info)
+    informer.setFinished(datetime.now())
+    sample_info.toFile(tmp_path / "job.qqinfo")
+    informer.setRunning(datetime.now(), sample_info.main_node, sample_info.work_dir)
+    sample_info.toFile(tmp_path / "job2.qqinfo")
+    informer.setKilled(datetime.now())
+    sample_info.toFile(tmp_path / "job3.qqinfo")
+
+    runner = CliRunner()
+    with (
+        patch.object(QQInformer, "getBatchState", return_value=BatchState.UNKNOWN),
+        patch.object(QQGoer, "_navigate"),
+    ):
+        os.chdir(tmp_path)
+        result = runner.invoke(go)
+
+        assert result.exit_code == 0
+        assert "inconsistent state" in result.stdout
+        assert "killed" in result.stdout
+        assert "finished" in result.stdout

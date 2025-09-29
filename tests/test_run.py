@@ -733,3 +733,29 @@ def test_log_fatal_unexpected_error_logs_and_exits():
         "Failure state could not be logged into the job info file. Consider the job to be in an INCONSISTENT state!"
     )
     mock_logger.critical.assert_called_once_with(exc, exc_info=True, stack_info=True)
+
+
+def test_reload_info_running(tmp_path, sample_info):
+    info_file = tmp_path / "job.qqinfo"
+    sample_info.toFile(info_file)
+
+    runner = object.__new__(QQRunner)
+    runner._info_file = info_file
+    runner._input_machine = None
+
+    runner._reloadInfoAndCheckKill()
+    assert runner._informer.info.job_state == NaiveState.RUNNING
+
+
+def test_reload_info_killed_exits(tmp_path, sample_info):
+    info_file = tmp_path / "job.qqinfo"
+    informer = QQInformer(sample_info)
+    informer.setKilled(datetime.now())
+    informer.toFile(info_file)
+
+    runner = object.__new__(QQRunner)
+    runner._info_file = info_file
+    runner._input_machine = None
+
+    with pytest.raises(SystemExit):
+        runner._reloadInfoAndCheckKill()

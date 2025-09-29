@@ -328,24 +328,41 @@ def test_sync_directories_rsync_failure(tmp_path, monkeypatch):
         QQBatchInterface.syncDirectories(src, dest, None, None)
 
 
+def test_sync_directories_rsync_timeout(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    # create files in src
+    (src / "file1.txt").write_text("data1")
+    (src / "file2.txt").write_text("data2")
+
+    with (
+        pytest.raises(QQError, match="Could not rsync files"),
+        patch("qq_lib.batch.RSYNC_TIMEOUT", 0.0),
+    ):
+        QQBatchInterface.syncDirectories(src, dest, None, None)
+
+
 def test_build_rsync_command_local_to_local():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._buildRsyncCommand(src, dest, None, None, [])
+    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, None, [])
     assert cmd == ["rsync", "-a", "/source/", "/dest"]
 
 
 def test_build_rsync_command_local_to_remote():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._buildRsyncCommand(src, dest, None, "remotehost", [])
+    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, "remotehost", [])
     assert cmd == ["rsync", "-a", "/source/", "remotehost:/dest"]
 
 
 def test_build_rsync_command_remote_to_local():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._buildRsyncCommand(src, dest, "remotehost", None, [])
+    cmd = QQBatchInterface._translateRsyncCommand(src, dest, "remotehost", None, [])
     assert cmd == ["rsync", "-a", "remotehost:/source/", "/dest"]
 
 
@@ -353,7 +370,7 @@ def test_build_rsync_command_with_excludes():
     src = Path("/source")
     dest = Path("/dest")
     excludes = [Path("temp"), Path("logs/debug.log")]
-    cmd = QQBatchInterface._buildRsyncCommand(src, dest, None, None, excludes)
+    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, None, excludes)
     expected = [
         "rsync",
         "-a",
@@ -370,6 +387,6 @@ def test_build_rsync_command_with_excludes():
 def test_build_rsync_command_empty_excludes_list():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._buildRsyncCommand(src, dest, None, None, [])
+    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, None, [])
     expected = ["rsync", "-a", "/source/", "/dest"]
     assert cmd == expected

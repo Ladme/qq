@@ -369,7 +369,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             else []
         )
 
-        command = QQBatchInterface._buildRsyncCommand(
+        command = QQBatchInterface._translateRsyncCommand(
             src_dir, dest_dir, src_host, dest_host, relative_excluded
         )
         logger.debug(f"Rsync command: {command}.")
@@ -435,7 +435,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         # no matter what the user does inside the terminal
 
     @staticmethod
-    def _buildRsyncCommand(
+    def _translateRsyncCommand(
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,

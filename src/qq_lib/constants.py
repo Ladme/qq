@@ -64,7 +64,7 @@ RSYNC_TIMEOUT = 600
 RUNNER_RETRY_TRIES = 3
 
 # Wait time in seconds between retry attempts in QQRunner.
-RUNNER_RETRY_WAIT = 120
+RUNNER_RETRY_WAIT = 300
 
 # Time in seconds between sending a SIGTERM signal to the running process and sending a SIGKILL signal
 RUNNER_SIGTERM_TO_SIGKILL = 5

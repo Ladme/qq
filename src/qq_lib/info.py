@@ -36,8 +36,13 @@ def info():
     """
     Get information about the qq job submitted from this directory.
     """
+    info_files = get_info_files(Path())
+    if not info_files:
+        logger.error("No qq job info file found.\n")
+        sys.exit(91)
+
     try:
-        for file in get_info_files(Path()):
+        for file in info_files:
             informer = QQInformer.fromFile(file)
             console = Console()
             panel = informer.createJobStatusPanel(console)

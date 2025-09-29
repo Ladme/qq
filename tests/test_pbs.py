@@ -243,24 +243,24 @@ def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
     assert Path(captured["cmd"][2]) == tmp_path
 
 
-def test_submit_guard_sets_env_var():
+def test_set_shared_sets_env_var():
     os.environ.pop(SHARED_SUBMIT, None)
 
     # patch _isShared to return True
     with patch.object(QQPBS, "_isShared", return_value=True):
-        QQPBS.submitGuard()
+        QQPBS._setShared()
         assert os.environ.get(SHARED_SUBMIT) == "true"
 
     # clean up
     os.environ.pop(SHARED_SUBMIT, None)
 
 
-def test_submitGuard_does_not_set_env_var():
+def test_set_shared_does_not_set_env_var():
     os.environ.pop(SHARED_SUBMIT, None)
 
     # patch _isShared to return False
     with patch.object(QQPBS, "_isShared", return_value=False):
-        QQPBS.submitGuard()
+        QQPBS._setShared()
         assert SHARED_SUBMIT not in os.environ
 
 

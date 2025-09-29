@@ -49,6 +49,8 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return Path(scratch_dir)
 
     def jobSubmit(res: QQResources, queue: str, script: Path) -> str:
+        QQPBS._setShared()
+
         # get the submission command
         command = QQPBS._translateSubmit(res, queue, str(script))
         logger.debug(command)
@@ -132,20 +134,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
             QQBatchInterface.writeRemoteFile(host, file, content)
 
-    def submitGuard():
-        """
-        Set an environment variable indicating whether the job is submitted from shared storage.
-
-        This information is used internally by QQPBS to determine how to copy data
-        to the working directory when booting the job.
-
-        Notes:
-            If the current working directory is on shared storage, the environment
-            variable `SHARED_SUBMIT` is set.
-        """
-        if QQPBS._isShared(Path()):
-            os.environ[SHARED_SUBMIT] = "true"
-
     def syncDirectories(
         src_dir: Path,
         dest_dir: Path,
@@ -176,6 +164,21 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                 raise QQError(
                     f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
                 )
+
+    @staticmethod
+    def _setShared():
+        """
+        Set an environment variable indicating whether the job is submitted from shared storage.
+
+        This information is used internally by QQPBS to determine how to copy data
+        to the working directory when booting the job.
+
+        Notes:
+            If the current working directory is on shared storage, the environment
+            variable `SHARED_SUBMIT` is set.
+        """
+        if QQPBS._isShared(Path()):
+            os.environ[SHARED_SUBMIT] = "true"
 
     @staticmethod
     def _isShared(directory: Path) -> bool:

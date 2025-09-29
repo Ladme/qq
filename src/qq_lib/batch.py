@@ -321,23 +321,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def submitGuard():
-        """
-        Perform an optional pre-submission check for the batch system.
-
-        This method can be used to enforce custom rules or constraints before
-        submitting a job. If the submission should be rejected, it must raise a QQError.
-
-        Raises:
-            QQError: If the submission violates any rules or should otherwise be rejected.
-
-        Notes:
-            The default implementation does nothing.
-        """
-        pass
-
-    @staticmethod
-    @abstractmethod
     def syncDirectories(
         src_dir: Path,
         dest_dir: Path,

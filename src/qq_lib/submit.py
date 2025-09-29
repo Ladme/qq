@@ -104,8 +104,6 @@ def submit(queue, script, **kwargs):
         submitter = QQSubmitter(
             BatchSystem, queue, Path(script), BatchSystem.buildResources(**kwargs)
         )
-        # batch system-specific guard
-        BatchSystem.submitGuard()
         # catching multiple submissions
         submitter.guardOrClear()
         submitter.submit()

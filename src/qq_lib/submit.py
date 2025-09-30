@@ -43,7 +43,6 @@ logger = get_logger(__name__)
     help=f"""
 Submit a qq job to a batch system from the command line.
 
-{click.style("QUEUE", fg="bright_magenta")}    Name of the queue to submit the job to.\n
 {click.style("SCRIPT", fg="green")}   Path to the script to submit.
 
 The submitted script must be located in the directory from which
@@ -52,57 +51,88 @@ The submitted script must be located in the directory from which
     cls=GNUHelpColorsCommand,
     help_options_color="blue",
 )
-@click.argument("queue", type=str, metavar=click.style("QUEUE", fg="bright_magenta"))
 @click.argument("script", type=str, metavar=click.style("SCRIPT", fg="green"))
+@click.option(
+    "--queue",
+    "-q",
+    type=str,
+    default=None,
+    help="Name of the queue to submit the job to. A required option.",
+)
+@click.option(
+    "--nnodes", type=int, default=None, help="Number of computing nodes to use."
+)
 @click.option(
     "--ncpus",
     type=int,
     default=None,
-    help="Number of CPU cores to use for the job. Default is chosen based on the submission queue.",
+    help="Number of CPU cores to use for the job.",
 )
-@click.option("--vnode", type=str, default=None)
+@click.option(
+    "--mem-per-cpu",
+    type=str,
+    default=None,
+    help="Amount of memory to use per a single CPU core. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 2gb).",
+)
+@click.option(
+    "--mem",
+    type=str,
+    default=None,
+    help="Absolute amount of memory to use. Specify as 'Nmb' or 'Ngb' (e.g., 500 mb or 10gb). Overrides '--mem-per-cpu'.",
+)
+@click.option("--ngpus", type=int, default=None, help="Number of GPUs to use.")
 @click.option(
     "--walltime",
     type=str,
     default=None,
-    help="Maximum allowed runtime for the job. Default is chosen based on the submission queue.",
+    help="Maximum allowed runtime for the job.",
 )
 @click.option(
     "--work-dir",
     "--workdir",
     type=str,
-    default="from_batch_system",
-    help="""Type of working directory:
-        scratch_local
-        scratch_ssd
-        scratch_shared
-        scratch_hsm
-        job_dir
-    If not set, the batch system selects one.""",
+    default=None,
+    help="Type of working directory to use.",
+)
+@click.option(
+    "--work-size-per-cpu",
+    "--worksize-per-cpu",
+    type=str,
+    default=None,
+    help="Size of the storage requested for running the job per a single CPU core. Specify as 'Ngb' (e.g., 1gb).",
 )
 @click.option(
     "--work-size",
     "--worksize",
     type=str,
     default=None,
-    help="Size of storage requested for running the job. Integer type, specified as 'Ngb'.",
+    help="Absolute size of the storage requested for running the job. Specify as 'Ngb' (e.g., 10gb). Overrides '--work-size-per-cpu'.",
+)
+@click.option(
+    "--props",
+    type=str,
+    default=None,
+    help="A colon-, comma-, or space-separated list of properties that a node must include (e.g., cl_two) or exclude (e.g., ^cl_two) in order to run the job.",
 )
 @click.option(
     "--batch-system",
     type=str,
     default=None,
-    help="Batch system to submit the job into. If not specified, will try to make a guess.",
+    help=f"Batch system to submit the job into. If not specified, will load the batch system from the environment variable '{BATCH_SYSTEM}' or guess it.",
 )
-def submit(queue, script, **kwargs):
+def submit(script: str, queue: str, batch_system: str, **kwargs):
     """
     Submit a qq job to a batch system from the command line.
 
     Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
     try:
-        BatchSystem = QQBatchMeta.obtain(kwargs.get("batch_system"))
+        BatchSystem = QQBatchMeta.obtain(batch_system)
         submitter = QQSubmitter(
-            BatchSystem, queue, Path(script), BatchSystem.buildResources(**kwargs)
+            BatchSystem,
+            queue,
+            Path(script),
+            BatchSystem.buildResources(queue, **kwargs),
         )
         # catching multiple submissions
         submitter.guardOrClear()
@@ -186,7 +216,7 @@ class QQSubmitter:
 
         # submit the job
         job_id = self._batch_system.jobSubmit(
-            self._resources, self._queue, self._script
+            self._resources, self._queue, self._script, self._script_name
         )
 
         logger.info(f"Job '{job_id}' submitted successfully.")
@@ -200,6 +230,7 @@ class QQSubmitter:
                 job_id=job_id,
                 job_name=self._script_name,
                 script_name=self._script_name,
+                queue=self._queue,
                 job_type="standard",
                 input_machine=socket.gethostname(),
                 job_dir=Path.cwd(),

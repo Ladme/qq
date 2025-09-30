@@ -117,7 +117,7 @@ def test_submitter_submit_failure(
     os.chdir(tmp_path)
 
     # force jobSubmit to raise QQError
-    def fake_jobSubmit(_res, _queue, _script):
+    def fake_jobSubmit(_res, _queue, _script, _name):
         raise QQError("Failed to submit")
 
     monkeypatch.setattr(QQVBS, "jobSubmit", fake_jobSubmit)
@@ -283,7 +283,7 @@ def test_submit_success(tmp_path, script_with_shebang):
     runner = CliRunner()
 
     result = runner.invoke(
-        submit, ["default", script_with_shebang.name, "--batch-system", "VBS"]
+        submit, ["-q", "default", script_with_shebang.name, "--batch-system", "VBS"]
     )
 
     assert result.exit_code == 0
@@ -299,7 +299,9 @@ def test_submit_missing_script(tmp_path):
     os.chdir(tmp_path)
 
     runner = CliRunner()
-    result = runner.invoke(submit, ["default", "missing.sh", "--batch-system", "VBS"])
+    result = runner.invoke(
+        submit, ["--queue", "default", "missing.sh", "--batch-system", "VBS"]
+    )
 
     assert result.exit_code == 91
     assert "does not exist" in result.output
@@ -314,7 +316,7 @@ def test_submit_invalid_shebang(tmp_path, script_invalid_shebang):
     runner = CliRunner()
 
     result = runner.invoke(
-        submit, ["default", script_invalid_shebang.name, "--batch-system", "VBS"]
+        submit, ["-q", "default", script_invalid_shebang.name, "--batch-system", "VBS"]
     )
 
     assert result.exit_code == 91

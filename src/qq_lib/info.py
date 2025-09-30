@@ -84,6 +84,9 @@ class QQInfo:
     # Name of the script executed
     script_name: str
 
+    # Queue the job was submitted to.
+    queue: str
+
     # Type of job (standard, loop...)
     job_type: str
 

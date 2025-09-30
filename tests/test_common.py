@@ -13,6 +13,7 @@ from qq_lib.common import (
     get_files_with_suffix,
     get_info_file,
     get_info_files,
+    wdhms_to_hhmmss,
     yes_or_no_prompt,
 )
 from qq_lib.error import QQError
@@ -219,3 +220,82 @@ def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
 
     with pytest.raises(QQError):
         convert_absolute_to_relative([inside, outside], target)
+
+
+def test_wdhms_to_hhmmss_seconds_only():
+    assert wdhms_to_hhmmss("45s") == "0:00:45"
+    assert wdhms_to_hhmmss("5s") == "0:00:05"
+
+
+def test_wdhms_to_hhmmss_minutes_only():
+    assert wdhms_to_hhmmss("3m") == "0:03:00"
+
+
+def test_wdhms_to_hhmmss_hours_only():
+    assert wdhms_to_hhmmss("10h") == "10:00:00"
+
+
+def test_wdhms_to_hhmmss_days_and_weeks_only():
+    assert wdhms_to_hhmmss("1d") == "24:00:00"
+    assert wdhms_to_hhmmss("1w") == "168:00:00"
+
+
+def test_wdhms_to_hhmmss_combined_compact_and_spaces():
+    assert wdhms_to_hhmmss("1w2d3h4m5s") == "219:04:05"
+    assert wdhms_to_hhmmss("1w  2d 3h 4m 5s") == "219:04:05"
+    assert wdhms_to_hhmmss("1w  2d3h   4m5s") == "219:04:05"
+
+
+def test_wdhms_to_hhmmss_case_insensitive_units():
+    assert wdhms_to_hhmmss("1W 2D 3H 4M 5S") == "219:04:05"
+    assert wdhms_to_hhmmss("1w 2D 3h 4M 5s") == "219:04:05"
+
+
+def test_wdhms_to_hhmmss_padding():
+    assert wdhms_to_hhmmss("1h 5m 7s") == "1:05:07"
+    assert wdhms_to_hhmmss("0h 0m 9s") == "0:00:09"
+
+
+def test_wdhms_to_hhmmss_skipped_values():
+    assert wdhms_to_hhmmss("1d 1s") == "24:00:01"
+    assert wdhms_to_hhmmss("3d 12m 2s") == "72:12:02"
+    assert wdhms_to_hhmmss("1w 2h 48s") == "170:00:48"
+
+
+def test_wdhms_to_hhmmss_empty_or_whitespace_returns_zero():
+    assert wdhms_to_hhmmss("") == "0:00:00"
+    assert wdhms_to_hhmmss("   ") == "0:00:00"
+
+
+def test_wdhms_to_hhmmss_invalid_characters_raise():
+    with pytest.raises(QQError):
+        wdhms_to_hhmmss("1h abc 2m")
+
+    with pytest.raises(QQError):
+        wdhms_to_hhmmss("foo")
+
+    with pytest.raises(QQError):
+        wdhms_to_hhmmss("1h2x")
+
+
+def test_wdhms_to_hhmmss_decimal_values_raise():
+    with pytest.raises(QQError):
+        wdhms_to_hhmmss("1.5h")
+    with pytest.raises(QQError):
+        wdhms_to_hhmmss("0.5m")
+
+
+def test_wdhms_to_hhmmss_multiple_same_units_accumulate():
+    assert wdhms_to_hhmmss("1h 2h 30m") == "3:30:00"
+    assert wdhms_to_hhmmss("1d 24h") == "48:00:00"
+
+
+def test_wdhms_to_hhmmss_large_values_and_rollover():
+    assert wdhms_to_hhmmss("90m") == "1:30:00"
+    assert wdhms_to_hhmmss("3600s") == "1:00:00"
+    assert wdhms_to_hhmmss("1w 90m 3666s") == "170:31:06"
+
+
+def test_wdhms_to_hhmmss_zero_values_ok():
+    assert wdhms_to_hhmmss("0h 0m 0s") == "0:00:00"
+    assert wdhms_to_hhmmss("0w 0d") == "0:00:00"

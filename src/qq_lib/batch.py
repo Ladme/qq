@@ -110,14 +110,17 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def jobSubmit(res: QQResources, queue: str, script: Path) -> str:
+    def jobSubmit(res: QQResources, queue: str, script: Path, job_name: str) -> str:
         """
         Submit a job to the batch system.
+
+        Can also perform additional validation of the job's resources.
 
         Args:
             res (QQResources): Resources required for the job.
             queue (str): Target queue for the job submission.
             script (Path): Path to the script to execute.
+            job_name (str): Name of the job to use.
 
         Returns:
             str: Unique ID of the submitted job.
@@ -171,24 +174,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             TBatchInfo: Object containing the job's metadata and state.
         """
         pass
-
-    @staticmethod
-    @abstractmethod
-    def buildResources(**kwargs) -> QQResources:
-        """
-        Build a QQResources object for the target batch system using input parameters.
-
-        By default, this method constructs basic resources directly from `kwargs`
-        without performing any additional validation. The `kwargs` dictionary contains
-        parameters provided to `qq submit`. Implementations must override this method
-        to add validation or transform the input as needed.
-
-        Raises:
-            QQError: If any required parameters are missing or invalid.
-        """
-        # batch_system is not part of resources
-        del kwargs["batch_system"]
-        return QQResources(**kwargs)
 
     @staticmethod
     @abstractmethod
@@ -374,6 +359,32 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             raise QQError(
                 f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}."
             )
+
+    @staticmethod
+    @abstractmethod
+    def buildResources(queue: str, **kwargs) -> QQResources:
+        """
+        Construct a QQResources object for the given batch system.
+
+        The resources are built from the provided keyword arguments (typically
+        parsed from `qq submit`) and the target queue. This process may include
+        validation and the application of default values specific to the batch system.
+
+        After constructing the QQResources object, all parameters should satisfy
+        the requirements of the batch system.
+
+        Args:
+            queue (str): The name of the queue for which resources are being built.
+            **kwargs: Raw input parameters from `qq submit` or other source.
+
+        Returns:
+            QQResources: A fully constructed and validated QQResources object suitable
+                        for the batch system.
+
+        Raises:
+            QQError: If any of the provided parameters are invalid.
+        """
+        pass
 
     @staticmethod
     def _translateSSHCommand(host: str, directory: Path) -> list[str]:

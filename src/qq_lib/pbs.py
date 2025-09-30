@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch import (
@@ -32,8 +33,8 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
 
-    # default work-dir type to use with PBS
-    DEFAULT_WORK_DIR = "scratch_local"
+    # all standard scratch directory (excl. in RAM scratch) types supported by PBS
+    SUPPORTED_SCRATCHES = ["scratch_local", "scratch_ssd", "scratch_shared"]
 
     def envName() -> str:
         return "PBS"
@@ -48,11 +49,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         return Path(scratch_dir)
 
-    def jobSubmit(res: QQResources, queue: str, script: Path) -> str:
-        QQPBS._setShared()
+    def jobSubmit(res: QQResources, queue: str, script: Path, job_name: str) -> str:
+        QQPBS._sharedGuard(res)
 
         # get the submission command
-        command = QQPBS._translateSubmit(res, queue, str(script))
+        command = QQPBS._translateSubmit(res, queue, str(script), job_name)
         logger.debug(command)
 
         # submit the script
@@ -93,15 +94,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
     def navigateToDestination(host: str, directory: Path):
         QQBatchInterface.navigateToDestination(host, directory)
-
-    def buildResources(**kwargs) -> QQResources:
-        try:
-            res = QQBatchInterface.buildResources(**kwargs)
-            QQPBS._handleWorkDirRes(res)
-        except Exception as e:
-            raise QQError(f"Specification of resources is invalid: {e}.") from e
-
-        return res
 
     def getJobInfo(job_id: str) -> PBSJobInfo:
         return PBSJobInfo(job_id)  # ty: ignore[invalid-return-type]
@@ -165,20 +157,95 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                     f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
                 )
 
+    def buildResources(queue: str, **kwargs) -> QQResources:
+        # resources provided by the user
+        provided_resources = QQResources(**kwargs)
+        # default resources of the queue
+        default_queue_resources = QQPBS._getDefaultQueueResources(queue)
+        # default hard-coded resources
+        default_batch_resources = QQPBS._getDefaultServerResources()
+
+        # fill in default parameters
+        resources = QQResources.mergeResources(
+            provided_resources, default_queue_resources, default_batch_resources
+        )
+        if not resources.work_dir:
+            raise QQError(
+                "Work-dir is not set after filling in default attributes. This is a bug."
+            )
+
+        # sanity check job_dir
+        if equals_normalized(resources.work_dir, "job_dir"):
+            # work-size should not be used with job_dir
+            if provided_resources.work_size:
+                logger.warning(
+                    "Setting work-size is not supported for work-dir='job_dir'.\n"
+                    'Job will run in the submission directory with "unlimited" capacity.\n'
+                    "The work-size attribute will be ignored."
+                )
+
+            resources.work_dir = "job_dir"
+            return resources
+
+        # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
+        if equals_normalized(resources.work_dir, "scratch_shm"):
+            # work-size should not be used with scratch_shm
+            if provided_resources.work_size:
+                logger.warning(
+                    "Setting work-size is not supported for work-dir='scratch_shm'.\n"
+                    "Size of the in-RAM scratch is specified using the --mem property.\n"
+                    "The work-size attribute will be ignored."
+                )
+
+            resources.work_dir = "scratch_shm"
+            resources.work_size = None
+            return resources
+
+        # if work-dir matches any of the "standard" scratches supported by PBS
+        if match := next(
+            (
+                x
+                for x in QQPBS.SUPPORTED_SCRATCHES
+                if equals_normalized(x, resources.work_dir)
+            ),
+            None,
+        ):
+            resources.work_dir = match
+            return resources
+
+        # unknown work-dir type
+        supported_types = QQPBS.SUPPORTED_SCRATCHES + ["scratch_shm", "job_dir"]
+        raise QQError(
+            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for PBS are: '{' '.join(supported_types)}'."
+        )
+
     @staticmethod
-    def _setShared():
+    def _sharedGuard(res: QQResources):
         """
-        Set an environment variable indicating whether the job is submitted from shared storage.
+        Ensure correct handling of shared vs. local submission directories.
 
-        This information is used internally by QQPBS to determine how to copy data
-        to the working directory when booting the job.
+        If the current working directory is on shared storage, sets the
+        environment variable `SHARED_SUBMIT`. This environment variable
+        is later used e.g. to select the appropriate data copying method.
 
-        Notes:
-            If the current working directory is on shared storage, the environment
-            variable `SHARED_SUBMIT` is set.
+        If the job is configured to use the submission directory as a working directory
+        (`work-dir=job_dir`) but that directory is not shared, a `QQError` is raised.
+
+        Args:
+            res (QQResources): The job's resource configuration.
+
+        Raises:
+            QQError: If the job is set to run directly in the submission
+                    directory while submission is from a non-shared filesystem.
         """
         if QQPBS._isShared(Path()):
             os.environ[SHARED_SUBMIT] = "true"
+        else:
+            # if job directory is used as working directory, it must always be shared
+            if not res.useScratch():
+                raise QQError(
+                    "Job was requested to run directly in the submission directory (work-dir='job-dir'), but submission is done from a local filesystem."
+                )
 
     @staticmethod
     def _isShared(directory: Path) -> bool:
@@ -201,7 +268,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return result.returncode != 0
 
     @staticmethod
-    def _translateSubmit(res: QQResources, queue: str, script: str) -> str:
+    def _translateSubmit(
+        res: QQResources, queue: str, script: str, job_name: str
+    ) -> str:
         """
         Generate the PBS submission command for a job.
 
@@ -209,51 +278,101 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             res (QQResources): The resources requested for the job.
             queue (str): The queue name to submit to.
             script (str): Path to the job script.
+            job_name (str): Name of the job.
 
         Returns:
             str: The fully constructed qsub command string.
         """
         qq_output = str(Path(script).with_suffix(QQ_OUT_SUFFIX))
-        command = f"qsub -q {queue} -j eo -e {qq_output} -V "
+        command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} -V "
 
-        # handle resources
-        trans_res = QQPBS._translateResources(res)
+        # handle per-chunk resources, incl. workdir
+        translated = QQPBS._translatePerChunkResources(res)
 
-        if len(trans_res) > 0:
+        # handle properties
+        if res.props:
+            translated.extend([f"{k}={v}" for k, v in res.props.items()])
+
+        if len(translated) > 0 and res.nnodes and res.nnodes > 1:
+            # we only use the select syntax when multiple nodes are requested
+            command += f"-l select={res.nnodes}:"
+            join_char = ":"
+        else:
             command += "-l "
+            join_char = ","
 
-        command += ",".join(trans_res) + " " + script
+        command += join_char.join(translated) + " "
+
+        # handle walltime
+        if res.walltime:
+            command += f"-l walltime={res.walltime} "
+
+        # add script
+        command += script
 
         return command
 
     @staticmethod
-    def _translateResources(res: QQResources) -> list[str]:
+    def _translatePerChunkResources(res: QQResources) -> list[str]:
         """
-        Convert QQResources into PBS-compatible resource strings.
-        Also performs additional validation.
+        Convert a QQResources object into a list of per-node resource specifications.
+
+        Each resource that can be divided by the number of nodes (nnodes) is split
+        accordingly.
 
         Args:
-            res (QQResources): The resources requested for the job.
+            res (QQResources): The resource specification for the job.
 
         Returns:
-            list[str]: List of resource specifications for inclusion in the qsub command.
+            list[str]: A list of per-node resource strings suitable for inclusion
+                    in a PBS submission command.
+
+        Raises:
+            QQError: If sanity checks fail or required memory attributes are missing.
         """
+
         trans_res = []
-        for name, value in res.toDict().items():
-            # work_dir handled separately
-            if name in ["work_dir", "work_size"]:
-                continue
 
-            trans_res.append(f"{name}={value}")
+        # sanity checking per-chunk resources
+        if not res.nnodes:
+            raise QQError(
+                "Attribute 'nnodes' should not be undefined. This is a bug, please report it."
+            )
+        if res.nnodes == 0:
+            raise QQError("Attribute 'nnodes' cannot be 0.")
 
-        # translate working directory resource
-        workdir = QQPBS._translateWorkDir(res)
-        if workdir:
+        if res.ncpus and res.ncpus != 0 and res.ncpus % res.nnodes != 0:
+            raise QQError(
+                f"Attribute 'ncpus' ({res.ncpus}) must be divisible by 'nnodes' ({res.nnodes})."
+            )
+        if res.ngpus and res.ngpus != 0 and res.ngpus % res.nnodes != 0:
+            raise QQError(
+                f"Attribute 'ngpus' ({res.ngpus}) must be divisible by 'nnodes' ({res.nnodes})."
+            )
+
+        # translate per-chunk resources
+        if res.ncpus:
+            trans_res.append(f"ncpus={res.ncpus // res.nnodes}")
+
+        if res.mem:
+            trans_res.append(f"mem={str(res.mem // res.nnodes)}")
+        elif res.mem_per_cpu and res.ncpus:
+            trans_res.append(f"mem={str(res.mem_per_cpu * res.ncpus // res.nnodes)}")
+        else:
+            # memory not set in any way
+            raise QQError(
+                "Attribute 'mem' or attributes 'mem-per-cpu' and 'ncpus' are not defined."
+            )
+
+        if res.ngpus:
+            trans_res.append(f"ngpus={res.ngpus // res.nnodes}")
+
+        # translate work-dir
+        if workdir := QQPBS._translateWorkDir(res):
             trans_res.append(workdir)
 
         return trans_res
 
-    @staticmethod
     def _translateWorkDir(res: QQResources) -> str | None:
         """
         Translate the working directory and its requested size into a PBS resource string.
@@ -262,21 +381,100 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             res (QQResources): The resources requested for the job.
 
         Returns:
-            str | None: Resource string specifying the working directory, or None if not set.
+            str | None: Resource string specifying the working directory, or None if job_dir is used.
         """
-        if not res.work_dir:
+        assert res.nnodes is not None
+
+        if res.work_dir == "job_dir":
             return None
 
-        # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
         if res.work_dir == "scratch_shm":
-            return f"{res.work_dir}=True"
+            return f"{res.work_dir}=true"
 
         if res.work_size:
-            return f"{res.work_dir}={res.work_size}"
-        if res.ncpus:
-            return f"{res.work_dir}={res.ncpus}gb"
-        # TODO: choose a better default
-        return f"{res.work_dir}=8gb"
+            return f"{res.work_dir}={str(res.work_size // res.nnodes)}"
+
+        if res.work_size_per_cpu and res.ncpus:
+            return (
+                f"{res.work_dir}={str(res.work_size_per_cpu * res.ncpus // res.nnodes)}"
+            )
+
+        raise QQError(
+            "Attribute 'work-size' or attributes 'work-size-per-cpu' and 'ncpus' are not defined."
+        )
+
+    @staticmethod
+    def _getDefaultServerResources() -> QQResources:
+        """
+        Return a QQResources object representing the default resources for a batch job.
+
+        Returns:
+            QQResources: Default batch job resources with predefined settings.
+        """
+        return QQResources(
+            nnodes=1,
+            ncpus=1,
+            mem_per_cpu="1gb",
+            work_dir="scratch_local",
+            work_size_per_cpu="1gb",
+            walltime="1d",
+        )
+
+    @staticmethod
+    def _getDefaultQueueResources(queue: str) -> QQResources:
+        """
+        Query PBS for the default resources of a given queue.
+
+        Args:
+            queue (str): The name of the PBS queue to query.
+
+        Returns:
+            QQResources: A QQResources object populated with the queue's default resources.
+                        If the queue cannot be queried or an error occurs, returns an empty QQResources object.
+        """
+        command = f"qstat -Qfw {queue}"
+
+        result = subprocess.run(
+            ["bash"], input=command, text=True, check=False, capture_output=True
+        )
+
+        if result.returncode != 0:
+            # no default resources for a queue
+            logger.warning(f"Could not get information about the queue {queue}.")
+            return QQResources()
+        info = QQPBS._parseQueueInfoToDictionary(result.stdout)
+        # ignore fields not defined in the dataclass
+        field_names = {f.name for f in fields(QQResources)}
+        filtered = {k: v for k, v in info.items() if k in field_names}
+        return QQResources(**filtered)
+
+    @staticmethod
+    def _parseQueueInfoToDictionary(text: str) -> dict[str, str]:
+        """
+        Parse the output of a PBS queue query and extract default resource values.
+
+        Args:
+            text (str): Raw string output from a PBS qstat command.
+
+        Returns:
+            dict[str, str]: A dictionary mapping resource names to their default values
+                            extracted from the queue info.
+        """
+        result: dict[str, str] = {}
+
+        for raw_line in text.splitlines():
+            line = raw_line.rstrip()
+
+            if " = " not in line:
+                continue
+
+            key, value = line.split(" = ", 1)
+            if "resources_default" in key:
+                resource = key.split(".")[-1]
+                result[resource.strip()] = value.strip()
+
+        logger.debug(f"PBS queue info: {result}")
+        return result
 
     @staticmethod
     def _translateKillForce(job_id: str) -> str:
@@ -303,29 +501,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             str: The qdel command without force flag.
         """
         return f"qdel {job_id}"
-
-    @staticmethod
-    def _handleWorkDirRes(res: QQResources):
-        # working directory was not specified by the user, select the default type
-        if res.work_dir and res.work_dir == "from_batch_system":
-            res.work_dir = QQPBS.DEFAULT_WORK_DIR
-            logger.debug(f"Using default work-dir resource for PBS: '{res.work_dir}'.")
-
-        # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
-        if res.work_dir and res.work_dir == "shared_hsm" and res.work_size is not None:
-            raise QQError(
-                f"Setting work-size is not supported for work-dir='{res.work_dir}'.\n"
-                "Size of the in-RAM scratch is specified using the --mem property."
-            )
-
-        # running the job in the submission directory
-        if res.work_dir and equals_normalized(res.work_dir, "jobdir"):
-            res.work_dir = None
-            if res.work_size is not None:
-                raise QQError(
-                    "Setting work-size is not supported for work-dir='job-dir'.\n"
-                    'Job will run in the submission directory with "unlimited" capacity.'
-                )
 
 
 class PBSJobInfo(BatchJobInfoInterface):
@@ -379,5 +554,5 @@ class PBSJobInfo(BatchJobInfoInterface):
             key, value = line.split(" = ", 1)
             result[key.strip()] = value.strip()
 
-        logger.debug(f"PBS qstat dump file: {result}")
+        logger.debug(f"PBS qstat dump: {result}")
         return result

@@ -1,34 +1,195 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-from dataclasses import asdict, dataclass
+import re
+from dataclasses import asdict, dataclass, fields
+from typing import Self
 
+from qq_lib.common import equals_normalized, wdhms_to_hhmmss
 from qq_lib.logger import get_logger
+from qq_lib.size import Size
 
 logger = get_logger(__name__)
 
 
-@dataclass
+@dataclass(init=False)
 class QQResources:
+    """
+    Dataclass representing computational resources requested for a qq job.
+    """
+
+    # Number of computing nodes to use
+    nnodes: int | None = None
+
+    # Number of CPU cores to use for the job
     ncpus: int | None = None
-    vnode: str | None = None
+
+    # Absolute amount of memory to allocate for the job (overrides mem_per_cpu)
+    mem: Size | None = None
+
+    # Amount of memory to allocate per CPU core
+    mem_per_cpu: Size | None = None
+
+    # Number of GPUs to use
+    ngpus: int | None = None
+
+    # Maximum allowed runtime for the job
     walltime: str | None = None
+
+    # Type of working directory to use (e.g., scratch_local, scratch_shared, job_dir)
     work_dir: str | None = None
-    work_size: str | None = None
+
+    # Absolute size of storage requested for the job (overrides work_size_per_cpu)
+    work_size: Size | None = None
+
+    # Storage size requested per CPU core
+    work_size_per_cpu: Size | None = None
+
+    # Dictionary of other properties the nodes must include or exclude
+    props: dict[str, str] | None = None
+
+    def __init__(
+        self,
+        nnodes: int | str | None = None,
+        ncpus: int | str | None = None,
+        mem: Size | str | None = None,
+        mem_per_cpu: Size | str | None = None,
+        ngpus: int | str | None = None,
+        walltime: str | None = None,
+        work_dir: str | None = None,
+        work_size: Size | str | None = None,
+        work_size_per_cpu: Size | str | None = None,
+        props: dict[str, str] | str | None = None,
+    ):
+        # convert sizes
+        if isinstance(mem, str):
+            mem = Size.from_string(mem)
+        if isinstance(mem_per_cpu, str):
+            mem_per_cpu = Size.from_string(mem_per_cpu)
+        if isinstance(work_size, str):
+            work_size = Size.from_string(work_size)
+        if isinstance(work_size_per_cpu, str):
+            work_size_per_cpu = Size.from_string(work_size_per_cpu)
+
+        # convert walltime
+        if isinstance(walltime, str) and ":" not in walltime:
+            walltime = wdhms_to_hhmmss(walltime)
+
+        # convert properties to dictionary
+        if isinstance(props, str):
+            parts = filter(None, re.split(r"[,\s:]+", props))
+            props = {
+                part.split("=", 1)[0] if "=" in part else part.lstrip("^"): part.split(
+                    "=", 1
+                )[1]
+                if "=" in part
+                else ("false" if part.startswith("^") else "true")
+                for part in parts
+            }
+
+        # convert nnodes, ncpus, and ngpus to integer
+        if isinstance(nnodes, str):
+            nnodes = int(nnodes)
+        if isinstance(ncpus, str):
+            ncpus = int(ncpus)
+        if isinstance(ngpus, str):
+            ngpus = int(ngpus)
+
+        # set attributes
+        self.nnodes = nnodes
+        self.ncpus = ncpus
+        self.mem = mem
+        self.mem_per_cpu = mem_per_cpu
+        self.ngpus = ngpus
+        self.walltime = walltime
+        self.work_dir = work_dir
+        self.work_size = work_size
+        self.work_size_per_cpu = work_size_per_cpu
+        self.props = props
+
+        logger.debug(f"QQResources: {self}")
 
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""
-        return {
-            k: v
-            for k, v in asdict(self).items()
-            if v is not None and k != "batch_system"
-        }
+        return {k: v for k, v in asdict(self).items() if v is not None}
 
     def useScratch(self) -> bool:
         """
         Determine if the job uses a scratch directory.
 
         Returns:
-            True if a work_dir is defined, False otherwise.
+            True if a work_dir is not 'job-dir', otherwise False.
         """
-        return self.work_dir is not None
+        return not equals_normalized(self.work_dir, "jobdir")
+
+    @staticmethod
+    def mergeResources(*resources: "QQResources") -> "QQResources":
+        """
+        Merge multiple QQResources objects.
+
+        Earlier resources take precedence over later ones. Properties are merged.
+
+        Args:
+            *resources (QQResources): One or more QQResources objects, in order of precedence.
+
+        Returns:
+            QQResources: A new QQResources object with merged fields.
+        """
+        merged_data = {}
+        for f in fields(QQResources):
+            if f.name == "props":
+                # merge all props dictionaries; first occurence of each key wins
+                merged_props: dict[str, str] = {}
+                for r in resources:
+                    if r.props:
+                        # only add keys that have not been added yet
+                        merged_props |= {
+                            k: v for k, v in r.props.items() if k not in merged_props
+                        }
+                merged_data[f.name] = merged_props or None
+                continue
+
+            # only set mem and work_size if mem_per_cpu / work_size_per_cpu has not already been set
+            if f.name in ("mem", "work_size"):
+                merged_data[f.name] = QQResources._first_nonblocked(
+                    resources,
+                    f.name,
+                    "mem_per_cpu" if f.name == "mem" else "work_size_per_cpu",
+                )
+                continue
+
+            # default: ick the first non-None value for this field
+            merged_data[f.name] = next(
+                (
+                    getattr(r, f.name)
+                    for r in resources
+                    if getattr(r, f.name) is not None
+                ),
+                None,
+            )
+
+        return QQResources(**merged_data)
+
+    @staticmethod
+    def _first_nonblocked(
+        resources: tuple[Self, ...], field: str, block_field: str
+    ) -> object | None:
+        """
+        Return the first value of `field` from `resources` where `block_field` has not appeared yet.
+
+        Args:
+            resources (tuple[QQResources, ...]): Resources in order of precedence.
+            field (str): Name of the field to pick.
+            block_field (str): Name of the per-CPU field that blocks later values.
+
+        Returns:
+            Optional[object]: The first valid value, or None if none found.
+        """
+        blocked = False
+        for r in resources:
+            if getattr(r, block_field) is not None:
+                blocked = True
+            val = getattr(r, field)
+            if val is not None and not blocked:
+                return val
+        return None

@@ -61,6 +61,7 @@ def sample_info(sample_resources):
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
         script_name="script.sh",
+        queue="default",
         job_type="standard",
         input_machine="fake.machine.com",
         job_dir=Path("/shared/storage/"),
@@ -87,7 +88,7 @@ def write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info):
     sample_info.script_name = "script.sh"
 
     # work in shared storage
-    sample_info.resources.work_dir = None
+    sample_info.resources.work_dir = "job_dir"
 
     info_file = job_dir / "job.qqinfo"
     informer = QQInformer(sample_info)

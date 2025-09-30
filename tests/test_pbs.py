@@ -6,12 +6,12 @@
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from qq_lib.batch import QQBatchInterface
-from qq_lib.constants import SHARED_SUBMIT, SSH_TIMEOUT
+from qq_lib.constants import QQ_OUT_SUFFIX, SHARED_SUBMIT, SSH_TIMEOUT
 from qq_lib.error import QQError
 from qq_lib.pbs import QQPBS, PBSJobInfo
 from qq_lib.resources import QQResources
@@ -132,34 +132,9 @@ def test_get_job_state(sample_dump_file):
 
 @pytest.fixture
 def resources():
-    return QQResources(ncpus=4, work_dir="scratch_local", work_size="16gb")
-
-
-def test_translate_submit(resources):
-    script = "myscript.sh"
-    queue = "default"
-    cmd = QQPBS._translateSubmit(resources, queue, script)
-
-    assert (
-        cmd
-        == f"qsub -q {queue} -j eo -e myscript.qqout -V -l ncpus={resources.ncpus},{resources.work_dir}={resources.work_size} myscript.sh"
+    return QQResources(
+        nnodes=1, mem_per_cpu="1gb", ncpus=4, work_dir="scratch_local", work_size="16gb"
     )
-
-
-def test_translate_resources(resources):
-    trans = QQPBS._translateResources(resources)
-    assert trans == [
-        f"ncpus={resources.ncpus}",
-        f"{resources.work_dir}={resources.work_size}",
-    ]
-
-
-def test_translate_work_dir(resources):
-    assert (
-        QQPBS._translateWorkDir(resources)
-        == f"{resources.work_dir}={resources.work_size}"
-    )
-    assert QQPBS._translateWorkDir(QQResources()) is None
 
 
 def test_translate_kill_force():
@@ -243,24 +218,51 @@ def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
     assert Path(captured["cmd"][2]) == tmp_path
 
 
-def test_set_shared_sets_env_var():
+def test_shared_guard_sets_env_var():
     os.environ.pop(SHARED_SUBMIT, None)
 
     # patch _isShared to return True
     with patch.object(QQPBS, "_isShared", return_value=True):
-        QQPBS._setShared()
+        QQPBS._sharedGuard(QQResources(work_dir="scratch_local"))
         assert os.environ.get(SHARED_SUBMIT) == "true"
 
     # clean up
     os.environ.pop(SHARED_SUBMIT, None)
 
 
-def test_set_shared_does_not_set_env_var():
+def test_shared_guard_does_not_set_env_var():
     os.environ.pop(SHARED_SUBMIT, None)
 
     # patch _isShared to return False
     with patch.object(QQPBS, "_isShared", return_value=False):
-        QQPBS._setShared()
+        QQPBS._sharedGuard(QQResources(work_dir="scratch_local"))
+        assert SHARED_SUBMIT not in os.environ
+
+
+def test_shared_guard_jobdir_does_not_raise():
+    os.environ.pop(SHARED_SUBMIT, None)
+
+    # patch _isShared to return True
+    with patch.object(QQPBS, "_isShared", return_value=True):
+        QQPBS._sharedGuard(QQResources(work_dir="job_dir"))
+        assert os.environ.get(SHARED_SUBMIT) == "true"
+
+    # clean up
+    os.environ.pop(SHARED_SUBMIT, None)
+
+
+def test_shared_guard_jobdir_raises():
+    os.environ.pop(SHARED_SUBMIT, None)
+
+    # patch _isShared to return False
+    with (
+        patch.object(QQPBS, "_isShared", return_value=False),
+        pytest.raises(
+            QQError,
+            match="Job was requested to run directly in the submission directory",
+        ),
+    ):
+        QQPBS._sharedGuard(QQResources(work_dir="job_dir"))
         assert SHARED_SUBMIT not in os.environ
 
 
@@ -418,3 +420,500 @@ def test_write_remote_file_remote():
     with patch.object(QQBatchInterface, "writeRemoteFile") as mock_write:
         QQPBS.writeRemoteFile("remotehost", file_path, content)
         mock_write.assert_called_once_with("remotehost", file_path, content)
+
+
+def test_translate_work_dir_job_dir_returns_none():
+    res = QQResources(nnodes=1, work_dir="job_dir")
+    assert QQPBS._translateWorkDir(res) is None
+
+
+def test_translate_work_dir_scratch_shm_returns_true_string():
+    res = QQResources(nnodes=3, work_dir="scratch_shm")
+    assert QQPBS._translateWorkDir(res) == "scratch_shm=true"
+
+
+def test_translate_work_dir_work_size_divided_by_nnodes():
+    res = QQResources(nnodes=2, work_dir="scratch_local", work_size="7mb")
+    result = QQPBS._translateWorkDir(res)
+    assert result == "scratch_local=4mb"
+
+
+def test_translate_work_dir_work_size_per_cpu_and_ncpus():
+    res = QQResources(
+        nnodes=4, ncpus=5, work_dir="scratch_local", work_size_per_cpu="3mb"
+    )
+    result = QQPBS._translateWorkDir(res)
+    # 3mb * 5 = 15mb, divided by 4 nodes = 4mb
+    assert result == "scratch_local=4mb"
+
+
+def test_translate_work_dir_missing_work_size_raises():
+    res = QQResources(nnodes=2, ncpus=4, work_dir="scratch_local")
+    with pytest.raises(QQError, match="work-size"):
+        QQPBS._translateWorkDir(res)
+
+
+def test_translate_work_dir_missing_ncpus_with_work_size_per_cpu_raises():
+    res = QQResources(nnodes=2, work_dir="scratch_local", work_size_per_cpu="3mb")
+    with pytest.raises(QQError, match="work-size"):
+        QQPBS._translateWorkDir(res)
+
+
+def test_translate_per_chunk_resources_nnones_missing_raises():
+    res = QQResources(nnodes=None, ncpus=2, mem="4mb")
+    with pytest.raises(QQError, match="nnodes"):
+        QQPBS._translatePerChunkResources(res)
+
+
+def test_translate_per_chunk_resources_nnones_zero_raises():
+    res = QQResources(nnodes=0, ncpus=2, mem="4mb")
+    with pytest.raises(QQError, match="nnodes"):
+        QQPBS._translatePerChunkResources(res)
+
+
+def test_translate_per_chunk_resources_ncpus_not_divisible_raises():
+    res = QQResources(nnodes=3, ncpus=4, mem="4mb")
+    with pytest.raises(QQError, match="ncpus"):
+        QQPBS._translatePerChunkResources(res)
+
+
+def test_translate_per_chunk_resources_ngpus_not_divisible_raises():
+    res = QQResources(nnodes=2, ncpus=2, ngpus=3, mem="4mb")
+    with pytest.raises(QQError, match="ngpus"):
+        QQPBS._translatePerChunkResources(res)
+
+
+def test_translate_per_chunk_resources_mem_division():
+    res = QQResources(nnodes=2, ncpus=4, mem="7mb", work_dir="job_dir")
+    result = QQPBS._translatePerChunkResources(res)
+    assert "ncpus=2" in result
+    assert "mem=4mb" in result
+
+
+def test_translate_per_chunk_resources_mem_per_cpu_used():
+    res = QQResources(nnodes=2, ncpus=4, mem_per_cpu="2mb", work_dir="job_dir")
+    result = QQPBS._translatePerChunkResources(res)
+    # 2mb * 4 / 2 = 4mb
+    assert "mem=4mb" in result
+
+
+def test_translate_per_chunk_resources_ngpus_included():
+    res = QQResources(nnodes=3, ncpus=9, mem="8mb", ngpus=6, work_dir="job_dir")
+    result = QQPBS._translatePerChunkResources(res)
+    assert "ngpus=2" in result
+
+
+def test_translate_per_chunk_resources_work_dir_translated():
+    res = QQResources(
+        nnodes=2, ncpus=4, mem="8mb", work_dir="scratch_local", work_size="1mb"
+    )
+    result = QQPBS._translatePerChunkResources(res)
+    assert "scratch_local=512kb" in result
+
+
+def test_translate_per_chunk_resources_missing_memory_raises():
+    res = QQResources(nnodes=2, ncpus=4)
+    with pytest.raises(QQError, match="mem"):
+        QQPBS._translatePerChunkResources(res)
+
+
+def test_parse_queue_info_empty_text_returns_empty_dict():
+    text = ""
+    result = QQPBS._parseQueueInfoToDictionary(text)
+    assert result == {}
+
+
+def test_parse_queue_info_only_non_default_lines_ignored():
+    text = """
+queue_type = Execution
+Priority = 75
+total_jobs = 308
+"""
+    result = QQPBS._parseQueueInfoToDictionary(text)
+    assert result == {}
+
+
+def test_parse_queue_info_extracts_default_resources():
+    text = """
+resources_max.ngpus = 99
+resources_max.walltime = 24:00:00
+resources_min.mem = 50mb
+resources_default.ngpus = 1
+resources_default.walltime = 12:00:00
+resources_default.mem = 5gb
+"""
+    result = QQPBS._parseQueueInfoToDictionary(text)
+    expected = {
+        "ngpus": "1",
+        "walltime": "12:00:00",
+        "mem": "5gb",
+    }
+    assert result == expected
+
+
+def test_parse_queue_info_ignores_extra_spaces():
+    text = """
+resources_default.ngpus =    2
+resources_default.mem   = 10gb
+"""
+    result = QQPBS._parseQueueInfoToDictionary(text)
+    expected = {
+        "ngpus": "2",
+        "mem": "10gb",
+    }
+    assert result == expected
+
+
+def test_parse_queue_info_multiple_default_resources():
+    text = """
+resources_default.mem = 8gb
+resources_default.ncpus = 16
+resources_default.ngpus = 4
+"""
+    result = QQPBS._parseQueueInfoToDictionary(text)
+    expected = {
+        "mem": "8gb",
+        "ncpus": "16",
+        "ngpus": "4",
+    }
+    assert result == expected
+
+
+def test_parse_queue_info_ignores_non_resource_default_lines():
+    text = """
+comment = Example queue
+resources_default.mem = 2gb
+enabled = True
+"""
+    result = QQPBS._parseQueueInfoToDictionary(text)
+    expected = {"mem": "2gb"}
+    assert result == expected
+
+
+@pytest.mark.parametrize("queue_name", ["gpu", "cpu"])
+def test_get_default_queue_resources_success(queue_name):
+    mock_output = """
+resources_default.mem = 4gb
+resources_default.ncpus = 16
+resources_default.ngpus = 2
+resources_default.walltime = 12:00:00
+resources_default.unknown_field = ignored
+"""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = mock_output
+
+    with patch("qq_lib.pbs.subprocess.run", return_value=mock_result) as mock_run:
+        res = QQPBS._getDefaultQueueResources(queue_name)
+
+    mock_run.assert_called_once()
+    assert isinstance(res, QQResources)
+    assert str(res.mem) == "4gb"
+    assert res.ncpus == 16
+    assert res.ngpus == 2
+    assert res.walltime == "12:00:00"
+    assert not hasattr(res, "unknown_field")
+
+
+def test_get_default_queue_resources_failure_returns_empty():
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+
+    with patch("qq_lib.pbs.subprocess.run", return_value=mock_result) as mock_run:
+        res = QQPBS._getDefaultQueueResources("nonexistent_queue")
+
+    mock_run.assert_called_once()
+
+    assert isinstance(res, QQResources)
+    for f in res.__dataclass_fields__:
+        assert getattr(res, f) is None
+
+
+def test_get_default_queue_resources_calls_parse_queue_info():
+    mock_output = "resources_default.ncpus = 8\nresources_default.mem = 2gb\n"
+    mock_result = MagicMock(returncode=0, stdout=mock_output)
+
+    with (
+        patch("qq_lib.pbs.subprocess.run", return_value=mock_result),
+        patch.object(
+            QQPBS,
+            "_parseQueueInfoToDictionary",
+            wraps=QQPBS._parseQueueInfoToDictionary,
+        ) as mock_parse,
+    ):
+        res = QQPBS._getDefaultQueueResources("gpu")
+        mock_parse.assert_called_once_with(mock_output)
+        assert res.ncpus == 8
+        assert str(res.mem) == "2gb"
+
+
+def test_translate_submit_minimal_fields():
+    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="job_dir")
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=1gb script.sh"
+    )
+
+
+def test_translate_submit_multiple_nodes():
+    res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="job_dir")
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=4:ncpus=2:mem=256mb script.sh"
+    )
+
+
+def test_translate_submit_with_walltime():
+    res = QQResources(
+        nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="job_dir"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "queue", "script.sh", "job")
+        == f"qsub -N job -q queue -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
+    )
+
+
+def test_translate_submit_with_walltime2():
+    res = QQResources(
+        nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="job_dir"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "queue", "script.sh", "job")
+        == f"qsub -N job -q queue -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=2,mem=2gb -l walltime=12:30:15 script.sh"
+    )
+
+
+def test_translate_submit_work_dir_scratch_shm():
+    res = QQResources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=8gb,scratch_shm=true script.sh"
+    )
+
+
+def test_translate_submit_scratch_local_work_size():
+    res = QQResources(
+        nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_local", work_size="16gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_local=8gb script.sh"
+    )
+
+
+def test_translate_submit_scratch_ssd_work_size():
+    res = QQResources(
+        nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_ssd", work_size="16gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_ssd=8gb script.sh"
+    )
+
+
+def test_translate_submit_scratch_shared_work_size():
+    res = QQResources(
+        nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_shared", work_size="16gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_shared=8gb script.sh"
+    )
+
+
+def test_translate_submit_work_size_per_cpu():
+    res = QQResources(
+        nnodes=1, ncpus=8, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=8,mem=4gb,scratch_local=16gb script.sh"
+    )
+
+
+def test_translate_submit_work_size_per_cpu_multiple_nodes():
+    res = QQResources(
+        nnodes=3, ncpus=3, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=3:ncpus=1:mem=2gb:scratch_local=2gb script.sh"
+    )
+
+
+def test_translate_submit_mem_per_cpu():
+    res = QQResources(
+        nnodes=1, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="10gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=4,mem=8gb,scratch_local=10gb script.sh"
+    )
+
+
+def test_translate_submit_mem_per_cpu_multiple_nodes():
+    res = QQResources(
+        nnodes=2, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="20gb"
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb script.sh"
+    )
+
+
+def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
+    res = QQResources(
+        nnodes=1,
+        ncpus=4,
+        mem_per_cpu="2gb",
+        work_dir="scratch_local",
+        work_size_per_cpu="5gb",
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=4,mem=8gb,scratch_local=20gb script.sh"
+    )
+
+
+def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
+    res = QQResources(
+        nnodes=2,
+        ncpus=4,
+        mem_per_cpu="2gb",
+        work_dir="scratch_local",
+        work_size_per_cpu="5gb",
+    )
+    assert (
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        == f"qsub -N job -q gpu -j eo -e script{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb script.sh"
+    )
+
+
+def test_translate_submit_with_props():
+    res = QQResources(
+        nnodes=1,
+        ncpus=1,
+        mem="1gb",
+        props={"vnode": "my_node", "infiniband": "true"},
+        work_dir="job_dir",
+    )
+    assert (
+        QQPBS._translateSubmit(res, "queue", "script.sh", "job")
+        == f"qsub -N job -q queue -j eo -e script{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
+    )
+
+
+def test_translate_submit_complex_case():
+    res = QQResources(
+        nnodes=3,
+        ncpus=6,
+        mem="5gb",
+        ngpus=3,
+        walltime="1h30m",
+        work_dir="scratch_local",
+        work_size_per_cpu="2gb",
+        props={"cl_cluster": "true"},
+    )
+    assert QQPBS._translateSubmit(res, "gpu", "myscript.sh", "job") == (
+        f"qsub -N job -q gpu -j eo -e myscript{QQ_OUT_SUFFIX} -V "
+        f"-l select=3:ncpus=2:mem=2gb:ngpus=1:scratch_local=4gb:cl_cluster=true "
+        f"-l walltime=1:30:00 myscript.sh"
+    )
+
+
+def test_build_resources_job_dir_warns_and_sets_work_dir():
+    provided = QQResources(work_dir="job_dir", work_size="10gb")
+    with (
+        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch("qq_lib.pbs.logger.warning") as mock_warning,
+    ):
+        res = QQPBS.buildResources("gpu", work_dir="job_dir", work_size="10gb")
+
+    assert res.work_dir == "job_dir"
+
+    called_args = mock_warning.call_args[0]
+    assert "Setting work-size is not supported" in called_args[0]
+    assert "job_dir" in called_args[0]
+
+
+def test_build_resources_scratch_shm_warns_and_clears_work_size():
+    provided = QQResources(work_dir="scratch_shm", work_size="10gb")
+    with (
+        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch("qq_lib.pbs.logger.warning") as mock_warning,
+    ):
+        res = QQPBS.buildResources("gpu", work_dir="scratch_shm", work_size="10gb")
+
+    assert res.work_dir == "scratch_shm"
+    assert res.work_size is None
+
+    called_args = mock_warning.call_args[0]
+    assert "Setting work-size is not supported" in called_args[0]
+    assert "scratch_shm" in called_args[0]
+
+
+def test_build_resources_supported_scratch():
+    for scratch in QQPBS.SUPPORTED_SCRATCHES:
+        provided = QQResources(work_dir=scratch, work_size="10gb")
+        with (
+            patch.object(
+                QQPBS, "_getDefaultQueueResources", return_value=QQResources()
+            ),
+            patch.object(
+                QQPBS, "_getDefaultServerResources", return_value=QQResources()
+            ),
+            patch.object(QQResources, "mergeResources", return_value=provided),
+        ):
+            res = QQPBS.buildResources("gpu", work_dir=scratch, work_size="10gb")
+
+        assert res.work_dir == scratch
+
+
+def test_build_resources_supported_scratch_unnormalized():
+    for scratch in QQPBS.SUPPORTED_SCRATCHES:
+        provided = QQResources(
+            work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
+        )
+        with (
+            patch.object(
+                QQPBS, "_getDefaultQueueResources", return_value=QQResources()
+            ),
+            patch.object(
+                QQPBS, "_getDefaultServerResources", return_value=QQResources()
+            ),
+            patch.object(QQResources, "mergeResources", return_value=provided),
+        ):
+            res = QQPBS.buildResources(
+                "gpu", work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
+            )
+
+        assert res.work_dir == scratch
+
+
+def test_build_resources_unknown_work_dir_raises():
+    provided = QQResources(work_dir="unknown_scratch")
+    with (
+        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(QQResources, "mergeResources", return_value=provided),
+        pytest.raises(QQError, match="Unknown working directory type specified"),
+    ):
+        QQPBS.buildResources("gpu", work_dir="unknown_scratch")
+
+
+def test_build_resources_missing_work_dir_raises():
+    provided = QQResources(work_dir=None)
+    with (
+        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(QQResources, "mergeResources", return_value=provided),
+        pytest.raises(
+            QQError, match="Work-dir is not set after filling in default attributes"
+        ),
+    ):
+        QQPBS.buildResources("gpu")

@@ -43,6 +43,7 @@ def sample_info(sample_resources):
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
         script_name="script.sh",
+        queue="default",
         job_type="standard",
         input_machine="fake.machine.com",
         job_dir=Path("/shared/storage/"),
@@ -230,7 +231,7 @@ def test_kill_queued_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -267,7 +268,7 @@ def test_kill_booting_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -310,7 +311,7 @@ def test_kill_running_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -361,7 +362,7 @@ def test_kill_finished_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -427,7 +428,7 @@ def test_kill_finished_and_queued_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -438,7 +439,7 @@ def test_kill_finished_and_queued_integration(tmp_path, forced):
         ):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file2), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file2), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -497,7 +498,7 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -508,7 +509,7 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
         ):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file2), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file2), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -577,7 +578,7 @@ def test_kill_queued_and_running_integration(tmp_path, forced):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -588,7 +589,7 @@ def test_kill_queued_and_running_integration(tmp_path, forced):
         ):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file2), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file2), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 

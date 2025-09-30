@@ -216,6 +216,7 @@ def sample_info(sample_resources):
         username="fake_user",
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
+        queue="default",
         script_name="script.sh",
         job_type="standard",
         input_machine="fake.machine.com",

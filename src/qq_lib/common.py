@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -205,3 +206,69 @@ def convert_absolute_to_relative(files: list[Path], target: Path) -> list[Path]:
 
     logger.debug(f"Converted paths: {relative}.")
     return relative
+
+
+def wdhms_to_hhmmss(timestr: str) -> str:
+    """
+    Convert a time specification in the wdhms format into (H)HH:MM:SS.
+
+    The accepted format is a sequence of one or more integer + unit tokens,
+    where unit is one of:
+      w = weeks, d = days, h = hours, m = minutes, s = seconds
+
+    Tokens may be compact (e.g. "1w2d3h") or space-separated
+    (e.g. "1w 2d 3h"). The function is case-insensitive.
+
+    Examples:
+      "1w2d3h4m5s" -> "195:04:05"
+      "90m"         -> "1:30:00"
+      ""            -> "0:00:00"
+
+    Args:
+        timestr: Input duration string in wdhms format.
+
+    Returns:
+        Converted time as a string in (H)HH:MM:SS.
+
+    Raises:
+        QQError: If the string contains invalid characters or does not
+                 conform to the token pattern (excluding empty/whitespace,
+                 which is treated as zero).
+    """
+    # treat empty / whitespace-only as zero
+    if timestr.strip() == "":
+        return "0:00:00"
+
+    # validation
+    full_pattern = re.compile(r"^\s*(?:\d+\s*[wdhms]\s*)+$", re.IGNORECASE)
+    if not full_pattern.fullmatch(timestr):
+        raise QQError(f"Invalid time string: '{timestr}'")
+
+    # extract tokens
+    token_pattern = re.compile(r"(\d+)\s*([wdhms])", re.IGNORECASE)
+    matches = token_pattern.findall(timestr)
+
+    weeks = days = hours = minutes = seconds = 0
+
+    for value_str, unit in matches:
+        value = int(value_str)
+        unit = unit.lower()
+        if unit == "w":
+            weeks += value
+        elif unit == "d":
+            days += value
+        elif unit == "h":
+            hours += value
+        elif unit == "m":
+            minutes += value
+        elif unit == "s":
+            seconds += value
+
+    total_seconds = (
+        weeks * 7 * 24 * 3600 + days * 24 * 3600 + hours * 3600 + minutes * 60 + seconds
+    )
+
+    h, remainder = divmod(total_seconds, 3600)
+    m, s = divmod(remainder, 60)
+
+    return f"{h}:{m:02}:{s:02}"

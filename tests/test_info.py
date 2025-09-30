@@ -44,6 +44,7 @@ def sample_info(sample_resources):
         username="fake_user",
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
+        queue="default",
         script_name="script.sh",
         job_type="standard",
         input_machine="fake.machine.com",
@@ -372,7 +373,7 @@ def test_use_scratch_true(sample_info):
 
 def test_use_scratch_false(sample_info):
     informer = QQInformer(sample_info)
-    informer.info.resources.work_dir = None
+    informer.info.resources.work_dir = "job_dir"
     assert not informer.useScratch()
 
 
@@ -508,7 +509,7 @@ def test_info_basic_integration(tmp_path):
         with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
             result_submit = runner.invoke(
                 submit,
-                ["default", str(script_file), "--batch-system", "VBS"],
+                ["-q", "default", str(script_file), "--batch-system", "VBS"],
             )
         assert result_submit.exit_code == 0
 
@@ -589,7 +590,13 @@ def test_info_multiple_jobs_integration(tmp_path):
             for i in range(3):
                 result_submit = runner.invoke(
                     submit,
-                    ["default", str(script_files[i]), "--batch-system", "VBS"],
+                    [
+                        "--queue",
+                        "default",
+                        str(script_files[i]),
+                        "--batch-system",
+                        "VBS",
+                    ],
                 )
                 assert result_submit.exit_code == 0
                 info_file = tmp_path / f"test_script{i}.qqinfo"

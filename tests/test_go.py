@@ -51,6 +51,7 @@ def sample_info(tmp_path, sample_resources):
         username="fake_user",
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
+        queue="default",
         script_name="script.sh",
         job_type="standard",
         input_machine="fake.machine.com",
@@ -137,7 +138,7 @@ def test_is_in_work_dir_true_different_host_job_dir(tmp_path, sample_info):
     goer._host = "fake_host"
     goer._informer = QQInformer(sample_info)
     # set work_dir to job_dir
-    goer._informer.info.resources.work_dir = None
+    goer._informer.info.resources.work_dir = "job_dir"
 
     with patch("pathlib.Path.cwd", return_value=tmp_path):
         assert goer._isInWorkDir() is True

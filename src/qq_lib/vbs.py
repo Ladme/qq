@@ -189,7 +189,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
 
         return scratch
 
-    def jobSubmit(res: QQResources, _queue: str, script: Path) -> str:
+    def jobSubmit(res: QQResources, _queue: str, script: Path, _job_name: str) -> str:
         try:
             return QQVBS._batch_system.submitJob(script, res.useScratch())
         except VBSError as e:
@@ -238,6 +238,28 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     ):
         # directories are always local
         QQBatchInterface.syncDirectories(src_dir, dest_dir, None, None, exclude_files)
+
+    def buildResources(queue: str, **kwargs) -> QQResources:
+        return QQResources.mergeResources(
+            QQResources(**kwargs), QQVBS._getDefaultServerResources()
+        )
+
+    @staticmethod
+    def _getDefaultServerResources() -> QQResources:
+        """
+        Return a QQResources object representing the default resources for a batch job.
+
+        Returns:
+            QQResources: Default batch job resources with predefined settings.
+        """
+        return QQResources(
+            nnodes=1,
+            ncpus=1,
+            mem_per_cpu="1gb",
+            work_dir="scratch_local",
+            work_size_per_cpu="1gb",
+            walltime="1d",
+        )
 
     def getJobInfo(job_id: str) -> VBSJobInfo:
         return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]

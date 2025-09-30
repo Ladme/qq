@@ -526,7 +526,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             # if qstat fails, information is empty
             self._info: dict[str, str] = {}
         else:
-            self._info = PBSJobInfo._parse_pbs_dump_to_dictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+            self._info = PBSJobInfo._parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
 
     def getJobState(self) -> BatchState:
         state = self._info.get("job_state")
@@ -536,7 +536,7 @@ class PBSJobInfo(BatchJobInfoInterface):
         return BatchState.fromCode(state)
 
     @staticmethod
-    def _parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
+    def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:
         """
         Parse a PBS job status dump into a dictionary.
 

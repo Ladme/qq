@@ -75,12 +75,12 @@ Job Id: 123456.fake-cluster.example.com
 
 def test_parse_pbs_dump_empty_string():
     text = ""
-    result = PBSJobInfo._parse_pbs_dump_to_dictionary(text)
+    result = PBSJobInfo._parsePBSDumpToDictionary(text)
     assert result == {}
 
 
 def test_parse_pbs_dump_real_file(sample_dump_file):
-    result = PBSJobInfo._parse_pbs_dump_to_dictionary(sample_dump_file)
+    result = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
 
     assert isinstance(result, dict)
     assert result["Job_Name"].strip() == "example_job"
@@ -106,7 +106,7 @@ KEY =
 NORMAL = OK
 NOTCONTINUATION
 """
-    result = PBSJobInfo._parse_pbs_dump_to_dictionary(text)
+    result = PBSJobInfo._parsePBSDumpToDictionary(text)
 
     assert result.get("NORMAL") == "OK"
 
@@ -116,7 +116,7 @@ NOTCONTINUATION
 
 def test_get_job_state(sample_dump_file):
     pbs_job_info = object.__new__(PBSJobInfo)
-    pbs_job_info._info = PBSJobInfo._parse_pbs_dump_to_dictionary(sample_dump_file)
+    pbs_job_info._info = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
 
     assert pbs_job_info.getJobState() == BatchState.RUNNING
 

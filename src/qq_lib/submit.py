@@ -78,7 +78,7 @@ The submitted script must be located in the directory from which
     "--mem",
     type=str,
     default=None,
-    help="Absolute amount of memory to use. Specify as 'Nmb' or 'Ngb' (e.g., 500 mb or 10gb). Overrides '--mem-per-cpu'.",
+    help="Absolute amount of memory to use. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides '--mem-per-cpu'.",
 )
 @click.option("--ngpus", type=int, default=None, help="Number of GPUs to use.")
 @click.option(

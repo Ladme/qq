@@ -250,3 +250,35 @@ def test_merge_resources_with_none_resources():
     merged = QQResources.mergeResources(r1, r2)
     for f in r1.__dataclass_fields__:
         assert getattr(merged, f) is None
+
+
+def test_parse_size_from_string():
+    result = QQResources._parse_size("4gb")
+    assert isinstance(result, Size)
+    assert result.value == 4
+    assert result.unit == "gb"
+
+
+def test_parse_size_from_size():
+    result = QQResources._parse_size(Size(4, "gb"))
+    assert isinstance(result, Size)
+    assert result.value == 4
+    assert result.unit == "gb"
+
+
+def test_parse_size_from_dict():
+    data = {"value": 8, "unit": "mb"}
+    result = QQResources._parse_size(data)
+    assert isinstance(result, Size)
+    assert result.value == 8
+    assert result.unit == "mb"
+
+
+def test_parse_size_invalid_type_int():
+    result = QQResources._parse_size(123)
+    assert result is None
+
+
+def test_parse_size_invalid_type_none():
+    result = QQResources._parse_size(None)
+    assert result is None

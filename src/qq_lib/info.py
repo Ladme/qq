@@ -9,14 +9,10 @@ from typing import Self
 
 import click
 import yaml
-from rich.console import Console, Group
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
 
 from qq_lib.batch import BatchJobInfoInterface, QQBatchInterface, QQBatchMeta
 from qq_lib.click_format import GNUHelpColorsCommand
-from qq_lib.common import format_duration, get_info_files
+from qq_lib.common import get_info_files
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.logger import get_logger
@@ -36,16 +32,20 @@ def info():
     """
     Get information about the qq job submitted from this directory.
     """
+    from rich.console import Console
+
+    from qq_lib.present import QQPresenter
+
     info_files = get_info_files(Path())
     if not info_files:
-        logger.error("No qq job info file found.\n")
+        logger.error("No qq job info file found.")
         sys.exit(91)
 
     try:
         for file in info_files:
-            informer = QQInformer.fromFile(file)
+            presenter = QQPresenter(QQInformer.fromFile(file))
             console = Console()
-            panel = informer.createJobStatusPanel(console)
+            panel = presenter.createFullInfoPanel(console)
             console.print(panel)
         sys.exit(0)
     except QQError as e:
@@ -310,9 +310,6 @@ class QQInfo:
 class QQInformer:
     """
     Provides an interface to access and manipulate qq job information.
-
-    Wraps a QQInfo object and exposes convenience methods for updating job state,
-    retrieving real-time state from the batch system, and creating visual job status panels.
     """
 
     def __init__(self, info: QQInfo):
@@ -470,107 +467,3 @@ class QQInformer:
             return RealState.fromStates(self.info.job_state, BatchState.UNKNOWN)
 
         return RealState.fromStates(self.info.job_state, self.getBatchState())
-
-    def createJobStatusPanel(self, console: Console | None = None) -> Group:
-        """
-        Create a textual status panel showing the job state and details.
-
-        Args:
-            console: Optional Rich Console object.
-
-        Returns:
-            A Rich Group object containing a panel with job status information.
-        """
-        state = self.getRealState()
-
-        (message, details) = self._getStateMessages(
-            state,
-            self.info.start_time or self.info.submission_time,
-            self.info.completion_time or datetime.now(),
-        )
-
-        console = console or Console()
-        term_width = console.size.width
-        panel_width = max(60, term_width // 3)
-
-        table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_column(justify="right", style="bold")
-        table.add_column(justify="left")
-
-        table.add_row("Job state:", Text(message, style=f"{state.color} bold"))
-        if details.strip():
-            table.add_row("", Text(details, style="white"))
-
-        panel = Panel(
-            table,
-            title=Text(f"JOB: {self.info.job_id}", style="bold", justify="center"),
-            border_style="white",
-            padding=(1, 2),
-            width=panel_width,
-        )
-
-        return Group(Text(""), panel, Text(""))
-
-    def _getStateMessages(
-        self, state: RealState, start_time: datetime, end_time: datetime
-    ) -> tuple[str, str]:
-        """
-        Map a RealState to user-friendly messages for display.
-
-        Args:
-            state: The RealState of the job.
-            start_time: Start time of the job or relevant state period.
-            end_time: End time of the job or relevant state period.
-
-        Returns:
-            Tuple containing a short message and a message with additional information.
-        """
-        match state:
-            case RealState.QUEUED:
-                return (
-                    "Job is queued",
-                    f"In queue for {format_duration(end_time - start_time)}",
-                )
-            case RealState.HELD:
-                return (
-                    "Job is held",
-                    f"In queue for {format_duration(end_time - start_time)}",
-                )
-            case RealState.SUSPENDED:
-                return ("Job is suspended", "")
-            case RealState.WAITING:
-                return (
-                    "Job is waiting",
-                    f"In queue for {format_duration(end_time - start_time)}",
-                )
-            case RealState.RUNNING:
-                return (
-                    "Job is running",
-                    f"Running for {format_duration(end_time - start_time)} on '{self.info.main_node}'",
-                )
-            case RealState.BOOTING:
-                return ("Job is booting", "Preparing the working directory...")
-            case RealState.KILLED:
-                return ("Job has been killed", f"Killed at {end_time}")
-            case RealState.FAILED:
-                return (
-                    "Job has failed",
-                    f"Failed at {end_time} [exit code: {self.info.job_exit_code}]",
-                )
-            case RealState.FINISHED:
-                return ("Job has finished", f"Completed at {end_time}")
-            case RealState.IN_AN_INCONSISTENT_STATE:
-                return (
-                    "Job is in an inconsistent state",
-                    "The batch system and qq disagree on the status of the job",
-                )
-            case RealState.UNKNOWN:
-                return (
-                    "Job is in an unknown state",
-                    "Job is in a state that qq does not recognize",
-                )
-
-        return (
-            "Job is in an unknown state",
-            "Job is in a state that qq does not recognize",
-        )

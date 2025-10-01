@@ -15,6 +15,7 @@ from qq_lib.constants import GOER_WAIT_TIME
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
+from qq_lib.present import QQPresenter
 from qq_lib.states import RealState
 
 logger = get_logger(__name__)
@@ -33,7 +34,7 @@ def go():
     """
     info_files = get_info_files(Path())
     if not info_files:
-        logger.error("No qq job info file found.\n")
+        logger.error("No qq job info file found.")
         sys.exit(91)
 
     n_suitable = 0  # number of jobs suitable to be navigated to
@@ -106,7 +107,8 @@ class QQGoer:
         """
         Display the current job status using a formatted panel.
         """
-        panel = self._informer.createJobStatusPanel(console)
+        presenter = QQPresenter(self._informer)
+        panel = presenter.createJobStatusPanel(console)
         console.print(panel)
 
     def update(self):
@@ -149,7 +151,9 @@ class QQGoer:
                 raise QQError(
                     "Job has been killed and no working directory is available."
                 )
-            logger.warning("Job has been killed: working directory may not exist.")
+            logger.warning(
+                "Job has been killed: working directory may no longer exist."
+            )
         elif self._isQueued():
             logger.warning(
                 f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {GOER_WAIT_TIME} seconds."

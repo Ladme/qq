@@ -52,24 +52,20 @@ class QQResources:
         self,
         nnodes: int | str | None = None,
         ncpus: int | str | None = None,
-        mem: Size | str | None = None,
-        mem_per_cpu: Size | str | None = None,
+        mem: Size | str | dict[str, object] | None = None,
+        mem_per_cpu: Size | str | dict[str, object] | None = None,
         ngpus: int | str | None = None,
         walltime: str | None = None,
         work_dir: str | None = None,
-        work_size: Size | str | None = None,
-        work_size_per_cpu: Size | str | None = None,
+        work_size: Size | str | dict[str, object] | None = None,
+        work_size_per_cpu: Size | str | dict[str, object] | None = None,
         props: dict[str, str] | str | None = None,
     ):
         # convert sizes
-        if isinstance(mem, str):
-            mem = Size.from_string(mem)
-        if isinstance(mem_per_cpu, str):
-            mem_per_cpu = Size.from_string(mem_per_cpu)
-        if isinstance(work_size, str):
-            work_size = Size.from_string(work_size)
-        if isinstance(work_size_per_cpu, str):
-            work_size_per_cpu = Size.from_string(work_size_per_cpu)
+        mem = QQResources._parse_size(mem)
+        mem_per_cpu = QQResources._parse_size(mem_per_cpu)
+        work_size = QQResources._parse_size(work_size)
+        work_size_per_cpu = QQResources._parse_size(work_size_per_cpu)
 
         # convert walltime
         if isinstance(walltime, str) and ":" not in walltime:
@@ -192,4 +188,24 @@ class QQResources:
             val = getattr(r, field)
             if val is not None and not blocked:
                 return val
+        return None
+
+    @staticmethod
+    def _parse_size(value: object) -> Size | None:
+        """
+        Convert a raw value into a `Size` instance if possible.
+
+        Args:
+            value (object): A Size object or a raw size value (a string or a dictionary).
+
+        Returns:
+            Size | None: A `Size` object if the input could be parsed,
+            otherwise `None`.
+        """
+        if isinstance(value, str):
+            return Size.from_string(value)
+        if isinstance(value, dict):
+            return Size(**value)  # ty: ignore[missing-argument]
+        if isinstance(value, Size):
+            return value
         return None

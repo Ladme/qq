@@ -20,6 +20,7 @@ from qq_lib.common import get_info_files, yes_or_no_prompt
 from qq_lib.error import QQError
 from qq_lib.info import QQInformer
 from qq_lib.logger import get_logger
+from qq_lib.present import QQPresenter
 from qq_lib.states import RealState
 
 logger = get_logger(__name__)
@@ -85,7 +86,7 @@ def kill(yes: bool = False, force: bool = False):
     # get all job info files
     info_files = get_info_files(Path())
     if not info_files:
-        logger.error("No qq job info file found.\n")
+        logger.error("No qq job info file found.")
         sys.exit(91)
 
     n_suitable = 0  # number of jobs suitable to be killed
@@ -162,7 +163,8 @@ class QQKiller:
         """
         Display the current job status using a formatted panel.
         """
-        panel = self._informer.createJobStatusPanel(console)
+        presenter = QQPresenter(self._informer)
+        panel = presenter.createJobStatusPanel(console)
         console.print(panel)
 
     def askForConfirm(self) -> bool:

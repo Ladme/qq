@@ -1,0 +1,333 @@
+# Released under MIT License.
+# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+
+from datetime import datetime
+
+from rich.align import Align
+from rich.console import Console, Group
+from rich.padding import Padding
+from rich.panel import Panel
+from rich.rule import Rule
+from rich.table import Table
+from rich.text import Text
+
+from qq_lib.common import format_duration
+from qq_lib.constants import DATE_FORMAT
+from qq_lib.info import QQInformer
+from qq_lib.states import RealState
+
+
+class QQPresenter:
+    """
+    Presentation layer for qq job information.
+    """
+
+    def __init__(self, informer: QQInformer):
+        """
+        Initialize the presenter with a QQInformer.
+
+        Args:
+            informer (QQInformer): The informer object that provides
+                access to qq job metadata and runtime details.
+        """
+        self._informer = informer
+
+    def createJobStatusPanel(self, console: Console | None = None) -> Group:
+        """
+        Create a standalone status panel for the job.
+
+        Args:
+            console (Console | None): Optional Rich console.
+                If not provided, a new Console is created.
+
+        Returns:
+            Group: A Rich Group containing the status panel.
+        """
+        console = console or Console()
+        term_width = console.size.width
+        panel_width = max(60, term_width // 3)
+
+        panel = Panel(
+            self._createJobStatusTable(self._informer.getRealState()),
+            title=Text(
+                f"JOB: {self._informer.info.job_id}", style="bold", justify="center"
+            ),
+            border_style="white",
+            padding=(1, 2),
+            width=panel_width,
+        )
+
+        return Group(Text(""), panel, Text(""))
+
+    def createFullInfoPanel(self, console: Console | None = None) -> Group:
+        """
+        Create a full job information panel.
+
+        Args:
+            console (Console | None): Optional Rich console.
+                If not provided, a new Console is created.
+
+        Returns:
+            Group: A Rich Group containing the full job info panel.
+        """
+
+        console = console or Console()
+        term_width = console.size.width
+        panel_width = max(80, term_width // 3)
+
+        state = self._informer.getRealState()
+
+        content = Group(
+            Padding(self._createBasicInfoTable(), (0, 2)),
+            Text(""),
+            Rule(title=Text("RESOURCES", style="bold"), style="white"),
+            Text(""),
+            Padding(Align.center(self._createResourcesTable(term_width)), (0, 2)),
+            Text(""),
+            Rule(title=Text("HISTORY", style="bold"), style="white"),
+            Text(""),
+            Padding(self._createJobHistoryTable(state), (0, 2)),
+            Text(""),
+            Rule(title=Text("STATE", style="bold"), style="white"),
+            Text(""),
+            Padding(self._createJobStatusTable(state), (0, 2)),
+        )
+
+        # combine all sections
+        full_panel = Panel(
+            content,
+            title=Text(
+                f"JOB: {self._informer.info.job_id}", style="bold", justify="center"
+            ),
+            border_style="white",
+            # no horizontal padding so Rule reaches borders
+            padding=(1, 0),
+            width=panel_width,
+        )
+
+        return Group(Text(""), full_panel, Text(""))
+
+    def _createBasicInfoTable(self) -> Table:
+        """
+        Create a table with basic job information.
+
+        Returns:
+            Table: A Rich table with key-value pairs of basic job details.
+        """
+        table = Table(show_header=False, box=None, padding=(0, 1))
+        table.add_column(justify="right", style="bold")
+        table.add_column(justify="left", overflow="fold")
+
+        table.add_row("Job name:", Text(self._informer.info.job_name, style="white"))
+        table.add_row(
+            "Submission queue:", Text(self._informer.info.queue, style="white")
+        )
+        table.add_row(
+            "Input machine:", Text(self._informer.info.input_machine, style="white")
+        )
+        table.add_row(
+            "Input directory:", Text(str(self._informer.info.job_dir), style="white")
+        )
+        if self._informer.info.main_node:
+            table.add_row(
+                "Main working node:", Text(self._informer.info.main_node, style="white")
+            )
+        if self._informer.info.work_dir:
+            table.add_row(
+                "Working directory:",
+                Text(str(self._informer.info.work_dir), style="white"),
+            )
+
+        return table
+
+    def _createResourcesTable(self, term_width: int) -> Table:
+        """
+        Create a table displaying job resource requirements.
+
+        Args:
+            term_width (int): Width of the current terminal, used
+                to size the spacer column.
+
+        Returns:
+            Table: A Rich table summarizing resource allocations.
+        """
+        resources = self._informer.info.resources
+        table = Table(show_header=False, box=None, padding=(0, 1))
+
+        table.add_column(justify="right", style="bold", no_wrap=True)
+        table.add_column(justify="left", no_wrap=False, overflow="fold")
+        # spacer column
+        table.add_column(justify="center", width=term_width // 30)
+        table.add_column(justify="right", style="bold", no_wrap=True)
+        table.add_column(justify="left", no_wrap=False, overflow="fold")
+
+        fields = vars(resources)
+
+        # filter out None values
+        items = [
+            (k.replace("_", "-").lower(), str(v))
+            for k, v in fields.items()
+            if v is not None and k != "props"
+        ]
+
+        # translate properties
+        if resources.props:
+            items.extend([(k, str(v)) for k, v in resources.props.items()])
+
+        for i in range(0, len(items), 2):
+            row = items[i]
+            if i + 1 < len(items):
+                row2 = items[i + 1]
+                table.add_row(
+                    row[0] + ":",
+                    Text(row[1], style="white"),
+                    "",
+                    row2[0] + ":",
+                    Text(row2[1], style="white"),
+                )
+            else:
+                # only one item left
+                table.add_row(row[0] + ":", Text(row[1], style="white"), "", "", "")
+
+        return table
+
+    def _createJobHistoryTable(self, state: RealState) -> Table:
+        """
+        Create a table summarizing the job timeline.
+
+        Args:
+            state (RealState): The current real state of the job.
+
+        Returns:
+            Table: A Rich table showing the chronological job history.
+        """
+        submitted = self._informer.info.submission_time
+        started = self._informer.info.start_time
+        completed = self._informer.info.completion_time
+
+        table = Table(show_header=False, box=None, padding=(0, 1))
+
+        table.add_column(justify="right", style="bold")
+        table.add_column(justify="left", overflow="fold")
+
+        table.add_row("Submitted at:", Text(f"{submitted}", style="white"))
+        if started:
+            table.add_row(
+                "",
+                Text(
+                    f"was queued for {format_duration(started - submitted)}",
+                    style="grey50",
+                ),
+            )
+            table.add_row("Started at:", Text(f"{started}", style="white"))
+        if started and completed:
+            table.add_row(
+                "",
+                Text(
+                    f"was running for {format_duration(completed - started)}",
+                    style="grey50",
+                ),
+            )
+            table.add_row(
+                f"{str(state).title()} at:", Text(f"{completed}", style="white")
+            )
+
+        return table
+
+    def _createJobStatusTable(self, state: RealState) -> Table:
+        """
+        Create a table summarizing the current job status.
+
+        Args:
+            state (RealState): The current real state of the job.
+
+        Returns:
+            Table: A Rich table with job state and details.
+        """
+        (message, details) = self._getStateMessages(
+            state,
+            self._informer.info.start_time or self._informer.info.submission_time,
+            self._informer.info.completion_time or datetime.now(),
+        )
+
+        table = Table(show_header=False, box=None, padding=(0, 1))
+        table.add_column(justify="right", style="bold")
+        table.add_column(justify="left")
+
+        table.add_row("Job state:", Text(message, style=f"{state.color} bold"))
+        if details.strip():
+            table.add_row("", Text(details, style="white"))
+
+        return table
+
+    def _getStateMessages(
+        self, state: RealState, start_time: datetime, end_time: datetime
+    ) -> tuple[str, str]:
+        """
+        Map a RealState to human-readable messages.
+
+        Args:
+            state (RealState): The current job state.
+            start_time (datetime): Start time of the relevant state period.
+            end_time (datetime): End time of the relevant state period.
+
+        Returns:
+            tuple[str, str]: A tuple containing:
+                - A short status message (e.g., "Job is running").
+                - Additional details, such as elapsed time or error info.
+        """
+        match state:
+            case RealState.QUEUED:
+                return (
+                    "Job is queued",
+                    f"In queue for {format_duration(end_time - start_time)}",
+                )
+            case RealState.HELD:
+                return (
+                    "Job is held",
+                    f"In queue for {format_duration(end_time - start_time)}",
+                )
+            case RealState.SUSPENDED:
+                return ("Job is suspended", "")
+            case RealState.WAITING:
+                return (
+                    "Job is waiting",
+                    f"In queue for {format_duration(end_time - start_time)}",
+                )
+            case RealState.RUNNING:
+                return (
+                    "Job is running",
+                    f"Running for {format_duration(end_time - start_time)} on '{self._informer.info.main_node}'",
+                )
+            case RealState.BOOTING:
+                return ("Job is booting", "Preparing the working directory...")
+            case RealState.KILLED:
+                return (
+                    "Job has been killed",
+                    f"Killed at {end_time.strftime(DATE_FORMAT)}",
+                )
+            case RealState.FAILED:
+                return (
+                    "Job has failed",
+                    f"Failed at {end_time.strftime(DATE_FORMAT)} [exit code: {self._informer.info.job_exit_code}]",
+                )
+            case RealState.FINISHED:
+                return (
+                    "Job has finished",
+                    f"Completed at {end_time.strftime(DATE_FORMAT)}",
+                )
+            case RealState.IN_AN_INCONSISTENT_STATE:
+                return (
+                    "Job is in an inconsistent state",
+                    "The batch system and qq disagree on the status of the job",
+                )
+            case RealState.UNKNOWN:
+                return (
+                    "Job is in an unknown state",
+                    "Job is in a state that qq does not recognize",
+                )
+
+        return (
+            "Job is in an unknown state",
+            "Job is in a state that qq does not recognize",
+        )

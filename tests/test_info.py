@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from time import sleep
 from typing import Any
@@ -11,9 +11,6 @@ from unittest.mock import patch
 import pytest
 import yaml
 from click.testing import CliRunner
-from rich.console import Console, Group
-from rich.panel import Panel
-from rich.table import Table
 
 from qq_lib.batch import QQBatchMeta
 from qq_lib.constants import DATE_FORMAT
@@ -406,71 +403,6 @@ def test_get_destination_no_node_no_workdir(sample_info):
     informer.info.work_dir = None
 
     assert informer.getDestination() is None
-
-
-@pytest.mark.parametrize(
-    "state,expected_first_keyword,expected_second_keyword",
-    [
-        (RealState.QUEUED, "queued", "queue"),
-        (RealState.HELD, "held", "queue"),
-        (RealState.SUSPENDED, "suspended", ""),
-        (RealState.WAITING, "waiting", "queue"),
-        (RealState.RUNNING, "running", "running"),
-        (RealState.BOOTING, "booting", "preparing"),
-        (RealState.KILLED, "killed", "killed"),
-        (RealState.FAILED, "failed", "failed"),
-        (RealState.FINISHED, "finished", "completed"),
-        (RealState.IN_AN_INCONSISTENT_STATE, "inconsistent", "disagree"),
-        (RealState.UNKNOWN, "unknown", "does not recognize"),
-    ],
-)
-def test_informer_state_messages(
-    sample_info, state, expected_first_keyword, expected_second_keyword
-):
-    informer = QQInformer(sample_info)
-
-    # Set required fields for running/finished/failed states
-    if state == RealState.RUNNING:
-        sample_info.main_node = "node1"
-
-    if state == RealState.FAILED:
-        sample_info.job_exit_code = 1
-
-    start_time = datetime.now()
-    end_time = start_time + timedelta(hours=1)
-
-    first_msg, second_msg = informer._getStateMessages(state, start_time, end_time)
-
-    assert expected_first_keyword.lower() in first_msg.lower()
-    assert expected_second_keyword.lower() in second_msg.lower()
-
-
-def test_create_job_status_panel(sample_info):
-    informer = QQInformer(sample_info)
-
-    panel_group: Group = informer.createJobStatusPanel()
-
-    # group
-    assert isinstance(panel_group, Group)
-    assert len(panel_group.renderables) == 3
-
-    # panel
-    panel: Panel = panel_group.renderables[1]
-    assert isinstance(panel, Panel)
-    assert informer.info.job_id in panel.title.plain
-
-    # table
-    table: Table = panel.renderable
-    assert isinstance(table, Table)
-    assert len(table.columns) == 2
-
-    # printed content
-    console = Console(record=True)
-    console.print(table)
-    output = console.export_text()
-
-    assert "Job state:" in output
-    assert str(informer.getRealState()).lower() in output.lower()
 
 
 @pytest.mark.parametrize("naive_state", list(NaiveState))

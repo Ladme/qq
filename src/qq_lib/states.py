@@ -54,7 +54,8 @@ class BatchState(Enum):
     WAITING = 6
     SUSPENDED = 7
     FINISHED = 8
-    UNKNOWN = 9
+    FAILED = 9
+    UNKNOWN = 10
 
     def __str__(self):
         return self.name.lower()
@@ -70,6 +71,7 @@ class BatchState(Enum):
             "W": "waiting",
             "S": "suspended",
             "F": "finished",
+            "X": "failed",
         }
 
     @classmethod

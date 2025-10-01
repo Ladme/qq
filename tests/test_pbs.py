@@ -126,6 +126,14 @@ def test_get_job_state(sample_dump_file):
     pbs_job_info._info["job_state"] = "F"
     assert pbs_job_info.getJobState() == BatchState.FINISHED
 
+    pbs_job_info._info["job_state"] = "F"
+    pbs_job_info._info["Exit_status"] = " 0 "
+    assert pbs_job_info.getJobState() == BatchState.FINISHED
+
+    pbs_job_info._info["job_state"] = "F"
+    pbs_job_info._info["Exit_status"] = " 3"
+    assert pbs_job_info.getJobState() == BatchState.FAILED
+
     pbs_job_info._info["job_state"] = "z"
     assert pbs_job_info.getJobState() == BatchState.UNKNOWN
 

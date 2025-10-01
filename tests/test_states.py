@@ -42,8 +42,9 @@ def test_naive_state_from_str(input_str, expected_state):
         ("W", BatchState.WAITING),
         ("S", BatchState.SUSPENDED),
         ("F", BatchState.FINISHED),
+        ("X", BatchState.FAILED),
         ("e", BatchState.EXITING),
-        ("x", BatchState.UNKNOWN),
+        ("g", BatchState.UNKNOWN),
         ("", BatchState.UNKNOWN),
     ],
 )
@@ -62,6 +63,7 @@ def test_batch_state_from_code(code, expected_state):
         (BatchState.WAITING, "W"),
         (BatchState.SUSPENDED, "S"),
         (BatchState.FINISHED, "F"),
+        (BatchState.FAILED, "X"),
         (BatchState.UNKNOWN, "?"),
     ],
 )
@@ -83,6 +85,7 @@ def test_batch_state_to_code(state, expected_code):
         (NaiveState.QUEUED, BatchState.WAITING, RealState.WAITING),
         (NaiveState.QUEUED, BatchState.RUNNING, RealState.BOOTING),
         (NaiveState.QUEUED, BatchState.EXITING, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.QUEUED, BatchState.FAILED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.QUEUED, BatchState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE),
         # RUNNING naive state
         (NaiveState.RUNNING, BatchState.RUNNING, RealState.RUNNING),
@@ -91,10 +94,12 @@ def test_batch_state_to_code(state, expected_code):
         (NaiveState.RUNNING, BatchState.QUEUED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.RUNNING, BatchState.HELD, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.RUNNING, BatchState.FINISHED, RealState.IN_AN_INCONSISTENT_STATE),
+        (NaiveState.RUNNING, BatchState.FAILED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.RUNNING, BatchState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE),
         # KILLED naive state - always KILLED
         (NaiveState.KILLED, BatchState.QUEUED, RealState.KILLED),
         (NaiveState.KILLED, BatchState.FINISHED, RealState.KILLED),
+        (NaiveState.KILLED, BatchState.FAILED, RealState.KILLED),
         # FINISHED naive state - always FINISHED
         (NaiveState.FINISHED, BatchState.QUEUED, RealState.FINISHED),
         (NaiveState.FINISHED, BatchState.RUNNING, RealState.FINISHED),

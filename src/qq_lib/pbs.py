@@ -292,7 +292,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             # if job directory is used as working directory, it must always be shared
             if not res.useScratch():
                 raise QQError(
-                    "Job was requested to run directly in the submission directory (work-dir='job-dir'), but submission is done from a local filesystem."
+                    "Job was requested to run directly in the submission directory (work-dir='job_dir'), but submission is done from a local filesystem."
                 )
 
     @staticmethod

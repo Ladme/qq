@@ -306,6 +306,134 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
+    def makeRemoteDir(host: str, directory: Path):
+        """
+        Create a directory at the specified path on a remote host.
+
+        The default implementation uses SSH to run `mkdir` on the remote host.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the directory should be created.
+            directory (Path): The path of the directory to create on the remote host.
+
+        Raises:
+            QQError: If the directory cannot be created but does not already exist or the SSH command fails.
+        """
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                host,
+                # ignore an error if the directory already exists
+                f"mkdir {directory} 2>/dev/null || [ -d {directory} ]",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not make remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+            )
+
+    @staticmethod
+    @abstractmethod
+    def listRemoteDir(host: str, directory: Path) -> list[Path]:
+        """
+        List all files and directories (absolute paths) in the specified directory on a remote host.
+
+        The default implementation uses SSH to run `ls -A` on the remote host.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the directory resides.
+            directory (Path): The remote directory to list.
+
+        Returns:
+            list[Path]: A list of `Path` objects representing the entries inside the directory.
+                        Entries are relative to the given `directory`.
+
+        Raises:
+            QQError: If the directory cannot be listed or the SSH command fails.
+        """
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                host,
+                f"ls -A {directory}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not list remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+            )
+
+        # split by newline and filter out empty lines
+        return [
+            (Path(directory) / line).resolve()
+            for line in result.stdout.splitlines()
+            if line.strip()
+        ]
+
+    @staticmethod
+    @abstractmethod
+    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]):
+        """
+        Move files on a remote host from their current paths to new paths.
+
+        The default implementation uses SSH to run a sequence of `mv` commands on the remote host.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the files reside.
+            files (list[Path]): A list of source file paths on the remote host.
+            moved_files (list[Path]): A list of destination file paths on the remote host.
+                                    Must be the same length as `files`.
+
+        Raises:
+            QQError: If the SSH command fails, the files cannot be moved or
+                    the length of `files` does not match the length of `moved_files`.
+        """
+        mv_command = QQBatchInterface._translateMoveCommand(files, moved_files)
+
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                host,
+                mv_command,
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not move files on a remote host '{host}': {result.stderr.strip()}."
+            )
+
+    @staticmethod
+    @abstractmethod
     def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,
@@ -421,7 +549,8 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     def _translateSSHCommand(host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.
-        Internal method of QQBatchInterface, you should probably not override it.
+
+        This is an internal method of `QQBatchInterface`; you typically should not override it.
 
         Args:
             host (str): The hostname of the remote machine.
@@ -443,7 +572,8 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     def _navigateSameHost(directory: Path):
         """
         Navigate to a directory on the current host using a subprocess.
-        Internal method of QQBatchInterface, you should probably not override it.
+
+        This is an internal method of `QQBatchInterface`; you typically should not override it.
 
         Args:
             directory (Path): Directory to navigate to.
@@ -458,6 +588,37 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
         # if the directory exists, always report success,
         # no matter what the user does inside the terminal
+
+    @staticmethod
+    def _translateMoveCommand(files: list[Path], moved_files: list[Path]):
+        """
+        Translate lists of source and destination file paths into a single shell
+        command string for moving the files.
+
+        This is an internal method of `QQBatchInterface`; you typically should not override it.
+
+        Args:
+            files (list[Path]): A list of source file paths to be moved.
+            moved_files (list[Path]): A list of destination file paths of the same
+                length as `files`.
+
+        Returns:
+            str: A single shell command string consisting of `mv` commands joined
+            with `&&`.
+
+        Raises:
+            QQError: If `files` and `moved_files` do not have the same length.
+        """
+        if len(files) != len(moved_files):
+            raise QQError(
+                "The provided 'files' and 'moved_files' must have the same length."
+            )
+
+        mv_commands = []
+        for src, dst in zip(files, moved_files):
+            mv_commands.append(f"mv '{src}' '{dst}'")
+
+        return " && ".join(mv_commands)
 
     @staticmethod
     def _translateRsyncExcludedCommand(

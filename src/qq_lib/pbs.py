@@ -127,6 +127,52 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
             QQBatchInterface.writeRemoteFile(host, file, content)
 
+    def makeRemoteDir(host: str, directory: Path):
+        if os.environ.get(SHARED_SUBMIT):
+            # assuming the directory is created in job_dir
+            logger.debug(f"Creating a directory '{directory}' on shared storage.")
+            try:
+                directory.mkdir(exist_ok=True)
+            except Exception as e:
+                raise QQError(
+                    f"Could not create a directory '{directory}': {e}."
+                ) from e
+        else:
+            # otherwise we fall back to the default implementation
+            logger.debug(f"Creating a directory '{directory}' on '{host}'.")
+            QQBatchInterface.makeRemoteDir(host, directory)
+
+    def listRemoteDir(host: str, directory: Path) -> list[Path]:
+        if os.environ.get(SHARED_SUBMIT):
+            # assuming we are listing job_dir or another directory on shared storage
+            logger.debug(f"Listing a directory '{directory}' on shared storage.")
+            try:
+                return list(directory.iterdir())
+            except Exception as e:
+                raise QQError(f"Could not list a directory '{directory}': {e}.") from e
+        else:
+            # otherwise we fall back to the default implementation
+            logger.debug(f"Listing a directory '{directory}' on '{host}'.")
+            return QQBatchInterface.listRemoteDir(host, directory)
+
+    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]):
+        if len(files) != len(moved_files):
+            raise QQError(
+                "The provided 'files' and 'moved_files' must have the same length."
+            )
+
+        if os.environ.get(SHARED_SUBMIT):
+            # assuming we are moving files inside job_dir or another directory on shared storage
+            logger.debug(
+                f"Moving files '{files}' -> '{moved_files}' on a shared storage."
+            )
+            for src, dst in zip(files, moved_files):
+                shutil.move(str(src), str(dst))
+        else:
+            # otherwise we fall back to the default implementation
+            logger.debug(f"Moving files '{files}' -> '{moved_files}' on '{host}'.")
+            QQBatchInterface.moveRemoteFiles(host, files, moved_files)
+
     def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,

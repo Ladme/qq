@@ -485,8 +485,6 @@ def test_write_remote_file_shared_storage(tmp_path, monkeypatch):
     QQPBS.writeRemoteFile("remotehost", file_path, content)
     assert file_path.read_text() == content
 
-    monkeypatch.delenv(SHARED_SUBMIT)
-
 
 def test_write_remote_file_shared_storage_exception(tmp_path, monkeypatch):
     # using a directory instead of a file to cause write_text to fail
@@ -498,8 +496,6 @@ def test_write_remote_file_shared_storage_exception(tmp_path, monkeypatch):
     with pytest.raises(QQError, match="Could not write file"):
         QQPBS.writeRemoteFile("remotehost", dir_path, "content")
 
-    monkeypatch.delenv(SHARED_SUBMIT)
-
 
 def test_write_remote_file_remote():
     file_path = Path("/remote/output.txt")
@@ -508,6 +504,136 @@ def test_write_remote_file_remote():
     with patch.object(QQBatchInterface, "writeRemoteFile") as mock_write:
         QQPBS.writeRemoteFile("remotehost", file_path, content)
         mock_write.assert_called_once_with("remotehost", file_path, content)
+
+
+def test_make_remote_dir_shared_storage(tmp_path, monkeypatch):
+    dir_path = tmp_path / "newdir"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    QQPBS.makeRemoteDir("remotehost", dir_path)
+
+    assert dir_path.exists() and dir_path.is_dir()
+
+
+def test_make_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
+    file_path = tmp_path / "conflict"
+    file_path.write_text("dummy")
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with pytest.raises(QQError, match="Could not create a directory"):
+        QQPBS.makeRemoteDir("remotehost", file_path)
+
+
+def test_make_remote_dir_shared_storage_already_exists_ok(tmp_path, monkeypatch):
+    dir_path = tmp_path / "newdir"
+    dir_path.mkdir()
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    # ignore that the directory already exists
+    QQPBS.makeRemoteDir("remotehost", dir_path)
+
+    assert dir_path.exists() and dir_path.is_dir()
+
+
+def test_make_remote_dir_remote():
+    dir_path = Path("/remote/newdir")
+
+    with patch.object(QQBatchInterface, "makeRemoteDir") as mock_make:
+        QQPBS.makeRemoteDir("remotehost", dir_path)
+        mock_make.assert_called_once_with("remotehost", dir_path)
+
+
+def test_list_remote_dir_shared_storage(tmp_path, monkeypatch):
+    (tmp_path / "file1.txt").write_text("one")
+    (tmp_path / "file2.txt").write_text("two")
+    (tmp_path / "subdir").mkdir()
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    result = QQPBS.listRemoteDir("remotehost", tmp_path)
+
+    result_names = sorted([p.name for p in result])
+    assert result_names == ["file1.txt", "file2.txt", "subdir"]
+
+
+def test_list_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
+    # use a file instead of directory -> .iterdir() should fail
+    bad_path = tmp_path / "notadir"
+    bad_path.write_text("oops")
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with pytest.raises(QQError, match="Could not list a directory"):
+        QQPBS.listRemoteDir("remotehost", bad_path)
+
+
+def test_list_remote_dir_remote():
+    dir_path = Path("/remote/dir")
+
+    with patch.object(QQBatchInterface, "listRemoteDir") as mock_list:
+        QQPBS.listRemoteDir("remotehost", dir_path)
+        mock_list.assert_called_once_with("remotehost", dir_path)
+
+
+def test_move_remote_files_shared_storage(tmp_path, monkeypatch):
+    src1 = tmp_path / "file1.txt"
+    src2 = tmp_path / "file2.txt"
+    src1.write_text("one")
+    src2.write_text("two")
+
+    dst_dir = tmp_path / "dest"
+    dst_dir.mkdir()
+    dst1 = tmp_path / "dest1.txt"
+    dst2 = dst_dir / "dest2.txt"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    QQPBS.moveRemoteFiles("remotehost", [src1, src2], [dst1, dst2])
+
+    # check that files were moved
+    assert dst1.exists() and dst1.read_text() == "one"
+    assert dst2.exists() and dst2.read_text() == "two"
+    assert not src1.exists()
+    assert not src2.exists()
+
+
+def test_move_remote_files_shared_storage_exception(tmp_path, monkeypatch):
+    bad_src = tmp_path / "dir"
+    bad_src.mkdir()
+    dst = tmp_path / "dest"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    # normally shutil.move would move a directory,
+    # so we force an error by making the destination a file
+    (dst).write_text("dummy")
+
+    with pytest.raises(Exception):
+        QQPBS.moveRemoteFiles("remotehost", [bad_src], [dst])
+
+
+def test_move_remote_files_length_mismatch(tmp_path, monkeypatch):
+    src = tmp_path / "file1.txt"
+    src.write_text("data")
+    dst1 = tmp_path / "dest1.txt"
+    dst2 = tmp_path / "dest2.txt"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with pytest.raises(QQError, match="must have the same length"):
+        QQPBS.moveRemoteFiles("remotehost", [src], [dst1, dst2])
+
+
+def test_move_remote_files_remote():
+    src = Path("/remote/file.txt")
+    dst = Path("/remote/dest.txt")
+
+    with patch.object(QQBatchInterface, "moveRemoteFiles") as mock_move:
+        QQPBS.moveRemoteFiles("remotehost", [src], [dst])
+        mock_move.assert_called_once_with("remotehost", [src], [dst])
 
 
 def test_translate_work_dir_job_dir_returns_none():

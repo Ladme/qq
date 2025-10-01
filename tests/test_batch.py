@@ -579,3 +579,32 @@ def test_translate_rsync_included_command_no_files():
         "/dest",
     ]
     assert cmd == expected
+
+
+def test_translate_move_command_single_file():
+    files = [Path("source.txt")]
+    moved_files = [Path("dest") / "dest.txt"]
+
+    cmd = QQBatchInterface._translateMoveCommand(files, moved_files)
+    assert cmd == "mv 'source.txt' 'dest/dest.txt'"
+
+
+def test_translate_move_command_multiple_files():
+    files = [Path("a.txt"), Path("b.txt")]
+    moved_files = [Path("x.txt"), Path("y.txt")]
+
+    cmd = QQBatchInterface._translateMoveCommand(files, moved_files)
+    assert cmd == "mv 'a.txt' 'x.txt' && mv 'b.txt' 'y.txt'"
+
+
+def test_translate_move_command_mismatched_lengths():
+    files = [Path("a.txt")]
+    moved_files = [Path("b.txt"), Path("c.txt")]
+
+    with pytest.raises(QQError, match="must have the same length"):
+        QQBatchInterface._translateMoveCommand(files, moved_files)
+
+
+def test_translate_move_command_empty_lists():
+    cmd = QQBatchInterface._translateMoveCommand([], [])
+    assert cmd == ""

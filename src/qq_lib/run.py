@@ -54,6 +54,7 @@ from typing import NoReturn
 import click
 
 import qq_lib
+from qq_lib.archive import QQArchiver
 from qq_lib.constants import (
     INFO_FILE,
     INPUT_MACHINE,
@@ -169,6 +170,9 @@ class QQRunner:
         # process running the wrapped script
         self._process: subprocess.Popen[str] | None = None
 
+        # object used for archiving data
+        self._archiver = None
+
         # install a signal handler
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
@@ -180,13 +184,13 @@ class QQRunner:
         logger.debug(f"Info file: '{self._info_file}'.")
 
         # get input machine
-        self._input_machine = os.environ.get(INPUT_MACHINE)
-        if not self._input_machine:
+        if not (machine := os.environ.get(INPUT_MACHINE)):
             raise QQError(f"'{INPUT_MACHINE}' environment variable is not set.")
+        self._input_machine = machine
         logger.debug(f"Input machine: '{self._input_machine}'.")
 
         # load the info file
-        self._informer = QQRetryer(
+        self._informer: QQInformer = QQRetryer(
             QQInformer.fromFile,
             self._info_file,
             host=self._input_machine,
@@ -205,6 +209,19 @@ class QQRunner:
             f"[{str(self._informer.batch_system)}-qq v{qq_lib.__version__}] Initializing "
             f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
         )
+
+        # initialize archiver, if requested
+        if self._informer.info.archive_dir and self._informer.info.archive_format:
+            self._archiver = QQArchiver(
+                self._informer.info.archive_dir,
+                self._informer.info.archive_format,
+                self._informer.info.input_machine,
+                self._informer.info.job_dir,
+                self._batch_system,
+            )
+
+            self._archiver.makeArchiveDir()
+            # TODO: archive runtime files, if resubmited
 
         # get job directory
         self._job_dir = Path(self._informer.info.job_dir)
@@ -233,6 +250,9 @@ class QQRunner:
             self._setUpScratchDir()
         else:
             self._setUpSharedDir()
+
+        if self._archiver:
+            self._archiver.archiveFrom(self._work_dir)
 
     def executeScript(self) -> int:
         """
@@ -299,8 +319,10 @@ class QQRunner:
         logger.info("Finalizing the execution.")
 
         if self._process.returncode == 0:
-            # update the qqinfo file
-            self._updateInfoFinished()
+            # archive files
+            if self._archiver:
+                self._archiver.archiveTo(self._work_dir)
+
             if self._use_scratch:
                 # copy files back to the submission (job) directory
                 QQRetryer(
@@ -312,9 +334,13 @@ class QQRunner:
                     max_tries=RUNNER_RETRY_TRIES,
                     wait_seconds=RUNNER_RETRY_WAIT,
                 ).run()
+
                 # remove the working directory from scratch
                 # directory is retained on scratch if the run fails for any reason
                 self._deleteWorkDir()
+
+            # update the qqinfo file
+            self._updateInfoFinished()
         else:
             # only update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
@@ -408,8 +434,12 @@ class QQRunner:
         Used only after successful execution in scratch space.
         """
         logger.debug(f"Removing working directory '{self._work_dir}'.")
-        # even if this fails, the data area already copied
-        shutil.rmtree(self._work_dir)
+        QQRetryer(
+            shutil.rmtree,
+            self._work_dir,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
     def _updateInfoRunning(self):
         """

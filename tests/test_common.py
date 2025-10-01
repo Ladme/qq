@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -13,6 +14,8 @@ from qq_lib.common import (
     get_files_with_suffix,
     get_info_file,
     get_info_files,
+    is_printf_pattern,
+    printf_to_regex,
     wdhms_to_hhmmss,
     yes_or_no_prompt,
 )
@@ -299,3 +302,78 @@ def test_wdhms_to_hhmmss_large_values_and_rollover():
 def test_wdhms_to_hhmmss_zero_values_ok():
     assert wdhms_to_hhmmss("0h 0m 0s") == "0:00:00"
     assert wdhms_to_hhmmss("0w 0d") == "0:00:00"
+
+
+@pytest.mark.parametrize(
+    "pattern, test_string, should_match",
+    [
+        # simple zero-padded
+        ("md%04d", "md0001", True),
+        ("md%04d", "md1234", True),
+        ("md%04d", "md123", False),
+        ("md%04d", "md12345", False),
+        # simple non-padded
+        ("file%d", "file1", True),
+        ("file%d", "file12345", True),
+        ("file%d", "file", False),
+        ("file%d", "file12a", False),
+        # multiple placeholders
+        ("file%03d_part%02d", "file001_part01", True),
+        ("file%03d_part%02d", "file123_part99", True),
+        ("file%03d_part%02d", "file12_part01", False),
+        ("file%03d_part%02d", "file123_part1", False),
+        # literal characters
+        ("data(%d).txt", "data(12).txt", True),
+        ("data(%d).txt", "data12.txt", False),
+        # no placeholders
+        ("readme.txt", "readme.txt", True),
+        ("readme.txt", "readme1.txt", False),
+        # adjacent placeholders
+        ("%02d%03d", "01123", True),
+        ("%02d%03d", "123", False),
+    ],
+)
+def test_printf_to_regex(pattern, test_string, should_match):
+    regex = printf_to_regex(pattern)
+    match = re.fullmatch(regex, test_string) is not None
+    assert match == should_match
+
+
+@pytest.mark.parametrize(
+    "pattern, expected_regex",
+    [
+        ("md%04d", r"^md\d{4}$"),
+        ("file%d", r"^file\d+$"),
+        ("file%03d_part%02d", r"^file\d{3}_part\d{2}$"),
+        ("data(%d).txt", r"^data\(\d+\)\.txt$"),
+        ("readme.txt", r"^readme\.txt$"),
+        ("%02d%03d", r"^\d{2}\d{3}$"),
+    ],
+)
+def test_regex_generation(pattern, expected_regex):
+    assert printf_to_regex(pattern) == expected_regex
+
+
+@pytest.mark.parametrize(
+    "pattern, expected",
+    [
+        # simple cases
+        ("md%04d", True),
+        ("file%d", True),
+        ("file%03d_part%02d", True),
+        # no placeholders
+        ("readme.txt", False),
+        ("data_123.txt", False),
+        ("md\\d{4}", False),
+        # mixed text
+        ("prefix%05d_suffix", True),
+        ("start%0dend", True),
+        ("%d", True),
+        ("%0d", True),
+        ("%", False),
+        ("%05", False),
+        ("%x", False),
+    ],
+)
+def test_is_printf_pattern(pattern, expected):
+    assert is_printf_pattern(pattern) == expected

@@ -229,6 +229,33 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not write file '{file}': {e}.") from e
 
+    def makeRemoteDir(_host: str, directory: Path):
+        # always local
+        try:
+            directory.mkdir(exist_ok=True)
+        except Exception as e:
+            raise QQError(f"Could not create a directory '{directory}': {e}") from e
+
+    def listRemoteDir(_host: str, directory: Path) -> list[Path]:
+        # always local
+        try:
+            return list(directory.iterdir())
+        except Exception as e:
+            raise QQError(f"Could not list a directory '{directory}': {e}") from e
+
+    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]):
+        if len(files) != len(moved_files):
+            raise QQError(
+                "The provided 'files' and 'moved_files' must have the same length."
+            )
+
+        # always local
+        try:
+            for src, dst in zip(files, moved_files):
+                shutil.move(str(src), str(dst))
+        except Exception as e:
+            raise QQError("Could not move files.") from e
+
     def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,

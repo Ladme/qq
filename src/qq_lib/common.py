@@ -272,3 +272,32 @@ def wdhms_to_hhmmss(timestr: str) -> str:
     m, s = divmod(remainder, 60)
 
     return f"{h}:{m:02}:{s:02}"
+
+
+def printf_to_regex(pattern: str) -> str:
+    """
+    Convert a simple printf-style pattern to an equivalent regular expression pattern.
+
+    Args:
+        pattern (str): A printf-style pattern (e.g., "md%04d", "file%03d_part%02d").
+
+    Returns:
+        str: A string representing the equivalent regex pattern.
+    """
+    regex = re.escape(pattern)
+    regex = re.sub(r"%0(\d+)d", r"\\d{\1}", regex)  # double backslash
+    regex = re.sub(r"%d", r"\\d+", regex)
+    return f"^{regex}$"
+
+
+def is_printf_pattern(pattern: str) -> bool:
+    """
+    Detect whether a string pattern uses printf-style numeric placeholders.
+
+    Args:
+        pattern (str): The pattern string to check.
+
+    Returns:
+        bool: True if the pattern contains printf-style placeholders, False otherwise.
+    """
+    return bool(re.search(r"%0?\d*d", pattern))

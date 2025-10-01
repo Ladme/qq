@@ -18,6 +18,14 @@ def guard():
         )
 
 
+def guard_command(command: str):
+    """
+    Raises an exception if a qq command is not used inside qq environment.
+    """
+    if not _check_qq_env():
+        raise QQError(f"'qq {command}' can only be used within a running qq job.")
+
+
 def _check_qq_env() -> bool:
     """
     Returns True if the `GUARD_ENV_VAR` environment variable is set.

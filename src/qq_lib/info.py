@@ -111,6 +111,15 @@ class QQInfo:
     # Resources allocated to the job
     resources: QQResources
 
+    # Optional path to the directory for archiving job files.
+    archive_dir: Path | None = None
+
+    # Optional format for archived files.
+    archive_format: str | None = None
+
+    # Is the job resubmited?
+    resubmited: bool = False
+
     # List of files to not copy to the working directory
     excluded_files: list[Path] | None = None
 

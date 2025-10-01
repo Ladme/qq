@@ -71,3 +71,12 @@ RUNNER_SIGTERM_TO_SIGKILL = 5
 
 # Time in seconds to wait before rechecking job state when queued.
 GOER_WAIT_TIME = 5
+
+# Maximum number of retry attempts for operations in QQArchiver.
+ARCHIVER_RETRY_TRIES = 3
+
+# Wait time in seconds between retry attempts in QQArchiver.
+ARCHIVER_RETRY_WAIT = 300
+
+# Pattern used for numbering qq loop jobs.
+LOOP_JOB_PATTERN = "+%03d"

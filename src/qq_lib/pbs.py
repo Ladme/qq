@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+from collections.abc import Callable
 from dataclasses import fields
 from pathlib import Path
 
@@ -126,36 +127,37 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
             QQBatchInterface.writeRemoteFile(host, file, content)
 
-    def syncDirectories(
+    def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
         dest_host: str | None,
         exclude_files: list[Path] | None = None,
     ):
-        if os.environ.get(SHARED_SUBMIT):
-            # job_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
-            logger.debug("Syncing directories on local and shared filesystem.")
-            QQBatchInterface.syncDirectories(
-                src_dir, dest_dir, None, None, exclude_files
-            )
-        else:
-            # job_dir is not on shared storage -> fall back to the default implementation
-            logger.debug("Syncing directories on local filesystems.")
+        QQPBS._syncDirectories(
+            src_dir,
+            dest_dir,
+            src_host,
+            dest_host,
+            exclude_files,
+            QQBatchInterface.syncWithExclusions,
+        )
 
-            # convert local hosts to none
-            local_hostname = socket.gethostname()
-            src = None if src_host == local_hostname else src_host
-            dest = None if dest_host == local_hostname else dest_host
-
-            if src is None or dest is None:
-                QQBatchInterface.syncDirectories(
-                    src_dir, dest_dir, src, dest, exclude_files
-                )
-            else:
-                raise QQError(
-                    f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
-                )
+    def syncSelected(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        include_files: list[Path] | None = None,
+    ):
+        QQPBS._syncDirectories(
+            src_dir,
+            dest_dir,
+            src_host,
+            dest_host,
+            include_files,
+            QQBatchInterface.syncSelected,
+        )
 
     def buildResources(queue: str, **kwargs) -> QQResources:
         # resources provided by the user
@@ -501,6 +503,52 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             str: The qdel command without force flag.
         """
         return f"qdel {job_id}"
+
+    @staticmethod
+    def _syncDirectories(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        files: list[Path] | None,
+        sync_function: Callable[
+            [Path, Path, str | None, str | None, list[Path] | None], None
+        ],
+    ):
+        """
+        Synchronize directories either locally or across remote hosts, depending on the environment and setup.
+
+        Args:
+            src_dir (Path): Source directory to sync from.
+            dest_dir (Path): Destination directory to sync to.
+            src_host (str | None): Hostname of the source machine if remote; None if local.
+            dest_host (str | None): Hostname of the destination machine if remote; None if local.
+            files (list[Path] | None): Optional list of file paths to include or exclude, depending on `sync_function`.
+            sync_function (Callable): Function to perform the actual synchronization.
+
+        Raises:
+            QQError: If both source and destination hosts are remote and cannot be
+                accessed simultaneously, or if syncing fails internally.
+        """
+        if os.environ.get(SHARED_SUBMIT):
+            # job_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
+            logger.debug("Syncing directories on local and shared filesystem.")
+            sync_function(src_dir, dest_dir, None, None, files)
+        else:
+            # job_dir is not on shared storage -> fall back to the default implementation
+            logger.debug("Syncing directories on local filesystems.")
+
+            # convert local hosts to none
+            local_hostname = socket.gethostname()
+            src = None if src_host == local_hostname else src_host
+            dest = None if dest_host == local_hostname else dest_host
+
+            if src is None or dest is None:
+                sync_function(src_dir, dest_dir, src, dest, files)
+            else:
+                raise QQError(
+                    f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
+                )
 
 
 class PBSJobInfo(BatchJobInfoInterface):

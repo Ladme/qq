@@ -306,7 +306,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def syncDirectories(
+    def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -314,8 +314,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         exclude_files: list[Path] | None = None,
     ):
         """
-        Synchronize the contents of two directories using rsync, optionally across remote hosts.
-        Files are never removed from the destination directory.
+        Synchronize the contents of two directories using rsync, optionally across remote hosts,
+        while excluding specified files or subdirectories.
+
+        All files and directories in `src_dir` are copied to `dest_dir` except
+        those listed in `exclude_files`. Files are never removed from the destination.
 
         Args:
             src_dir (Path): Source directory to sync from.
@@ -337,28 +340,56 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             else []
         )
 
-        command = QQBatchInterface._translateRsyncCommand(
+        command = QQBatchInterface._translateRsyncExcludedCommand(
             src_dir, dest_dir, src_host, dest_host, relative_excluded
         )
         logger.debug(f"Rsync command: {command}.")
 
-        src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
-        dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
+        QQBatchInterface._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
-        # run the rsync command
-        try:
-            result = subprocess.run(
-                command, capture_output=True, text=True, timeout=RSYNC_TIMEOUT
-            )
-        except subprocess.TimeoutExpired as e:
-            raise QQError(
-                f"Could not rsync files between '{src}' and '{dest}': Connection timed out after {RSYNC_TIMEOUT} seconds."
-            ) from e
+    @staticmethod
+    @abstractmethod
+    def syncSelected(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        include_files: list[Path] | None = None,
+    ):
+        """
+        Synchronize only the explicitly selected files and directories from the source
+        to the destination, optionally across remote hosts.
 
-        if result.returncode != 0:
-            raise QQError(
-                f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}."
-            )
+        Only files listed in `include_files` are copied from `src_dir` to `dest_dir`.
+        Files not listed are ignored. Files are never removed from the destination.
+
+        Args:
+            src_dir (Path): Source directory to sync from.
+            dest_dir (Path): Destination directory to sync to.
+            src_host (str | None): Optional hostname of the source machine if remote;
+                None if the source is local.
+            dest_host (str | None): Optional hostname of the destination machine if remote;
+                None if the destination is local.
+            include_files (list[Path] | None): Optional list of absolute file paths to include in syncing.
+                These paths are converted relative to `src_dir`.
+                This argument is optional only for consistency with syncWithExclusions.
+
+        Raises:
+            QQError: If the rsync command fails or times out.
+        """
+        # convert absolute paths of files to include into relative to src_dir
+        relative_included = (
+            convert_absolute_to_relative(include_files, src_dir)
+            if include_files
+            else []
+        )
+
+        command = QQBatchInterface._translateRsyncIncludedCommand(
+            src_dir, dest_dir, src_host, dest_host, relative_included
+        )
+        logger.debug(f"Rsync command: {command}.")
+
+        QQBatchInterface._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @staticmethod
     @abstractmethod
@@ -429,7 +460,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         # no matter what the user does inside the terminal
 
     @staticmethod
-    def _translateRsyncCommand(
+    def _translateRsyncExcludedCommand(
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -437,7 +468,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         relative_excluded: list[Path],
     ) -> list[str]:
         """
-        Build an rsync command for syncing files between local and/or remote directories.
+        Build an rsync command to synchronize a directory while excluding specific files.
 
         Both `src_host` and `dest_host` should not be set simultaneously,
         otherwise the resulting rsync command will be invalid.
@@ -451,11 +482,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
                 None if the source is local.
             dest_host (str | None): Hostname of the destination machine if remote;
                 None if the destination is local.
-            relative_excluded (list[Path] | None): List of paths relative to `src_dir`
-                to exclude from syncing. Can be None.
+            relative_excluded (list[Path]): List of paths relative to `src_dir`
+                to exclude from syncing.
 
-            Returns:
-                list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
+        Returns:
+            list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
         """
 
         # not using --checksum nor --ignore-times for performance reasons
@@ -471,6 +502,92 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         command.extend([src, dest])
 
         return command
+
+    @staticmethod
+    def _translateRsyncIncludedCommand(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        relative_included: list[Path],
+    ):
+        """
+        Build an rsync command to synchronize only the explicitly included files.
+
+        Both `src_host` and `dest_host` should not be set simultaneously,
+        otherwise the resulting rsync command will be invalid.
+
+        This is an internal method of `QQBatchInterface`; you typically should not override it.
+
+        Args:
+            src_dir (Path): Source directory path.
+            dest_dir (Path): Destination directory path.
+            src_host (str | None): Hostname of the source machine if remote;
+                None if the source is local.
+            dest_host (str | None): Hostname of the destination machine if remote;
+                None if the destination is local.
+            relative_included (list[Path]): List of paths relative to `src_dir`
+                that should be included in the sync.
+
+        Returns:
+            list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
+        """
+
+        command = ["rsync", "-a"]
+        for file in relative_included:
+            command.extend(["--include", str(file)])
+        # exclude all files not specifically included
+        command.extend(["--exclude", "*"])
+
+        src = src_host + ":" + str(src_dir) + "/" if src_host else str(src_dir) + "/"
+        dest = dest_host + ":" + str(dest_dir) if dest_host else str(dest_dir)
+        command.extend([src, dest])
+
+        return command
+
+    @staticmethod
+    def _runRsync(
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        command: list[str],
+    ):
+        """
+        Execute an rsync command to synchronize files between source and destination.
+
+        This is an internal method of `QQBatchInterface`; you typically should not override it.
+
+        Args:
+            src_dir (Path): Source directory path.
+            dest_dir (Path): Destination directory path.
+            src_host (str | None): Optional hostname of the source machine if remote;
+                None if the source is local.
+            dest_host (str | None): Optional hostname of the destination machine if remote;
+                None if the destination is local.
+            command (list[str]): List of command-line arguments for rsync, typically
+                generated by `_translateRsyncExcludedCommand` or `_translateRsyncIncludedCommand`.
+
+        Raises:
+            QQError: If the rsync command fails (non-zero exit code) or
+                if the command times out after `RSYNC_TIMEOUT` seconds.
+        """
+        src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
+        dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
+
+        try:
+            result = subprocess.run(
+                command, capture_output=True, text=True, timeout=RSYNC_TIMEOUT
+            )
+        except subprocess.TimeoutExpired as e:
+            raise QQError(
+                f"Could not rsync files between '{src}' and '{dest}': Connection timed out after {RSYNC_TIMEOUT} seconds."
+            ) from e
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}."
+            )
 
 
 class QQBatchMeta(ABCMeta):

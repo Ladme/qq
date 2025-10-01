@@ -229,7 +229,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not write file '{file}': {e}.") from e
 
-    def syncDirectories(
+    def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,
         _src_host: str | None,
@@ -237,7 +237,19 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         exclude_files: list[Path] | None = None,
     ):
         # directories are always local
-        QQBatchInterface.syncDirectories(src_dir, dest_dir, None, None, exclude_files)
+        QQBatchInterface.syncWithExclusions(
+            src_dir, dest_dir, None, None, exclude_files
+        )
+
+    def syncSelected(
+        src_dir: Path,
+        dest_dir: Path,
+        _src_host: str | None,
+        _dest_host: str | None,
+        include_files: list[Path],
+    ):
+        # directories are always local
+        QQBatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
 
     def buildResources(queue: str, **kwargs) -> QQResources:
         return QQResources.mergeResources(

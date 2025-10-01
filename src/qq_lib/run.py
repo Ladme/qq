@@ -304,7 +304,7 @@ class QQRunner:
             if self._use_scratch:
                 # copy files back to the submission (job) directory
                 QQRetryer(
-                    self._batch_system.syncDirectories,
+                    self._batch_system.syncWithExclusions,
                     self._work_dir,
                     self._job_dir,
                     socket.gethostname(),
@@ -391,7 +391,7 @@ class QQRunner:
 
         # copy files to the working directory excluding the qq info file
         QQRetryer(
-            self._batch_system.syncDirectories,
+            self._batch_system.syncWithExclusions,
             self._job_dir,
             self._work_dir,
             self._informer.info.input_machine,

@@ -266,21 +266,21 @@ def test_shared_guard_jobdir_raises():
         assert SHARED_SUBMIT not in os.environ
 
 
-def test_sync_directories_shared_storage_sets_local(monkeypatch):
+def test_sync_with_exclusions_shared_storage_sets_local(monkeypatch):
     src_dir = Path("/src")
     dest_dir = Path("/dest")
     exclude_files = [Path("file1"), Path("file2")]
 
     monkeypatch.setenv(SHARED_SUBMIT, "true")
 
-    with patch.object(QQBatchInterface, "syncDirectories") as mock_sync:
-        QQPBS.syncDirectories(src_dir, dest_dir, "host1", "host2", exclude_files)
+    with patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync:
+        QQPBS.syncWithExclusions(src_dir, dest_dir, "host1", "host2", exclude_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
 
     monkeypatch.delenv(SHARED_SUBMIT)
 
 
-def test_sync_directories_local_src(monkeypatch):
+def test_sync_with_exclusions_local_src(monkeypatch):
     src_dir = Path("/src")
     dest_dir = Path("/dest")
     exclude_files = [Path("file1")]
@@ -289,11 +289,11 @@ def test_sync_directories_local_src(monkeypatch):
     monkeypatch.setenv(SHARED_SUBMIT, "")
 
     with (
-        patch.object(QQBatchInterface, "syncDirectories") as mock_sync,
+        patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
         # source is local, destination is remote
-        QQPBS.syncDirectories(
+        QQPBS.syncWithExclusions(
             src_dir, dest_dir, local_host, "remotehost", exclude_files
         )
         mock_sync.assert_called_once_with(
@@ -301,7 +301,7 @@ def test_sync_directories_local_src(monkeypatch):
         )
 
 
-def test_sync_directories_local_dest(monkeypatch):
+def test_sync_with_exclusions_local_dest(monkeypatch):
     src_dir = Path("/src")
     dest_dir = Path("/dest")
     exclude_files = []
@@ -310,11 +310,11 @@ def test_sync_directories_local_dest(monkeypatch):
     monkeypatch.setenv(SHARED_SUBMIT, "")
 
     with (
-        patch.object(QQBatchInterface, "syncDirectories") as mock_sync,
+        patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
         # destination is local, source is remote
-        QQPBS.syncDirectories(
+        QQPBS.syncWithExclusions(
             src_dir, dest_dir, "remotehost", local_host, exclude_files
         )
         mock_sync.assert_called_once_with(
@@ -322,7 +322,7 @@ def test_sync_directories_local_dest(monkeypatch):
         )
 
 
-def test_sync_directories_one_remote(monkeypatch):
+def test_sync_with_exclusions_one_remote(monkeypatch):
     src_dir = Path("/src")
     dest_dir = Path("/dest")
     exclude_files = None
@@ -331,15 +331,15 @@ def test_sync_directories_one_remote(monkeypatch):
     monkeypatch.setenv(SHARED_SUBMIT, "")
 
     with (
-        patch.object(QQBatchInterface, "syncDirectories") as mock_sync,
+        patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
         # source local, destination local -> uses None
-        QQPBS.syncDirectories(src_dir, dest_dir, None, local_host, exclude_files)
+        QQPBS.syncWithExclusions(src_dir, dest_dir, None, local_host, exclude_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
 
 
-def test_sync_directories_both_remote_raises(monkeypatch):
+def test_sync_with_exclusions_both_remote_raises(monkeypatch):
     src_dir = Path("/src")
     dest_dir = Path("/dest")
     exclude_files = None
@@ -351,7 +351,87 @@ def test_sync_directories_both_remote_raises(monkeypatch):
         pytest.raises(QQError, match="cannot be both remote"),
     ):
         # both source and destination are remote and job directory is not shared
-        QQPBS.syncDirectories(src_dir, dest_dir, "remote1", "remote2", exclude_files)
+        QQPBS.syncWithExclusions(src_dir, dest_dir, "remote1", "remote2", exclude_files)
+
+
+def test_sync_selected_shared_storage_sets_local(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    include_files = [Path("file1"), Path("file2")]
+
+    monkeypatch.setenv(SHARED_SUBMIT, "true")
+
+    with patch.object(QQBatchInterface, "syncSelected") as mock_sync:
+        QQPBS.syncSelected(src_dir, dest_dir, "host1", "host2", include_files)
+        mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, include_files)
+
+    monkeypatch.delenv(SHARED_SUBMIT)
+
+
+def test_sync_selected_local_src(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    include_files = [Path("file1")]
+    local_host = "myhost"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch.object(QQBatchInterface, "syncSelected") as mock_sync,
+        patch("socket.gethostname", return_value=local_host),
+    ):
+        QQPBS.syncSelected(src_dir, dest_dir, local_host, "remotehost", include_files)
+        mock_sync.assert_called_once_with(
+            src_dir, dest_dir, None, "remotehost", include_files
+        )
+
+
+def test_sync_selected_local_dest(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    include_files = []
+    local_host = "myhost"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch.object(QQBatchInterface, "syncSelected") as mock_sync,
+        patch("socket.gethostname", return_value=local_host),
+    ):
+        QQPBS.syncSelected(src_dir, dest_dir, "remotehost", local_host, include_files)
+        mock_sync.assert_called_once_with(
+            src_dir, dest_dir, "remotehost", None, include_files
+        )
+
+
+def test_sync_selected_one_remote(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    include_files = None
+    local_host = "myhost"
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch.object(QQBatchInterface, "syncSelected") as mock_sync,
+        patch("socket.gethostname", return_value=local_host),
+    ):
+        QQPBS.syncSelected(src_dir, dest_dir, None, local_host, include_files)
+        mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, include_files)
+
+
+def test_sync_selected_both_remote_raises(monkeypatch):
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    include_files = None
+
+    monkeypatch.setenv(SHARED_SUBMIT, "")
+
+    with (
+        patch("socket.gethostname", return_value="localhost"),
+        pytest.raises(QQError, match="cannot be both remote"),
+    ):
+        QQPBS.syncSelected(src_dir, dest_dir, "remote1", "remote2", include_files)
 
 
 def test_read_remote_file_shared_storage(tmp_path, monkeypatch):

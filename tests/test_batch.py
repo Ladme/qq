@@ -224,7 +224,7 @@ def test_obtain_without_name_and_guess_fails():
         QQBatchMeta.obtain(None)
 
 
-def test_sync_directories_copies_new_files(tmp_path):
+def test_sync_with_exclusions_copies_new_files(tmp_path):
     src = tmp_path / "src"
     dest = tmp_path / "dest"
     src.mkdir()
@@ -234,7 +234,7 @@ def test_sync_directories_copies_new_files(tmp_path):
     (src / "file1.txt").write_text("data1")
     (src / "file2.txt").write_text("data2")
 
-    QQBatchInterface.syncDirectories(src, dest, None, None)
+    QQBatchInterface.syncWithExclusions(src, dest, None, None)
 
     # all files from src should exist in dest with same content
     for f in src.iterdir():
@@ -243,7 +243,7 @@ def test_sync_directories_copies_new_files(tmp_path):
         assert dest_file.read_text() == f.read_text()
 
 
-def test_sync_directories_preserves_dest_files(tmp_path):
+def test_sync_with_exclusions_preserves_dest_files(tmp_path):
     src = tmp_path / "src"
     dest = tmp_path / "dest"
     src.mkdir()
@@ -254,7 +254,7 @@ def test_sync_directories_preserves_dest_files(tmp_path):
     # file in src
     (src / "new.txt").write_text("new_data")
 
-    QQBatchInterface.syncDirectories(src, dest, None, None)
+    QQBatchInterface.syncWithExclusions(src, dest, None, None)
 
     # new file copied
     assert (dest / "new.txt").exists()
@@ -266,7 +266,7 @@ def test_sync_directories_preserves_dest_files(tmp_path):
     assert not (src / "keep.txt").exists()
 
 
-def test_sync_directories_skips_excluded_files(tmp_path):
+def test_sync_with_exclusions_skips_excluded_files(tmp_path):
     src = tmp_path / "src"
     dest = tmp_path / "dest"
     src.mkdir()
@@ -275,7 +275,7 @@ def test_sync_directories_skips_excluded_files(tmp_path):
     (src / "include.txt").write_text("include")
     (src / "exclude.txt").write_text("exclude")
 
-    QQBatchInterface.syncDirectories(
+    QQBatchInterface.syncWithExclusions(
         src, dest, None, None, exclude_files=[src / "exclude.txt"]
     )
 
@@ -283,7 +283,7 @@ def test_sync_directories_skips_excluded_files(tmp_path):
     assert not (dest / "exclude.txt").exists()
 
 
-def test_sync_directories_updates_changed_files(tmp_path):
+def test_sync_with_exclusions_updates_changed_files(tmp_path):
     src = tmp_path / "src"
     dest = tmp_path / "dest"
     src.mkdir()
@@ -295,13 +295,13 @@ def test_sync_directories_updates_changed_files(tmp_path):
     (src / "file.txt").write_text("new")
     (dest / "file.txt").write_text("older")
 
-    QQBatchInterface.syncDirectories(src, dest, None, None)
+    QQBatchInterface.syncWithExclusions(src, dest, None, None)
 
     assert (dest / "file.txt").exists()
     assert (dest / "file.txt").read_text() == "new"
 
 
-def test_sync_directories_rsync_failure(tmp_path, monkeypatch):
+def test_sync_with_exclusions_rsync_failure(tmp_path, monkeypatch):
     src = tmp_path / "src"
     dest = tmp_path / "dest"
     src.mkdir()
@@ -325,10 +325,10 @@ def test_sync_directories_rsync_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     with pytest.raises(QQError, match="Could not rsync files between"):
-        QQBatchInterface.syncDirectories(src, dest, None, None)
+        QQBatchInterface.syncWithExclusions(src, dest, None, None)
 
 
-def test_sync_directories_rsync_timeout(tmp_path):
+def test_sync_with_exclusions_rsync_timeout(tmp_path):
     src = tmp_path / "src"
     dest = tmp_path / "dest"
     src.mkdir()
@@ -342,35 +342,41 @@ def test_sync_directories_rsync_timeout(tmp_path):
         pytest.raises(QQError, match="Could not rsync files"),
         patch("qq_lib.batch.RSYNC_TIMEOUT", 0.0),
     ):
-        QQBatchInterface.syncDirectories(src, dest, None, None)
+        QQBatchInterface.syncWithExclusions(src, dest, None, None)
 
 
-def test_build_rsync_command_local_to_local():
+def test_translate_rsync_excluded_command_local_to_local():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, None, [])
+    cmd = QQBatchInterface._translateRsyncExcludedCommand(src, dest, None, None, [])
     assert cmd == ["rsync", "-a", "/source/", "/dest"]
 
 
-def test_build_rsync_command_local_to_remote():
+def test_translate_rsync_excluded_command_local_to_remote():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, "remotehost", [])
+    cmd = QQBatchInterface._translateRsyncExcludedCommand(
+        src, dest, None, "remotehost", []
+    )
     assert cmd == ["rsync", "-a", "/source/", "remotehost:/dest"]
 
 
-def test_build_rsync_command_remote_to_local():
+def test_translate_rsync_excluded_command_remote_to_local():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._translateRsyncCommand(src, dest, "remotehost", None, [])
+    cmd = QQBatchInterface._translateRsyncExcludedCommand(
+        src, dest, "remotehost", None, []
+    )
     assert cmd == ["rsync", "-a", "remotehost:/source/", "/dest"]
 
 
-def test_build_rsync_command_with_excludes():
+def test_translate_rsync_excluded_command_with_excludes():
     src = Path("/source")
     dest = Path("/dest")
     excludes = [Path("temp"), Path("logs/debug.log")]
-    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, None, excludes)
+    cmd = QQBatchInterface._translateRsyncExcludedCommand(
+        src, dest, None, None, excludes
+    )
     expected = [
         "rsync",
         "-a",
@@ -384,9 +390,192 @@ def test_build_rsync_command_with_excludes():
     assert cmd == expected
 
 
-def test_build_rsync_command_empty_excludes_list():
+def test_translate_rsync_excluded_command_empty_excludes_list():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = QQBatchInterface._translateRsyncCommand(src, dest, None, None, [])
+    cmd = QQBatchInterface._translateRsyncExcludedCommand(src, dest, None, None, [])
     expected = ["rsync", "-a", "/source/", "/dest"]
+    assert cmd == expected
+
+
+def test_sync_selected_copies_only_included_files(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    (src / "include.txt").write_text("include")
+    (src / "skip.txt").write_text("skip")
+
+    QQBatchInterface.syncSelected(
+        src, dest, None, None, include_files=[src / "include.txt"]
+    )
+
+    assert (dest / "include.txt").exists()
+    assert (dest / "include.txt").read_text() == "include"
+    assert not (dest / "skip.txt").exists()
+
+
+def test_sync_selected_preserves_other_dest_files(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    (src / "new.txt").write_text("new_data")
+    (dest / "keep.txt").write_text("keep_me")
+
+    QQBatchInterface.syncSelected(
+        src, dest, None, None, include_files=[src / "new.txt"]
+    )
+
+    # new file copied
+    assert (dest / "new.txt").exists()
+    assert (dest / "new.txt").read_text() == "new_data"
+    # old file preserved
+    assert (dest / "keep.txt").exists()
+    assert (dest / "keep.txt").read_text() == "keep_me"
+
+
+def test_sync_selected_empty_include_list(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    (src / "file.txt").write_text("data")
+
+    # no include_files provided -> nothing should be synced
+    QQBatchInterface.syncSelected(src, dest, None, None)
+
+    assert not (dest / "file.txt").exists()
+
+
+def test_sync_selected_rsync_failure(tmp_path, monkeypatch):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+    (src / "file.txt").write_text("data")
+
+    def fake_run(_command, capture_output=True, text=True, timeout=0.0):
+        _ = capture_output
+        _ = text
+        _ = timeout
+
+        class Result:
+            returncode = 1
+            stderr = "rsync error"
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(QQError, match="Could not rsync files between"):
+        QQBatchInterface.syncSelected(
+            src, dest, None, None, include_files=[src / "file.txt"]
+        )
+
+
+def test_sync_selected_rsync_timeout(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+    (src / "file.txt").write_text("data")
+
+    with (
+        pytest.raises(QQError, match="Could not rsync files"),
+        patch("qq_lib.batch.RSYNC_TIMEOUT", 0.0),
+    ):
+        QQBatchInterface.syncSelected(
+            src, dest, None, None, include_files=[src / "file.txt"]
+        )
+
+
+def test_translate_rsync_included_command_local_to_local():
+    src = Path("/source")
+    dest = Path("/dest")
+    included = [Path("file1.txt"), Path("dir/file2.txt")]
+
+    cmd = QQBatchInterface._translateRsyncIncludedCommand(
+        src, dest, None, None, included
+    )
+
+    expected = [
+        "rsync",
+        "-a",
+        "--include",
+        "file1.txt",
+        "--include",
+        "dir/file2.txt",
+        "--exclude",
+        "*",
+        "/source/",
+        "/dest",
+    ]
+    assert cmd == expected
+
+
+def test_translate_rsync_included_command_local_to_remote():
+    src = Path("/source")
+    dest = Path("/dest")
+    included = [Path("file1.txt")]
+
+    cmd = QQBatchInterface._translateRsyncIncludedCommand(
+        src, dest, None, "remotehost", included
+    )
+
+    expected = [
+        "rsync",
+        "-a",
+        "--include",
+        "file1.txt",
+        "--exclude",
+        "*",
+        "/source/",
+        "remotehost:/dest",
+    ]
+    assert cmd == expected
+
+
+def test_translate_rsync_included_command_remote_to_local():
+    src = Path("/source")
+    dest = Path("/dest")
+    included = [Path("file1.txt")]
+
+    cmd = QQBatchInterface._translateRsyncIncludedCommand(
+        src, dest, "remotehost", None, included
+    )
+
+    expected = [
+        "rsync",
+        "-a",
+        "--include",
+        "file1.txt",
+        "--exclude",
+        "*",
+        "remotehost:/source/",
+        "/dest",
+    ]
+    assert cmd == expected
+
+
+def test_translate_rsync_included_command_no_files():
+    src = Path("/source")
+    dest = Path("/dest")
+    included = []
+
+    cmd = QQBatchInterface._translateRsyncIncludedCommand(
+        src, dest, None, None, included
+    )
+
+    expected = [
+        "rsync",
+        "-a",
+        "--exclude",
+        "*",
+        "/source/",
+        "/dest",
+    ]
     assert cmd == expected

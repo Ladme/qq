@@ -297,3 +297,137 @@ def test_vbs_job_info_get_job_state_job_none():
 
     info = VBSJobInfo(None)
     assert info.getJobState() == BatchState.UNKNOWN
+
+
+def test_qqvbs_read_remote_file_and_write_remote_file(tmp_path):
+    file_path = tmp_path / "testfile.txt"
+    content = "Hello QQVBS"
+
+    QQVBS.writeRemoteFile("dummy_host", file_path, content)
+    assert file_path.exists()
+    assert file_path.read_text() == content
+
+    read_content = QQVBS.readRemoteFile("dummy_host", file_path)
+    assert read_content == content
+
+
+def test_qqvbs_read_remote_file_error(tmp_path):
+    non_existent_file = tmp_path / "no_such_file.txt"
+    with pytest.raises(QQError):
+        QQVBS.readRemoteFile("dummy_host", non_existent_file)
+
+
+def test_qqvbs_write_remote_file_error(tmp_path):
+    file_path = tmp_path / "readonly.txt"
+
+    file_path.mkdir()
+    with pytest.raises(QQError):
+        QQVBS.writeRemoteFile("dummy_host", file_path, "content")
+
+
+def test_qqvbs_make_remote_dir(tmp_path):
+    dir_path = tmp_path / "subdir"
+    QQVBS.makeRemoteDir("dummy_host", dir_path)
+    assert dir_path.exists() and dir_path.is_dir()
+
+
+def test_qqvbs_make_remote_dir_existing(tmp_path):
+    dir_path = tmp_path / "existing"
+    dir_path.mkdir()
+    # should not raise an error
+    QQVBS.makeRemoteDir("dummy_host", dir_path)
+
+
+def test_qqvbs_make_remote_dir_error(tmp_path):
+    # try creating a directory inside a file
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("dummy")
+    with pytest.raises(QQError):
+        QQVBS.makeRemoteDir("dummy_host", file_path)
+
+
+def test_qqvbs_list_remote_dir(tmp_path):
+    files = [tmp_path / f"file{i}.txt" for i in range(3)]
+    dirs = [tmp_path / f"dir{i}" for i in range(2)]
+    for f in files:
+        f.write_text("data")
+    for d in dirs:
+        d.mkdir()
+
+    result = QQVBS.listRemoteDir("dummy_host", tmp_path)
+    result_set = {p.name for p in result}
+    expected_set = {f.name for f in files + dirs}
+    assert result_set == expected_set
+
+
+def test_qqvbs_list_remote_dir_error(tmp_path):
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("dummy")
+    with pytest.raises(QQError):
+        QQVBS.listRemoteDir("dummy_host", file_path)
+
+
+def test_qqvbs_move_remote_files(tmp_path):
+    src_files = [tmp_path / f"src{i}.txt" for i in range(3)]
+    dst_files = [tmp_path / f"dst{i}.txt" for i in range(3)]
+    for f in src_files:
+        f.write_text("data")
+
+    QQVBS.moveRemoteFiles("dummy_host", src_files, dst_files)
+    # check that src_files no longer exist and dst_files exist
+    for f in src_files:
+        assert not f.exists()
+    for f in dst_files:
+        assert f.exists() and f.read_text() == "data"
+
+
+def test_qqvbs_move_remote_files_length_mismatch(tmp_path):
+    src_files = [tmp_path / "file1.txt"]
+    dst_files = [tmp_path / "file2.txt", tmp_path / "file3.txt"]
+    with pytest.raises(QQError):
+        QQVBS.moveRemoteFiles("dummy_host", src_files, dst_files)
+
+
+def test_qqvbs_sync_with_exclusions(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    (src / "a.txt").write_text("content of a")
+    (src / "b.txt").write_text("content of b")
+    (src / "c.txt").write_text("content of c")
+
+    exclude_paths = [src / "b.txt"]
+
+    QQVBS.syncWithExclusions(
+        src, dest, "fake_src_host", "fake_dest_host", exclude_files=exclude_paths
+    )
+
+    expected_files = {"a.txt", "c.txt"}
+    actual_files = {p.name for p in dest.iterdir()}
+    assert actual_files == expected_files
+
+    assert not (dest / "b.txt").exists()
+
+
+def test_qqvbs_sync_selected(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    (src / "a.txt").write_text("content of a")
+    (src / "b.txt").write_text("content of b")
+    (src / "c.txt").write_text("content of c")
+
+    include_paths = [src / "a.txt", src / "c.txt"]
+
+    QQVBS.syncSelected(
+        src, dest, "fake_src_host", "fake_dest_host", include_files=include_paths
+    )
+
+    actual_files = {p.name for p in dest.iterdir()}
+    assert actual_files == {"a.txt", "c.txt"}
+
+    assert not (dest / "b.txt").exists()

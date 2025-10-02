@@ -143,6 +143,12 @@ class QQArchiver:
 
         The archived files are moved from the submission directory to the archive directory.
 
+        Ensure that `job_name` does not contain special regex characters, or that any such
+        characters are properly escaped.
+
+        This function will archive all files whose names match `job_name`, regardless
+        of whether they have any qq-specific suffixes.
+
         Args:
             job_name (str): The name of the job.
             cycle (int): Current cycle number (for archiving).
@@ -220,7 +226,7 @@ class QQArchiver:
         logger.debug(f"Regex for matching: {regex}.")
 
         # the directory must exist
-        if not host or host != socket.gethostname():
+        if host and host != socket.gethostname():
             # remote directory
             available_files: list[Path] = QQRetryer(
                 self._batch_system.listRemoteDir,

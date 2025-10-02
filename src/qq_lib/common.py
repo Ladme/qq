@@ -65,7 +65,8 @@ def get_info_files(directory: Path) -> list[Path]:
     Retrieve all qq job info files in a directory.
 
     This function searches for files matching the `QQ_INFO_SUFFIX` in the
-    provided directory.
+    provided directory. The files are sorted by their last modification time
+    (with the newest modified file being last in the list).
 
     Args:
         directory (Path): The directory to search in.
@@ -76,7 +77,7 @@ def get_info_files(directory: Path) -> list[Path]:
     info_files = get_files_with_suffix(directory, QQ_INFO_SUFFIX)
     logger.debug(f"Detected the following qq info files: {info_files}.")
 
-    return info_files
+    return sorted(info_files, key=lambda f: f.stat().st_mtime)
 
 
 def yes_or_no_prompt(prompt: str) -> bool:

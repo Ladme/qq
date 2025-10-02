@@ -4,6 +4,7 @@
 import re
 import tempfile
 from pathlib import Path
+from time import sleep
 from unittest.mock import patch
 
 import pytest
@@ -109,7 +110,7 @@ def test_get_info_files_multiple_info_files():
         file2.write_text("info2")
 
         result = get_info_files(tmp_path)
-        assert set(result) == {file1, file2}
+        assert result == [file1, file2]
 
 
 def test_get_info_files_ignore_non_info_files():
@@ -134,6 +135,22 @@ def test_get_info_files_info_files_in_subdirectories_not_included():
 
         result = get_info_files(tmp_path)
         assert result == []
+
+
+def test_get_info_files_sorted(tmp_path):
+    file1 = tmp_path / "job1.qqinfo"
+    file2 = tmp_path / "job2.qqinfo"
+    file3 = tmp_path / "job3.qqinfo"
+
+    file3.write_text("one")
+    sleep(0.1)
+    file2.write_text("two")
+    sleep(0.1)
+    file1.write_text("three")
+
+    result = get_info_files(tmp_path)
+
+    assert result == [file3, file2, file1]
 
 
 def test_yes_key():

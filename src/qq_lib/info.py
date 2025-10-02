@@ -15,7 +15,9 @@ from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import get_info_files
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
+from qq_lib.job_type import QQJobType
 from qq_lib.logger import get_logger
+from qq_lib.loop import QQLoopInfo
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
 
@@ -84,11 +86,11 @@ class QQInfo:
     # Name of the script executed
     script_name: str
 
-    # Queue the job was submitted to.
+    # Queue the job was submitted to
     queue: str
 
-    # Type of job (standard, loop...)
-    job_type: str
+    # Type of the qq job
+    job_type: QQJobType
 
     # Host from which the job was submitted
     input_machine: str
@@ -111,14 +113,8 @@ class QQInfo:
     # Resources allocated to the job
     resources: QQResources
 
-    # Optional path to the directory for archiving job files.
-    archive_dir: Path | None = None
-
-    # Optional format for archived files.
-    archive_format: str | None = None
-
-    # Is the job resubmited?
-    resubmited: bool = False
+    # Loop job-associated information.
+    loop_info: QQLoopInfo | None = None
 
     # List of files to not copy to the working directory
     excluded_files: list[Path] | None = None
@@ -241,8 +237,11 @@ class QQInfo:
             if value is None:
                 continue
 
+            # convert job type
+            if f.type == QQJobType:
+                result[f.name] = str(value)
             # convert resources
-            if f.type == QQResources:
+            elif f.type == QQResources or f.type == QQLoopInfo | None:
                 result[f.name] = value.toDict()
             # convert the state and the batch system
             elif (
@@ -286,8 +285,17 @@ class QQInfo:
 
             value = data[name]
 
+            # convert job type
+            if f.type == QQJobType and isinstance(value, str):
+                init_kwargs[name] = QQJobType.fromStr(value)
+            # convert optional loop job info
+            elif f.type == QQLoopInfo | None and isinstance(value, dict):
+                # 'archive' must be converted to Path
+                init_kwargs[name] = QQLoopInfo(  # ty: ignore[missing-argument]
+                    **{k: Path(v) if k == "archive" else v for k, v in value.items()}
+                )
             # convert resources
-            if f.type == QQResources:
+            elif f.type == QQResources:
                 init_kwargs[name] = QQResources(**value)
             # convert the batch system
             elif f.type == type[QQBatchInterface] and isinstance(value, str):

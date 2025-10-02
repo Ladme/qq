@@ -58,6 +58,7 @@ from qq_lib.archive import QQArchiver
 from qq_lib.constants import (
     INFO_FILE,
     INPUT_MACHINE,
+    LOOP_JOB_PATTERN,
     RUNNER_RETRY_TRIES,
     RUNNER_RETRY_WAIT,
     RUNNER_SIGTERM_TO_SIGKILL,
@@ -66,6 +67,7 @@ from qq_lib.constants import (
 from qq_lib.error import QQError
 from qq_lib.guard import guard
 from qq_lib.info import QQInformer
+from qq_lib.job_type import QQJobType
 from qq_lib.logger import get_logger
 from qq_lib.retry import QQRetryer
 from qq_lib.states import NaiveState
@@ -210,19 +212,6 @@ class QQRunner:
             f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
         )
 
-        # initialize archiver, if requested
-        if self._informer.info.archive_dir and self._informer.info.archive_format:
-            self._archiver = QQArchiver(
-                self._informer.info.archive_dir,
-                self._informer.info.archive_format,
-                self._informer.info.input_machine,
-                self._informer.info.job_dir,
-                self._batch_system,
-            )
-
-            self._archiver.makeArchiveDir()
-            # TODO: archive runtime files, if resubmited
-
         # get job directory
         self._job_dir = Path(self._informer.info.job_dir)
         logger.debug(f"Job directory: {self._job_dir}.")
@@ -234,6 +223,27 @@ class QQRunner:
         # should the scratch directory be used?
         self._use_scratch = self._informer.useScratch()
         logger.debug(f"Use scratch: {self._use_scratch}.")
+
+        # initialize archiver, if this is a loop job
+        if loop_info := self._informer.info.loop_info:
+            self._archiver = QQArchiver(
+                loop_info.archive,
+                loop_info.archive_format,
+                self._informer.info.input_machine,
+                self._informer.info.job_dir,
+                self._batch_system,
+            )
+
+            self._archiver.makeArchiveDir()
+            # archive run time files from the previous cycle
+            logger.debug(
+                f"Archiving run time files from cycle {loop_info.current - 1}."
+            )
+            self._archiver.archiveRunTimeFiles(
+                # we need to escape the '+' character
+                f"{self._informer.info.script_name}{LOOP_JOB_PATTERN.replace('+', '\\+') % (loop_info.current - 1)}",
+                loop_info.current - 1,
+            )
 
     def setUpWorkDir(self):
         """
@@ -252,7 +262,9 @@ class QQRunner:
             self._setUpSharedDir()
 
         if self._archiver:
-            self._archiver.archiveFrom(self._work_dir)
+            self._archiver.archiveFrom(
+                self._work_dir, self._informer.info.loop_info.current
+            )
 
     def executeScript(self) -> int:
         """
@@ -341,6 +353,10 @@ class QQRunner:
 
             # update the qqinfo file
             self._updateInfoFinished()
+
+            # if this is a loop job
+            if self._informer.info.job_type == QQJobType.LOOP:
+                self._resubmit()
         else:
             # only update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
@@ -415,14 +431,19 @@ class QQRunner:
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
 
-        # copy files to the working directory excluding the qq info file
+        # files excluded from copying to the working directory
+        excluded = [self._info_file]
+        if self._archiver:
+            excluded.append(self._archiver._archive)
+
+        # copy files to the working directory
         QQRetryer(
             self._batch_system.syncWithExclusions,
             self._job_dir,
             self._work_dir,
             self._informer.info.input_machine,
             socket.gethostname(),
-            [self._info_file],
+            excluded,
             max_tries=RUNNER_RETRY_TRIES,
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
@@ -556,6 +577,32 @@ class QQRunner:
                 "Job has been killed without informing qq run. Aborting the job!"
             )
             sys.exit(93)
+
+    def _resubmit(self):
+        from qq_lib.submit import QQSubmitter
+
+        loop_info = self._informer.info.loop_info
+        loop_info.current += 1
+
+        if loop_info.current > loop_info.end:
+            logger.info("This was the final cycle of the loop job. Not resubmitting.")
+            return
+
+        os.chdir(self._job_dir)
+
+        submitter = QQSubmitter(
+            self._batch_system,
+            self._informer.info.queue,
+            self._job_dir / self._informer.info.script_name,
+            self._informer.info.job_type,
+            self._informer.info.resources,
+            loop_info,
+        )
+
+        try:
+            submitter.submit()
+        except QQError as e:
+            raise QQError(f"Could not resubmit job: {e}") from e
 
     def _cleanup(self) -> None:
         """

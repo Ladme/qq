@@ -30,7 +30,7 @@ class NaiveState(Enum):
         Convert a string to the corresponding NaiveState enum variant.
 
         Args:
-            s: String representation of the state (case-insensitive).
+            s (str): String representation of the state (case-insensitive).
 
         Returns:
             NaiveState enum variant.

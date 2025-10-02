@@ -96,6 +96,18 @@ wheels = [
 ]
 
 [[package]]
+name = "click-option-group"
+version = "0.5.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/60/ba21209b5b8a409aada1da5b49e8539b1139e5da037bd3f5c7eb8ba1fc1e/click_option_group-0.5.8.tar.gz", hash = "sha256:7dc8d534a066382be748b20dd65270e59e0393bc765a7744df86b059d4e00e62", size = 22194, upload-time = "2025-10-01T11:02:58.121Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/60/2b/f48203161ad74d5db0afadf849b81691999f677c772a817fc93c96898aa3/click_option_group-0.5.8-py3-none-any.whl", hash = "sha256:959065a45ccf58fcc48ec22f18fb50c1e59494612f0a1c13c4e714554434b502", size = 11561, upload-time = "2025-10-01T11:02:57.043Z" },
+]
+
+[[package]]
 name = "codecov"
 version = "2.1.13"
 source = { registry = "https://pypi.org/simple" }
@@ -471,6 +483,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "click" },
     { name = "click-help-colors" },
+    { name = "click-option-group" },
     { name = "pyyaml" },
     { name = "readchar" },
     { name = "rich" },
@@ -492,6 +505,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.2.1" },
     { name = "click-help-colors", specifier = ">=0.9.4" },
+    { name = "click-option-group", specifier = ">=0.5.8" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "readchar", specifier = ">=4.2.1" },
     { name = "rich", specifier = ">=14.1.0" },

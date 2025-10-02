@@ -43,6 +43,18 @@ SHARED_SUBMIT = "QQ_SHARED_SUBMIT"
 # Name of the batch system to use.
 BATCH_SYSTEM = "QQ_BATCH_SYSTEM"
 
+# The number of the current cycle of a loop job.
+LOOP_CURRENT = "QQ_LOOP_CURRENT"
+
+# The number of the starting cycle of a loop job.
+LOOP_START = "QQ_LOOP_START"
+
+# The number of the last cycle of a loop job.
+LOOP_END = "QQ_LOOP_END"
+
+# The format used for archived data.
+ARCHIVE_FORMAT = "QQ_ARCHIVE_FORMAT"
+
 # ----------------------------
 # OTHER CONSTANTS
 # ----------------------------
@@ -79,4 +91,4 @@ ARCHIVER_RETRY_TRIES = 3
 ARCHIVER_RETRY_WAIT = 300
 
 # Pattern used for numbering qq loop jobs.
-LOOP_JOB_PATTERN = "+%03d"
+LOOP_JOB_PATTERN = "+%04d"

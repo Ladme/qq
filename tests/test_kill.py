@@ -15,6 +15,7 @@ from qq_lib.batch import QQBatchMeta
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
+from qq_lib.job_type import QQJobType
 from qq_lib.kill import QQKiller, kill
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
@@ -44,7 +45,7 @@ def sample_info(sample_resources):
         job_name="script.sh+025",
         script_name="script.sh",
         queue="default",
-        job_type="standard",
+        job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
         job_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,

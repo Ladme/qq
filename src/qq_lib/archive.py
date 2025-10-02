@@ -10,7 +10,6 @@ from qq_lib.common import is_printf_pattern, printf_to_regex
 from qq_lib.constants import (
     ARCHIVER_RETRY_TRIES,
     ARCHIVER_RETRY_WAIT,
-    LOOP_JOB_PATTERN,
     QQ_SUFFIXES,
 )
 from qq_lib.logger import get_logger
@@ -51,33 +50,38 @@ class QQArchiver:
     def makeArchiveDir(self):
         """
         Create the archive directory if it does not already exist.
-
-        Existing directories are ignored without raising an error.
         """
+        logger.debug(
+            f"Attempting to create an archive '{self._archive}' on '{self._input_machine}'."
+        )
         self._batch_system.makeRemoteDir(self._input_machine, self._archive)
 
-    def archiveFrom(self, work_dir: Path, loop: int | None = None):
+    def archiveFrom(self, work_dir: Path, cycle: int | None = None):
         """
         Fetch files from the archive to a local working directory.
 
         This method retrieves files from the archive that match the
-        configured archive pattern. If a loop number is provided, only
-        files corresponding to that loop (for printf-style patterns) are
-        fetched. If no loop is provided, all files matching the pattern
+        configured archive pattern. If a cycle number is provided, only
+        files corresponding to that cycle (for printf-style patterns) are
+        fetched. If no ccle is provided, all files matching the pattern
         in the archive are fetched.
 
         Args:
             work_dir (Path): The local directory where files will be copied.
-            loop (int | None): The loop number to filter files for.
+            cycle (int | None): The cycle number to filter files for.
                 Only relevant for printf-style patterns. If `None`, all
                 matching files are fetched. Defaults to `None`.
 
         Raises:
             QQError: If file transfer fails.
         """
-        files = self._getFiles(
-            self._archive, self._input_machine, self._archive_format, loop, False
-        )
+        if not (
+            files := self._getFiles(
+                self._archive, self._input_machine, self._archive_format, cycle, False
+            )
+        ):
+            logger.debug("Nothing to fetch from archive.")
+            return
 
         logger.debug(f"Files to fetch from archive: {files}.")
 
@@ -106,7 +110,11 @@ class QQArchiver:
         Raises:
             QQError: If file transfer or removal fails.
         """
-        files = self._getFiles(work_dir, None, self._archive_format, None, False)
+        if not (
+            files := self._getFiles(work_dir, None, self._archive_format, None, False)
+        ):
+            logger.debug("Nothing to archive.")
+            return
 
         logger.debug(f"Files to archive: {files}.")
 
@@ -129,32 +137,42 @@ class QQArchiver:
             wait_seconds=ARCHIVER_RETRY_WAIT,
         ).run()
 
-    def archiveRunTimeFiles(self, job_name: str, loop: int):
+    def archiveRunTimeFiles(self, job_name: str, cycle: int):
         """
-        Archive qq runtime files for a specific loop of the job located in the submission directory.
+        Archive qq runtime files from a specific job located in the submission directory.
 
         The archived files are moved from the submission directory to the archive directory.
-        Only qq runtime files corresponding to the given job name and loop number are archived.
 
         Args:
             job_name (str): The name of the job.
-            loop (int): The loop number associated with the runtime files.
+            cycle (int): Current cycle number (for archiving).
 
         Raises:
-            QQError: If moving the runtime files fails after retries.
-
+            QQError: If moving the runtime files fails.
         """
-        pattern = f"{job_name}{LOOP_JOB_PATTERN}"
-        files = self._getFiles(
-            self._job_dir, self._input_machine, pattern, loop, include_qq_files=True
-        )
-        moved_files = [self._archive / f.name for f in files]
+        if not (
+            files := self._getFiles(
+                self._job_dir,
+                self._input_machine,
+                job_name,
+                cycle=None,
+                include_qq_files=True,
+            )
+        ):
+            logger.debug("No qq runtime files to archive.")
+            return
+
+        # the files are renamed to conform the the archive format
+        moved_files = [
+            self._archive / f"{self._archive_format % cycle}{f.suffix}" for f in files
+        ]
 
         logger.debug(f"qq runtime files to archive: {files}.")
         logger.debug(f"qq runtime files after moving: {moved_files}.")
 
         QQRetryer(
             self._batch_system.moveRemoteFiles,
+            self._input_machine,
             files,
             moved_files,
             max_tries=ARCHIVER_RETRY_TRIES,
@@ -166,7 +184,7 @@ class QQArchiver:
         directory: Path,
         host: str | None,
         pattern: str,
-        loop: int | None = None,
+        cycle: int | None = None,
         include_qq_files: bool = False,
     ) -> list[Path]:
         """
@@ -176,7 +194,7 @@ class QQArchiver:
             directory (Path): Directory to search for files.
             host (str | None): Hostname for remote directories, or None for local.
             pattern (str): A printf-style or regex pattern to match file stems.
-            loop (int | None): Optional loop number for printf-style patterns.
+            cycle (int | None): Optional cycle number for printf-style patterns.
                 If provided, only files corresponding to that loop are returned.
                 If `None`, all matching files are returned. Defaults to `None`.
             include_qq_files (bool): Whether to include qq runtime files. Defaults to False.
@@ -184,10 +202,10 @@ class QQArchiver:
         Returns:
             list[Path]: A list of absolute paths to matching files.
         """
-        if loop and is_printf_pattern(pattern):
+        if cycle and is_printf_pattern(pattern):
             try:
                 # try inserting the loop number into the printf pattern
-                regex = re.compile(pattern % loop)
+                regex = re.compile(f"^{pattern % cycle}$")
             except Exception:
                 logger.debug(
                     f"Ignoring loop number since the provided pattern ('{pattern}') does not support it."
@@ -215,6 +233,7 @@ class QQArchiver:
             # local directory
             available_files = list(directory.iterdir())
 
+        logger.debug(f"All available files: {available_files}.")
         if include_qq_files:
             return [f.resolve() for f in available_files if regex.fullmatch(f.stem)]
         return [

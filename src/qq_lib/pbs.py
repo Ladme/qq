@@ -331,7 +331,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         Returns:
             str: The fully constructed qsub command string.
         """
-        qq_output = str(Path(script).with_suffix(QQ_OUT_SUFFIX))
+        qq_output = str(Path(job_name).with_suffix(QQ_OUT_SUFFIX))
         command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} -V "
 
         # handle per-chunk resources, incl. workdir

@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from click_option_group import optgroup
 
 import qq_lib
 from qq_lib.batch import QQBatchInterface, QQBatchMeta
@@ -20,10 +21,15 @@ from qq_lib.clear import QQClearer
 from qq_lib.click_format import GNUHelpColorsCommand
 from qq_lib.common import yes_or_no_prompt
 from qq_lib.constants import (
+    ARCHIVE_FORMAT,
     BATCH_SYSTEM,
     GUARD,
     INFO_FILE,
     INPUT_MACHINE,
+    LOOP_CURRENT,
+    LOOP_END,
+    LOOP_JOB_PATTERN,
+    LOOP_START,
     QQ_INFO_SUFFIX,
     QQ_SUFFIXES,
     STDERR_SUFFIX,
@@ -31,7 +37,9 @@ from qq_lib.constants import (
 )
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
+from qq_lib.job_type import QQJobType
 from qq_lib.logger import get_logger
+from qq_lib.loop import QQLoopInfo
 from qq_lib.resources import QQResources
 from qq_lib.states import NaiveState
 
@@ -52,75 +60,118 @@ The submitted script must be located in the directory from which
     help_options_color="blue",
 )
 @click.argument("script", type=str, metavar=click.style("SCRIPT", fg="green"))
-@click.option(
+@optgroup.group(f"{click.style('General settings', fg='yellow')}")
+@optgroup.option(
     "--queue",
     "-q",
     type=str,
     default=None,
-    help="Name of the queue to submit the job to. A required option.",
+    help=f"Name of the queue to submit the job to. {click.style('Required.', bold=True)}",
 )
-@click.option(
+@optgroup.option(
+    "--job-type",
+    type=str,
+    default="standard",
+    help="Type of the qq job. Defaults to 'standard'.",
+)
+@optgroup.option(
+    "--batch-system",
+    type=str,
+    default=None,
+    help=f"Batch system to submit the job into. If not specified, will load the batch system from the environment variable '{BATCH_SYSTEM}' or guess it.",
+)
+@optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
+@optgroup.option(
     "--nnodes", type=int, default=None, help="Number of computing nodes to use."
 )
-@click.option(
+@optgroup.option(
     "--ncpus",
     type=int,
     default=None,
-    help="Number of CPU cores to use for the job.",
+    help="Number of CPU cores to use.",
 )
-@click.option(
+@optgroup.option(
     "--mem-per-cpu",
     type=str,
     default=None,
     help="Amount of memory to use per a single CPU core. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 2gb).",
 )
-@click.option(
+@optgroup.option(
     "--mem",
     type=str,
     default=None,
     help="Absolute amount of memory to use. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides '--mem-per-cpu'.",
 )
-@click.option("--ngpus", type=int, default=None, help="Number of GPUs to use.")
-@click.option(
+@optgroup.option("--ngpus", type=int, default=None, help="Number of GPUs to use.")
+@optgroup.option(
     "--walltime",
     type=str,
     default=None,
     help="Maximum allowed runtime for the job.",
 )
-@click.option(
+@optgroup.option(
     "--work-dir",
     "--workdir",
     type=str,
     default=None,
     help="Type of working directory to use.",
 )
-@click.option(
+@optgroup.option(
     "--work-size-per-cpu",
     "--worksize-per-cpu",
     type=str,
     default=None,
     help="Size of the storage requested for running the job per a single CPU core. Specify as 'Ngb' (e.g., 1gb).",
 )
-@click.option(
+@optgroup.option(
     "--work-size",
     "--worksize",
     type=str,
     default=None,
     help="Absolute size of the storage requested for running the job. Specify as 'Ngb' (e.g., 10gb). Overrides '--work-size-per-cpu'.",
 )
-@click.option(
+@optgroup.option(
     "--props",
     type=str,
     default=None,
     help="A colon-, comma-, or space-separated list of properties that a node must include (e.g., cl_two) or exclude (e.g., ^cl_two) in order to run the job.",
 )
-@click.option(
-    "--batch-system",
-    type=str,
-    default=None,
-    help=f"Batch system to submit the job into. If not specified, will load the batch system from the environment variable '{BATCH_SYSTEM}' or guess it.",
+@optgroup.group(
+    f"{click.style('Loop options', fg='yellow')}",
+    help="Only used when job-type is 'loop'.",
 )
-def submit(script: str, queue: str, batch_system: str, **kwargs):
+@optgroup.option(
+    "--loop-start",
+    type=int,
+    default=1,
+    help="Number of the first cycle of a loop job. Defaults to 1.",
+)
+@optgroup.option(
+    "--loop-end", type=int, default=None, help="Number of the last cycle of a loop job."
+)
+@optgroup.option(
+    "--archive",
+    type=str,
+    default="storage",
+    help="Name of the directory for archiving files from a loop job. Defaults to 'storage'.",
+)
+@optgroup.option(
+    "--archive-format",
+    type=str,
+    default="job%04d",
+    help="Format of the archived filenames. Defaults to 'job%04d'.",
+)
+def submit(
+    script: str,
+    queue: str,
+    job_type: str,
+    loop_start: int,
+    loop_end: int,
+    archive: str,
+    archive_format: str,
+    batch_system: str,
+    **kwargs,
+):
     """
     Submit a qq job to a batch system from the command line.
 
@@ -128,11 +179,23 @@ def submit(script: str, queue: str, batch_system: str, **kwargs):
     """
     try:
         BatchSystem = QQBatchMeta.obtain(batch_system)
+        job_type = QQJobType.fromStr(job_type)
+
         submitter = QQSubmitter(
             BatchSystem,
             queue,
             Path(script),
+            job_type,
             BatchSystem.buildResources(queue, **kwargs),
+            QQLoopInfo(
+                loop_start,
+                loop_end,
+                Path.cwd() / archive,
+                archive_format,
+                job_dir=Path.cwd(),
+            )
+            if job_type == QQJobType.LOOP
+            else None,
         )
         # catching multiple submissions
         submitter.guardOrClear()
@@ -162,27 +225,36 @@ class QQSubmitter:
         batch_system: type[QQBatchInterface],
         queue: str,
         script: Path,
+        job_type: QQJobType,
         resources: QQResources,
+        loop_info: QQLoopInfo | None,
     ):
         """
         Initialize a QQSubmitter instance.
 
         Args:
-            batch_system: A class implementing QQBatchInterface.
-            queue: Name of the batch system queue to use.
-            script: Path to the script to submit.
-            resources: QQResources instance with job requirements.
+            batch_system (type[QQBatchInterface]): The batch system class implementing
+                the QQBatchInterface used for job submission.
+            queue (str): The name of the batch system queue to which the job will be submitted.
+            script (Path): Path to the job script to submit. Must exist, be located in
+                the current working directory, and have a valid shebang.
+            job_type (QQJobType): Type of the job to submit (e.g. standard, loop).
+            resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
+            loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
 
         Raises:
             QQError: If the script does not exist, is not in the current directory,
-                     or has an invalid shebang.
+                or has an invalid shebang line.
         """
 
         self._batch_system = batch_system
+        self._job_type = job_type
         self._queue = queue
+        self._loop_info = loop_info
         self._script = script
         self._script_name = script.name  # strip any potential absolute path
-        self._info_file = self._script.with_suffix(QQ_INFO_SUFFIX).resolve()
+        self._job_name = self._constructJobName()
+        self._info_file = Path(self._job_name).with_suffix(QQ_INFO_SUFFIX).resolve()
         self._resources = resources
 
         # script must exist
@@ -206,7 +278,7 @@ class QQSubmitter:
         job submission mechanism, and creates a QQInfo file with job metadata.
 
         Returns:
-            The job ID of the submitted job.
+            str: The job ID of the submitted job.
 
         Raises:
             QQError: If job submission fails.
@@ -216,10 +288,8 @@ class QQSubmitter:
 
         # submit the job
         job_id = self._batch_system.jobSubmit(
-            self._resources, self._queue, self._script, self._script_name
+            self._resources, self._queue, self._script, self._job_name
         )
-
-        logger.info(f"Job '{job_id}' submitted successfully.")
 
         # create info file
         informer = QQInformer(
@@ -228,21 +298,23 @@ class QQSubmitter:
                 qq_version=qq_lib.__version__,
                 username=getpass.getuser(),
                 job_id=job_id,
-                job_name=self._script_name,
+                job_name=self._job_name,
                 script_name=self._script_name,
                 queue=self._queue,
-                job_type="standard",
+                job_type=self._job_type,
                 input_machine=socket.gethostname(),
                 job_dir=Path.cwd(),
                 job_state=NaiveState.QUEUED,
                 submission_time=datetime.now(),
-                stdout_file=str(Path(self._script_name).with_suffix(STDOUT_SUFFIX)),
-                stderr_file=str(Path(self._script_name).with_suffix(STDERR_SUFFIX)),
+                stdout_file=str(Path(self._job_name).with_suffix(STDOUT_SUFFIX)),
+                stderr_file=str(Path(self._job_name).with_suffix(STDERR_SUFFIX)),
                 resources=self._resources,
+                loop_info=self._loop_info,
             )
         )
 
         informer.toFile(self._info_file)
+        logger.info(f"Job '{job_id}' submitted successfully.")
         return job_id
 
     def guardOrClear(self):
@@ -285,7 +357,7 @@ class QQSubmitter:
         Check for presence of qq runtime files in the current directory.
 
         Returns:
-            True if files with QQ_SUFFIXES are present, False otherwise.
+            bool: True if files with QQ_SUFFIXES are present, False otherwise.
         """
         current_dir = Path()
         for file in current_dir.iterdir():
@@ -309,16 +381,37 @@ class QQSubmitter:
         # this contains the name of the used batch system
         os.environ[BATCH_SYSTEM] = str(self._batch_system)
 
+        # loop job-specific environment variables
+        if self._loop_info:
+            os.environ[LOOP_CURRENT] = str(self._loop_info.current)
+            os.environ[LOOP_START] = str(self._loop_info.start)
+            os.environ[LOOP_END] = str(self._loop_info.end)
+            os.environ[ARCHIVE_FORMAT] = self._loop_info.archive_format
+
     def _hasValidShebang(self, script: Path) -> bool:
         """
         Verify that the script has a valid shebang for qq run.
 
         Args:
-            script: Path to the script file.
+            script (Path): Path to the script file.
 
         Returns:
-            True if the first line starts with '#!' and ends with 'qq run'.
+            bool: True if the first line starts with '#!' and ends with 'qq run'.
         """
         with Path.open(script) as file:
             first_line = file.readline()
             return first_line.startswith("#!") and first_line.strip().endswith("qq run")
+
+    def _constructJobName(self) -> str:
+        """
+        Construct the job name for submission.
+
+        Returns:
+            str: The constructed job name.
+        """
+        # for standard jobs, use script name
+        if not self._loop_info:
+            return self._script_name
+
+        # for loop jobs, use script_name with cycle number
+        return f"{self._script_name}{LOOP_JOB_PATTERN % self._loop_info.current}"

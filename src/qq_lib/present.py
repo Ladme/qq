@@ -119,6 +119,16 @@ class QQPresenter:
         table.add_column(justify="left", overflow="fold")
 
         table.add_row("Job name:", Text(self._informer.info.job_name, style="white"))
+
+        loop_info = self._informer.info.loop_info
+        job_type_str = str(self._informer.info.job_type)
+
+        if loop_info:
+            content = f"{job_type_str} [{loop_info.current}/{loop_info.end}]"
+        else:
+            content = job_type_str
+
+        table.add_row("Job type:", Text(content, style="white"))
         table.add_row(
             "Submission queue:", Text(self._informer.info.queue, style="white")
         )

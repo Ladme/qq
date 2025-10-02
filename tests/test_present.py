@@ -133,6 +133,8 @@ def test_create_basic_info_table(sample_info):
 
     assert "Job name:" in output
     assert sample_info.job_name in output
+    assert "Job type:" in output
+    assert str(sample_info.job_type) in output
     assert "Submission queue:" in output
     assert sample_info.queue in output
     assert "Input machine:" in output

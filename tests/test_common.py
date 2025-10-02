@@ -17,6 +17,7 @@ from qq_lib.common import (
     get_info_files,
     is_printf_pattern,
     printf_to_regex,
+    split_files_list,
     wdhms_to_hhmmss,
     yes_or_no_prompt,
 )
@@ -394,3 +395,51 @@ def test_regex_generation(pattern, expected_regex):
 )
 def test_is_printf_pattern(pattern, expected):
     assert is_printf_pattern(pattern) == expected
+
+
+def test_split_files_list_none_or_empty():
+    # None input
+    assert split_files_list(None) == []
+    # empty string
+    assert split_files_list("") == []
+
+
+def test_split_files_list_whitespace(tmp_path):
+    string = (
+        f"{tmp_path / 'file1.txt'} {tmp_path / 'file2.txt'}\t{tmp_path / 'file3.txt'}"
+    )
+    expected = [
+        Path(tmp_path / "file1.txt").resolve(),
+        Path(tmp_path / "file2.txt").resolve(),
+        Path(tmp_path / "file3.txt").resolve(),
+    ]
+    assert split_files_list(string) == expected
+
+
+def test_split_files_list_commas_and_colons(tmp_path):
+    string = (
+        f"{tmp_path / 'file1.txt'},{tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'}"
+    )
+    expected = [
+        Path(tmp_path / "file1.txt").resolve(),
+        Path(tmp_path / "file2.txt").resolve(),
+        Path(tmp_path / "file3.txt").resolve(),
+    ]
+    assert split_files_list(string) == expected
+
+
+def test_split_files_list_mixed_separators(tmp_path):
+    string = f"{tmp_path / 'file1.txt'}, {tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'} {tmp_path / 'file4.txt'}"
+    expected = [
+        Path(tmp_path / "file1.txt").resolve(),
+        Path(tmp_path / "file2.txt").resolve(),
+        Path(tmp_path / "file3.txt").resolve(),
+        Path(tmp_path / "file4.txt").resolve(),
+    ]
+    assert split_files_list(string) == expected
+
+
+def test_split_files_list_single_file(tmp_path):
+    string = str(tmp_path / "single_file.txt")
+    expected = [Path(tmp_path / "single_file.txt").resolve()]
+    assert split_files_list(string) == expected

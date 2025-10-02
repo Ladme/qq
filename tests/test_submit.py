@@ -58,6 +58,7 @@ def test_submitter_init_valid(script_with_shebang, sample_resources, tmp_path):
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
     assert submitter._script == script_with_shebang
     assert submitter._resources == sample_resources
@@ -69,7 +70,7 @@ def test_submitter_init_nonexistent_file(tmp_path, sample_resources):
     script = tmp_path / "missing.sh"
     with pytest.raises(QQError, match="does not exist"):
         QQSubmitter(
-            QQVBS, "default", script, QQJobType.STANDARD, sample_resources, None
+            QQVBS, "default", script, QQJobType.STANDARD, sample_resources, None, []
         )
 
 
@@ -84,6 +85,7 @@ def test_submitter_init_script_not_in_cwd(script_with_shebang, sample_resources)
             QQJobType.STANDARD,
             sample_resources,
             None,
+            [],
         )
 
 
@@ -107,6 +109,7 @@ def test_submitter_init_script_not_in_cwd_matching(
             QQJobType.STANDARD,
             sample_resources,
             None,
+            [],
         )
 
 
@@ -122,6 +125,7 @@ def test_submitter_init_invalid_shebang(
             QQJobType.STANDARD,
             sample_resources,
             None,
+            [],
         )
 
 
@@ -134,6 +138,7 @@ def test_submitter_submit_success(script_with_shebang, sample_resources, tmp_pat
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
     job_id = submitter.submit()
 
@@ -167,6 +172,7 @@ def test_submitter_submit_failure(
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
     with pytest.raises(QQError, match="Failed to submit"):
         submitter.submit()
@@ -185,6 +191,7 @@ def test_qq_files_present_detects_suffix(
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
     assert submitter._qqFilesPresent()
 
@@ -198,6 +205,7 @@ def test_set_env_vars_sets_variables(script_with_shebang, sample_resources, tmp_
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
     submitter._setEnvVars()
     assert os.environ.get("QQ_ENV_SET") == "true"
@@ -213,6 +221,7 @@ def test_has_valid_shebang(script_with_shebang, sample_resources, tmp_path):
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
     assert submitter._hasValidShebang(script_with_shebang)
 
@@ -239,6 +248,7 @@ def test_guard_or_clear_no_files(script_with_shebang, sample_resources, tmp_path
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
 
     # no raise
@@ -258,6 +268,7 @@ def test_guard_or_clear_invalid_files_user_clears(
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
 
     informer_mock = MagicMock()
@@ -287,6 +298,7 @@ def test_guard_or_clear_invalid_files_user_declines(
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
 
     informer_mock = MagicMock()
@@ -327,6 +339,7 @@ def test_guard_or_clear_active_or_finished_always_raises(
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
 
     informer_mock = MagicMock()
@@ -360,6 +373,7 @@ def test_guard_or_clear_multiple_combination_of_states_always_raises(
         QQJobType.STANDARD,
         sample_resources,
         None,
+        [],
     )
 
     informer_mock = MagicMock()

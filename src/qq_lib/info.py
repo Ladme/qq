@@ -110,14 +110,14 @@ class QQInfo:
     # Name of the file for storing error output of the executed script
     stderr_file: str
 
+    # List of files to not copy to the working directory
+    excluded_files: list[Path]
+
     # Resources allocated to the job
     resources: QQResources
 
     # Loop job-associated information.
     loop_info: QQLoopInfo | None = None
-
-    # List of files to not copy to the working directory
-    excluded_files: list[Path] | None = None
 
     # Job start time
     start_time: datetime | None = None
@@ -252,8 +252,8 @@ class QQInfo:
             ):
                 result[f.name] = str(value)
             # convert list of excluded files
-            elif f.type == list[Path] or f.type == list[Path] | None:
-                result[f.name] = [str(x) if hasattr(x, "__str__") else x for x in value]
+            elif f.type == list[Path]:
+                result[f.name] = [str(x) for x in value]
             # convert timestamp
             elif f.type == datetime or f.type == datetime | None:
                 result[f.name] = value.strftime(DATE_FORMAT)
@@ -309,7 +309,7 @@ class QQInfo:
             elif f.type == Path or f.type == Path | None:
                 init_kwargs[name] = Path(value)
             # convert the list of excluded paths
-            elif f.type == list[Path] | None and isinstance(value, list):
+            elif f.type == list[Path] and isinstance(value, list):
                 init_kwargs[name] = [
                     Path(v) if isinstance(v, str) else v for v in value
                 ]

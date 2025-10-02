@@ -432,7 +432,7 @@ class QQRunner:
         ).run()
 
         # files excluded from copying to the working directory
-        excluded = [self._info_file]
+        excluded = self._informer.info.excluded_files + [self._info_file]
         if self._archiver:
             excluded.append(self._archiver._archive)
 
@@ -597,10 +597,12 @@ class QQRunner:
             self._informer.info.job_type,
             self._informer.info.resources,
             loop_info,
+            self._informer.info.excluded_files,
         )
 
         try:
-            submitter.submit()
+            job_id = submitter.submit()
+            logger.info(f"Resubmitted the job as '{job_id}'.")
         except QQError as e:
             raise QQError(f"Could not resubmit job: {e}") from e
 

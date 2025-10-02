@@ -71,7 +71,7 @@ def sample_info(sample_resources):
         stdout_file="script.out",
         stderr_file="script.err",
         resources=sample_resources,
-        excluded_files=[Path("ignore.txt")],
+        excluded_files=[],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )
 

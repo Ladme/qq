@@ -19,7 +19,7 @@ import qq_lib
 from qq_lib.batch import QQBatchInterface, QQBatchMeta
 from qq_lib.clear import QQClearer
 from qq_lib.click_format import GNUHelpColorsCommand
-from qq_lib.common import yes_or_no_prompt
+from qq_lib.common import split_files_list, yes_or_no_prompt
 from qq_lib.constants import (
     ARCHIVE_FORMAT,
     BATCH_SYSTEM,
@@ -73,6 +73,15 @@ The submitted script must be located in the directory from which
     type=str,
     default="standard",
     help="Type of the qq job. Defaults to 'standard'.",
+)
+@optgroup.option(
+    "--exclude",
+    type=str,
+    default=None,
+    help=(
+        f"A colon-, comma-, or space-separated list of files and directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
+        "     By default, all files and directories except for the qq info file and the archive directory are copied to the working directory.\n"
+    ),
 )
 @optgroup.option(
     "--batch-system",
@@ -144,16 +153,16 @@ The submitted script must be located in the directory from which
     "--loop-start",
     type=int,
     default=1,
-    help="Number of the first cycle of a loop job. Defaults to 1.",
+    help="The first cycle of the loop job. Defaults to 1.",
 )
 @optgroup.option(
-    "--loop-end", type=int, default=None, help="Number of the last cycle of a loop job."
+    "--loop-end", type=int, default=None, help="The last cycle of the loop job."
 )
 @optgroup.option(
     "--archive",
     type=str,
     default="storage",
-    help="Name of the directory for archiving files from a loop job. Defaults to 'storage'.",
+    help="Name of the directory for archiving files from the loop job. Defaults to 'storage'.",
 )
 @optgroup.option(
     "--archive-format",
@@ -165,6 +174,7 @@ def submit(
     script: str,
     queue: str,
     job_type: str,
+    exclude: str,
     loop_start: int,
     loop_end: int,
     archive: str,
@@ -200,11 +210,14 @@ def submit(
             )
             if job_type == QQJobType.LOOP
             else None,
+            split_files_list(exclude),
         )
 
         # catching multiple submissions
         submitter.guardOrClear()
-        submitter.submit()
+
+        job_id = submitter.submit()
+        logger.info(f"Job '{job_id}' submitted successfully.")
         sys.exit(0)
     except QQError as e:
         logger.error(e)
@@ -233,6 +246,7 @@ class QQSubmitter:
         job_type: QQJobType,
         resources: QQResources,
         loop_info: QQLoopInfo | None,
+        exclude: list[Path],
     ):
         """
         Initialize a QQSubmitter instance.
@@ -246,6 +260,7 @@ class QQSubmitter:
             job_type (QQJobType): Type of the job to submit (e.g. standard, loop).
             resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
             loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
+            exclude (list[Path]): Files which should not be copied to the working directory.
 
         Raises:
             QQError: If the script does not exist, is not in the current directory,
@@ -261,6 +276,7 @@ class QQSubmitter:
         self._job_name = self._constructJobName()
         self._info_file = Path(self._job_name).with_suffix(QQ_INFO_SUFFIX).resolve()
         self._resources = resources
+        self._exclude = exclude
 
         # script must exist
         if not self._script.is_file():
@@ -315,11 +331,11 @@ class QQSubmitter:
                 stderr_file=str(Path(self._job_name).with_suffix(STDERR_SUFFIX)),
                 resources=self._resources,
                 loop_info=self._loop_info,
+                excluded_files=self._exclude,
             )
         )
 
         informer.toFile(self._info_file)
-        logger.info(f"Job '{job_id}' submitted successfully.")
         return job_id
 
     def guardOrClear(self):

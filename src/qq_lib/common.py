@@ -302,3 +302,25 @@ def is_printf_pattern(pattern: str) -> bool:
         bool: True if the pattern contains printf-style placeholders, False otherwise.
     """
     return bool(re.search(r"%0?\d*d", pattern))
+
+
+def split_files_list(string: str | None) -> list[Path]:
+    """
+    Split a string containing multiple file paths into a list of Path objects.
+
+    The string can contain file paths separated by colons (:), commas (,), or
+    any whitespace characters (space, tab, newline). Each path is converted to
+    an absolute Path using Path.resolve().
+
+    Args:
+        string (str | None): The string containing file paths. If None or empty,
+                             an empty list is returned.
+
+    Returns:
+        list[Path]: A list of resolved Path objects corresponding to the individual
+                    file paths in the input string.
+    """
+    if not string:
+        return []
+
+    return [Path(f).resolve() for f in re.split(r"[:,\s]+", string)]

@@ -546,6 +546,27 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         pass
 
     @staticmethod
+    @abstractmethod
+    def isShared(directory: Path) -> bool:
+        """
+        Determine whether a given directory resides on a shared filesystem.
+
+        Args:
+            directory (Path): The directory to check.
+
+        Returns:
+            bool: True if the directory is on a shared filesystem, False if it is local.
+        """
+        # df -l exits with zero if the filesystem is local; otherwise it exits with a non-zero code
+        result = subprocess.run(
+            ["df", "-l", directory],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        return result.returncode != 0
+
+    @staticmethod
     def _translateSSHCommand(host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.

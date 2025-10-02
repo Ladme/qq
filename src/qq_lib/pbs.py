@@ -267,6 +267,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for PBS are: '{' '.join(supported_types)}'."
         )
 
+    def isShared(directory: Path) -> bool:
+        return QQBatchInterface.isShared(directory)
+
     @staticmethod
     def _sharedGuard(res: QQResources):
         """
@@ -286,7 +289,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             QQError: If the job is set to run directly in the submission
                     directory while submission is from a non-shared filesystem.
         """
-        if QQPBS._isShared(Path()):
+        if QQPBS.isShared(Path()):
             os.environ[SHARED_SUBMIT] = "true"
         else:
             # if job directory is used as working directory, it must always be shared
@@ -294,26 +297,6 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                 raise QQError(
                     "Job was requested to run directly in the submission directory (work-dir='job_dir'), but submission is done from a local filesystem."
                 )
-
-    @staticmethod
-    def _isShared(directory: Path) -> bool:
-        """
-        Determine whether a given directory resides on a shared filesystem.
-
-        Args:
-            directory (Path): The directory to check.
-
-        Returns:
-            bool: True if the directory is on a shared filesystem, False if it is local.
-        """
-        # df -l exits with zero if the filesystem is local; otherwise it exits with a non-zero code
-        result = subprocess.run(
-            ["df", "-l", directory],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        return result.returncode != 0
 
     @staticmethod
     def _translateSubmit(

@@ -394,9 +394,6 @@ def test_submit_success(tmp_path, script_with_shebang):
 
 
 def test_submit_missing_script(tmp_path):
-    """
-    Submitting a non-existent script should fail.
-    """
     os.chdir(tmp_path)
 
     runner = CliRunner()
@@ -409,9 +406,6 @@ def test_submit_missing_script(tmp_path):
 
 
 def test_submit_invalid_shebang(tmp_path, script_invalid_shebang):
-    """
-    Submitting a script with invalid shebang should fail.
-    """
     os.chdir(tmp_path)
 
     runner = CliRunner()
@@ -422,3 +416,30 @@ def test_submit_invalid_shebang(tmp_path, script_invalid_shebang):
 
     assert result.exit_code == 91
     assert "invalid shebang" in result.output
+
+
+def test_submit_loop_job_not_shared_filesystem(tmp_path, script_with_shebang):
+    os.chdir(tmp_path)
+
+    runner = CliRunner()
+
+    with patch.object(QQVBS, "isShared", return_value=False):
+        result = runner.invoke(
+            submit,
+            [
+                "-q",
+                "default",
+                script_with_shebang.name,
+                "--batch-system",
+                "VBS",
+                "--job-type",
+                "loop",
+                "--loop-end",
+                "5",
+            ],
+        )
+
+        assert result.exit_code == 91
+        assert (
+            "Loop jobs have to be submitted from a shared filesystem" in result.output
+        )

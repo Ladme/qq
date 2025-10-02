@@ -608,3 +608,52 @@ def test_translate_move_command_mismatched_lengths():
 def test_translate_move_command_empty_lists():
     cmd = QQBatchInterface._translateMoveCommand([], [])
     assert cmd == ""
+
+
+def test_is_shared_returns_false_for_local(monkeypatch, tmp_path):
+    def fake_run(cmd, **kwargs):
+        _ = cmd
+        _ = kwargs
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert QQBatchInterface.isShared(tmp_path) is False
+
+
+def test_is_shared_returns_true_for_shared(monkeypatch, tmp_path):
+    def fake_run(cmd, **kwargs):
+        _ = cmd
+        _ = kwargs
+
+        class Result:
+            returncode = 1
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert QQBatchInterface.isShared(tmp_path) is True
+
+
+def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        _ = kwargs
+        captured["cmd"] = cmd
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    QQBatchInterface.isShared(tmp_path)
+
+    assert captured["cmd"][0:2] == ["df", "-l"]
+    assert Path(captured["cmd"][2]) == tmp_path

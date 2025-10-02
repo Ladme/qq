@@ -4,7 +4,6 @@
 # ruff: noqa: W291
 
 import os
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -177,60 +176,11 @@ def test_navigate_success(tmp_path):
         # should not raise
 
 
-def test_is_shared_returns_false_for_local(monkeypatch, tmp_path):
-    def fake_run(cmd, **kwargs):
-        _ = cmd
-        _ = kwargs
-
-        class Result:
-            returncode = 0
-
-        return Result()
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    assert QQPBS._isShared(tmp_path) is False
-
-
-def test_is_shared_returns_true_for_shared(monkeypatch, tmp_path):
-    def fake_run(cmd, **kwargs):
-        _ = cmd
-        _ = kwargs
-
-        class Result:
-            returncode = 1
-
-        return Result()
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    assert QQPBS._isShared(tmp_path) is True
-
-
-def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
-    captured = {}
-
-    def fake_run(cmd, **kwargs):
-        _ = kwargs
-        captured["cmd"] = cmd
-
-        class Result:
-            returncode = 0
-
-        return Result()
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    QQPBS._isShared(tmp_path)
-
-    assert captured["cmd"][0:2] == ["df", "-l"]
-    assert Path(captured["cmd"][2]) == tmp_path
-
-
 def test_shared_guard_sets_env_var():
     os.environ.pop(SHARED_SUBMIT, None)
 
-    # patch _isShared to return True
-    with patch.object(QQPBS, "_isShared", return_value=True):
+    # patch isShared to return True
+    with patch.object(QQPBS, "isShared", return_value=True):
         QQPBS._sharedGuard(QQResources(work_dir="scratch_local"))
         assert os.environ.get(SHARED_SUBMIT) == "true"
 
@@ -241,8 +191,8 @@ def test_shared_guard_sets_env_var():
 def test_shared_guard_does_not_set_env_var():
     os.environ.pop(SHARED_SUBMIT, None)
 
-    # patch _isShared to return False
-    with patch.object(QQPBS, "_isShared", return_value=False):
+    # patch isShared to return False
+    with patch.object(QQPBS, "isShared", return_value=False):
         QQPBS._sharedGuard(QQResources(work_dir="scratch_local"))
         assert SHARED_SUBMIT not in os.environ
 
@@ -250,8 +200,8 @@ def test_shared_guard_does_not_set_env_var():
 def test_shared_guard_jobdir_does_not_raise():
     os.environ.pop(SHARED_SUBMIT, None)
 
-    # patch _isShared to return True
-    with patch.object(QQPBS, "_isShared", return_value=True):
+    # patch isShared to return True
+    with patch.object(QQPBS, "isShared", return_value=True):
         QQPBS._sharedGuard(QQResources(work_dir="job_dir"))
         assert os.environ.get(SHARED_SUBMIT) == "true"
 
@@ -262,9 +212,9 @@ def test_shared_guard_jobdir_does_not_raise():
 def test_shared_guard_jobdir_raises():
     os.environ.pop(SHARED_SUBMIT, None)
 
-    # patch _isShared to return False
+    # patch isShared to return False
     with (
-        patch.object(QQPBS, "_isShared", return_value=False),
+        patch.object(QQPBS, "isShared", return_value=False),
         pytest.raises(
             QQError,
             match="Job was requested to run directly in the submission directory",

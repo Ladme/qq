@@ -283,6 +283,10 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
             QQResources(**kwargs), QQVBS._getDefaultServerResources()
         )
 
+    def isShared(_directory: Path) -> bool:
+        # always shared
+        return True
+
     @staticmethod
     def _getDefaultServerResources() -> QQResources:
         """

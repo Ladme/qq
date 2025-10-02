@@ -181,6 +181,10 @@ def submit(
         BatchSystem = QQBatchMeta.obtain(batch_system)
         job_type = QQJobType.fromStr(job_type)
 
+        # job_dir for loop jobs must be available from the computing node
+        if job_type == QQJobType.LOOP and not BatchSystem.isShared(Path()):
+            raise QQError("Loop jobs have to be submitted from a shared filesystem.")
+
         submitter = QQSubmitter(
             BatchSystem,
             queue,
@@ -197,6 +201,7 @@ def submit(
             if job_type == QQJobType.LOOP
             else None,
         )
+
         # catching multiple submissions
         submitter.guardOrClear()
         submitter.submit()

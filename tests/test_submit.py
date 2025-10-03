@@ -4,6 +4,7 @@
 import getpass
 import os
 import socket
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -11,10 +12,17 @@ import pytest
 from click.testing import CliRunner
 
 from qq_lib.batch import QQBatchMeta
-from qq_lib.constants import QQ_INFO_SUFFIX, QQ_OUT_SUFFIX, STDERR_SUFFIX, STDOUT_SUFFIX
+from qq_lib.constants import (
+    DATE_FORMAT,
+    QQ_INFO_SUFFIX,
+    QQ_OUT_SUFFIX,
+    STDERR_SUFFIX,
+    STDOUT_SUFFIX,
+)
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer
 from qq_lib.job_type import QQJobType
+from qq_lib.loop import QQLoopInfo
 from qq_lib.pbs import QQPBS
 from qq_lib.resources import QQResources
 from qq_lib.states import NaiveState, RealState
@@ -59,6 +67,7 @@ def test_submitter_init_valid(script_with_shebang, sample_resources, tmp_path):
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
     assert submitter._script == script_with_shebang
     assert submitter._resources == sample_resources
@@ -70,7 +79,14 @@ def test_submitter_init_nonexistent_file(tmp_path, sample_resources):
     script = tmp_path / "missing.sh"
     with pytest.raises(QQError, match="does not exist"):
         QQSubmitter(
-            QQVBS, "default", script, QQJobType.STANDARD, sample_resources, None, []
+            QQVBS,
+            "default",
+            script,
+            QQJobType.STANDARD,
+            sample_resources,
+            None,
+            [],
+            ["-q", "default"],
         )
 
 
@@ -86,6 +102,7 @@ def test_submitter_init_script_not_in_cwd(script_with_shebang, sample_resources)
             sample_resources,
             None,
             [],
+            ["-q", "default", str(script_with_shebang)],
         )
 
 
@@ -110,6 +127,7 @@ def test_submitter_init_script_not_in_cwd_matching(
             sample_resources,
             None,
             [],
+            ["-q", "default", str(script_with_shebang)],
         )
 
 
@@ -126,6 +144,7 @@ def test_submitter_init_invalid_shebang(
             sample_resources,
             None,
             [],
+            ["-q", "default", str(script_invalid_shebang)],
         )
 
 
@@ -139,6 +158,7 @@ def test_submitter_submit_success(script_with_shebang, sample_resources, tmp_pat
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
     job_id = submitter.submit()
 
@@ -173,6 +193,7 @@ def test_submitter_submit_failure(
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
     with pytest.raises(QQError, match="Failed to submit"):
         submitter.submit()
@@ -192,6 +213,7 @@ def test_qq_files_present_detects_suffix(
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
     assert submitter._qqFilesPresent()
 
@@ -206,6 +228,7 @@ def test_set_env_vars_sets_variables(script_with_shebang, sample_resources, tmp_
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
     submitter._setEnvVars()
     assert os.environ.get("QQ_ENV_SET") == "true"
@@ -222,6 +245,7 @@ def test_has_valid_shebang(script_with_shebang, sample_resources, tmp_path):
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
     assert submitter._hasValidShebang(script_with_shebang)
 
@@ -239,7 +263,10 @@ def make_dummy_files(tmp_path):
     return files
 
 
-def test_guard_or_clear_no_files(script_with_shebang, sample_resources, tmp_path):
+@pytest.mark.parametrize("interactive", [True, False])
+def test_guard_or_clear_no_files(
+    script_with_shebang, sample_resources, tmp_path, interactive
+):
     os.chdir(tmp_path)
     submitter = QQSubmitter(
         QQVBS,
@@ -249,10 +276,11 @@ def test_guard_or_clear_no_files(script_with_shebang, sample_resources, tmp_path
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
 
     # no raise
-    submitter.guardOrClear()
+    submitter.guardOrClear(interactive)
 
 
 def test_guard_or_clear_invalid_files_user_clears(
@@ -269,6 +297,7 @@ def test_guard_or_clear_invalid_files_user_clears(
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
 
     informer_mock = MagicMock()
@@ -278,7 +307,7 @@ def test_guard_or_clear_invalid_files_user_clears(
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
         patch("readchar.readkey", return_value="y"),
     ):
-        submitter.guardOrClear()
+        submitter.guardOrClear(True)
 
     # files should be deleted
     for f in files:
@@ -299,6 +328,7 @@ def test_guard_or_clear_invalid_files_user_declines(
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
 
     informer_mock = MagicMock()
@@ -309,7 +339,7 @@ def test_guard_or_clear_invalid_files_user_declines(
         patch("readchar.readkey", return_value="n"),
         pytest.raises(QQError, match="Submission aborted."),
     ):
-        submitter.guardOrClear()
+        submitter.guardOrClear(True)
 
     # files should exist
     for f in files:
@@ -326,7 +356,36 @@ def test_guard_or_clear_invalid_files_user_declines(
         RealState.BOOTING,
     ],
 )
+@pytest.mark.parametrize("interactive", [True, False])
 def test_guard_or_clear_active_or_finished_always_raises(
+    script_with_shebang, sample_resources, tmp_path, state, interactive
+):
+    os.chdir(tmp_path)
+    make_dummy_files(tmp_path)
+
+    submitter = QQSubmitter(
+        QQVBS,
+        "default",
+        script_with_shebang,
+        QQJobType.STANDARD,
+        sample_resources,
+        None,
+        [],
+        ["-q", "default", str(script_with_shebang)],
+    )
+
+    informer_mock = MagicMock()
+    informer_mock.getRealState.return_value = state
+
+    with (
+        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+        pytest.raises(QQError, match="Detected qq runtime files"),
+    ):
+        submitter.guardOrClear(interactive)
+
+
+@pytest.mark.parametrize("state", list(RealState))
+def test_guard_or_clear_non_interactive_any_state_always_raises(
     script_with_shebang, sample_resources, tmp_path, state
 ):
     os.chdir(tmp_path)
@@ -340,6 +399,7 @@ def test_guard_or_clear_active_or_finished_always_raises(
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
 
     informer_mock = MagicMock()
@@ -347,17 +407,14 @@ def test_guard_or_clear_active_or_finished_always_raises(
 
     with (
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
-        pytest.raises(
-            QQError, match="Detected qq runtime files from an active or successful run"
-        ),
+        pytest.raises(QQError, match="Detected qq runtime files"),
     ):
-        submitter.guardOrClear()
+        submitter.guardOrClear(False)
 
 
+@pytest.mark.parametrize("interactive", [True, False])
 def test_guard_or_clear_multiple_combination_of_states_always_raises(
-    script_with_shebang,
-    sample_resources,
-    tmp_path,
+    script_with_shebang, sample_resources, tmp_path, interactive
 ):
     os.chdir(tmp_path)
     make_dummy_files(tmp_path)
@@ -374,6 +431,7 @@ def test_guard_or_clear_multiple_combination_of_states_always_raises(
         sample_resources,
         None,
         [],
+        ["-q", "default", str(script_with_shebang)],
     )
 
     informer_mock = MagicMock()
@@ -385,11 +443,9 @@ def test_guard_or_clear_multiple_combination_of_states_always_raises(
 
     with (
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
-        pytest.raises(
-            QQError, match="Detected qq runtime files from an active or successful run"
-        ),
+        pytest.raises(QQError, match="Detected qq runtime files"),
     ):
-        submitter.guardOrClear()
+        submitter.guardOrClear(interactive)
 
 
 def test_submit_success(tmp_path, script_with_shebang):
@@ -432,28 +488,113 @@ def test_submit_invalid_shebang(tmp_path, script_invalid_shebang):
     assert "invalid shebang" in result.output
 
 
-def test_submit_loop_job_not_shared_filesystem(tmp_path, script_with_shebang):
+@pytest.fixture
+def resources():
+    return QQResources(ncpus=4, work_dir="scratch_local")
+
+
+@pytest.fixture
+def base_info(resources, tmp_path):
+    return QQInfo(
+        batch_system=QQPBS,
+        qq_version="0.1.0",
+        username="fake_user",
+        job_id="12345.server",
+        job_name="job.sh+001",
+        queue="default",
+        script_name="job.sh",
+        job_type=QQJobType.STANDARD,
+        input_machine="fake.machine.com",
+        job_dir=tmp_path,
+        job_state=NaiveState.FINISHED,
+        submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
+        stdout_file="stdout.log",
+        stderr_file="stderr.log",
+        resources=resources,
+        excluded_files=[],
+        command_line=["-q", "default", "job.sh"],
+        work_dir=tmp_path / "work",
+    )
+
+
+def make_submitter(loop_info=None):
+    sub = object.__new__(QQSubmitter)
+    sub._info_file = Path("dummy.qqinfo")
+    sub._loop_info = loop_info
+    return sub
+
+
+def test_should_skip_clear_no_info_file(tmp_path):
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=2))
     os.chdir(tmp_path)
 
-    runner = CliRunner()
+    assert submitter._shouldSkipClear() is False
 
-    with patch.object(QQVBS, "isShared", return_value=False):
-        result = runner.invoke(
-            submit,
-            [
-                "-q",
-                "default",
-                script_with_shebang.name,
-                "--batch-system",
-                "VBS",
-                "--job-type",
-                "loop",
-                "--loop-end",
-                "5",
-            ],
-        )
 
-        assert result.exit_code == 91
-        assert (
-            "Loop jobs have to be submitted from a shared filesystem" in result.output
-        )
+def test_should_skip_clear_multiple_info_files(tmp_path, base_info):
+    file1 = tmp_path / "a.qqinfo"
+    file2 = tmp_path / "b.qqinfo"
+    base_info.toFile(file1)
+    base_info.toFile(file2)
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=2))
+    os.chdir(tmp_path)
+
+    assert submitter._shouldSkipClear() is False
+
+
+def test_should_skip_clear_single_info_not_loop(tmp_path, base_info):
+    file1 = tmp_path / "single.qqinfo"
+    base_info.toFile(file1)  # not a loop job
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=2))
+    os.chdir(tmp_path)
+
+    assert submitter._shouldSkipClear() is False
+
+
+def test_should_skip_clear_loop_wrong_cycle(tmp_path, base_info):
+    loop_info = QQLoopInfo(1, 5, tmp_path, "job%04d", current=1)
+    base_info.loop_info = loop_info
+    file1 = tmp_path / "loop.qqinfo"
+    base_info.toFile(file1)
+
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=3))
+    os.chdir(tmp_path)
+
+    # wrong cycle (file is current=1, submitter expects previous=2)
+    assert submitter._shouldSkipClear() is False
+
+
+def test_should_skip_clear_loop_running(tmp_path, base_info):
+    loop_info = QQLoopInfo(1, 5, tmp_path, "job%04d", current=2)
+    base_info.loop_info = loop_info
+    base_info.job_state = NaiveState.RUNNING
+    file1 = tmp_path / "loop.qqinfo"
+    base_info.toFile(file1)
+
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=3))
+    os.chdir(tmp_path)
+
+    # previous job is running
+    assert submitter._shouldSkipClear() is False
+
+
+def test_should_skip_clear_loop_correct_previous_cycle(tmp_path, base_info):
+    loop_info = QQLoopInfo(1, 5, tmp_path, "job%04d", current=1)
+    base_info.loop_info = loop_info
+    file1 = tmp_path / "loop.qqinfo"
+    base_info.toFile(file1)
+
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=2))
+    os.chdir(tmp_path)
+
+    assert submitter._shouldSkipClear() is True
+
+
+def test_should_skip_clear_invalid_info_file(tmp_path):
+    bad_file = tmp_path / "bad.qqinfo"
+    bad_file.write_text("not: valid: yaml: [")
+    submitter = make_submitter(QQLoopInfo(1, 5, tmp_path, "job%04d", current=2))
+    os.chdir(tmp_path)
+
+    # invalid YAML should be caught, returning False
+    assert submitter._shouldSkipClear() is False

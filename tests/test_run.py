@@ -72,6 +72,7 @@ def sample_info(sample_resources):
         stderr_file="script.err",
         resources=sample_resources,
         excluded_files=[],
+        command_line=["-q", "default", "script.sh"],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )
 

@@ -579,32 +579,29 @@ class QQRunner:
             sys.exit(93)
 
     def _resubmit(self):
-        from qq_lib.submit import QQSubmitter
+        """
+        Resubmit the current loop job to the batch system if additional cycles remain.
 
+        Raises:
+            QQError: If the job cannot be resubmitted.
+        """
         loop_info = self._informer.info.loop_info
-        loop_info.current += 1
-
-        if loop_info.current > loop_info.end:
+        if loop_info.current >= loop_info.end:
             logger.info("This was the final cycle of the loop job. Not resubmitting.")
             return
 
-        os.chdir(self._job_dir)
+        logger.info("Resubmitting the job.")
 
-        submitter = QQSubmitter(
-            self._batch_system,
-            self._informer.info.queue,
-            self._job_dir / self._informer.info.script_name,
-            self._informer.info.job_type,
-            self._informer.info.resources,
-            loop_info,
-            self._informer.info.excluded_files,
-        )
+        QQRetryer(
+            self._batch_system.resubmit,
+            input_machine=self._informer.info.input_machine,
+            job_dir=self._informer.info.job_dir,
+            command_line=self._informer.info.command_line,
+            max_tries=RUNNER_RETRY_TRIES,
+            wait_seconds=RUNNER_RETRY_WAIT,
+        ).run()
 
-        try:
-            job_id = submitter.submit()
-            logger.info(f"Resubmitted the job as '{job_id}'.")
-        except QQError as e:
-            raise QQError(f"Could not resubmit job: {e}") from e
+        logger.info("Job successfully resubmitted.")
 
     def _cleanup(self) -> None:
         """

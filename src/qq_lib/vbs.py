@@ -308,6 +308,12 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     def getJobInfo(job_id: str) -> VBSJobInfo:
         return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]
 
+    def resubmit(res: QQResources, script: Path) -> str:
+        try:
+            return QQVBS._batch_system.submitJob(script, res.useScratch())
+        except VBSError as e:
+            raise QQError(f"Failed to resubmit script '{str(script)}': {e}.")
+
 
 # register QQVBS
 QQBatchMeta.register(QQVBS)

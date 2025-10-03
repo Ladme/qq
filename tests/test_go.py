@@ -63,6 +63,7 @@ def sample_info(tmp_path, sample_resources):
         stderr_file="stderr.log",
         resources=sample_resources,
         excluded_files=[Path("ignore.txt")],
+        command_line=["-q", "default", "script.sh"],
         work_dir=work_dir,
         main_node=str(main_node),
     )

@@ -116,6 +116,9 @@ class QQInfo:
     # Resources allocated to the job
     resources: QQResources
 
+    # Command line arguments and options provided when submitting.
+    command_line: list[str]
+
     # Loop job-associated information.
     loop_info: QQLoopInfo | None = None
 

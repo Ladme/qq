@@ -1,6 +1,6 @@
 [project]
 name = "qq-manager"
-version = "0.1.0-dev.2"
+version = "0.1.0-dev.4"
 description = "Wrapper around PBS Pro and Slurm batch systems"
 readme = "README.md"
 requires-python = ">=3.12"

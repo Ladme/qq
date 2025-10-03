@@ -49,6 +49,7 @@ def sample_info(sample_resources):
         stderr_file="stderr.log",
         resources=sample_resources,
         excluded_files=[Path("ignore.txt")],
+        command_line=["-q", "default", "script.sh"],
         main_node="random.node.org",
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )

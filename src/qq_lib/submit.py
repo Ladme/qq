@@ -19,7 +19,7 @@ import qq_lib
 from qq_lib.batch import QQBatchInterface, QQBatchMeta
 from qq_lib.clear import QQClearer
 from qq_lib.click_format import GNUHelpColorsCommand
-from qq_lib.common import split_files_list, yes_or_no_prompt
+from qq_lib.common import get_info_file, split_files_list, yes_or_no_prompt
 from qq_lib.constants import (
     ARCHIVE_FORMAT,
     BATCH_SYSTEM,
@@ -88,6 +88,11 @@ The submitted script must be located in the directory from which
     type=str,
     default=None,
     help=f"Batch system to submit the job into. If not specified, will load the batch system from the environment variable '{BATCH_SYSTEM}' or guess it.",
+)
+@optgroup.option(
+    "--non-interactive",
+    is_flag=True,
+    help="Use when using qq submit in a non-interactive environment. Any interactive prompt will be automatically skipped and evaluated as false.",
 )
 @optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
 @optgroup.option(
@@ -180,6 +185,7 @@ def submit(
     archive: str,
     archive_format: str,
     batch_system: str,
+    non_interactive: bool,
     **kwargs,
 ):
     """
@@ -190,10 +196,6 @@ def submit(
     try:
         BatchSystem = QQBatchMeta.obtain(batch_system)
         job_type = QQJobType.fromStr(job_type)
-
-        # job_dir for loop jobs must be available from the computing node
-        if job_type == QQJobType.LOOP and not BatchSystem.isShared(Path()):
-            raise QQError("Loop jobs have to be submitted from a shared filesystem.")
 
         submitter = QQSubmitter(
             BatchSystem,
@@ -211,10 +213,11 @@ def submit(
             if job_type == QQJobType.LOOP
             else None,
             split_files_list(exclude),
+            sys.argv[2:],
         )
 
         # catching multiple submissions
-        submitter.guardOrClear()
+        submitter.guardOrClear(not non_interactive)
 
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")
@@ -247,6 +250,7 @@ class QQSubmitter:
         resources: QQResources,
         loop_info: QQLoopInfo | None,
         exclude: list[Path],
+        command_line: list[str],
     ):
         """
         Initialize a QQSubmitter instance.
@@ -261,6 +265,7 @@ class QQSubmitter:
             resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
             loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path]): Files which should not be copied to the working directory.
+            command_line (list[str]): List of all arguments and options provided on the command line.
 
         Raises:
             QQError: If the script does not exist, is not in the current directory,
@@ -277,6 +282,7 @@ class QQSubmitter:
         self._info_file = Path(self._job_name).with_suffix(QQ_INFO_SUFFIX).resolve()
         self._resources = resources
         self._exclude = exclude
+        self._command_line = command_line
 
         # script must exist
         if not self._script.is_file():
@@ -332,13 +338,14 @@ class QQSubmitter:
                 resources=self._resources,
                 loop_info=self._loop_info,
                 excluded_files=self._exclude,
+                command_line=self._command_line,
             )
         )
 
         informer.toFile(self._info_file)
         return job_id
 
-    def guardOrClear(self):
+    def guardOrClear(self, interactive: bool):
         """
         Prevent multiple submissions from the same directory.
 
@@ -349,6 +356,9 @@ class QQSubmitter:
 
         If the files belong to an active or successfully finished job, always raise QQError.
 
+        Args:
+            interactive (bool): Is qq submit being run in an interactive environment?
+
         Raises:
             QQError: If QQ runtime files from an active/successful run are detected,
                     or if invalid QQ files are present and the user chooses not to clear them.
@@ -356,6 +366,18 @@ class QQSubmitter:
         if not self._qqFilesPresent():
             return  # no qq files present, all good
 
+        # if this is a loop job and the qq runtime files are from a previous cycle, we do not clear them
+        # we want to archive these files in the next cycle of the loop job
+        if self._shouldSkipClear():
+            return
+
+        # if we are in a non-interactive environment, any detection of qq runtime files is a hard error
+        if not interactive:
+            raise QQError(
+                "Detected qq runtime files in the submission directory. Submission aborted."
+            )
+
+        # attempt to clear the files or raise an error
         clearer = QQClearer(Path.cwd())
         if clearer.shouldClear(force=False):
             logger.warning(
@@ -372,6 +394,44 @@ class QQSubmitter:
             raise QQError(
                 "Detected qq runtime files from an active or successful run. Submission aborted!"
             )
+
+    def _shouldSkipClear(self) -> bool:
+        """
+        Determine whether clearing of files should be skipped for a loop job.
+
+        Returns:
+            bool:
+                - True if clearing should be skipped because the previous cycle has
+                completed successfully.
+                - False otherwise, including when the job is not a loop job, no info file
+                is found, multiple info files are detected, or the file cannot be read.
+        """
+        # this is not a loop job
+        if not self._info_file:
+            logger.debug("Not a loop job.")
+            return False
+
+        try:
+            # to skip file clearing, there can only be a single info file
+            # corresponding to the previous cycle of the loop job
+            # that is already finished
+            info_file = get_info_file(Path.cwd())
+            informer = QQInformer.fromFile(info_file)
+            if (
+                informer.info.loop_info
+                and informer.info.job_state == NaiveState.FINISHED
+                and informer.info.loop_info.current == self._loop_info.current - 1
+            ):
+                logger.debug("Valid loop job with a correct cycle.")
+                return True
+            logger.debug(
+                "Detected info file is either not a loop job or does not correspond to the previous cycle."
+            )
+            return False
+
+        except QQError as e:
+            logger.debug(f"Could not read a valid info file: {e}.")
+            return False
 
     def _qqFilesPresent(self) -> bool:
         """

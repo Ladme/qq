@@ -271,6 +271,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def isShared(directory: Path) -> bool:
         return QQBatchInterface.isShared(directory)
 
+    def resubmit(input_machine: str, job_dir: str, command_line: list[str]):
+        QQBatchInterface.resubmit(
+            input_machine=input_machine, job_dir=job_dir, command_line=command_line
+        )
+
     @staticmethod
     def _sharedGuard(res: QQResources):
         """

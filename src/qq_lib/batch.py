@@ -592,6 +592,57 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         return result.returncode != 0
 
     @staticmethod
+    @abstractmethod
+    def resubmit(**kwargs):
+        """
+        Resubmit a job to the batch system.
+
+        The default implementation connects via SSH to the specified machine,
+        changes into the job directory, and re-executes the original job
+        submission command (`qq submit ...`).
+
+        If the resubmission fails, a QQError is raised.
+
+        Keyword Args:
+            input_machine (str): The hostname of the machine where the job
+                should be resubmitted.
+            job_dir (str | Path): The directory on the remote machine containing
+                the job data and submission files.
+            command_line (list[str]): The original command-line arguments that
+                should be passed to `qq submit`.
+
+        Raises:
+            QQError: If the resubmission fails (non-zero return code from the
+            SSH command).
+        """
+        input_machine = kwargs["input_machine"]
+        job_dir = kwargs["job_dir"]
+        command_line = kwargs["command_line"]
+
+        qq_submit_command = " ".join(command_line)
+
+        logger.debug(
+            f"Navigating to '{input_machine}:{job_dir}' to execute '{qq_submit_command}'."
+        )
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                "-q",  # suppress some SSH messages
+                input_machine,
+                f"cd {job_dir} && {qq_submit_command}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not resubmit the job on '{input_machine}': {result.stderr.strip()}."
+            )
+
+    @staticmethod
     def _translateSSHCommand(host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.

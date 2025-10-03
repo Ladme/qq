@@ -3,7 +3,7 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from rich.console import Console, Group
@@ -277,3 +277,116 @@ def test_create_job_status_table_states(sample_info, state):
     )
     assert first_msg in output
     assert second_msg in output
+
+
+@pytest.mark.parametrize(
+    "state", [RealState.QUEUED, RealState.HELD, RealState.SUSPENDED, RealState.WAITING]
+)
+def test_create_job_status_table_with_estimated(sample_info, state):
+    informer = QQInformer(sample_info)
+    informer.info.job_state = state
+    presenter = QQPresenter(informer)
+
+    table = presenter._createJobStatusTable(
+        state, "Should not be printed", (datetime.now(), "fake_node")
+    )
+
+    assert isinstance(table, Table)
+    assert len(table.columns) == 2
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "Job state:" in output
+    first_msg, second_msg = presenter._getStateMessages(
+        state,
+        sample_info.start_time or sample_info.submission_time,
+        sample_info.completion_time or datetime.now(),
+    )
+    assert first_msg in output
+    assert second_msg in output
+    assert "Planned start within" in output
+    assert "fake_node" in output
+    assert "Should not be printed" not in output
+
+
+@pytest.mark.parametrize(
+    "state", [RealState.QUEUED, RealState.HELD, RealState.SUSPENDED, RealState.WAITING]
+)
+def test_create_job_status_table_with_comment(sample_info, state):
+    informer = QQInformer(sample_info)
+    informer.info.job_state = state
+    presenter = QQPresenter(informer)
+
+    table = presenter._createJobStatusTable(state, "This is a test comment")
+
+    assert isinstance(table, Table)
+    assert len(table.columns) == 2
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "Job state:" in output
+    first_msg, second_msg = presenter._getStateMessages(
+        state,
+        sample_info.start_time or sample_info.submission_time,
+        sample_info.completion_time or datetime.now(),
+    )
+    assert first_msg in output
+    assert second_msg in output
+    assert "This is a test comment" in output
+
+
+@pytest.fixture
+def mock_informer():
+    informer = Mock()
+    # default return values
+    informer.getComment.return_value = "Job comment"
+    informer.getEstimated.return_value = (datetime(2026, 10, 4, 15, 30, 0), "node01")
+    return informer
+
+
+@pytest.fixture
+def presenter(mock_informer):
+    return QQPresenter(mock_informer)
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        RealState.QUEUED,
+        RealState.HELD,
+        RealState.WAITING,
+        RealState.SUSPENDED,
+    ],
+)
+def test_get_comment_and_estimated_for_active_states(presenter, mock_informer, state):
+    comment, estimated = presenter._getCommentAndEstimated(state)
+
+    # check that the values returned are what the informer provides
+    assert comment == "Job comment"
+    assert estimated == (datetime(2026, 10, 4, 15, 30, 0), "node01")
+
+    # check that the presenter actually called the informer methods
+    mock_informer.getComment.assert_called_once()
+    mock_informer.getEstimated.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        RealState.BOOTING,
+        RealState.RUNNING,
+        RealState.FINISHED,
+        RealState.FAILED,
+        RealState.KILLED,
+        RealState.UNKNOWN,
+        RealState.IN_AN_INCONSISTENT_STATE,
+    ],
+)
+def test_get_comment_and_estimated_for_inactive_states(presenter, state):
+    comment, estimated = presenter._getCommentAndEstimated(state)
+    assert comment is None
+    assert estimated is None

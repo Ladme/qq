@@ -76,6 +76,7 @@ class QQPresenter:
         panel_width = max(80, term_width // 3)
 
         state = self._informer.getRealState()
+        comment, estimated = self._getCommentAndEstimated(state)
 
         content = Group(
             Padding(self._createBasicInfoTable(), (0, 2)),
@@ -90,7 +91,7 @@ class QQPresenter:
             Text(""),
             Rule(title=Text("STATE", style="bold"), style="white"),
             Text(""),
-            Padding(self._createJobStatusTable(state), (0, 2)),
+            Padding(self._createJobStatusTable(state, comment, estimated), (0, 2)),
         )
 
         # combine all sections
@@ -244,7 +245,12 @@ class QQPresenter:
 
         return table
 
-    def _createJobStatusTable(self, state: RealState) -> Table:
+    def _createJobStatusTable(
+        self,
+        state: RealState,
+        comment: str | None = None,
+        estimated: tuple[datetime, str] | None = None,
+    ) -> Table:
         """
         Create a table summarizing the current job status.
 
@@ -267,6 +273,19 @@ class QQPresenter:
         table.add_row("Job state:", Text(message, style=f"{state.color} bold"))
         if details.strip():
             table.add_row("", Text(details, style="white"))
+
+        if estimated:
+            table.add_row(
+                "",
+                Text(
+                    f"Planned start within {format_duration(estimated[0] - datetime.now())} on '{estimated[1]}'",
+                    style="grey50",
+                ),
+            )
+
+        # comment is typically only useful if the estimated start time is not defined
+        if not estimated and comment:
+            table.add_row("", Text(comment, style="grey50"))
 
         return table
 
@@ -341,3 +360,34 @@ class QQPresenter:
             "Job is in an unknown state",
             "Job is in a state that qq does not recognize",
         )
+
+    def _getCommentAndEstimated(
+        self, state: RealState
+    ) -> tuple[str | None, tuple[datetime, str] | None]:
+        """
+        Retrieve the job comment and estimated start information
+        if the job is queued, held, waiting or suspended.
+
+        For jobs in other states, return (None, None).
+
+        Args:
+            state (RealState): The current job state.
+
+        Returns:
+            tuple[str | None, tuple[datetime, str] | None]:
+                A tuple containing:
+                - The job comment as a string, or None if unavailable.
+                - A tuple with the estimated start time (datetime) and execution node (str),
+                    or None if unavailable or not applicable.
+        """
+        if state in {
+            RealState.QUEUED,
+            RealState.HELD,
+            RealState.WAITING,
+            RealState.SUSPENDED,
+        }:
+            comment = self._informer.getComment()
+            estimated = self._informer.getEstimated()
+            return comment, estimated
+
+        return None, None

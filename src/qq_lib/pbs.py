@@ -7,6 +7,7 @@ import socket
 import subprocess
 from collections.abc import Callable
 from dataclasses import fields
+from datetime import datetime
 from pathlib import Path
 
 from qq_lib.batch import (
@@ -606,8 +607,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             self._info = PBSJobInfo._parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
 
     def getJobState(self) -> BatchState:
-        state = self._info.get("job_state")
-        if not state:
+        if not (state := self._info.get("job_state")):
             return BatchState.UNKNOWN
 
         # if the job is finished and the return code is not zero, return FAILED
@@ -617,6 +617,24 @@ class PBSJobInfo(BatchJobInfoInterface):
                 return BatchState.FAILED
 
         return BatchState.fromCode(state)
+
+    def getJobComment(self) -> str | None:
+        return self._info.get("comment")
+
+    def getJobEstimated(self) -> tuple[datetime, str] | None:
+        if not (raw_time := self._info.get("estimated.start_time")):
+            logger.debug("No 'estimated.start_time' found.")
+            return None
+
+        time = datetime.strptime(raw_time, "%a %b %d %H:%M:%S %Y")
+
+        if not (raw_vnode := self._info.get("estimated.exec_vnode")):
+            logger.debug("No 'estimated.exec_vnode' found.")
+            return None
+
+        vnode = raw_vnode.split(":", 1)[0].replace("(", "").replace(")", "")
+
+        return (time, vnode)
 
     @staticmethod
     def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:

@@ -456,6 +456,9 @@ class QQInformer:
 
         Uses cached information if available; otherwise queries the batch system
         via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+
+        Returns:
+            BatchState: The job's state according to the batch system.
         """
         if not self._batch_info:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
@@ -469,6 +472,10 @@ class QQInformer:
 
         Uses cached information if available; otherwise queries the batch system
         via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+
+        Returns:
+            RealState: The job's real state obtained by combining information
+            from qq and the batch system.
         """
         # shortcut: if the naive state is finished, failed, killed or unknown,
         # there is no need to check batch state
@@ -484,3 +491,35 @@ class QQInformer:
             return RealState.fromStates(self.info.job_state, BatchState.UNKNOWN)
 
         return RealState.fromStates(self.info.job_state, self.getBatchState())
+
+    def getComment(self) -> str | None:
+        """
+        Return the job's comment as reported by the batch system.
+
+        Uses cached information if available; otherwise queries the batch system
+        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+
+        Returns:
+            str | None: The job comment if available, otherwise None.
+        """
+        if not self._batch_info:
+            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+
+        return self._batch_info.getJobComment()
+
+    def getEstimated(self) -> tuple[datetime, str] | None:
+        """
+        Return the estimated start time and execution node for the job.
+
+        Uses cached information if available; otherwise queries the batch system
+        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+
+        Returns:
+            tuple[datetime, str] | None: A tuple containing the estimated start time
+            (as a datetime) and the execution node (as a string), or None if the
+            information is not available.
+        """
+        if not self._batch_info:
+            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+
+        return self._batch_info.getJobEstimated()

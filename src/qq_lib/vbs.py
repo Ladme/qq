@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import threading
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from qq_lib.batch import (
@@ -330,3 +331,9 @@ class VBSJobInfo(BatchJobInfoInterface):
             return self._job.state
 
         return BatchState.UNKNOWN
+
+    def getJobComment(self) -> str | None:
+        return None
+
+    def getJobEstimated(self) -> tuple[datetime, str] | None:
+        return None

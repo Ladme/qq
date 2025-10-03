@@ -4,6 +4,7 @@
 # ruff: noqa: W291
 
 import os
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -135,6 +136,82 @@ def test_get_job_state(sample_dump_file):
 
     pbs_job_info._info["job_state"] = "z"
     assert pbs_job_info.getJobState() == BatchState.UNKNOWN
+
+
+def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
+    job = PBSJobInfo.__new__(PBSJobInfo)
+    job._job_id = "1234"
+    job._info = info
+    return job
+
+
+def test_get_job_comment_present():
+    job = _make_jobinfo_with_info({"comment": "This is a test"})
+    assert job.getJobComment() == "This is a test"
+
+
+def test_get_job_comment_missing():
+    job = _make_jobinfo_with_info({})
+    assert job.getJobComment() is None
+
+
+def test_get_job_estimated_success():
+    raw_time = "Fri Oct  4 15:30:00 2024"
+    vnode = "(node01:some_extra:additional_info)"
+    job = _make_jobinfo_with_info(
+        {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
+    )
+
+    result = job.getJobEstimated()
+    assert isinstance(result, tuple)
+
+    parsed_time, parsed_vnode = result
+
+    expected_time = datetime(2024, 10, 4, 15, 30, 0)
+    assert parsed_time == expected_time
+    assert parsed_vnode == "node01"
+
+
+def test_get_job_estimated_success_simple_node_name():
+    raw_time = "Fri Oct  4 15:30:00 2024"
+    vnode = "node01"
+    job = _make_jobinfo_with_info(
+        {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
+    )
+
+    result = job.getJobEstimated()
+    assert isinstance(result, tuple)
+
+    parsed_time, parsed_vnode = result
+
+    expected_time = datetime(2024, 10, 4, 15, 30, 0)
+    assert parsed_time == expected_time
+    assert parsed_vnode == "node01"
+
+
+def test_get_job_estimated_missing_time():
+    job = _make_jobinfo_with_info(
+        {"estimated.exec_vnode": "(node01:some_extra:additional_info)"}
+    )
+    assert job.getJobEstimated() is None
+
+
+def test_get_job_estimated_missing_vnode():
+    raw_time = "Fri Oct  4 15:30:00 2024"
+    job = _make_jobinfo_with_info({"estimated.start_time": raw_time})
+    assert job.getJobEstimated() is None
+
+
+def test_get_job_estimated_parses_vnode_correctly():
+    raw_time = "Fri Oct  4 15:30:00 2024"
+    vnode = "(node02:ncpus=4)"
+    job = _make_jobinfo_with_info(
+        {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
+    )
+    estimated = job.getJobEstimated()
+    assert estimated is not None
+    _, parsed_vnode = estimated
+    assert parsed_vnode == "node02"
 
 
 @pytest.fixture

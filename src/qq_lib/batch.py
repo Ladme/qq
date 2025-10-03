@@ -5,6 +5,7 @@ import os
 import socket
 import subprocess
 from abc import ABC, ABCMeta, abstractmethod
+from datetime import datetime
 from pathlib import Path
 
 from qq_lib.common import convert_absolute_to_relative
@@ -47,6 +48,30 @@ class BatchJobInfoInterface(ABC):
 
         Returns:
             BatchState: The job state according to the batch system.
+        """
+        pass
+
+    @abstractmethod
+    def getJobComment(self) -> str | None:
+        """
+        Retrieve the batch system-provided comment for the job.
+
+        Returns:
+            str | None: The job's comment string if available, or None if the
+            batch system has not attached a comment.
+        """
+        pass
+
+    @abstractmethod
+    def getJobEstimated(self) -> tuple[datetime, str] | None:
+        """
+        Retrieve the batch system's estimated job start time and execution node.
+
+        Returns:
+            tuple[datetime, str] | None: A tuple containing:
+                - datetime: The estimated start time of the job.
+                - str: The name of the node where the job is expected to run.
+            Returns None if either estimate is unavailable.
         """
         pass
 

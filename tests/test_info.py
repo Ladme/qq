@@ -17,7 +17,7 @@ from qq_lib.constants import DATE_FORMAT
 from qq_lib.error import QQError
 from qq_lib.info import QQInfo, QQInformer, info
 from qq_lib.job_type import QQJobType
-from qq_lib.pbs import QQPBS
+from qq_lib.pbs import QQPBS, PBSJobInfo
 from qq_lib.resources import QQResources
 from qq_lib.states import BatchState, NaiveState, RealState
 from qq_lib.submit import QQSubmitter, submit
@@ -557,3 +557,78 @@ def test_info_multiple_jobs_integration(tmp_path):
         assert "queued" in stdout
         assert "running" in stdout
         assert "finished" in stdout
+
+
+def _make_pbsjobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
+    job = PBSJobInfo.__new__(PBSJobInfo)
+    job._job_id = "1234"
+    job._info = info
+    return job
+
+
+def _make_informer_with_batch_info(batch_info: PBSJobInfo) -> QQInformer:
+    informer = QQInformer.__new__(QQInformer)
+    informer.info = None  # not used
+    informer._batch_info = batch_info
+    return informer
+
+
+def test_get_batch_state_running():
+    batch_info = _make_pbsjobinfo_with_info({"job_state": "R"})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getBatchState() == BatchState.RUNNING
+
+
+def test_get_batch_state_failed_when_exit_code_nonzero():
+    batch_info = _make_pbsjobinfo_with_info({"job_state": "F", "Exit_status": "1"})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getBatchState() == BatchState.FAILED
+
+
+def test_get_batch_state_unknown_if_missing():
+    batch_info = _make_pbsjobinfo_with_info({})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getBatchState() == BatchState.UNKNOWN
+
+
+def test_get_comment_present():
+    batch_info = _make_pbsjobinfo_with_info({"comment": "Job in queue"})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getComment() == "Job in queue"
+
+
+def test_get_comment_none_when_missing():
+    batch_info = _make_pbsjobinfo_with_info({})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getComment() is None
+
+
+def test_get_estimated_success():
+    raw_time = "Fri Oct  4 15:30:00 2024"
+    vnode = "(node01:cpu=4)"
+    batch_info = _make_pbsjobinfo_with_info(
+        {
+            "estimated.start_time": raw_time,
+            "estimated.exec_vnode": vnode,
+        }
+    )
+    informer = _make_informer_with_batch_info(batch_info)
+
+    result = informer.getEstimated()
+    assert isinstance(result, tuple)
+    est_time, est_node = result
+    assert est_time == datetime(2024, 10, 4, 15, 30, 0)
+    assert est_node == "node01"
+
+
+def test_get_estimated_none_if_missing_time():
+    batch_info = _make_pbsjobinfo_with_info({"estimated.exec_vnode": "(node01:cpu=4)"})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getEstimated() is None
+
+
+def test_get_estimated_none_if_missing_vnode():
+    raw_time = "Fri Oct  4 15:30:00 2024"
+    batch_info = _make_pbsjobinfo_with_info({"estimated.start_time": raw_time})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getEstimated() is None

@@ -22,6 +22,12 @@ class NaiveState(Enum):
     UNKNOWN = 6
 
     def __str__(self):
+        """
+        Return the lowercase string representation of the enum variant.
+
+        Returns:
+            str: The name of the state in lowercase.
+        """
         return self.name.lower()
 
     @classmethod
@@ -33,7 +39,7 @@ class NaiveState(Enum):
             s (str): String representation of the state (case-insensitive).
 
         Returns:
-            NaiveState enum variant.
+            NaiveState: Corresponding enum variant. Returns UNKNOWN if no match is found.
         """
         try:
             return cls[s.upper()]
@@ -58,10 +64,22 @@ class BatchState(Enum):
     UNKNOWN = 10
 
     def __str__(self):
+        """
+        Return the lowercase string representation of the enum variant.
+
+        Returns:
+            str: The name of the batch state in lowercase.
+        """
         return self.name.lower()
 
     @classmethod
     def _codeToState(cls) -> dict[str, str]:
+        """
+        Internal mapping from one-letter codes to batch state names.
+
+        Returns:
+            dict[str, str]: Mapping of codes to corresponding batch state names.
+        """
         return {
             "E": "exiting",
             "H": "held",
@@ -76,9 +94,14 @@ class BatchState(Enum):
 
     @classmethod
     def fromCode(cls, code: str) -> Self:
-        """Convert one-letter code to enum variant.
+        """
+        Convert a one-letter batch system code to a BatchState enum variant.
 
-        Returns BatchState.UNKNOWN if the code is unknown.
+        Args:
+            code (str): One-letter code representing the batch system state.
+
+        Returns:
+            BatchState: Corresponding enum variant, or UNKNOWN if the code is invalid.
         """
         code = code.upper()
         if code not in cls._codeToState():
@@ -88,7 +111,12 @@ class BatchState(Enum):
         return cls[name]
 
     def toCode(self) -> str:
-        """Return the one-letter code for this enum variant."""
+        """
+        Return the one-letter code corresponding to this BatchState.
+
+        Returns:
+            str: One-letter code representing the batch state. Returns '?' if unknown.
+        """
         for k, v in self._codeToState().items():
             if v.upper() == self.name:
                 return k
@@ -114,10 +142,26 @@ class RealState(Enum):
     UNKNOWN = 11
 
     def __str__(self):
+        """
+        Return the human-readable string representation of the state.
+
+        Returns:
+            str: Lowercase string with underscores replaced by spaces.
+        """
         return self.name.lower().replace("_", " ")
 
     @classmethod
     def fromStates(cls, naive_state: NaiveState, batch_state: BatchState) -> Self:
+        """
+        Determine the RealState of a job based on its NaiveState and BatchState.
+
+        Args:
+            naive_state (NaiveState): The naive state of the job from qqinfo.
+            batch_state (BatchState): The state of the job according to the batch system.
+
+        Returns:
+            RealState: The corresponding RealState.
+        """
         logger.debug(
             f"Converting to RealState from '{naive_state}' and '{batch_state}'."
         )
@@ -158,6 +202,12 @@ class RealState(Enum):
 
     @property
     def color(self) -> str:
+        """
+        Return the display color associated with this RealState.
+
+        Returns:
+            str: A string representing the color for presentation purposes.
+        """
         return {
             self.QUEUED: "magenta",
             self.HELD: "magenta",

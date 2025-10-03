@@ -619,7 +619,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         job_dir = kwargs["job_dir"]
         command_line = kwargs["command_line"]
 
-        qq_submit_command = " ".join(command_line)
+        qq_submit_command = "qq submit " + " ".join(command_line)
 
         logger.debug(
             f"Navigating to '{input_machine}:{job_dir}' to execute '{qq_submit_command}'."

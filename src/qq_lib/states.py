@@ -138,8 +138,9 @@ class RealState(Enum):
     KILLED = 7
     FAILED = 8
     FINISHED = 9
-    IN_AN_INCONSISTENT_STATE = 10
-    UNKNOWN = 11
+    EXITING = 10
+    IN_AN_INCONSISTENT_STATE = 11
+    UNKNOWN = 12
 
     def __str__(self):
         """
@@ -192,9 +193,33 @@ class RealState(Enum):
             case (NaiveState.KILLED, _):
                 return cls.KILLED
 
+            case (NaiveState.FINISHED, BatchState.RUNNING):
+                return cls.EXITING
+            case (NaiveState.FINISHED, BatchState.EXITING):
+                return cls.EXITING
+            case (
+                NaiveState.FINISHED,
+                BatchState.QUEUED
+                | BatchState.WAITING
+                | BatchState.HELD
+                | BatchState.FAILED,
+            ):
+                return cls.IN_AN_INCONSISTENT_STATE
             case (NaiveState.FINISHED, _):
                 return cls.FINISHED
 
+            case (NaiveState.FAILED, BatchState.RUNNING):
+                return cls.EXITING
+            case (NaiveState.FAILED, BatchState.EXITING):
+                return cls.EXITING
+            case (
+                NaiveState.FAILED,
+                BatchState.QUEUED
+                | BatchState.WAITING
+                | BatchState.HELD
+                | BatchState.FINISHED,
+            ):
+                return cls.IN_AN_INCONSISTENT_STATE
             case (NaiveState.FAILED, _):
                 return cls.FAILED
 
@@ -209,15 +234,16 @@ class RealState(Enum):
             str: A string representing the color for presentation purposes.
         """
         return {
-            self.QUEUED: "magenta",
-            self.HELD: "magenta",
+            self.QUEUED: "bright_magenta",
+            self.HELD: "bright_magenta",
             self.SUSPENDED: "yellow",
-            self.WAITING: "magenta",
-            self.RUNNING: "blue",
-            self.BOOTING: "cyan",
-            self.KILLED: "red",
-            self.FAILED: "red",
-            self.FINISHED: "green",
+            self.WAITING: "bright_magenta",
+            self.RUNNING: "bright_blue",
+            self.BOOTING: "bright_cyan",
+            self.KILLED: "bright_red",
+            self.FAILED: "bright_red",
+            self.FINISHED: "bright_green",
+            self.EXITING: "bright_yellow",
             self.IN_AN_INCONSISTENT_STATE: "grey70",
             self.UNKNOWN: "grey70",
         }[self]

@@ -448,6 +448,7 @@ def test_info_basic_integration(tmp_path):
         assert result_submit.exit_code == 0
 
         result_info = runner.invoke(info)
+        print(result_info.stderr)
         assert result_info.exit_code == 0
         assert "queued" in result_info.stdout
 
@@ -469,14 +470,19 @@ def test_info_basic_integration(tmp_path):
         assert result_info.exit_code == 0
         assert "running" in result_info.stdout
 
-        # unfreeze the job
-        QQVBS._batch_system.releaseFrozenJob(job_id)
-
-        sleep(0.3)
-
         # set the info file to finished
         informer.setFinished(datetime.now())
         informer.toFile(info_file)
+
+        result_info = runner.invoke(info)
+        assert result_info.exit_code == 0
+        assert "exiting" in result_info.stdout
+
+        # unfreeze the job
+        QQVBS._batch_system.releaseFrozenJob(job_id)
+
+        # wait for the job to finish
+        sleep(0.3)
 
         result_info = runner.invoke(info)
         assert result_info.exit_code == 0
@@ -486,6 +492,9 @@ def test_info_basic_integration(tmp_path):
         informer.setFailed(datetime.now(), 1)
         informer.toFile(info_file)
 
+        # set the job's batch state to failed
+        QQVBS._batch_system.jobs[job_id].state = BatchState.FAILED
+
         result_info = runner.invoke(info)
         assert result_info.exit_code == 0
         assert "failed" in result_info.stdout
@@ -493,6 +502,8 @@ def test_info_basic_integration(tmp_path):
         # set the info file to killed
         informer.setKilled(datetime.now())
         informer.toFile(info_file)
+
+        # we do not care about batch state for killed jobs
 
         result_info = runner.invoke(info)
         assert result_info.exit_code == 0

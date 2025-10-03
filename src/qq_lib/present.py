@@ -87,7 +87,7 @@ class QQPresenter:
             Text(""),
             Rule(title=Text("HISTORY", style="bold"), style="white"),
             Text(""),
-            Padding(self._createJobHistoryTable(state), (0, 2)),
+            Padding(self._createJobHistoryTable(), (0, 2)),
             Text(""),
             Rule(title=Text("STATE", style="bold"), style="white"),
             Text(""),
@@ -202,12 +202,9 @@ class QQPresenter:
 
         return table
 
-    def _createJobHistoryTable(self, state: RealState) -> Table:
+    def _createJobHistoryTable(self) -> Table:
         """
         Create a table summarizing the job timeline.
-
-        Args:
-            state (RealState): The current real state of the job.
 
         Returns:
             Table: A Rich table showing the chronological job history.
@@ -240,7 +237,8 @@ class QQPresenter:
                 ),
             )
             table.add_row(
-                f"{str(state).title()} at:", Text(f"{completed}", style="white")
+                "Completed at:",
+                Text(f"{completed}", style="white"),
             )
 
         return table
@@ -329,7 +327,7 @@ class QQPresenter:
                     f"Running for {format_duration(end_time - start_time)} on '{self._informer.info.main_node}'",
                 )
             case RealState.BOOTING:
-                return ("Job is booting", "Preparing the working directory...")
+                return ("Job is booting", "Preparing the working directory")
             case RealState.KILLED:
                 return (
                     "Job has been killed",
@@ -344,6 +342,11 @@ class QQPresenter:
                 return (
                     "Job has finished",
                     f"Completed at {end_time.strftime(DATE_FORMAT)}",
+                )
+            case RealState.EXITING:
+                return (
+                    "Job is exiting",
+                    f"Finalizing the execution [exit code: {self._informer.info.job_exit_code}]",
                 )
             case RealState.IN_AN_INCONSISTENT_STATE:
                 return (

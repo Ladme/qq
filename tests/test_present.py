@@ -206,7 +206,7 @@ def test_create_job_history_table_with_times(sample_info):
     sample_info.completion_time = sample_info.start_time + timedelta(minutes=30)
 
     presenter = QQPresenter(QQInformer(sample_info))
-    table = presenter._createJobHistoryTable(RealState.FINISHED)
+    table = presenter._createJobHistoryTable()
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -221,7 +221,7 @@ def test_create_job_history_table_with_times(sample_info):
     assert "Started at:" in output
     assert str(sample_info.start_time) in output
     assert "was running" in output
-    assert "Finished at:" in output
+    assert "Completed at:" in output
     assert str(sample_info.completion_time) in output
 
 
@@ -231,7 +231,7 @@ def test_create_job_history_table_submitted_only(sample_info):
     sample_info.completion_time = None
 
     presenter = QQPresenter(QQInformer(sample_info))
-    table = presenter._createJobHistoryTable(RealState.QUEUED)
+    table = presenter._createJobHistoryTable()
 
     console = Console(record=True)
     console.print(table)

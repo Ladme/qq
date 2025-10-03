@@ -483,8 +483,6 @@ class QQInformer:
         # shortcut: if the naive state is finished, failed, killed or unknown,
         # there is no need to check batch state
         if self.info.job_state in {
-            NaiveState.FINISHED,
-            NaiveState.FAILED,
             NaiveState.KILLED,
             NaiveState.UNKNOWN,
         }:

@@ -260,4 +260,8 @@ class QQGoer:
 
     def _isRunning(self) -> bool:
         """Check if the job is currently running or suspended."""
-        return self._state in {RealState.RUNNING, RealState.SUSPENDED}
+        return self._state in {
+            RealState.RUNNING,
+            RealState.SUSPENDED,
+            RealState.EXITING,
+        }

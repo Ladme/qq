@@ -107,7 +107,7 @@ class QQResources:
         Determine if the job uses a scratch directory.
 
         Returns:
-            True if a work_dir is not 'job-dir', otherwise False.
+            bool: True if a work_dir is not 'job-dir', otherwise False.
         """
         return not equals_normalized(self.work_dir, "jobdir")
 

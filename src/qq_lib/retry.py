@@ -64,5 +64,5 @@ class QQRetryer:
 
         # should never get here
         raise QQError(
-            "QQRetryer got into an unexpected part of the QQRetryer.run method. This is a bug, please report it."
+            "Execution got into an unexpected part of the QQRetryer.run method. This is a bug, please report it."
         )

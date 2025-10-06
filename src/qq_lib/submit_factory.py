@@ -19,7 +19,7 @@ from qq_lib.submit import QQSubmitter
 class QQSubmitterFactory:
     """
     Factory class to construct a QQSubmitter instance based on parameters from
-    the command-line parameters and the script itself.
+    the command-line and from the script itself.
     """
 
     def __init__(

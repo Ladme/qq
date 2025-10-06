@@ -63,7 +63,7 @@ class QQArchiver:
         This method retrieves files from the archive that match the
         configured archive pattern. If a cycle number is provided, only
         files corresponding to that cycle (for printf-style patterns) are
-        fetched. If no ccle is provided, all files matching the pattern
+        fetched. If no cycle is provided, all files matching the pattern
         in the archive are fetched.
 
         Args:

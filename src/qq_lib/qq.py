@@ -29,5 +29,5 @@ cli.add_command(info)
 cli.add_command(go)
 cli.add_command(kill)
 
-# register the batch system
+# register the PBS Pro batch system
 QQBatchMeta.register(QQPBS)

@@ -229,7 +229,7 @@ class QQInfo:
         Serialize the QQInfo instance to a YAML string.
 
         Returns:
-            YAML representation of the QQInfo object.
+            str: YAML representation of the QQInfo object.
         """
         return yaml.dump(self._toDict(), default_flow_style=False, sort_keys=False)
 
@@ -239,8 +239,8 @@ class QQInfo:
         Fields that are None are ignored.
 
         Returns:
-            Dictionary containing all fields with non-None values, converting
-            enums and nested objects appropriately.
+            dict[str, object]: Dictionary containing all fields with non-None values,
+            converting enums and nested objects appropriately.
         """
         result: dict[str, object] = {}
 
@@ -284,7 +284,7 @@ class QQInfo:
             data: Dictionary containing field names and values.
 
         Returns:
-            A QQInfo instance.
+            QQInfo: A QQInfo instance.
 
         Raises:
             TypeError: If required fields are missing.
@@ -442,13 +442,14 @@ class QQInformer:
         """
         self.info.job_state = NaiveState.KILLED
         self.info.completion_time = time
+        # no exit code is intentionally set
 
     def useScratch(self) -> bool:
         """
         Determine if the job uses a scratch directory.
 
         Returns:
-            True if a scratch is used, False if it is not.
+            nool: True if a scratch is used, False if it is not.
         """
         return self.info.resources.useScratch()
 
@@ -457,7 +458,8 @@ class QQInformer:
         Retrieve the job's main node and working directory.
 
         Returns:
-            A tuple of (main_node, work_dir) if both are set, otherwise None.
+            tuple[str, Path] | None: A tuple of (main_node, work_dir)
+                if both are set, otherwise None.
         """
         if all((self.info.main_node, self.info.work_dir)):
             return self.info.main_node, self.info.work_dir

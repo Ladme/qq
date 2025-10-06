@@ -343,3 +343,9 @@ class VBSJobInfo(BatchJobInfoInterface):
 
     def getJobEstimated(self) -> tuple[datetime, str] | None:
         return None
+
+    def getMainNode(self) -> str | None:
+        if node := self._job.node:
+            return str(node)
+
+        return None

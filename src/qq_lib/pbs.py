@@ -637,9 +637,15 @@ class PBSJobInfo(BatchJobInfoInterface):
             logger.debug("No 'estimated.exec_vnode' found.")
             return None
 
-        vnode = raw_vnode.split(":", 1)[0].replace("(", "").replace(")", "")
+        vnode = PBSJobInfo._cleanNodeName(raw_vnode)  # ty: ignore[possibly-unbound-attribute]
 
         return (time, vnode)
+
+    def getMainNode(self) -> str | None:
+        if raw_node := self._info.get("exec_host2"):
+            return PBSJobInfo._cleanNodeName(raw_node)  # ty: ignore[possibly-unbound-attribute]
+
+        return None
 
     @staticmethod
     def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:
@@ -662,3 +668,16 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         logger.debug(f"PBS qstat dump: {result}")
         return result
+
+    @staticmethod
+    def _cleanNodeName(raw: str) -> str:
+        """
+        Normalize a raw node string to extract the clean hostname.
+
+        Args:
+            raw (str): Raw node string reported by the batch system.
+
+        Returns:
+            str: Cleaned node name.
+        """
+        return raw.split(":", 1)[0].replace("(", "").replace(")", "")

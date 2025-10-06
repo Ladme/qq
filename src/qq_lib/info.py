@@ -24,7 +24,7 @@ from qq_lib.states import BatchState, NaiveState, RealState
 logger = get_logger(__name__)
 
 try:
-    from yaml import CSafeLoader as SafeLoader
+    from yaml import CSafeLoader as SafeLoader  # ty: ignore[possibly-unbound-import]
 
     logger.debug("Loaded YAML CLoader.")
 except ImportError:
@@ -532,3 +532,21 @@ class QQInformer:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
         return self._batch_info.getJobEstimated()
+
+    def getMainNode(self) -> str | None:
+        """
+        Return the main execution node for the job.
+
+        Note that this obtains the node information from the batch system itself!
+
+        Uses cached information if available; otherwise queries the batch system
+        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+
+        Returns:
+            str | None: The hostname of the main execution node, or None if the
+            information is not available.
+        """
+        if not self._batch_info:
+            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+
+        return self._batch_info.getMainNode()

@@ -75,6 +75,17 @@ class BatchJobInfoInterface(ABC):
         """
         pass
 
+    @abstractmethod
+    def getMainNode(self) -> str | None:
+        """
+        Retrieve the hostname of the main execution node for the job.
+
+        Returns:
+            str | None: The hostname of the main execution node, or ``None``
+            if unavailable or not applicable.
+        """
+        pass
+
 
 class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     """

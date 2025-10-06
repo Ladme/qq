@@ -644,3 +644,29 @@ def test_get_estimated_none_if_missing_vnode():
     batch_info = _make_pbsjobinfo_with_info({"estimated.start_time": raw_time})
     informer = _make_informer_with_batch_info(batch_info)
     assert informer.getEstimated() is None
+
+
+def test_get_main_node_present():
+    batch_info = _make_pbsjobinfo_with_info({"exec_host2": "node01.fake.server.org"})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getMainNode() == "node01.fake.server.org"
+
+
+def test_get_main_node_with_parentheses():
+    batch_info = _make_pbsjobinfo_with_info({"exec_host2": "(node03:cpu=4)"})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getMainNode() == "node03"
+
+
+def test_get_main_node_complex():
+    batch_info = _make_pbsjobinfo_with_info(
+        {"exec_host2": "node04.fake.server.org:15002/3*8"}
+    )
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getMainNode() == "node04.fake.server.org"
+
+
+def test_get_main_node_none_when_missing():
+    batch_info = _make_pbsjobinfo_with_info({})
+    informer = _make_informer_with_batch_info(batch_info)
+    assert informer.getMainNode() is None

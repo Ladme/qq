@@ -327,7 +327,10 @@ class QQPresenter:
                     f"Running for {format_duration(end_time - start_time)} on '{self._informer.info.main_node}'",
                 )
             case RealState.BOOTING:
-                return ("Job is booting", "Preparing the working directory")
+                return (
+                    "Job is booting",
+                    f"Preparing the working directory on '{self._informer.getMainNode()}'",
+                )
             case RealState.KILLED:
                 return (
                     "Job has been killed",

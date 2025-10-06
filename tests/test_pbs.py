@@ -214,6 +214,35 @@ def test_get_job_estimated_parses_vnode_correctly():
     assert parsed_vnode == "node02"
 
 
+def test_get_main_node():
+    job = _make_jobinfo_with_info({"exec_host2": "node04.fake.server.org:15002/3*8"})
+
+    assert job.getMainNode() == "node04.fake.server.org"
+
+
+def test_get_main_node_none():
+    job = _make_jobinfo_with_info({})
+
+    assert job.getMainNode() is None
+
+
+def test_clean_node_name():
+    assert PBSJobInfo._cleanNodeName("node02") == "node02"
+    assert PBSJobInfo._cleanNodeName("(node02:ncpus=4)") == "node02"
+    assert (
+        PBSJobInfo._cleanNodeName(
+            "(node05:ncpus=8:ngpus=1:mem=8388608kb:scratch_local=8388608kb)"
+        )
+        == "node05"
+    )
+    assert (
+        PBSJobInfo._cleanNodeName(
+            "node08:ncpus=8:ngpus=1:mem=8388608kb:scratch_local=8388608kb"
+        )
+        == "node08"
+    )
+
+
 @pytest.fixture
 def resources():
     return QQResources(

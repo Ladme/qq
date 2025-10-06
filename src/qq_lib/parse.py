@@ -69,9 +69,7 @@ class QQParser:
                     break  # stop parsing on the first non-qq line
 
                 # remove the leading '# qq' and split by whitespace or '='
-                content = re.sub(r"^#\s*qq\s*", "", stripped, flags=re.IGNORECASE)
-                logger.debug(content)
-                parts = re.split(r"[=\s]+", content)
+                parts = QQParser._stripAndSplit(line)
                 if len(parts) < 2:
                     raise QQError(
                         f"Invalid qq submit option line in '{str(self._script)}': {line}."
@@ -203,3 +201,17 @@ class QQParser:
             str | None: Archive filename format string, or None if not set.
         """
         return self._options.get("archive_format")
+
+    @staticmethod
+    def _stripAndSplit(string: str) -> list[str]:
+        """
+        Remove the leading `# qq` directive from a line and split the remaining content.
+
+        Args:
+            string (str): Input line to process.
+
+        Returns:
+            list[str]: A list with one or two elements depending on whether a split occurred.
+        """
+        content = re.sub(r"^#\s*qq\s*", "", string.strip(), flags=re.IGNORECASE)
+        return re.split(r"[=\s]+", content, maxsplit=1)

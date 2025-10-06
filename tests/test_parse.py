@@ -37,6 +37,7 @@ def test_parse_happy_path(temp_script_file):
 # qq    loop_end 10
 # qq Archive    archive
 # qQ   archive_format=cycle_%03d
+# qq props=vnode=my_node
 # first non-qq line
 command run here
 """)
@@ -57,6 +58,7 @@ command run here
     assert opts["loop_end"] == 10
     assert opts["archive"] == "archive"
     assert opts["archive_format"] == "cycle_%03d"
+    assert opts["props"] == "vnode=my_node"
 
 
 def test_parse_works_with_key_value_separator_equals(temp_script_file):
@@ -417,3 +419,48 @@ def test_qqparser_integration_nonexistent_script_raises():
     parser = QQParser(Path("non_existent.sh"), submit.params)
     with pytest.raises(QQError, match="Could not open"):
         parser.parse()
+
+
+@pytest.mark.parametrize(
+    "input_line, expected",
+    [
+        # basic and normal cases
+        ("# qq key=value", ["key", "value"]),
+        ("#qq key=value", ["key", "value"]),
+        ("#  qq   key=value", ["key", "value"]),
+        ("# QQ key=value", ["key", "value"]),
+        ("# qQ   key=value", ["key", "value"]),
+        # spaces instead of equals
+        ("# qq key value", ["key", "value"]),
+        ("#qq key    value", ["key", "value"]),
+        ("# qq   key    value", ["key", "value"]),
+        # tabs
+        ("# qq\tkey\tvalue", ["key", "value"]),
+        # equals inside second part
+        ("# qq key=value=another", ["key", "value=another"]),
+        ("# qq props vnode=tyr", ["props", "vnode=tyr"]),
+        # only one token
+        ("# qq singleword", ["singleword"]),
+        ("# qq singleword   ", ["singleword"]),
+        ("# qq    key", ["key"]),
+        # trailing and leading whitespace
+        ("   # qq key=value   ", ["key", "value"]),
+        ("\t# qq key=value\t", ["key", "value"]),
+        # weird spacing between # and qq
+        ("#    qq   key=value", ["key", "value"]),
+        ("#qqkey=value", ["key", "value"]),
+        # uppercase directive
+        ("# QQ key=value", ["key", "value"]),
+        ("# Qq key=value", ["key", "value"]),
+        # multiple equals, split only once
+        ("# qq name=John=Doe", ["name", "John=Doe"]),
+        # empty or malformed input
+        ("# qq", [""]),
+        ("# qq    ", [""]),
+        ("#", ["#"]),  # not matching qq → not stripped
+        ("notacomment", ["notacomment"]),
+        ("", [""]),
+    ],
+)
+def test_strip_and_split(input_line, expected):
+    assert QQParser._stripAndSplit(input_line) == expected

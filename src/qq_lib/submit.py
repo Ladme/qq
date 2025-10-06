@@ -397,6 +397,7 @@ class QQSubmitter:
             informer = QQInformer.fromFile(info_file)
             if (
                 informer.info.loop_info
+                and self._loop_info
                 and informer.info.job_state == NaiveState.FINISHED
                 and informer.info.loop_info.current == self._loop_info.current - 1
             ):

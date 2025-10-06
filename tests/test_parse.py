@@ -119,6 +119,24 @@ qq command that should stop parsing
     assert "work_dir" not in opts
 
 
+def test_parse_stops_at_first_empty_line(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("""#!/usr/bin/env -S qq run
+# qq ncpus 8
+
+# qq workdir scratch_local
+""")
+    tmp_file.flush()
+
+    parser = QQParser(path, submit.params)
+    parser.parse()
+
+    opts = parser._options
+    # only ncpus should be parsed
+    assert opts["ncpus"] == 8
+    assert "work_dir" not in opts
+
+
 def test_parse_normalizes_keys_and_integer_conversion(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
@@ -139,6 +157,21 @@ def test_parse_normalizes_keys_and_integer_conversion(temp_script_file):
 
     assert opts["ncpus"] == 16
     assert opts["ngpus"] == 4
+
+
+def test_parse_no_qq_lines(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("""#!/usr/bin/env -S qq run
+random_command
+another_random_command
+
+""")
+    tmp_file.flush()
+
+    parser = QQParser(path, submit.params)
+    parser.parse()
+
+    assert parser._options == {}
 
 
 def _make_parser_with_options(options: dict[str, str]) -> QQParser:

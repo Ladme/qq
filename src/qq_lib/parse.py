@@ -62,8 +62,9 @@ class QQParser:
             for line in f:
                 stripped = line.strip()
                 split = stripped.split()
-                if split[0].lower() != "#qq" and (
-                    split[0] != "#" or split[1].lower() != "qq"
+                if stripped == "" or (
+                    split[0].lower() != "#qq"
+                    and (split[0] != "#" or split[1].lower() != "qq")
                 ):
                     break  # stop parsing on the first non-qq line
 

@@ -23,6 +23,15 @@ from qq_lib.states import BatchState, NaiveState, RealState
 
 logger = get_logger(__name__)
 
+try:
+    from yaml import CSafeLoader as SafeLoader
+
+    logger.debug("Loaded YAML CLoader.")
+except ImportError:
+    from yaml import SafeLoader
+
+    logger.debug("Loaded default YAML loader.")
+
 
 @click.command(
     short_help="Get information about the qq job.",
@@ -163,8 +172,9 @@ class QQInfo:
                 logger.debug(f"Loading qq info from '{file}' on '{host}'.")
 
                 BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
-                data: dict[str, object] = yaml.safe_load(
-                    BatchSystem.readRemoteFile(host, file)
+                data: dict[str, object] = yaml.load(
+                    BatchSystem.readRemoteFile(host, file),
+                    Loader=SafeLoader,
                 )
             else:
                 # local file
@@ -174,7 +184,7 @@ class QQInfo:
                     raise QQError(f"qq info file '{file}' does not exist.")
 
                 with file.open("r") as input:
-                    data: dict[str, object] = yaml.safe_load(input)
+                    data: dict[str, object] = yaml.load(input, Loader=SafeLoader)
 
             return cls._fromDict(data)
         except yaml.YAMLError as e:

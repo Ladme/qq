@@ -92,6 +92,24 @@ def test_presenter_state_messages(
     assert expected_second_keyword.lower() in second_msg.lower()
 
 
+@pytest.mark.parametrize("exit_code", [None, 0, 3])
+def test_presenter_state_messages_exiting(sample_info, exit_code):
+    sample_info.job_exit_code = exit_code
+
+    presenter = QQPresenter(QQInformer(sample_info))
+    first_msg, second_msg = presenter._getStateMessages(
+        RealState.EXITING, datetime.now(), datetime.now()
+    )
+
+    assert "exiting" in first_msg
+    if exit_code is None:
+        assert "killed" in second_msg
+    elif exit_code == 0:
+        assert "finishing" in second_msg
+    else:
+        assert "failing" in second_msg
+
+
 def test_create_job_status_panel(sample_info):
     presenter = QQPresenter(QQInformer(sample_info))
 

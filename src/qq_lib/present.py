@@ -344,9 +344,18 @@ class QQPresenter:
                     f"Completed at {end_time.strftime(DATE_FORMAT)}",
                 )
             case RealState.EXITING:
+                exit_code = self._informer.info.job_exit_code
+                if exit_code is None:
+                    # no logged exit code -> job was killed
+                    msg = "Job is being killed"
+                elif exit_code == 0:
+                    msg = "Job is finishing"
+                else:
+                    msg = f"Job is failing [exit code: {exit_code}]"
+
                 return (
                     "Job is exiting",
-                    f"Finalizing the execution [exit code: {self._informer.info.job_exit_code}]",
+                    msg,
                 )
             case RealState.IN_AN_INCONSISTENT_STATE:
                 return (

@@ -96,7 +96,9 @@ def test_batch_state_to_code(state, expected_code):
         (NaiveState.RUNNING, BatchState.FINISHED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.RUNNING, BatchState.FAILED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.RUNNING, BatchState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE),
-        # KILLED naive state - always KILLED
+        # KILLED naive state
+        (NaiveState.KILLED, BatchState.RUNNING, RealState.EXITING),
+        (NaiveState.KILLED, BatchState.EXITING, RealState.EXITING),
         (NaiveState.KILLED, BatchState.QUEUED, RealState.KILLED),
         (NaiveState.KILLED, BatchState.FINISHED, RealState.KILLED),
         (NaiveState.KILLED, BatchState.FAILED, RealState.KILLED),

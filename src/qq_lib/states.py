@@ -190,6 +190,10 @@ class RealState(Enum):
             case (NaiveState.RUNNING, _):
                 return cls.IN_AN_INCONSISTENT_STATE
 
+            case (NaiveState.KILLED, BatchState.RUNNING):
+                return cls.EXITING
+            case (NaiveState.KILLED, BatchState.EXITING):
+                return cls.EXITING
             case (NaiveState.KILLED, _):
                 return cls.KILLED
 

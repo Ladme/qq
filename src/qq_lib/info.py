@@ -480,10 +480,8 @@ class QQInformer:
             RealState: The job's real state obtained by combining information
             from qq and the batch system.
         """
-        # shortcut: if the naive state is finished, failed, killed or unknown,
-        # there is no need to check batch state
+        # shortcut: if the naive state is unknown, there is no need to check batch state
         if self.info.job_state in {
-            NaiveState.KILLED,
             NaiveState.UNKNOWN,
         }:
             logger.debug(

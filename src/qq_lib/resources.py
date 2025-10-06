@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, fields
 from typing import Self
 
 from qq_lib.common import equals_normalized, wdhms_to_hhmmss
+from qq_lib.error import QQError
 from qq_lib.logger import get_logger
 from qq_lib.size import Size
 
@@ -62,10 +63,10 @@ class QQResources:
         props: dict[str, str] | str | None = None,
     ):
         # convert sizes
-        mem = QQResources._parse_size(mem)
-        mem_per_cpu = QQResources._parse_size(mem_per_cpu)
-        work_size = QQResources._parse_size(work_size)
-        work_size_per_cpu = QQResources._parse_size(work_size_per_cpu)
+        mem = QQResources._parseSize(mem)
+        mem_per_cpu = QQResources._parseSize(mem_per_cpu)
+        work_size = QQResources._parseSize(work_size)
+        work_size_per_cpu = QQResources._parseSize(work_size_per_cpu)
 
         # convert walltime
         if isinstance(walltime, str) and ":" not in walltime:
@@ -73,15 +74,7 @@ class QQResources:
 
         # convert properties to dictionary
         if isinstance(props, str):
-            parts = filter(None, re.split(r"[,\s:]+", props))
-            props = {
-                part.split("=", 1)[0] if "=" in part else part.lstrip("^"): part.split(
-                    "=", 1
-                )[1]
-                if "=" in part
-                else ("false" if part.startswith("^") else "true")
-                for part in parts
-            }
+            props = QQResources._parseProps(props)
 
         # convert nnodes, ncpus, and ngpus to integer
         if isinstance(nnodes, str):
@@ -147,7 +140,7 @@ class QQResources:
 
             # only set mem and work_size if mem_per_cpu / work_size_per_cpu has not already been set
             if f.name in ("mem", "work_size"):
-                merged_data[f.name] = QQResources._first_nonblocked(
+                merged_data[f.name] = QQResources._firstNonblocked(
                     resources,
                     f.name,
                     "mem_per_cpu" if f.name == "mem" else "work_size_per_cpu",
@@ -167,7 +160,7 @@ class QQResources:
         return QQResources(**merged_data)
 
     @staticmethod
-    def _first_nonblocked(
+    def _firstNonblocked(
         resources: tuple[Self, ...], field: str, block_field: str
     ) -> object | None:
         """
@@ -191,7 +184,7 @@ class QQResources:
         return None
 
     @staticmethod
-    def _parse_size(value: object) -> Size | None:
+    def _parseSize(value: object) -> Size | None:
         """
         Convert a raw value into a `Size` instance if possible.
 
@@ -209,3 +202,44 @@ class QQResources:
         if isinstance(value, Size):
             return value
         return None
+
+    @staticmethod
+    def _parseProps(props: str) -> dict[str, str]:
+        """
+        Parse a properties string into a dictionary of key/value pairs.
+
+        The input may contain multiple properties separated by commas,
+        whitespace, or colons. Each property can be one of the following forms:
+        - "key=value" - stored as {"key": "value"}
+        - "key"       - stored as {"key": "true"}
+        - "^key"      - stored as {"key": "false"}
+
+        Args:
+            props (str): A string containing job properties.
+
+        Returns:
+            dict[str, str]: Parsed properties as key/value pairs.
+
+        Raises:
+            QQError: If a property key is defined multiple times.
+        """
+        # split into parts by commas, whitespace, or colons
+        parts = filter(None, re.split(r"[,\s:]+", props))
+
+        result = {}
+        for part in parts:
+            if "=" in part:
+                # explicit key=value pair
+                key, value = part.split("=", 1)
+            elif part.startswith("^"):
+                # ^key means false
+                key, value = part.lstrip("^"), "false"
+            else:
+                # bare key means true
+                key, value = part, "true"
+
+            if key in result:
+                raise QQError(f"Property '{key}' is defined multiple times.")
+            result[key] = value
+
+        return result

@@ -1,6 +1,9 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import pytest
+
+from qq_lib.error import QQError
 from qq_lib.resources import QQResources
 from qq_lib.size import Size
 
@@ -252,33 +255,73 @@ def test_merge_resources_with_none_resources():
         assert getattr(merged, f) is None
 
 
-def test_parse_size_from_string():
-    result = QQResources._parse_size("4gb")
+def test__parseSize_from_string():
+    result = QQResources._parseSize("4gb")
     assert isinstance(result, Size)
     assert result.value == 4
     assert result.unit == "gb"
 
 
-def test_parse_size_from_size():
-    result = QQResources._parse_size(Size(4, "gb"))
+def test__parseSize_from_size():
+    result = QQResources._parseSize(Size(4, "gb"))
     assert isinstance(result, Size)
     assert result.value == 4
     assert result.unit == "gb"
 
 
-def test_parse_size_from_dict():
+def test__parseSize_from_dict():
     data = {"value": 8, "unit": "mb"}
-    result = QQResources._parse_size(data)
+    result = QQResources._parseSize(data)
     assert isinstance(result, Size)
     assert result.value == 8
     assert result.unit == "mb"
 
 
-def test_parse_size_invalid_type_int():
-    result = QQResources._parse_size(123)
+def test__parseSize_invalid_type_int():
+    result = QQResources._parseSize(123)
     assert result is None
 
 
-def test_parse_size_invalid_type_none():
-    result = QQResources._parse_size(None)
+def test__parseSize_invalid_type_none():
+    result = QQResources._parseSize(None)
     assert result is None
+
+
+@pytest.mark.parametrize(
+    "props, expected",
+    [
+        ("foo=bar", {"foo": "bar"}),
+        ("foo=1, bar=2 baz=3", {"foo": "1", "bar": "2", "baz": "3"}),
+        ("enable", {"enable": "true"}),
+        ("^disable", {"disable": "false"}),
+        ("foo=bar, ^baz", {"foo": "bar", "baz": "false"}),
+        ("foo bar", {"foo": "true", "bar": "true"}),
+        ("foo:bar:baz=42", {"foo": "true", "bar": "true", "baz": "42"}),
+        ("foo   bar,baz=42", {"foo": "true", "bar": "true", "baz": "42"}),
+        ("", {}),
+        ("   ", {}),
+    ],
+)
+def test_parse_props_various_cases(props, expected):
+    result = QQResources._parseProps(props)
+    assert result == expected
+
+
+def test_parse_props_strips_empty_parts():
+    result = QQResources._parseProps("foo,, ,bar=1")
+    assert result == {"foo": "true", "bar": "1"}
+
+
+@pytest.mark.parametrize(
+    "props",
+    [
+        "foo=1 foo=2",  # duplicate with explicit values
+        "foo ^foo",  # positive and negated
+        "foo foo",  # repeated bare key
+        "foo=1,foo=1",  # duplicate with same value
+        "foo:bar:foo",  # multiple delimiters still dup
+    ],
+)
+def test_parse_props_raises_on_duplicate_keys(props):
+    with pytest.raises(QQError, match="Property 'foo' is defined multiple times."):
+        QQResources._parseProps(props)

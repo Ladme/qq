@@ -18,6 +18,7 @@ from qq_lib.common import (
     is_printf_pattern,
     printf_to_regex,
     split_files_list,
+    to_snake_case,
     wdhms_to_hhmmss,
     yes_or_no_prompt,
 )
@@ -443,3 +444,30 @@ def test_split_files_list_single_file(tmp_path):
     string = str(tmp_path / "single_file.txt")
     expected = [Path(tmp_path / "single_file.txt").resolve()]
     assert split_files_list(string) == expected
+
+
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        # PascalCase
+        ("PascalCase", "pascal_case"),
+        ("SimpleTest", "simple_test"),
+        ("JSONParser", "j_s_o_n_parser"),
+        ("HTTPRequest", "h_t_t_p_request"),
+        # kebab-case
+        ("kebab-case", "kebab_case"),
+        ("multi-part-string", "multi_part_string"),
+        # already snake_case
+        ("already_snake_case", "already_snake_case"),
+        ("singleword", "singleword"),
+        # mixed PascalCase and kebab-case
+        ("PascalCase-with-kebab", "pascal_case_with_kebab"),
+        # edge cases
+        ("", ""),  # empty string
+        ("A", "a"),  # single capital letter
+        ("a", "a"),  # single lowercase letter
+        ("UPPERCASE", "u_p_p_e_r_c_a_s_e"),  # all capitals
+    ],
+)
+def test_to_snake_case(input_str, expected):
+    assert to_snake_case(input_str) == expected

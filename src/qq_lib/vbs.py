@@ -279,9 +279,9 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         # directories are always local
         QQBatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
 
-    def buildResources(queue: str, **kwargs) -> QQResources:
+    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
         return QQResources.mergeResources(
-            QQResources(**kwargs), QQVBS._getDefaultServerResources()
+            provided_resources, QQVBS._getDefaultServerResources()
         )
 
     def isShared(_directory: Path) -> bool:

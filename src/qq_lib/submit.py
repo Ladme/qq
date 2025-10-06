@@ -16,10 +16,10 @@ import click
 from click_option_group import optgroup
 
 import qq_lib
-from qq_lib.batch import QQBatchInterface, QQBatchMeta
+from qq_lib.batch import QQBatchInterface
 from qq_lib.clear import QQClearer
 from qq_lib.click_format import GNUHelpColorsCommand
-from qq_lib.common import get_info_file, split_files_list, yes_or_no_prompt
+from qq_lib.common import get_info_file, yes_or_no_prompt
 from qq_lib.constants import (
     ARCHIVE_FORMAT,
     BATCH_SYSTEM,
@@ -46,6 +46,7 @@ from qq_lib.states import NaiveState
 logger = get_logger(__name__)
 
 
+# Note that all options must be part of an optgroup otherwise QQParser breaks.
 @click.command(
     short_help="Submit a qq job to the batch system.",
     help=f"""
@@ -71,7 +72,7 @@ The submitted script must be located in the directory from which
 @optgroup.option(
     "--job-type",
     type=str,
-    default="standard",
+    default=None,
     help="Type of the qq job. Defaults to 'standard'.",
 )
 @optgroup.option(
@@ -157,7 +158,7 @@ The submitted script must be located in the directory from which
 @optgroup.option(
     "--loop-start",
     type=int,
-    default=1,
+    default=None,
     help="The first cycle of the loop job. Defaults to 1.",
 )
 @optgroup.option(
@@ -166,58 +167,35 @@ The submitted script must be located in the directory from which
 @optgroup.option(
     "--archive",
     type=str,
-    default="storage",
+    default=None,
     help="Name of the directory for archiving files from the loop job. Defaults to 'storage'.",
 )
 @optgroup.option(
     "--archive-format",
     type=str,
-    default="job%04d",
+    default=None,
     help="Format of the archived filenames. Defaults to 'job%04d'.",
 )
-def submit(
-    script: str,
-    queue: str,
-    job_type: str,
-    exclude: str,
-    loop_start: int,
-    loop_end: int,
-    archive: str,
-    archive_format: str,
-    batch_system: str,
-    non_interactive: bool,
-    **kwargs,
-):
+def submit(script: str, **kwargs):
     """
     Submit a qq job to a batch system from the command line.
 
     Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
-    try:
-        BatchSystem = QQBatchMeta.obtain(batch_system)
-        job_type = QQJobType.fromStr(job_type)
+    from qq_lib.submit_factory import QQSubmitterFactory
 
-        submitter = QQSubmitter(
-            BatchSystem,
-            queue,
-            Path(script),
-            job_type,
-            BatchSystem.buildResources(queue, **kwargs),
-            QQLoopInfo(
-                loop_start,
-                loop_end,
-                Path.cwd() / archive,
-                archive_format,
-                job_dir=Path.cwd(),
-            )
-            if job_type == QQJobType.LOOP
-            else None,
-            split_files_list(exclude),
-            sys.argv[2:],
+    try:
+        if not (script_path := Path(script)).is_file():
+            raise QQError(f"Script '{script}' does not exist or is not a file.")
+
+        # parse options from the command line and from the script itself
+        factory = QQSubmitterFactory(
+            script_path.resolve(), submit.params, sys.argv[2:], **kwargs
         )
+        submitter = factory.makeSubmitter()
 
         # catching multiple submissions
-        submitter.guardOrClear(not non_interactive)
+        submitter.guardOrClear()
 
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")
@@ -251,6 +229,7 @@ class QQSubmitter:
         loop_info: QQLoopInfo | None,
         exclude: list[Path],
         command_line: list[str],
+        interactive: bool,
     ):
         """
         Initialize a QQSubmitter instance.
@@ -266,6 +245,7 @@ class QQSubmitter:
             loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path]): Files which should not be copied to the working directory.
             command_line (list[str]): List of all arguments and options provided on the command line.
+            interactive (bool): Is the submitter used in an interactive mode?
 
         Raises:
             QQError: If the script does not exist, is not in the current directory,
@@ -283,6 +263,7 @@ class QQSubmitter:
         self._resources = resources
         self._exclude = exclude
         self._command_line = command_line
+        self._interactive = interactive
 
         # script must exist
         if not self._script.is_file():
@@ -345,7 +326,7 @@ class QQSubmitter:
         informer.toFile(self._info_file)
         return job_id
 
-    def guardOrClear(self, interactive: bool):
+    def guardOrClear(self):
         """
         Prevent multiple submissions from the same directory.
 
@@ -355,9 +336,6 @@ class QQSubmitter:
         - If the user declines, raise QQError.
 
         If the files belong to an active or successfully finished job, always raise QQError.
-
-        Args:
-            interactive (bool): Is qq submit being run in an interactive environment?
 
         Raises:
             QQError: If QQ runtime files from an active/successful run are detected,
@@ -372,7 +350,7 @@ class QQSubmitter:
             return
 
         # if we are in a non-interactive environment, any detection of qq runtime files is a hard error
-        if not interactive:
+        if not self._interactive:
             raise QQError(
                 "Detected qq runtime files in the submission directory. Submission aborted."
             )

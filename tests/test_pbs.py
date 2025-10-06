@@ -1092,7 +1092,7 @@ def test_translate_submit_complex_case():
     )
 
 
-def test_build_resources_job_dir_warns_and_sets_work_dir():
+def test_transform_resources_job_dir_warns_and_sets_work_dir():
     provided = QQResources(work_dir="job_dir", work_size="10gb")
     with (
         patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
@@ -1100,7 +1100,9 @@ def test_build_resources_job_dir_warns_and_sets_work_dir():
         patch.object(QQResources, "mergeResources", return_value=provided),
         patch("qq_lib.pbs.logger.warning") as mock_warning,
     ):
-        res = QQPBS.buildResources("gpu", work_dir="job_dir", work_size="10gb")
+        res = QQPBS.transformResources(
+            "gpu", QQResources(work_dir="job_dir", work_size="10gb")
+        )
 
     assert res.work_dir == "job_dir"
 
@@ -1109,7 +1111,7 @@ def test_build_resources_job_dir_warns_and_sets_work_dir():
     assert "job_dir" in called_args[0]
 
 
-def test_build_resources_scratch_shm_warns_and_clears_work_size():
+def test_transform_resources_scratch_shm_warns_and_clears_work_size():
     provided = QQResources(work_dir="scratch_shm", work_size="10gb")
     with (
         patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
@@ -1117,7 +1119,9 @@ def test_build_resources_scratch_shm_warns_and_clears_work_size():
         patch.object(QQResources, "mergeResources", return_value=provided),
         patch("qq_lib.pbs.logger.warning") as mock_warning,
     ):
-        res = QQPBS.buildResources("gpu", work_dir="scratch_shm", work_size="10gb")
+        res = QQPBS.transformResources(
+            "gpu", QQResources(work_dir="scratch_shm", work_size="10gb")
+        )
 
     assert res.work_dir == "scratch_shm"
     assert res.work_size is None
@@ -1127,7 +1131,7 @@ def test_build_resources_scratch_shm_warns_and_clears_work_size():
     assert "scratch_shm" in called_args[0]
 
 
-def test_build_resources_supported_scratch():
+def test_transform_resources_supported_scratch():
     for scratch in QQPBS.SUPPORTED_SCRATCHES:
         provided = QQResources(work_dir=scratch, work_size="10gb")
         with (
@@ -1139,12 +1143,14 @@ def test_build_resources_supported_scratch():
             ),
             patch.object(QQResources, "mergeResources", return_value=provided),
         ):
-            res = QQPBS.buildResources("gpu", work_dir=scratch, work_size="10gb")
+            res = QQPBS.transformResources(
+                "gpu", QQResources(work_dir=scratch, work_size="10gb")
+            )
 
         assert res.work_dir == scratch
 
 
-def test_build_resources_supported_scratch_unnormalized():
+def test_transform_resources_supported_scratch_unnormalized():
     for scratch in QQPBS.SUPPORTED_SCRATCHES:
         provided = QQResources(
             work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
@@ -1158,14 +1164,17 @@ def test_build_resources_supported_scratch_unnormalized():
             ),
             patch.object(QQResources, "mergeResources", return_value=provided),
         ):
-            res = QQPBS.buildResources(
-                "gpu", work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
+            res = QQPBS.transformResources(
+                "gpu",
+                QQResources(
+                    work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
+                ),
             )
 
         assert res.work_dir == scratch
 
 
-def test_build_resources_unknown_work_dir_raises():
+def test_transform_resources_unknown_work_dir_raises():
     provided = QQResources(work_dir="unknown_scratch")
     with (
         patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
@@ -1173,10 +1182,10 @@ def test_build_resources_unknown_work_dir_raises():
         patch.object(QQResources, "mergeResources", return_value=provided),
         pytest.raises(QQError, match="Unknown working directory type specified"),
     ):
-        QQPBS.buildResources("gpu", work_dir="unknown_scratch")
+        QQPBS.transformResources("gpu", QQResources(work_dir="unknown_scratch"))
 
 
-def test_build_resources_missing_work_dir_raises():
+def test_transform_resources_missing_work_dir_raises():
     provided = QQResources(work_dir=None)
     with (
         patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
@@ -1186,4 +1195,4 @@ def test_build_resources_missing_work_dir_raises():
             QQError, match="Work-dir is not set after filling in default attributes"
         ),
     ):
-        QQPBS.buildResources("gpu")
+        QQPBS.transformResources("gpu", QQResources())

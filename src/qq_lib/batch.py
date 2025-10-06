@@ -557,27 +557,24 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def buildResources(queue: str, **kwargs) -> QQResources:
+    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
         """
-        Construct a QQResources object for the given batch system.
+        Transform user-provided QQResources into a batch system-specific QQResources instance.
 
-        The resources are built from the provided keyword arguments (typically
-        parsed from `qq submit`) and the target queue. This process may include
-        validation and the application of default values specific to the batch system.
-
-        After constructing the QQResources object, all parameters should satisfy
-        the requirements of the batch system.
+        This method takes the resources provided during submission and returns a new
+        QQResources object with any necessary modifications or defaults applied for
+        the target batch system. The original `provided_resources` object is not modified.
 
         Args:
-            queue (str): The name of the queue for which resources are being built.
-            **kwargs: Raw input parameters from `qq submit` or other source.
+            queue (str): The name of the queue for which the resources are being adapted.
+            provided_resources (QQResources): The raw resources specified by the user.
 
         Returns:
-            QQResources: A fully constructed and validated QQResources object suitable
-                        for the batch system.
+            QQResources: A new QQResources instance with batch system-specific adjustments,
+                        fully constructed and validated.
 
         Raises:
-            QQError: If any of the provided parameters are invalid.
+            QQError: If any of the provided parameters are invalid or inconsistent.
         """
         pass
 

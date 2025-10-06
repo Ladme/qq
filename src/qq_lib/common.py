@@ -154,6 +154,21 @@ def format_duration(td: timedelta) -> str:
     return " ".join(parts)
 
 
+def normalize(s: str) -> str:
+    """
+    Normalize a string for consistent comparison.
+
+    The string is converted to lowercase and all hyphens and underscores are removed.
+
+    Args:
+        s (str): The input string to normalize.
+
+    Returns:
+        str: The normalized string.
+    """
+    return s.lower().replace("-", "").replace("_", "")
+
+
 def equals_normalized(a: str, b: str) -> bool:
     """
     Compare two strings for equality, ignoring case, hyphens, and underscores.
@@ -165,9 +180,6 @@ def equals_normalized(a: str, b: str) -> bool:
     Returns:
         bool: True if the normalized strings are equal, False otherwise.
     """
-
-    def normalize(s: str) -> str:
-        return s.lower().replace("-", "").replace("_", "")
 
     return normalize(a) == normalize(b)
 
@@ -324,3 +336,20 @@ def split_files_list(string: str | None) -> list[Path]:
         return []
 
     return [Path(f).resolve() for f in re.split(r"[:,\s]+", string)]
+
+
+def to_snake_case(s: str) -> str:
+    """
+    Convert a string from PascalCase or kebab-case to snake_case.
+
+    Args:
+        s (str): Input string in PascalCase or kebab-case.
+
+    Returns:
+        str: Converted string in snake_case.
+    """
+    # replace hyphens with underscores
+    s = s.replace("-", "_")
+
+    # convert PascalCase to snake_case
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", s).lower()

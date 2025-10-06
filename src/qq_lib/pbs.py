@@ -206,9 +206,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             QQBatchInterface.syncSelected,
         )
 
-    def buildResources(queue: str, **kwargs) -> QQResources:
-        # resources provided by the user
-        provided_resources = QQResources(**kwargs)
+    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
         # default resources of the queue
         default_queue_resources = QQPBS._getDefaultQueueResources(queue)
         # default hard-coded resources

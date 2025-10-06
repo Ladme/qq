@@ -68,6 +68,7 @@ def test_submitter_init_valid(script_with_shebang, sample_resources, tmp_path):
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
     assert submitter._script == script_with_shebang
     assert submitter._resources == sample_resources
@@ -87,6 +88,7 @@ def test_submitter_init_nonexistent_file(tmp_path, sample_resources):
             None,
             [],
             ["-q", "default"],
+            True,
         )
 
 
@@ -103,6 +105,7 @@ def test_submitter_init_script_not_in_cwd(script_with_shebang, sample_resources)
             None,
             [],
             ["-q", "default", str(script_with_shebang)],
+            True,
         )
 
 
@@ -128,6 +131,7 @@ def test_submitter_init_script_not_in_cwd_matching(
             None,
             [],
             ["-q", "default", str(script_with_shebang)],
+            True,
         )
 
 
@@ -145,6 +149,7 @@ def test_submitter_init_invalid_shebang(
             None,
             [],
             ["-q", "default", str(script_invalid_shebang)],
+            True,
         )
 
 
@@ -159,6 +164,7 @@ def test_submitter_submit_success(script_with_shebang, sample_resources, tmp_pat
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
     job_id = submitter.submit()
 
@@ -194,6 +200,7 @@ def test_submitter_submit_failure(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
     with pytest.raises(QQError, match="Failed to submit"):
         submitter.submit()
@@ -214,6 +221,7 @@ def test_qq_files_present_detects_suffix(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
     assert submitter._qqFilesPresent()
 
@@ -229,6 +237,7 @@ def test_set_env_vars_sets_variables(script_with_shebang, sample_resources, tmp_
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
     submitter._setEnvVars()
     assert os.environ.get("QQ_ENV_SET") == "true"
@@ -246,6 +255,7 @@ def test_has_valid_shebang(script_with_shebang, sample_resources, tmp_path):
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
     assert submitter._hasValidShebang(script_with_shebang)
 
@@ -277,10 +287,11 @@ def test_guard_or_clear_no_files(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        interactive,
     )
 
     # no raise
-    submitter.guardOrClear(interactive)
+    submitter.guardOrClear()
 
 
 def test_guard_or_clear_invalid_files_user_clears(
@@ -298,6 +309,7 @@ def test_guard_or_clear_invalid_files_user_clears(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
 
     informer_mock = MagicMock()
@@ -307,7 +319,7 @@ def test_guard_or_clear_invalid_files_user_clears(
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
         patch("readchar.readkey", return_value="y"),
     ):
-        submitter.guardOrClear(True)
+        submitter.guardOrClear()
 
     # files should be deleted
     for f in files:
@@ -329,6 +341,7 @@ def test_guard_or_clear_invalid_files_user_declines(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        True,
     )
 
     informer_mock = MagicMock()
@@ -339,7 +352,7 @@ def test_guard_or_clear_invalid_files_user_declines(
         patch("readchar.readkey", return_value="n"),
         pytest.raises(QQError, match="Submission aborted."),
     ):
-        submitter.guardOrClear(True)
+        submitter.guardOrClear()
 
     # files should exist
     for f in files:
@@ -372,6 +385,7 @@ def test_guard_or_clear_active_or_finished_always_raises(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        interactive,
     )
 
     informer_mock = MagicMock()
@@ -381,7 +395,7 @@ def test_guard_or_clear_active_or_finished_always_raises(
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
         pytest.raises(QQError, match="Detected qq runtime files"),
     ):
-        submitter.guardOrClear(interactive)
+        submitter.guardOrClear()
 
 
 @pytest.mark.parametrize("state", list(RealState))
@@ -400,6 +414,7 @@ def test_guard_or_clear_non_interactive_any_state_always_raises(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        False,
     )
 
     informer_mock = MagicMock()
@@ -409,7 +424,7 @@ def test_guard_or_clear_non_interactive_any_state_always_raises(
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
         pytest.raises(QQError, match="Detected qq runtime files"),
     ):
-        submitter.guardOrClear(False)
+        submitter.guardOrClear()
 
 
 @pytest.mark.parametrize("interactive", [True, False])
@@ -432,6 +447,7 @@ def test_guard_or_clear_multiple_combination_of_states_always_raises(
         None,
         [],
         ["-q", "default", str(script_with_shebang)],
+        interactive,
     )
 
     informer_mock = MagicMock()
@@ -445,7 +461,7 @@ def test_guard_or_clear_multiple_combination_of_states_always_raises(
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
         pytest.raises(QQError, match="Detected qq runtime files"),
     ):
-        submitter.guardOrClear(interactive)
+        submitter.guardOrClear()
 
 
 def test_submit_success(tmp_path, script_with_shebang):
@@ -457,6 +473,7 @@ def test_submit_success(tmp_path, script_with_shebang):
         submit, ["-q", "default", script_with_shebang.name, "--batch-system", "VBS"]
     )
 
+    print(result.stderr)
     assert result.exit_code == 0
 
     info_file = script_with_shebang.with_suffix(QQ_INFO_SUFFIX)

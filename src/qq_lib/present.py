@@ -352,7 +352,7 @@ class QQPresenter:
                     # no logged exit code -> job was killed
                     msg = "Job is being killed"
                 elif exit_code == 0:
-                    msg = "Job is finishing"
+                    msg = "Job is finishing successfully"
                 else:
                     msg = f"Job is failing [exit code: {exit_code}]"
 

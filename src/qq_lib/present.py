@@ -329,7 +329,7 @@ class QQPresenter:
             case RealState.BOOTING:
                 return (
                     "Job is booting",
-                    f"Preparing the working directory on '{self._informer.getMainNode()}'",
+                    f"Preparing working directory on '{self._informer.getMainNode()}'",
                 )
             case RealState.KILLED:
                 return (

@@ -473,7 +473,10 @@ class QQRunner:
         try:
             self._reloadInfoAndCheckKill()
             self._informer.setRunning(
-                datetime.now(), socket.gethostname(), self._work_dir
+                datetime.now(),
+                socket.gethostname(),
+                self._informer.getNodes(),
+                self._work_dir,
             )
 
             QQRetryer(

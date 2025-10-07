@@ -52,6 +52,7 @@ def sample_info(sample_resources):
         excluded_files=[Path("ignore.txt")],
         command_line=["-q", "default", "script.sh"],
         main_node="random.node.org",
+        all_nodes=["random.node.org"],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
     )
 
@@ -91,6 +92,43 @@ def test_presenter_state_messages(
 
     assert expected_first_keyword.lower() in first_msg.lower()
     assert expected_second_keyword.lower() in second_msg.lower()
+
+
+def test_presenter_state_messages_running_single_node(sample_info):
+    sample_info.main_node = ["node1"]
+    sample_info.all_nodes = ["node1"]
+
+    presenter = QQPresenter(QQInformer(sample_info))
+
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=1)
+
+    first_msg, second_msg = presenter._getStateMessages(
+        RealState.RUNNING, start_time, end_time
+    )
+
+    assert "running" in first_msg.lower()
+    assert "node1" in second_msg.lower()
+    assert "and" not in second_msg.lower()
+    assert "other nodes" not in second_msg.lower()
+
+
+def test_presenter_state_messages_running_multiple_nodes(sample_info):
+    sample_info.main_node = ["node1"]
+    sample_info.all_nodes = ["node1", "node3", "node4", "node2"]
+
+    presenter = QQPresenter(QQInformer(sample_info))
+
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=1)
+
+    first_msg, second_msg = presenter._getStateMessages(
+        RealState.RUNNING, start_time, end_time
+    )
+
+    assert "running" in first_msg.lower()
+    assert "node1" in second_msg.lower()
+    assert "and 3 other nodes" in second_msg.lower()
 
 
 @pytest.mark.parametrize("exit_code", [None, 0, 3])
@@ -161,8 +199,36 @@ def test_create_basic_info_table(sample_info):
     assert sample_info.input_machine in output
     assert "Input directory:" in output
     assert str(sample_info.job_dir) in output
-    assert "Main working node:" in output
+    assert "Working node:" in output
     assert str(sample_info.main_node) in output
+    assert "Working directory:" in output
+    assert str(sample_info.work_dir) in output
+
+
+def test_create_basic_info_table_multiple_nodes(sample_info):
+    sample_info.all_nodes = ["node01", "nod04", "node02", "node06"]
+    presenter = QQPresenter(QQInformer(sample_info))
+    table = presenter._createBasicInfoTable()
+
+    assert isinstance(table, Table)
+    assert len(table.columns) == 2
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "Job name:" in output
+    assert sample_info.job_name in output
+    assert "Job type:" in output
+    assert str(sample_info.job_type) in output
+    assert "Submission queue:" in output
+    assert sample_info.queue in output
+    assert "Input machine:" in output
+    assert sample_info.input_machine in output
+    assert "Input directory:" in output
+    assert str(sample_info.job_dir) in output
+    assert "Working nodes:" in output
+    assert " + ".join(sample_info.all_nodes) in output
     assert "Working directory:" in output
     assert str(sample_info.work_dir) in output
 

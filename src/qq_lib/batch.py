@@ -86,6 +86,18 @@ class BatchJobInfoInterface(ABC):
         """
         pass
 
+    @abstractmethod
+    def getNodes(self) -> list[str] | None:
+        """
+        Retrieve the hostnames of all execution nodes allocated for the job.
+
+        Returns:
+            list[str] | None:
+                A list of hostnames or node identifiers used by the job,
+                or `None` if node information is not available.
+        """
+        pass
+
 
 class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     """

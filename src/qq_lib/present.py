@@ -155,9 +155,15 @@ class QQPresenter:
             "Input directory:", Text(str(self._informer.info.job_dir), style="white")
         )
         if self._informer.info.main_node:
-            table.add_row(
-                "Main working node:", Text(self._informer.info.main_node, style="white")
-            )
+            if len(self._informer.info.all_nodes) == 1:
+                table.add_row(
+                    "Working node:", Text(self._informer.info.main_node, style="white")
+                )
+            else:
+                table.add_row(
+                    "Working nodes:",
+                    Text(" + ".join(self._informer.info.all_nodes), style="white"),
+                )
         if self._informer.info.work_dir:
             table.add_row(
                 "Working directory:",
@@ -337,9 +343,13 @@ class QQPresenter:
                     f"In queue for {format_duration(end_time - start_time)}",
                 )
             case RealState.RUNNING:
+                if len(self._informer.info.all_nodes) == 1:
+                    nodes = f"'{self._informer.info.main_node}'"
+                else:
+                    nodes = f"'{self._informer.info.main_node}' and {len(self._informer.info.all_nodes) - 1} other nodes"
                 return (
                     "Job is running",
-                    f"Running for {format_duration(end_time - start_time)} on '{self._informer.info.main_node}'",
+                    f"Running for {format_duration(end_time - start_time)} on {nodes}",
                 )
             case RealState.BOOTING:
                 return (

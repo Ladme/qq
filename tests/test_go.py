@@ -66,6 +66,7 @@ def sample_info(tmp_path, sample_resources):
         command_line=["-q", "default", "script.sh"],
         work_dir=work_dir,
         main_node=str(main_node),
+        all_nodes=[str(main_node)],
     )
 
 
@@ -318,7 +319,12 @@ def test_go_command_multiple_jobs(tmp_path, sample_info):
     informer = QQInformer(sample_info)
     informer.setFinished(datetime.now())
     sample_info.toFile(tmp_path / "job.qqinfo")
-    informer.setRunning(datetime.now(), sample_info.main_node, sample_info.work_dir)
+    informer.setRunning(
+        datetime.now(),
+        sample_info.main_node,
+        sample_info.all_nodes,
+        sample_info.work_dir,
+    )
     sample_info.toFile(tmp_path / "job2.qqinfo")
     informer.setKilled(datetime.now())
     sample_info.toFile(tmp_path / "job3.qqinfo")

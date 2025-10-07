@@ -345,7 +345,17 @@ class VBSJobInfo(BatchJobInfoInterface):
         return None
 
     def getMainNode(self) -> str | None:
+        if not self._job:
+            return None
+
         if node := self._job.node:
             return str(node)
+
+        return None
+
+    def getNodes(self) -> list[str] | None:
+        # only single-node jobs
+        if node := self.getMainNode():
+            return [node]
 
         return None

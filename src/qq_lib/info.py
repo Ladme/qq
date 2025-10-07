@@ -143,6 +143,9 @@ class QQInfo:
     # Main node assigned to the job
     main_node: str | None = None
 
+    # All nodes assigned to the job
+    all_nodes: list[str] | None = None
+
     # Working directory
     work_dir: Path | None = None
 
@@ -402,7 +405,9 @@ class QQInformer:
         """
         self.info.toFile(file, host)
 
-    def setRunning(self, time: datetime, main_node: str, work_dir: Path):
+    def setRunning(
+        self, time: datetime, main_node: str, all_nodes: list[str], work_dir: Path
+    ):
         """
         Mark the job as running and set associated metadata.
 
@@ -414,6 +419,7 @@ class QQInformer:
         self.info.job_state = NaiveState.RUNNING
         self.info.start_time = time
         self.info.main_node = main_node
+        self.info.all_nodes = all_nodes
         self.info.work_dir = work_dir
 
     def setFinished(self, time: datetime):
@@ -558,3 +564,22 @@ class QQInformer:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
         return self._batch_info.getMainNode()
+
+    def getNodes(self) -> list[str] | None:
+        """
+        Retrieve the list of execution nodes on which the job is running.
+
+        Note that this obtains the node information from the batch system itself!
+
+        Uses cached information if available; otherwise queries the batch system
+        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+
+        Returns:
+            list[str] | None:
+                A list of hostnames (or node identifiers) where the job is running,
+                or `None` if the job has not started or node information is unavailable.
+        """
+        if not self._batch_info:
+            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+
+        return self._batch_info.getNodes()

@@ -326,11 +326,17 @@ def test_export_informer_to_file_contains_yaml(sample_info, tmp_path):
 def test_set_running(sample_info):
     informer = QQInformer(sample_info)
     start_time = datetime(2025, 9, 22, 14, 30, 0)
-    informer.setRunning(start_time, "main.node", Path("/scratch/new_dir"))
+    informer.setRunning(
+        start_time,
+        "main.node",
+        ["main.node", "node02", "node03"],
+        Path("/scratch/new_dir"),
+    )
 
     assert informer.info.job_state == NaiveState.RUNNING
     assert informer.info.start_time == start_time
     assert informer.info.main_node == "main.node"
+    assert informer.info.all_nodes == ["main.node", "node02", "node03"]
     assert informer.info.work_dir == Path("/scratch/new_dir")
 
 
@@ -463,7 +469,9 @@ def test_info_basic_integration(tmp_path):
         assert "booting" in result_info.stdout
 
         # set the info file state to running
-        informer.setRunning(datetime.now(), "fake.node.org", "/fake/path/to/work_dir")
+        informer.setRunning(
+            datetime.now(), "fake.node.org", ["fake.node.org"], "/fake/path/to/work_dir"
+        )
         informer.toFile(info_file)
 
         result_info = runner.invoke(info)
@@ -552,7 +560,9 @@ def test_info_multiple_jobs_integration(tmp_path):
         # set job 2 as running
         QQVBS._batch_system.runJob(job_ids[1], freeze=True)
         informer2 = QQInformer.fromFile(info_files[1])
-        informer2.setRunning(datetime.now(), "fake.node.org", "/fake/path/to/work_dir")
+        informer2.setRunning(
+            datetime.now(), "fake.node.org", ["fake.node.org"], "/fake/path/to/work_dir"
+        )
         informer2.toFile(info_files[1])
 
         # set job 3 as finished

@@ -342,6 +342,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         if res.walltime:
             command += f"-l walltime={res.walltime} "
 
+        if res.nnodes and res.nnodes > 1:
+            # 'place=scatter' causes each chunk to be placed on a different node
+            command += "-l place=scatter "
+
         # add script
         command += script
 
@@ -635,15 +639,27 @@ class PBSJobInfo(BatchJobInfoInterface):
             logger.debug("No 'estimated.exec_vnode' found.")
             return None
 
-        vnode = PBSJobInfo._cleanNodeName(raw_vnode)  # ty: ignore[possibly-unbound-attribute]
+        vnodes = []
+        for split in raw_vnode.split("+"):
+            vnodes.append(PBSJobInfo._cleanNodeName(split.strip()))
 
-        return (time, vnode)
+        return (time, " + ".join(vnodes))
 
     def getMainNode(self) -> str | None:
         if raw_node := self._info.get("exec_host2"):
-            return PBSJobInfo._cleanNodeName(raw_node)  # ty: ignore[possibly-unbound-attribute]
+            return PBSJobInfo._cleanNodeName(raw_node.split("+")[0].strip())  # ty: ignore[possibly-unbound-attribute]
 
         return None
+
+    def getNodes(self) -> list[str] | None:
+        if not (raw_nodes := self._info.get("exec_host2")):
+            return None
+
+        nodes = []
+        for node in raw_nodes.split("+"):
+            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))
+
+        return nodes
 
     @staticmethod
     def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:

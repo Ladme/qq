@@ -324,7 +324,9 @@ def test_kill_running_integration(tmp_path, forced):
         QQVBS._batch_system.runJob(job_id)
 
         # set the job as running in qq info
-        informer.setRunning(datetime.now(), "main.node.org", tmp_path)
+        informer.setRunning(
+            datetime.now(), "main.node.org", ["main.node.org"], tmp_path
+        )
         informer.toFile(info_file)
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])

@@ -67,7 +67,7 @@ The submitted script must be located in the directory from which
     "-q",
     type=str,
     default=None,
-    help=f"Name of the queue to submit the job to. {click.style('Required.', bold=True)}",
+    help="Name of the queue to submit the job to.",
 )
 @optgroup.option(
     "--job-type",
@@ -93,7 +93,7 @@ The submitted script must be located in the directory from which
 @optgroup.option(
     "--non-interactive",
     is_flag=True,
-    help="Use when using qq submit in a non-interactive environment. Any interactive prompt will be automatically skipped and evaluated as false.",
+    help="Use when using qq submit in a non-interactive environment. Any interactive prompt will be automatically skipped and evaluated as 'no'.",
 )
 @optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
 @optgroup.option(

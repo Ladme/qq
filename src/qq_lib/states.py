@@ -240,7 +240,7 @@ class RealState(Enum):
         return {
             self.QUEUED: "bright_magenta",
             self.HELD: "bright_magenta",
-            self.SUSPENDED: "black",
+            self.SUSPENDED: "bright_black",
             self.WAITING: "bright_magenta",
             self.RUNNING: "bright_blue",
             self.BOOTING: "bright_cyan",

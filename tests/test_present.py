@@ -9,6 +9,7 @@ import pytest
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from qq_lib.constants import DATE_FORMAT
 from qq_lib.info import QQInfo, QQInformer
@@ -409,3 +410,36 @@ def test_get_comment_and_estimated_for_inactive_states(presenter, state):
     comment, estimated = presenter._getCommentAndEstimated(state)
     assert comment is None
     assert estimated is None
+
+
+@pytest.mark.parametrize("state", list(RealState))
+def test_get_short_info_returns_correct_text_and_style(state):
+    informer_mock = Mock()
+    informer_mock.info.job_id = "12345"
+    informer_mock.getRealState.return_value = state
+
+    presenter = QQPresenter(informer_mock)
+
+    result = presenter.getShortInfo()
+
+    assert isinstance(result, Text)
+    text_str = str(result)
+    assert "12345" in text_str
+    assert str(state) in text_str
+
+    assert any(span.style == state.color for span in result.spans)
+
+    informer_mock.getRealState.assert_called_once()
+
+
+def test_get_short_info_combines_job_id_and_state_correctly():
+    informer_mock = Mock()
+    informer_mock.info.job_id = "9999"
+    informer_mock.getRealState.return_value = RealState.RUNNING
+
+    presenter = QQPresenter(informer_mock)
+
+    result = presenter.getShortInfo()
+
+    assert str(result) == "9999    running"
+    assert any(span.style == RealState.RUNNING.color for span in result.spans)

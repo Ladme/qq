@@ -108,6 +108,21 @@ class QQPresenter:
 
         return Group(Text(""), full_panel, Text(""))
 
+    def getShortInfo(self) -> Text:
+        """
+        Return a concise, colorized summary of the job's current state.
+
+        Returns:
+            Text: A Rich `Text` object containing the job ID followed by the
+            current state, colorized according to the `RealState`.
+        """
+        state = self._informer.getRealState()
+        return (
+            Text(self._informer.info.job_id)
+            + "    "
+            + Text(str(state), style=state.color)
+        )
+
     def _createBasicInfoTable(self) -> Table:
         """
         Create a table with basic job information.

@@ -39,7 +39,10 @@ except ImportError:
     cls=GNUHelpColorsCommand,
     help_options_color="blue",
 )
-def info():
+@click.option(
+    "-s", "--short", is_flag=True, help="Print only the job ID and the current state."
+)
+def info(short: bool):
     """
     Get information about the qq job submitted from this directory.
     """
@@ -56,8 +59,11 @@ def info():
         for file in info_files:
             presenter = QQPresenter(QQInformer.fromFile(file))
             console = Console()
-            panel = presenter.createFullInfoPanel(console)
-            console.print(panel)
+            if short:
+                console.print(presenter.getShortInfo())
+            else:
+                panel = presenter.createFullInfoPanel(console)
+                console.print(panel)
         sys.exit(0)
     except QQError as e:
         logger.error(e)

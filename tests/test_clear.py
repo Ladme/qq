@@ -10,21 +10,22 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch import QQBatchMeta
-from qq_lib.clear import QQClearer, clear
-from qq_lib.constants import (
+from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.pbs import QQPBS
+from qq_lib.clear.cli import QQClearer, clear
+from qq_lib.core.constants import (
     DATE_FORMAT,
     QQ_OUT_SUFFIX,
     QQ_SUFFIXES,
     STDERR_SUFFIX,
     STDOUT_SUFFIX,
 )
-from qq_lib.error import QQError
-from qq_lib.info import QQInfo, QQInformer
-from qq_lib.job_type import QQJobType
-from qq_lib.pbs import QQPBS
-from qq_lib.resources import QQResources
-from qq_lib.states import BatchState, NaiveState, RealState
+from qq_lib.core.error import QQError
+from qq_lib.info.informer import QQInformer
+from qq_lib.properties.info import QQInfo
+from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.resources import QQResources
+from qq_lib.properties.states import BatchState, NaiveState, RealState
 
 
 @pytest.fixture(autouse=True)
@@ -107,8 +108,8 @@ def test_should_clear_true_for_safe_states(tmp_path, state):
     informer_mock.getRealState.return_value = state
 
     with (
-        patch("qq_lib.common.get_info_file", return_value=info_file),
-        patch("qq_lib.info.QQInformer.fromFile", return_value=informer_mock),
+        patch("qq_lib.core.common.get_info_file", return_value=info_file),
+        patch("qq_lib.info.informer.QQInformer.fromFile", return_value=informer_mock),
     ):
         assert clearer.shouldClear(force=False)
 
@@ -132,8 +133,8 @@ def test_should_clear_false_for_active_states(tmp_path, state):
     informer_mock.getRealState.return_value = state
 
     with (
-        patch("qq_lib.common.get_info_file", return_value=info_file),
-        patch("qq_lib.info.QQInformer.fromFile", return_value=informer_mock),
+        patch("qq_lib.core.common.get_info_file", return_value=info_file),
+        patch("qq_lib.info.informer.QQInformer.fromFile", return_value=informer_mock),
     ):
         assert not clearer.shouldClear(force=False)
 
@@ -154,7 +155,7 @@ def test_should_clear_true_for_multiple_safe_states(tmp_path):
     ]
 
     with (
-        patch("qq_lib.common.get_info_files", return_value=info_files),
+        patch("qq_lib.core.common.get_info_files", return_value=info_files),
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
     ):
         assert clearer.shouldClear(force=False)
@@ -176,7 +177,7 @@ def test_should_clear_false_for_multiple_unsafe_states(tmp_path):
     ]
 
     with (
-        patch("qq_lib.common.get_info_files", return_value=info_files),
+        patch("qq_lib.core.common.get_info_files", return_value=info_files),
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
     ):
         assert not clearer.shouldClear(force=False)
@@ -198,7 +199,7 @@ def test_should_clear_false_for_combination_of_safe_unsafe_states(tmp_path):
     ]
 
     with (
-        patch("qq_lib.common.get_info_files", return_value=info_files),
+        patch("qq_lib.core.common.get_info_files", return_value=info_files),
         patch.object(QQInformer, "fromFile", return_value=informer_mock),
     ):
         assert not clearer.shouldClear(force=False)
@@ -303,7 +304,8 @@ def test_clear_running_job_force_false(tmp_path, sample_info):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
         with patch(
-            "qq_lib.info.QQInformer.getBatchState", return_value=BatchState.RUNNING
+            "qq_lib.info.informer.QQInformer.getBatchState",
+            return_value=BatchState.RUNNING,
         ):
             result = runner.invoke(clear)
 
@@ -323,7 +325,8 @@ def test_clear_failed_job_force_false(tmp_path, sample_info):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
         with patch(
-            "qq_lib.info.QQInformer.getBatchState", return_value=BatchState.FINISHED
+            "qq_lib.info.informer.QQInformer.getBatchState",
+            return_value=BatchState.FINISHED,
         ):
             result = runner.invoke(clear)
 
@@ -345,7 +348,8 @@ def test_clear_running_job_force_true(tmp_path, sample_info):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
         with patch(
-            "qq_lib.info.QQInformer.getBatchState", return_value=BatchState.RUNNING
+            "qq_lib.info.informer.QQInformer.getBatchState",
+            return_value=BatchState.RUNNING,
         ):
             result = runner.invoke(clear, ["--force"])
 
@@ -367,7 +371,8 @@ def test_clear_failed_job_force_true(tmp_path, sample_info):
     with runner.isolated_filesystem(temp_dir=tmp_path):
         os.chdir(tmp_path)
         with patch(
-            "qq_lib.info.QQInformer.getBatchState", return_value=BatchState.FINISHED
+            "qq_lib.info.informer.QQInformer.getBatchState",
+            return_value=BatchState.FINISHED,
         ):
             result = runner.invoke(clear, ["--force"])
 

@@ -4,12 +4,12 @@
 import click
 from click_help_colors import HelpColorsGroup
 
-from qq_lib.batch import QQBatchMeta
+from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.pbs import QQPBS
 from qq_lib.clear import clear
 from qq_lib.go import go
 from qq_lib.info import info
 from qq_lib.kill import kill
-from qq_lib.pbs import QQPBS
 from qq_lib.run import run
 from qq_lib.submit import submit
 

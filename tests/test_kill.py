@@ -11,17 +11,20 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch import QQBatchMeta
-from qq_lib.constants import DATE_FORMAT
-from qq_lib.error import QQError
-from qq_lib.info import QQInfo, QQInformer
-from qq_lib.job_type import QQJobType
-from qq_lib.kill import QQKiller, kill
-from qq_lib.pbs import QQPBS
-from qq_lib.resources import QQResources
-from qq_lib.states import BatchState, NaiveState, RealState
-from qq_lib.submit import QQSubmitter, submit
-from qq_lib.vbs import QQVBS
+from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.vbs import QQVBS
+from qq_lib.core.constants import DATE_FORMAT
+from qq_lib.core.error import QQError
+from qq_lib.info.informer import QQInformer
+from qq_lib.kill import kill
+from qq_lib.kill.killer import QQKiller
+from qq_lib.properties.info import QQInfo
+from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.resources import QQResources
+from qq_lib.properties.states import BatchState, NaiveState, RealState
+from qq_lib.submit import submit
+from qq_lib.submit.submitter import QQSubmitter
 
 
 @pytest.fixture(autouse=True)

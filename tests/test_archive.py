@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from qq_lib.archive import QQArchiver
-from qq_lib.constants import QQ_SUFFIXES, SHARED_SUBMIT
-from qq_lib.pbs import QQPBS
+from qq_lib.archive.archiver import QQArchiver
+from qq_lib.batch.pbs import QQPBS
+from qq_lib.core.constants import QQ_SUFFIXES, SHARED_SUBMIT
 
 
 def test_remove_files(tmp_path):

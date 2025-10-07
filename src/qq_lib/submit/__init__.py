@@ -3,6 +3,8 @@
 
 # ruff: noqa: F401
 
-from .qq import cli
+"""
+This module manages submission of qq jobs using the QQSubmitter class.
+"""
 
-__version__ = "0.1.0-dev.5"
+from .cli import submit

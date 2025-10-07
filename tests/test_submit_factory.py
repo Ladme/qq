@@ -8,14 +8,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch import QQBatchMeta
-from qq_lib.error import QQError
-from qq_lib.job_type import QQJobType
-from qq_lib.loop import QQLoopInfo
-from qq_lib.pbs import QQPBS
-from qq_lib.resources import QQResources
+from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.pbs import QQPBS
+from qq_lib.core.error import QQError
+from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.loop import QQLoopInfo
+from qq_lib.properties.resources import QQResources
 from qq_lib.submit import submit
-from qq_lib.submit_factory import QQSubmitterFactory
+from qq_lib.submit.factory import QQSubmitterFactory
 
 
 @pytest.fixture

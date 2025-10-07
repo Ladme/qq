@@ -11,8 +11,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch import QQBatchMeta
-from qq_lib.constants import (
+from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.vbs import QQVBS
+from qq_lib.core.constants import (
     DATE_FORMAT,
     GUARD,
     INFO_FILE,
@@ -20,19 +22,23 @@ from qq_lib.constants import (
     SCRATCH_DIR_INNER,
     SHARED_SUBMIT,
 )
-from qq_lib.error import QQError
-from qq_lib.info import QQInfo, QQInformer
-from qq_lib.job_type import QQJobType
-from qq_lib.pbs import QQPBS
-from qq_lib.resources import QQResources
-from qq_lib.run import QQRunner, _log_fatal_qq_error, _log_fatal_unexpected_error, run
-from qq_lib.states import NaiveState
-from qq_lib.vbs import QQVBS
+from qq_lib.core.error import QQError
+from qq_lib.info.informer import QQInformer
+from qq_lib.properties.info import QQInfo
+from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.resources import QQResources
+from qq_lib.properties.states import NaiveState
+from qq_lib.run import run
+from qq_lib.run.runner import (
+    QQRunner,
+    log_fatal_qq_error,
+    log_fatal_unexpected_error,
+)
 
 
 @pytest.fixture(autouse=True)
 def autopatch_retry_wait():
-    with patch("qq_lib.run.RUNNER_RETRY_WAIT", 0.0):
+    with patch("qq_lib.run.runner.RUNNER_RETRY_WAIT", 0.0):
         yield
 
 
@@ -711,8 +717,11 @@ def test_log_fatal_qq_error_logs_and_exits():
     exc = QQError("Something went wrong")
     exit_code = 42
 
-    with patch("qq_lib.run.logger") as mock_logger, pytest.raises(SystemExit) as e:
-        _log_fatal_qq_error(exc, exit_code)
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        pytest.raises(SystemExit) as e,
+    ):
+        log_fatal_qq_error(exc, exit_code)
 
     assert e.value.code == exit_code
 
@@ -726,8 +735,11 @@ def test_log_fatal_unexpected_error_logs_and_exits():
     exc = ValueError("Unexpected problem")
     exit_code = 99
 
-    with patch("qq_lib.run.logger") as mock_logger, pytest.raises(SystemExit) as e:
-        _log_fatal_unexpected_error(exc, exit_code)
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        pytest.raises(SystemExit) as e,
+    ):
+        log_fatal_unexpected_error(exc, exit_code)
 
     assert e.value.code == exit_code
 

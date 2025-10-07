@@ -184,7 +184,9 @@ class QQKiller:
         Returns:
             bool: True if termination should proceed, False otherwise.
         """
-        return self._forced or (not self._isFinished() and not self._isKilled())
+        return self._forced or (
+            not self._isFinished() and not self._isKilled() and not self._isExiting()
+        )
 
     def terminate(self):
         """
@@ -261,6 +263,10 @@ class QQKiller:
     def _isFinished(self) -> bool:
         """Check if the job has finished or failed."""
         return self._state in {RealState.FINISHED, RealState.FAILED}
+
+    def _isExiting(self) -> bool:
+        """Check if the job is currently exiting."""
+        return self._state == RealState.EXITING
 
     def _isUnknownInconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""

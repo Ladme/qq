@@ -166,6 +166,8 @@ def test_should_update_info_file(state, forced, expected):
         (RealState.FAILED, False, False),
         (RealState.FINISHED, True, True),
         (RealState.FINISHED, False, False),
+        (RealState.EXITING, False, False),
+        (RealState.EXITING, True, True),
         (RealState.IN_AN_INCONSISTENT_STATE, True, True),
         (RealState.IN_AN_INCONSISTENT_STATE, False, True),
         (RealState.UNKNOWN, True, True),

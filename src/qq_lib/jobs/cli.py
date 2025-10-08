@@ -51,7 +51,7 @@ def jobs(user: str, all: bool):
 
         presenter = QQJobsPresenter(jobs)
         console = Console()
-        panel = presenter.createBasicJobsPanel(console)
+        panel = presenter.createJobsInfoPanel(console)
         console.print(panel)
 
         sys.exit(0)

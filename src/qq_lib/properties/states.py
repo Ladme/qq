@@ -52,15 +52,15 @@ class BatchState(Enum):
     State of the job according to the underlying batch system.
     """
 
-    EXITING = 1
-    HELD = 2
-    QUEUED = 3
-    RUNNING = 4
-    MOVING = 5
-    WAITING = 6
-    SUSPENDED = 7
-    FINISHED = 8
-    FAILED = 9
+    RUNNING = 1
+    QUEUED = 2
+    FINISHED = 3
+    FAILED = 4
+    HELD = 5
+    EXITING = 6
+    WAITING = 7
+    MOVING = 8
+    SUSPENDED = 9
     UNKNOWN = 10
 
     def __str__(self):

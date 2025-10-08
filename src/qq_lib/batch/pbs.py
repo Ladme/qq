@@ -671,7 +671,8 @@ class PBSJobInfo(BatchJobInfoInterface):
         # if the job is finished and the return code is not zero, return FAILED
         if state == "F":
             exit_code = self.getExitCode()
-            if exit_code is not None and exit_code != 0:
+            # if exit code does not exist, the job never ran and was likely killed
+            if exit_code is None or exit_code != 0:
                 return BatchState.FAILED
 
         return BatchState.fromCode(state)

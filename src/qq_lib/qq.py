@@ -9,6 +9,7 @@ from qq_lib.batch.pbs import QQPBS
 from qq_lib.clear import clear
 from qq_lib.go import go
 from qq_lib.info import info
+from qq_lib.jobs import jobs
 from qq_lib.kill import kill
 from qq_lib.run import run
 from qq_lib.submit import submit
@@ -28,6 +29,7 @@ cli.add_command(clear)
 cli.add_command(info)
 cli.add_command(go)
 cli.add_command(kill)
+cli.add_command(jobs)
 
 # register the PBS Pro batch system
 QQBatchMeta.register(QQPBS)

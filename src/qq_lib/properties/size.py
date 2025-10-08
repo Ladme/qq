@@ -141,3 +141,33 @@ class Size:
             raise ZeroDivisionError("division by zero")
 
         return Size(math.ceil(self.to_kb() / n), "kb")
+
+    def __truediv__(self, other: "Size") -> float:
+        """
+        Perform true division (/) between two Size instances.
+
+        Computes the ratio of this Size to another, expressed as a float.
+
+        Args:
+            other (Size): The divisor Size instance.
+
+        Returns:
+            float: The ratio of self to other, based on total kilobytes.
+
+        Raises:
+            TypeError:
+                If `other` is not a Size instance.
+            ZeroDivisionError:
+                If `other` has a zero total size.
+        """
+        if not isinstance(other, Size):
+            raise TypeError(
+                f"Unsupported operand type(s) for /: 'Size' and '{type(other).__name__}'"
+            )
+
+        other_kb = other.to_kb()
+        # the smallest Size is 1kb, so this should never happen, but we keep it to be safe
+        if other_kb == 0:
+            raise ZeroDivisionError("division by zero size")
+
+        return self.to_kb() / other_kb

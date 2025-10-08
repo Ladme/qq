@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 By default, `qq clear` only removes files if the directory does not contain an active or successfully completed job.
 To force deletion of the files regardless of job status, use the `--force` flag.""",
     cls=GNUHelpColorsCommand,
-    help_options_color="blue",
+    help_options_color="bright_blue",
 )
 @click.option(
     "--force",

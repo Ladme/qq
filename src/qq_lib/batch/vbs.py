@@ -6,6 +6,7 @@ This module implements a virtual batch system
 used for testing and its integration with qq.
 """
 
+import getpass
 import os
 import shutil
 import signal
@@ -13,11 +14,12 @@ import subprocess
 import tempfile
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.resources import QQResources
+from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
 from .interface import (
@@ -289,6 +291,15 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         # always shared
         return True
 
+    def getJobInfo(job_id: str) -> VBSJobInfo:
+        return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]
+
+    def resubmit(res: QQResources, script: Path) -> str:
+        try:
+            return QQVBS._batch_system.submitJob(script, res.useScratch())
+        except VBSError as e:
+            raise QQError(f"Failed to resubmit script '{str(script)}': {e}.")
+
     @staticmethod
     def _getDefaultServerResources() -> QQResources:
         """
@@ -305,15 +316,6 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
             work_size_per_cpu="1gb",
             walltime="1d",
         )
-
-    def getJobInfo(job_id: str) -> VBSJobInfo:
-        return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]
-
-    def resubmit(res: QQResources, script: Path) -> str:
-        try:
-            return QQVBS._batch_system.submitJob(script, res.useScratch())
-        except VBSError as e:
-            raise QQError(f"Failed to resubmit script '{str(script)}': {e}.")
 
 
 # register QQVBS
@@ -332,6 +334,9 @@ class VBSJobInfo(BatchJobInfoInterface):
     def update(self):
         # does nothing
         pass
+
+    def getJobId(self) -> str:
+        return self._job.job_id
 
     def getJobState(self) -> BatchState:
         if self._job:
@@ -358,5 +363,63 @@ class VBSJobInfo(BatchJobInfoInterface):
         # only single-node jobs
         if node := self.getMainNode():
             return [node]
+
+        return None
+
+    def getJobName(self) -> str:
+        return self._job.script
+
+    def getNCPUs(self) -> int:
+        return 1
+
+    def getNGPUs(self) -> int:
+        return 0
+
+    def getNNodes(self) -> int:
+        return 1
+
+    def getMem(self) -> Size:
+        # arbitrary size
+        return Size(1, "gb")
+
+    def getStartTime(self) -> datetime | None:
+        if self._job.state == BatchState.QUEUED:
+            return None
+
+        # arbitrary time
+        return datetime.now()
+
+    def getSubmissionTime(self) -> datetime:
+        # arbitrary time
+        return datetime.now()
+
+    def getCompletionTime(self) -> datetime | None:
+        if self._job.state not in {BatchState.FINISHED, BatchState.FAILED}:
+            return None
+
+        # arbitrary time
+        return datetime.now()
+
+    def getUser(self) -> str:
+        return getpass.getuser()
+
+    def getWalltime(self) -> timedelta:
+        # arbitrary walltime
+        return timedelta(hours=24)
+
+    def getQueue(self) -> str:
+        return "default"
+
+    def getUtilCPU(self) -> int | None:
+        return 100
+
+    def getUtilMem(self) -> int | None:
+        return 100
+
+    def getExitCode(self) -> int | None:
+        if self._job.state == BatchState.FINISHED:
+            return 0
+        if self._job.state == BatchState.FAILED:
+            return 1
 
         return None

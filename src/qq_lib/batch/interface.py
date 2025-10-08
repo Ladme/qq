@@ -5,7 +5,7 @@ import os
 import socket
 import subprocess
 from abc import ABC, ABCMeta, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from qq_lib.core.common import convert_absolute_to_relative
@@ -13,6 +13,7 @@ from qq_lib.core.constants import BATCH_SYSTEM, RSYNC_TIMEOUT, SSH_TIMEOUT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
+from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
 logger = get_logger(__name__)
@@ -28,6 +29,16 @@ class BatchJobInfoInterface(ABC):
     The implementation of the constructor is arbitrary and should only
     be used inside the corresponding implementation of `QQBatchInterface.getJobInfo`.
     """
+
+    @abstractmethod
+    def getJobId(self) -> str:
+        """
+        Return the ID of the job.
+
+        Returns:
+            str: The ID of the job.
+        """
+        pass
 
     @abstractmethod
     def update(self):
@@ -95,6 +106,151 @@ class BatchJobInfoInterface(ABC):
             list[str] | None:
                 A list of hostnames or node identifiers used by the job,
                 or `None` if node information is not available.
+        """
+        pass
+
+    @abstractmethod
+    def getUser(self) -> str:
+        """
+        Return the username of the job owner.
+
+        Returns:
+            str: Username of the user who owns the job.
+        """
+        pass
+
+    @abstractmethod
+    def getNCPUs(self) -> int:
+        """
+        Return the number of CPU cores allocated for the job.
+
+        Returns:
+            int: Number of CPUs allocated for the job.
+        """
+        pass
+
+    @abstractmethod
+    def getNGPUs(self) -> int:
+        """
+        Return the number of GPUs allocated for the job.
+
+        Returns:
+            int: Number of GPUs allocated for the job.
+        """
+        pass
+
+    @abstractmethod
+    def getNNodes(self) -> int:
+        """
+        Return the number of compute nodes assigned to the job.
+
+        Returns:
+            int: Number of nodes used by the job.
+        """
+        pass
+
+    @abstractmethod
+    def getMem(self) -> Size:
+        """
+        Return the amount of memory allocated for the job.
+
+        Returns:
+            Size: Amount of memory allocated for the job.
+        """
+        pass
+
+    @abstractmethod
+    def getJobName(self) -> str:
+        """
+        Return the name of the job.
+
+        Returns:
+            str: The name of the submitted job.
+        """
+        pass
+
+    @abstractmethod
+    def getSubmissionTime(self) -> datetime:
+        """
+        Return the timestamp when the job was submitted.
+
+        Returns:
+            datetime: Time when the job was submitted to the batch system.
+        """
+        pass
+
+    @abstractmethod
+    def getStartTime(self) -> datetime | None:
+        """
+        Return the timestamp when the job started execution.
+
+        Returns:
+            datetime | None: Time when the job began running or
+            None if the job has not yet started.
+        """
+        pass
+
+    @abstractmethod
+    def getCompletionTime(self) -> datetime | None:
+        """
+        Return the timestamp when the job was completed.
+
+        Returns:
+            datetime | None: Time when the job completed or
+            None if the job has not yet completed.
+        """
+        pass
+
+    @abstractmethod
+    def getWalltime(self) -> timedelta:
+        """
+        Return the walltime limit of the job.
+
+        Returns:
+            timedelta: Walltime for the job.
+        """
+        pass
+
+    @abstractmethod
+    def getQueue(self) -> str:
+        """
+        Return the submission queue of the job.
+
+        Returns:
+            str: The queue this job is part of.
+        """
+        pass
+
+    @abstractmethod
+    def getUtilCPU(self) -> int | None:
+        """
+        Return the utilization of requested CPUs in percents (0-100).
+
+        Returns:
+            int | None: Utilization of requested CPUs or None
+            if information is not available.
+        """
+        pass
+
+    @abstractmethod
+    def getUtilMem(self) -> int | None:
+        """
+        Return the utilization of requested memory in percents (0-100).
+
+        Returns:
+            int | None: Utilization of requested memory or None
+            if information is not available.
+        """
+        pass
+
+    @abstractmethod
+    def getExitCode(self) -> int | None:
+        """
+        Returns the exit code of the job.
+
+        Returns:
+            int | None: Exit code of the job or None
+            if exit code is not assigned.
         """
         pass
 
@@ -220,6 +376,34 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
         Returns:
             TBatchInfo: Object containing the job's metadata and state.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def getUnfinishedJobsInfo(user: str) -> list[TBatchInfo]:
+        """
+        Retrieve information about all non-finished jobs submitted by `user`.
+
+        Args:
+            user (str): Username for which to fetch unfinished jobs.
+
+        Returns:
+            list[TBatchInfo]: A list of job info objects representing the user's unfinished jobs.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def getJobsInfo(user: str) -> list[TBatchInfo]:
+        """
+        Retrieve information about all jobs submitted by a specific user (including finished jobs).
+
+        Args:
+            user (str): Username for which to fetch all jobs.
+
+        Returns:
+            list[TBatchInfo]: A list of job info objects representing all jobs of the user.
         """
         pass
 

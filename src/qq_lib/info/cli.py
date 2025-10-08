@@ -21,7 +21,7 @@ logger = get_logger(__name__)
     short_help="Get information about the qq job.",
     help="Get information about the state and properties of the qq job(s) in this directory.",
     cls=GNUHelpColorsCommand,
-    help_options_color="blue",
+    help_options_color="bright_blue",
 )
 @click.option(
     "-s", "--short", is_flag=True, help="Print only the job ID and the current state."

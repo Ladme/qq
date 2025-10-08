@@ -11,7 +11,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.core.common import format_duration
+from qq_lib.core.common import format_duration_wdhhmmss
 from qq_lib.core.constants import DATE_FORMAT
 from qq_lib.properties.states import RealState
 
@@ -245,7 +245,7 @@ class QQPresenter:
             table.add_row(
                 "",
                 Text(
-                    f"was queued for {format_duration(started - submitted)}",
+                    f"was queued for {format_duration_wdhhmmss(started - submitted)}",
                     style="grey50",
                 ),
             )
@@ -254,7 +254,7 @@ class QQPresenter:
             table.add_row(
                 "",
                 Text(
-                    f"was running for {format_duration(completed - started)}",
+                    f"was running for {format_duration_wdhhmmss(completed - started)}",
                     style="grey50",
                 ),
             )
@@ -298,7 +298,7 @@ class QQPresenter:
             table.add_row(
                 "",
                 Text(
-                    f"Planned start within {format_duration(estimated[0] - datetime.now())} on '{estimated[1]}'",
+                    f"Planned start within {format_duration_wdhhmmss(estimated[0] - datetime.now())} on '{estimated[1]}'",
                     style="grey50",
                 ),
             )
@@ -329,19 +329,19 @@ class QQPresenter:
             case RealState.QUEUED:
                 return (
                     "Job is queued",
-                    f"In queue for {format_duration(end_time - start_time)}",
+                    f"In queue for {format_duration_wdhhmmss(end_time - start_time)}",
                 )
             case RealState.HELD:
                 return (
                     "Job is held",
-                    f"In queue for {format_duration(end_time - start_time)}",
+                    f"In queue for {format_duration_wdhhmmss(end_time - start_time)}",
                 )
             case RealState.SUSPENDED:
                 return ("Job is suspended", "")
             case RealState.WAITING:
                 return (
                     "Job is waiting",
-                    f"In queue for {format_duration(end_time - start_time)}",
+                    f"In queue for {format_duration_wdhhmmss(end_time - start_time)}",
                 )
             case RealState.RUNNING:
                 if len(self._informer.info.all_nodes) == 1:
@@ -350,7 +350,7 @@ class QQPresenter:
                     nodes = f"'{self._informer.info.main_node}' and {len(self._informer.info.all_nodes) - 1} other nodes"
                 return (
                     "Job is running",
-                    f"Running for {format_duration(end_time - start_time)} on {nodes}",
+                    f"Running for {format_duration_wdhhmmss(end_time - start_time)} on {nodes}",
                 )
             case RealState.BOOTING:
                 return (

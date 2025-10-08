@@ -12,6 +12,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.constants import BATCH_SYSTEM
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.submit.factory import QQSubmitterFactory
 
 logger = get_logger(__name__)
 
@@ -28,7 +29,7 @@ The submitted script must be located in the directory from which
 'qq submit' is invoked.
 """,
     cls=GNUHelpColorsCommand,
-    help_options_color="blue",
+    help_options_color="bright_blue",
 )
 @click.argument("script", type=str, metavar=click.style("SCRIPT", fg="green"))
 @optgroup.group(f"{click.style('General settings', fg='yellow')}")
@@ -152,8 +153,6 @@ def submit(script: str, **kwargs):
 
     Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
-    from qq_lib.submit.factory import QQSubmitterFactory
-
     try:
         if not (script_path := Path(script)).is_file():
             raise QQError(f"Script '{script}' does not exist or is not a file.")

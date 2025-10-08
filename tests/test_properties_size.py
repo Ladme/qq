@@ -115,3 +115,48 @@ def test_floordiv_by_integer_zero_raises():
     s = Size(10, "mb")
     with pytest.raises(ZeroDivisionError):
         _ = s // 0
+
+
+@pytest.mark.parametrize(
+    "a,b,expected",
+    [
+        (Size(10, "mb"), Size(2, "mb"), 5.0),
+        (Size(10, "mb"), Size(3, "mb"), pytest.approx(3.3333, rel=1e-3)),
+        (Size(1, "gb"), Size(1, "gb"), 1.0),
+        (Size(1, "gb"), Size(512, "mb"), 2.0),
+        (Size(1024, "mb"), Size(1, "gb"), 1.0),
+        (Size(2, "gb"), Size(1, "mb"), 2048.0),
+        (Size(100, "mb"), Size(1, "gb"), pytest.approx(0.0976, rel=1e-3)),
+        (Size(1, "kb"), Size(1, "kb"), 1.0),
+        (Size(1, "gb"), Size(1, "kb"), 1024 * 1024.0),
+    ],
+)
+def test_truediv_size_valid(a, b, expected):
+    result = a / b
+    assert isinstance(result, float)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "a,other",
+    [
+        (Size(10, "mb"), 2),
+        (Size(10, "mb"), "2mb"),
+        (Size(1, "gb"), None),
+        (Size(1, "gb"), 3.14),
+    ],
+)
+def test_truediv_type_error(a, other):
+    with pytest.raises(TypeError):
+        _ = a / other
+
+
+@pytest.mark.parametrize(
+    "a,b,expected",
+    [
+        (Size(1024, "KB"), Size(1, "mb"), 1.0),
+        (Size(1, "GB"), Size(512, "MB"), 2.0),
+    ],
+)
+def test_truediv_case_insensitive_units(a, b, expected):
+    assert a / b == expected

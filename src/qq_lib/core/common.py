@@ -128,8 +128,8 @@ def format_duration(td: timedelta) -> str:
     """
     Convert a timedelta into a human-readable string showing only relevant units.
 
-    The output string includes days, hours, minutes, and seconds, but omits
-    units that are zero unless a larger unit is present.
+    The output string includes weeks, days, hours, minutes, and seconds, but omits
+    units that are zero.
 
     Args:
         td (timedelta): The duration to format.
@@ -138,20 +138,90 @@ def format_duration(td: timedelta) -> str:
         str: A formatted string representing the duration, e.g., '1d 2h 3m 4s'.
     """
     total_seconds = int(td.total_seconds())
-    days, remainder = divmod(total_seconds, 86400)
+
+    days_total, remainder = divmod(total_seconds, 86400)
+    weeks, days = divmod(days_total, 7)
     hours, remainder = divmod(remainder, 3600)
     minutes, seconds = divmod(remainder, 60)
 
     parts = []
+    if weeks > 0:
+        parts.append(f"{weeks}w")
     if days > 0:
         parts.append(f"{days}d")
-    if hours > 0 or days > 0:
+    if hours > 0:
         parts.append(f"{hours}h")
-    if minutes > 0 or hours > 0 or days > 0:
+    if minutes > 0:
         parts.append(f"{minutes}m")
-    parts.append(f"{seconds}s")
+    if seconds > 0 or total_seconds == 0:
+        parts.append(f"{seconds}s")
 
     return " ".join(parts)
+
+
+def format_duration_wdhhmmss(td: timedelta) -> str:
+    """
+    Format a timedelta into a human-readable string: Xw Yd HH:MM:SS.
+
+    Weeks and days are included only if non-zero.
+    Hours, minutes, and seconds are always displayed with zero-padding.
+
+    Examples:
+        0:00:45         -> "00:00:45"
+        1 day, 2:03:04  -> "1d 02:03:04"
+        10 days, 5:06:07 -> "1w 3d 05:06:07"
+
+    Args:
+        td (timedelta): The duration to format.
+
+    Returns:
+        str: Formatted string in "Xw Yd HH:MM:SS" format.
+    """
+    total_seconds = int(td.total_seconds())
+
+    weeks, remainder = divmod(total_seconds, 7 * 24 * 3600)
+    days, remainder = divmod(remainder, 24 * 3600)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    parts = []
+    if weeks > 0:
+        parts.append(f"{weeks}w")
+    if days > 0:
+        parts.append(f"{days}d")
+
+    parts.append(f"{hours:02}:{minutes:02}:{seconds:02}")
+
+    return " ".join(parts)
+
+
+def hhmmss_to_duration(timestr: str) -> timedelta:
+    """
+    Convert a time string in HH:MM:SS (or HHH:MM:SS) format to a timedelta object.
+
+    Examples:
+        "0:00:00"   -> 0 seconds
+        "1:23:45"   -> 1 hour, 23 minutes, 45 seconds
+        "100:00:00" -> 100 hours
+
+    Args:
+        timestr (str): Input string in HH:MM:SS format.
+
+    Returns:
+        timedelta: The corresponding duration.
+
+    Raises:
+        QQError: If the input string is not in a valid HH:MM:SS format or contains
+                    invalid numeric values.
+    """
+    pattern = re.compile(r"^\s*(\d+):([0-5]?\d):([0-5]?\d)\s*$")
+    match = pattern.fullmatch(timestr)
+    if not match:
+        raise QQError(f"Invalid HH:MM:SS time string '{timestr}'.")
+
+    hours, minutes, seconds = map(int, match.groups())
+
+    return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
 
 def normalize(s: str) -> str:
@@ -255,7 +325,7 @@ def wdhms_to_hhmmss(timestr: str) -> str:
     # validation
     full_pattern = re.compile(r"^\s*(?:\d+\s*[wdhms]\s*)+$", re.IGNORECASE)
     if not full_pattern.fullmatch(timestr):
-        raise QQError(f"Invalid time string: '{timestr}'")
+        raise QQError(f"Invalid time string '{timestr}'.")
 
     # extract tokens
     token_pattern = re.compile(r"(\d+)\s*([wdhms])", re.IGNORECASE)
@@ -285,6 +355,62 @@ def wdhms_to_hhmmss(timestr: str) -> str:
     m, s = divmod(remainder, 60)
 
     return f"{h}:{m:02}:{s:02}"
+
+
+def hhmmss_to_wdhms(timestr: str) -> str:
+    """
+    Convert a time specification in (H)HH:MM:SS format into the compact wdhms format.
+
+    The output format expresses the duration as a sequence of one or more integer + unit tokens:
+      w = weeks, d = days, h = hours, m = minutes, s = seconds
+
+    Units that are zero are omitted, except that "0s" is returned if the total duration is zero.
+
+    Examples:
+        "195:04:05" -> "1w2d3h4m5s"
+        "1:30:00"   -> "1h30m"
+        "0:00:00"   -> "0s"
+        "49:00:00"  -> "2d1h"
+
+    Args:
+        timestr (str): Input time string in (H)HH:MM:SS format.
+
+    Returns:
+        str: Time duration converted into the compact wdhms format.
+
+    Raises:
+        QQError: If the input string is malformed or does not conform
+                 to the expected (H)HH:MM:SS pattern.
+    """
+    pattern = re.compile(r"^\s*(\d+):([0-5]?\d):([0-5]?\d)\s*$")
+    match = pattern.fullmatch(timestr)
+    if not match:
+        raise QQError(f"Invalid HH:MM:SS time string '{timestr}'.")
+
+    hours, minutes, seconds = map(int, match.groups())
+    total_seconds = hours * 3600 + minutes * 60 + seconds
+
+    if total_seconds == 0:
+        return "0s"
+
+    weeks, remainder = divmod(total_seconds, 7 * 24 * 3600)
+    days, remainder = divmod(remainder, 24 * 3600)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    parts = []
+    if weeks:
+        parts.append(f"{weeks}w")
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    if seconds:
+        parts.append(f"{seconds}s")
+
+    return "".join(parts)
 
 
 def printf_to_regex(pattern: str) -> str:

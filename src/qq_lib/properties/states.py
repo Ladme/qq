@@ -123,6 +123,26 @@ class BatchState(Enum):
 
         return "?"
 
+    @property
+    def color(self) -> str:
+        """
+        Return the display color associated with this BatchState.
+
+        Returns:
+            str: A string representing the color for presentation purposes.
+        """
+        return {
+            self.QUEUED: RealState.QUEUED.color,
+            self.HELD: RealState.HELD.color,
+            self.SUSPENDED: RealState.SUSPENDED.color,
+            self.WAITING: RealState.WAITING.color,
+            self.RUNNING: RealState.RUNNING.color,
+            self.FAILED: RealState.FAILED.color,
+            self.FINISHED: RealState.FINISHED.color,
+            self.EXITING: RealState.EXITING.color,
+            self.UNKNOWN: RealState.UNKNOWN.color,
+        }[self]
+
 
 class RealState(Enum):
     """

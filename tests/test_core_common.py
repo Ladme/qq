@@ -3,6 +3,7 @@
 
 import re
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from time import sleep
 from unittest.mock import patch
@@ -12,9 +13,13 @@ import pytest
 from qq_lib.core.common import (
     convert_absolute_to_relative,
     equals_normalized,
+    format_duration,
+    format_duration_wdhhmmss,
     get_files_with_suffix,
     get_info_file,
     get_info_files,
+    hhmmss_to_duration,
+    hhmmss_to_wdhms,
     is_printf_pattern,
     printf_to_regex,
     split_files_list,
@@ -244,83 +249,139 @@ def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
         convert_absolute_to_relative([inside, outside], target)
 
 
-def test_wdhms_to_hhmmss_seconds_only():
-    assert wdhms_to_hhmmss("45s") == "0:00:45"
-    assert wdhms_to_hhmmss("5s") == "0:00:05"
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        ("0:00:00", "0s"),
+        ("0:00:09", "9s"),
+        ("0:03:00", "3m"),
+        ("1:05:07", "1h5m7s"),
+        ("10:00:00", "10h"),
+        ("24:00:00", "1d"),
+        ("168:00:00", "1w"),
+        ("195:04:05", "1w1d3h4m5s"),
+        ("219:04:05", "1w2d3h4m5s"),
+        ("72:12:02", "3d12m2s"),
+        ("170:00:48", "1w2h48s"),
+        ("1:30:00", "1h30m"),
+        ("49:00:00", "2d1h"),
+        ("168:00:11", "1w11s"),
+        ("0:00:00", "0s"),
+    ],
+)
+def test_hhmmss_to_wdhms(input_str, expected):
+    assert hhmmss_to_wdhms(input_str) == expected
 
 
-def test_wdhms_to_hhmmss_minutes_only():
-    assert wdhms_to_hhmmss("3m") == "0:03:00"
-
-
-def test_wdhms_to_hhmmss_hours_only():
-    assert wdhms_to_hhmmss("10h") == "10:00:00"
-
-
-def test_wdhms_to_hhmmss_days_and_weeks_only():
-    assert wdhms_to_hhmmss("1d") == "24:00:00"
-    assert wdhms_to_hhmmss("1w") == "168:00:00"
-
-
-def test_wdhms_to_hhmmss_combined_compact_and_spaces():
-    assert wdhms_to_hhmmss("1w2d3h4m5s") == "219:04:05"
-    assert wdhms_to_hhmmss("1w  2d 3h 4m 5s") == "219:04:05"
-    assert wdhms_to_hhmmss("1w  2d3h   4m5s") == "219:04:05"
-
-
-def test_wdhms_to_hhmmss_case_insensitive_units():
-    assert wdhms_to_hhmmss("1W 2D 3H 4M 5S") == "219:04:05"
-    assert wdhms_to_hhmmss("1w 2D 3h 4M 5s") == "219:04:05"
-
-
-def test_wdhms_to_hhmmss_padding():
-    assert wdhms_to_hhmmss("1h 5m 7s") == "1:05:07"
-    assert wdhms_to_hhmmss("0h 0m 9s") == "0:00:09"
-
-
-def test_wdhms_to_hhmmss_skipped_values():
-    assert wdhms_to_hhmmss("1d 1s") == "24:00:01"
-    assert wdhms_to_hhmmss("3d 12m 2s") == "72:12:02"
-    assert wdhms_to_hhmmss("1w 2h 48s") == "170:00:48"
-
-
-def test_wdhms_to_hhmmss_empty_or_whitespace_returns_zero():
-    assert wdhms_to_hhmmss("") == "0:00:00"
-    assert wdhms_to_hhmmss("   ") == "0:00:00"
-
-
-def test_wdhms_to_hhmmss_invalid_characters_raise():
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        "1:60:00",
+        "1:00:60",
+        "abc",
+        "1:2",
+        "1::2",
+        "24:00:00:00",
+        "1:2:3:4",
+        "1:2:60",
+        "-1:00:00",
+        "1:-2:00",
+        "1:00:-5",
+    ],
+)
+def test_hhmmss_to_wdhms_invalid_strings(invalid_input):
     with pytest.raises(QQError):
-        wdhms_to_hhmmss("1h abc 2m")
+        hhmmss_to_wdhms(invalid_input)
 
+
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        ("0:00:00", "0s"),
+        ("0:00:01", "1s"),
+        ("0:01:00", "1m"),
+        ("1:00:00", "1h"),
+        ("24:00:00", "1d"),
+        ("168:00:00", "1w"),
+        ("192:30:15", "1w1d30m15s"),
+    ],
+)
+def test_hhmmss_to_wdhms_edge_cases(input_str, expected):
+    assert hhmmss_to_wdhms(input_str) == expected
+
+
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        ("49:00:00", "2d1h"),
+        ("90:00:00", "3d18h"),
+        ("1:30:00", "1h30m"),
+        ("3600:00:00", "21w3d"),
+    ],
+)
+def test_hhmmss_to_wdhms_large_values(input_str, expected):
+    assert hhmmss_to_wdhms(input_str) == expected
+
+
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        # seconds only
+        ("45s", "0:00:45"),
+        ("5s", "0:00:05"),
+        # minutes only
+        ("3m", "0:03:00"),
+        # hours only
+        ("10h", "10:00:00"),
+        # days and weeks only
+        ("1d", "24:00:00"),
+        ("1w", "168:00:00"),
+        # combined compact and space-separated
+        ("1w2d3h4m5s", "219:04:05"),
+        ("1w  2d 3h 4m 5s", "219:04:05"),
+        ("1w  2d3h   4m5s", "219:04:05"),
+        # case insensitive units
+        ("1W 2D 3H 4M 5S", "219:04:05"),
+        ("1w 2D 3h 4M 5s", "219:04:05"),
+        # padding
+        ("1h 5m 7s", "1:05:07"),
+        ("0h 0m 9s", "0:00:09"),
+        # skipped values
+        ("1d 1s", "24:00:01"),
+        ("3d 12m 2s", "72:12:02"),
+        ("1w 2h 48s", "170:00:48"),
+        # empty or whitespace treated as zero
+        ("", "0:00:00"),
+        ("   ", "0:00:00"),
+        # multiple same units accumulate
+        ("1h 2h 30m", "3:30:00"),
+        ("1d 24h", "48:00:00"),
+        # large values and rollover
+        ("90m", "1:30:00"),
+        ("3600s", "1:00:00"),
+        ("1w 90m 3666s", "170:31:06"),
+        # zero values
+        ("0h 0m 0s", "0:00:00"),
+        ("0w 0d", "0:00:00"),
+    ],
+)
+def test_wdhms_to_hhmmss_valid(input_str, expected):
+    assert wdhms_to_hhmmss(input_str) == expected
+
+
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        "1h abc 2m",
+        "foo",
+        "1h2x",
+        "1.5h",
+        "0.5m",
+    ],
+)
+def test_wdhms_to_hhmmss_invalid(invalid_input):
     with pytest.raises(QQError):
-        wdhms_to_hhmmss("foo")
-
-    with pytest.raises(QQError):
-        wdhms_to_hhmmss("1h2x")
-
-
-def test_wdhms_to_hhmmss_decimal_values_raise():
-    with pytest.raises(QQError):
-        wdhms_to_hhmmss("1.5h")
-    with pytest.raises(QQError):
-        wdhms_to_hhmmss("0.5m")
-
-
-def test_wdhms_to_hhmmss_multiple_same_units_accumulate():
-    assert wdhms_to_hhmmss("1h 2h 30m") == "3:30:00"
-    assert wdhms_to_hhmmss("1d 24h") == "48:00:00"
-
-
-def test_wdhms_to_hhmmss_large_values_and_rollover():
-    assert wdhms_to_hhmmss("90m") == "1:30:00"
-    assert wdhms_to_hhmmss("3600s") == "1:00:00"
-    assert wdhms_to_hhmmss("1w 90m 3666s") == "170:31:06"
-
-
-def test_wdhms_to_hhmmss_zero_values_ok():
-    assert wdhms_to_hhmmss("0h 0m 0s") == "0:00:00"
-    assert wdhms_to_hhmmss("0w 0d") == "0:00:00"
+        wdhms_to_hhmmss(invalid_input)
 
 
 @pytest.mark.parametrize(
@@ -471,3 +532,132 @@ def test_split_files_list_single_file(tmp_path):
 )
 def test_to_snake_case(input_str, expected):
     assert to_snake_case(input_str) == expected
+
+
+@pytest.mark.parametrize(
+    "input_td,expected",
+    [
+        (timedelta(seconds=0), "0s"),
+        (timedelta(seconds=45), "45s"),
+        (timedelta(minutes=3), "3m"),
+        (timedelta(hours=10), "10h"),
+        (timedelta(days=1), "1d"),
+        (timedelta(weeks=1), "1w"),
+        (timedelta(minutes=1, seconds=5), "1m 5s"),
+        (timedelta(hours=2, minutes=30), "2h 30m"),
+        (timedelta(days=1, hours=2), "1d 2h"),
+        (timedelta(days=8, hours=3), "1w 1d 3h"),
+        (timedelta(weeks=2, days=1, hours=3, minutes=4, seconds=5), "2w 1d 3h 4m 5s"),
+        (timedelta(days=15, hours=26, minutes=61, seconds=3661), "2w 2d 4h 2m 1s"),
+        (timedelta(minutes=0, seconds=59), "59s"),
+        (timedelta(minutes=1, seconds=0), "1m"),
+        (timedelta(hours=5, seconds=30), "5h 30s"),
+        (timedelta(days=1, minutes=1, seconds=1), "1d 1m 1s"),
+        (timedelta(days=7), "1w"),
+        (timedelta(days=14), "2w"),
+        (timedelta(days=7, hours=1), "1w 1h"),
+        (timedelta(days=15, minutes=10), "2w 1d 10m"),
+    ],
+)
+def test_format_duration_valid(input_td, expected):
+    assert format_duration(input_td) == expected
+
+
+@pytest.mark.parametrize(
+    "input_td,expected_str",
+    [
+        (timedelta(seconds=3600), "1h"),
+        (timedelta(seconds=3661), "1h 1m 1s"),
+        (timedelta(seconds=86400), "1d"),
+        (timedelta(seconds=90061), "1d 1h 1m 1s"),
+        (timedelta(seconds=604800), "1w"),
+        (timedelta(seconds=691200), "1w 1d"),
+    ],
+)
+def test_format_duration_rollover_boundaries(input_td, expected_str):
+    assert format_duration(input_td) == expected_str
+
+
+@pytest.mark.parametrize(
+    "td,expected",
+    [
+        (timedelta(seconds=0), "00:00:00"),
+        (timedelta(seconds=5), "00:00:05"),
+        (timedelta(seconds=45), "00:00:45"),
+        (timedelta(minutes=3), "00:03:00"),
+        (timedelta(minutes=90), "01:30:00"),
+        (timedelta(hours=1), "01:00:00"),
+        (timedelta(hours=10), "10:00:00"),
+        (timedelta(hours=36), "1d 12:00:00"),
+        (timedelta(days=1), "1d 00:00:00"),
+        (timedelta(days=3), "3d 00:00:00"),
+        (timedelta(days=10), "1w 3d 00:00:00"),
+        (timedelta(days=14), "2w 00:00:00"),
+        (timedelta(days=21), "3w 00:00:00"),
+        (timedelta(days=1, hours=2, minutes=3, seconds=4), "1d 02:03:04"),
+        (timedelta(days=10, hours=5, minutes=6, seconds=7), "1w 3d 05:06:07"),
+        (timedelta(weeks=1, days=2, hours=3, minutes=4, seconds=5), "1w 2d 03:04:05"),
+        (timedelta(weeks=2, days=0, hours=12, minutes=30, seconds=15), "2w 12:30:15"),
+        (timedelta(days=7), "1w 00:00:00"),
+        (timedelta(days=14, hours=1), "2w 01:00:00"),
+        (timedelta(hours=5, minutes=7, seconds=9), "05:07:09"),
+        (timedelta(days=0, hours=0, minutes=0, seconds=1), "00:00:01"),
+        (timedelta(days=0, hours=0, minutes=1, seconds=0), "00:01:00"),
+        (timedelta(days=0, hours=1, minutes=0, seconds=0), "01:00:00"),
+    ],
+)
+def test_format_duration_wdhhmmss(td, expected):
+    assert format_duration_wdhhmmss(td) == expected
+
+
+@pytest.mark.parametrize(
+    "timestr, expected",
+    [
+        ("00:00:00", timedelta(0)),
+        ("0:00:00", timedelta(0)),
+        ("0000:00:00", timedelta(0)),
+        ("00:00:01", timedelta(seconds=1)),
+        ("00:01:00", timedelta(minutes=1)),
+        ("01:00:00", timedelta(hours=1)),
+        ("12:34:56", timedelta(hours=12, minutes=34, seconds=56)),
+        ("36:15:00", timedelta(hours=36, minutes=15)),
+        ("100:00:05", timedelta(hours=100, seconds=5)),
+        ("999:59:59", timedelta(hours=999, minutes=59, seconds=59)),
+        ("1:2:3", timedelta(hours=1, minutes=2, seconds=3)),
+        ("36:15:00 ", timedelta(hours=36, minutes=15)),
+        (" 36:15:00", timedelta(hours=36, minutes=15)),
+        (" 36:15:00 ", timedelta(hours=36, minutes=15)),
+    ],
+)
+def test_hhmmss_to_duration_valid(timestr, expected):
+    assert hhmmss_to_duration(timestr) == expected
+
+
+@pytest.mark.parametrize(
+    "timestr",
+    [
+        "24:00",
+        "12:34:56:78",
+        "12-34-56",
+        "abc",
+        "1h23m45s",
+        "",
+        "   ",
+    ],
+)
+def test_hhmmss_to_duration_invalid_format(timestr):
+    with pytest.raises(QQError):
+        hhmmss_to_duration(timestr)
+
+
+@pytest.mark.parametrize(
+    "timestr",
+    [
+        "12:60:00",
+        "12:00:60",
+        "00:99:99",
+    ],
+)
+def test_hhmmss_to_duration_invalid_ranges(timestr):
+    with pytest.raises(QQError):
+        hhmmss_to_duration(timestr)

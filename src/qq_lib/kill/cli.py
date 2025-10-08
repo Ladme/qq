@@ -29,7 +29,7 @@ When the --force flag is used, `qq kill` will attempt to terminate any job
 regardless of its state, including jobs that are, according to the qq,
 already finished or killed. This can be used to remove lingering (stuck) jobs.""",
     cls=GNUHelpColorsCommand,
-    help_options_color="blue",
+    help_options_color="bright_blue",
 )
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."

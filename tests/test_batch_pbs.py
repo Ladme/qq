@@ -4,7 +4,7 @@
 # ruff: noqa: W291
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +15,7 @@ from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.core.constants import QQ_OUT_SUFFIX, SHARED_SUBMIT, SSH_TIMEOUT
 from qq_lib.core.error import QQError
 from qq_lib.properties.resources import QQResources
+from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
 
@@ -282,6 +283,247 @@ def test_clean_node_name():
         )
         == "node08"
     )
+
+
+def test_pbs_job_info_get_job_name_present():
+    job = _make_jobinfo_with_info({"Job_Name": "training_job"})
+    assert job.getJobName() == "training_job"
+
+
+def test_pbs_job_info_get_job_name_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getJobName()
+    assert result == "?????"
+
+
+def test_pbs_job_info_get_ncpus_present():
+    job = _make_jobinfo_with_info({"Resource_List.ncpus": "16"})
+    assert job.getNCPUs() == 16
+
+
+def test_pbs_job_info_get_ncpus_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getNCPUs()
+    assert result == 0
+
+
+def test_pbs_job_info_get_ngpus_present():
+    job = _make_jobinfo_with_info({"Resource_List.ngpus": "2"})
+    assert job.getNGPUs() == 2
+
+
+def test_pbs_job_info_get_ngpus_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getNGPUs()
+    assert result == 0
+
+
+def test_pbs_job_info_get_nnodes_present():
+    job = _make_jobinfo_with_info({"Resource_List.nodect": "3"})
+    assert job.getNNodes() == 3
+
+
+def test_pbs_job_info_get_nnodes_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getNNodes()
+    assert result == 0
+
+
+def test_pbs_job_info_get_mem_present():
+    job = _make_jobinfo_with_info({"Resource_List.mem": "8gb"})
+    mem = job.getMem()
+    assert isinstance(mem, Size)
+    assert mem.value == 8
+    assert mem.unit == "gb"
+
+
+def test_pbs_job_info_get_mem_missing():
+    job = _make_jobinfo_with_info({})
+    mem = job.getMem()
+    # smallest size is 1 kb
+    assert mem.value == 1 and mem.unit == "kb"
+
+
+def test_pbs_job_info_get_mem_invalid_value():
+    job = _make_jobinfo_with_info({"Resource_List.mem": "invalid123"})
+    mem = job.getMem()
+    # smallest size is 1kb
+    assert mem.value == 1 and mem.unit == "kb"
+
+
+def test_pbs_job_info_get_start_time_present():
+    raw_time = "Sun Sep 21 03:15:27 2025"
+    job = _make_jobinfo_with_info({"stime": raw_time})
+    result = job.getStartTime()
+    assert isinstance(result, datetime)
+    assert result.year == 2025
+    assert result.month == 9
+    assert result.day == 21
+    assert result.hour == 3
+    assert result.minute == 15
+    assert result.second == 27
+
+
+def test_pbs_job_info_get_start_time_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getStartTime()
+    assert result is None
+
+
+def test_pbs_job_info_get_submission_time_present():
+    raw_time = "Sun Sep 21 03:15:27 2025"
+    job = _make_jobinfo_with_info({"qtime": raw_time})
+    result = job.getSubmissionTime()
+    assert isinstance(result, datetime)
+    assert result.year == 2025
+    assert result.month == 9
+    assert result.day == 21
+    assert result.hour == 3
+    assert result.minute == 15
+    assert result.second == 27
+
+
+def test_pbs_job_info_get_submission_time_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getSubmissionTime()
+    assert result == datetime.min
+
+
+def test_pbs_job_info_get_completion_time_present():
+    raw_time = "Sun Sep 21 03:15:27 2025"
+    job = _make_jobinfo_with_info({"obittime": raw_time})
+    result = job.getCompletionTime()
+    assert isinstance(result, datetime)
+    assert result.year == 2025
+    assert result.month == 9
+    assert result.day == 21
+    assert result.hour == 3
+    assert result.minute == 15
+    assert result.second == 27
+
+
+def test_pbs_job_info_get_completion_time_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getCompletionTime()
+    assert result is None
+
+
+def test_pbs_job_info_get_user_present():
+    job = _make_jobinfo_with_info({"Job_Owner": "user@CLUSTER"})
+    assert job.getUser() == "user"
+
+
+def test_pbs_job_info_get_user_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getUser()
+    assert result == "?????"
+
+
+def test_pbs_job_info_get_walltime_valid():
+    job = _make_jobinfo_with_info({"Resource_List.walltime": "12:35:13"})
+    result = job.getWalltime()
+    assert result == timedelta(hours=12, minutes=35, seconds=13)
+
+
+def test_pbs_job_info_get_walltime_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getWalltime()
+    assert result == timedelta(0)
+
+
+def test_pbs_job_info_get_walltime_invalid():
+    job = _make_jobinfo_with_info({"Resource_List.walltime": "not-a-time"})
+    result = job.getWalltime()
+    assert result == timedelta(0)
+
+
+def test_pbs_job_info_get_queue_present():
+    job = _make_jobinfo_with_info({"queue": "gpu"})
+    assert job.getQueue() == "gpu"
+
+
+def test_pbs_job_info_get_queue_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getQueue()
+    assert result == "?????"
+
+
+def test_pbs_job_info_get_util_cpu_valid():
+    job = _make_jobinfo_with_info(
+        {"resources_used.cpupercent": "200", "Resource_List.ncpus": "4"}
+    )
+    assert job.getUtilCPU() == 50
+
+
+def test_pbs_job_info_get_util_cpu_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getUtilCPU()
+    assert result is None
+
+
+def test_pbs_job_info_get_util_cpu_invalid():
+    job = _make_jobinfo_with_info(
+        {"resources_used.cpupercent": "abc", "Resource_List.ncpus": "4"}
+    )
+    result = job.getUtilCPU()
+    assert result is None
+
+
+def test_pbs_job_info_get_util_mem_valid():
+    job = _make_jobinfo_with_info(
+        {"resources_used.mem": "1048576kb", "Resource_List.mem": "8gb"}
+    )
+    assert job.getUtilMem() == 12
+
+
+def test_pbs_job_info_get_util_mem_zero():
+    job = _make_jobinfo_with_info(
+        {"resources_used.mem": "0b", "Resource_List.mem": "8gb"}
+    )
+    assert job.getUtilMem() == 0
+
+
+def test_pbs_job_info_get_util_mem_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getUtilMem()
+    assert result is None
+
+
+def test_pbs_job_info_get_util_mem_invalid():
+    job = _make_jobinfo_with_info(
+        {"resources_used.mem": "invalid", "Resource_List.mem": "8gb"}
+    )
+    result = job.getUtilMem()
+    assert result is None
+
+
+def test_pbs_job_info_get_exit_code_valid():
+    job = _make_jobinfo_with_info({"Exit_status": "0"})
+    assert job.getExitCode() == 0
+
+
+def test_pbs_job_info_get_exit_code_valid_nonzero():
+    job = _make_jobinfo_with_info({"Exit_status": " 2 "})
+    assert job.getExitCode() == 2
+
+
+def test_pbs_job_info_get_exit_code_invalid():
+    job = _make_jobinfo_with_info({"Exit_status": "oops"})
+    result = job.getExitCode()
+    assert result is None
+
+
+def test_pbs_job_info_get_exit_code_missing():
+    job = _make_jobinfo_with_info({})
+    assert job.getExitCode() is None
+
+
+def test_from_dict_creates_instance():
+    info = {"Job_Name": "abc"}
+    job = PBSJobInfo.fromDict("job123", info)
+    assert isinstance(job, PBSJobInfo)
+    assert job._job_id == "job123"
+    assert job._info is info
 
 
 @pytest.fixture
@@ -1237,3 +1479,159 @@ def test_transform_resources_missing_work_dir_raises():
         ),
     ):
         QQPBS.transformResources("gpu", QQResources())
+
+
+@pytest.fixture
+def sample_multi_dump_file():
+    return """Job Id: 123456.fake-cluster.example.com
+    Job_Name = example_job_1
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 50
+    resources_used.ncpus = 4
+    job_state = R
+    queue = gpu
+
+Job Id: 123457.fake-cluster.example.com
+    Job_Name = example_job_2
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 75
+    resources_used.ncpus = 8
+    job_state = Q
+    queue = cpu
+
+Job Id: 123458.fake-cluster.example.com
+    Job_Name = example_job_3
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 100
+    resources_used.ncpus = 16
+    job_state = H
+    queue = gpu
+"""
+
+
+@pytest.mark.parametrize(
+    "text,expected_ids,expected_names",
+    [
+        (
+            """Job Id: 1
+            Job_Name = job1
+            job_state = R
+
+            Job Id: 2
+            Job_Name = job2
+            job_state = Q
+            """,
+            ["1", "2"],
+            ["job1", "job2"],
+        ),
+        (
+            """Job Id: single_job
+            Job_Name = only_job
+            job_state = R
+            """,
+            ["single_job"],
+            ["only_job"],
+        ),
+    ],
+)
+def test_parse_multi_pbs_dump_to_dictionaries_success(
+    text, expected_ids, expected_names
+):
+    jobs = PBSJobInfo._parseMultiPBSDumpToDictionaries(text)
+    assert len(jobs) == len(expected_ids)
+    for (info, job_id), exp_id, exp_name in zip(jobs, expected_ids, expected_names):
+        assert job_id == exp_id
+        assert info["Job_Name"] == exp_name
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "No Job Id here\nJob_Name = broken",
+    ],
+)
+def test_parse_multi_pbs_dump_to_dictionaries_invalid_input(text):
+    with pytest.raises(
+        QQError, match="Invalid PBS dump format. Could not extract job id from"
+    ):
+        PBSJobInfo._parseMultiPBSDumpToDictionaries(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["", "\t   ", "\n\n"],
+)
+def test_parse_multi_pbs_dump_to_dictionaries_empty(text):
+    assert PBSJobInfo._parseMultiPBSDumpToDictionaries(text) == []
+
+
+def test_parse_multi_pbs_dump_to_dictionaries_preserves_multiple_jobs(
+    sample_multi_dump_file,
+):
+    jobs = PBSJobInfo._parseMultiPBSDumpToDictionaries(sample_multi_dump_file)
+    assert len(jobs) == 3
+
+    expected_ids = [
+        "123456.fake-cluster.example.com",
+        "123457.fake-cluster.example.com",
+        "123458.fake-cluster.example.com",
+    ]
+    expected_names = ["example_job_1", "example_job_2", "example_job_3"]
+    expected_states = ["R", "Q", "H"]
+
+    for (info, job_id), exp_id, exp_name, exp_state in zip(
+        jobs, expected_ids, expected_names, expected_states
+    ):
+        assert job_id == exp_id
+        assert info["Job_Name"] == exp_name
+        assert info["job_state"] == exp_state
+
+
+def test_get_jobs_info_using_command_success(sample_multi_dump_file):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=sample_multi_dump_file, stderr=""
+        )
+
+        jobs = QQPBS._getJobsInfoUsingCommand("fake command - unused")
+
+        assert len(jobs) == 3
+        assert all(isinstance(job, PBSJobInfo) for job in jobs)
+
+        expected_ids = [
+            "123456.fake-cluster.example.com",
+            "123457.fake-cluster.example.com",
+            "123458.fake-cluster.example.com",
+        ]
+        assert [job._job_id for job in jobs] == expected_ids  # ty: ignore[unresolved-attribute]
+
+        assert [job._info["Job_Name"] for job in jobs] == [  # ty: ignore[unresolved-attribute]
+            "example_job_1",
+            "example_job_2",
+            "example_job_3",
+        ]
+        assert [job._info["job_state"] for job in jobs] == [  # ty: ignore[unresolved-attribute]
+            "R",
+            "Q",
+            "H",
+        ]
+
+        mock_run.assert_called_once_with(
+            ["bash"],
+            input="fake command - unused",
+            text=True,
+            check=False,
+            capture_output=True,
+        )
+
+
+def test_get_jobs_info_using_command_nonzero_returncode():
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=1, stdout="", stderr="Some error occurred"
+        )
+        with pytest.raises(
+            QQError,
+            match="Could not retrieve information about jobs: Some error occurred",
+        ):
+            QQPBS._getJobsInfoUsingCommand("will not be used")

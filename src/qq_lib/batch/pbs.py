@@ -2,19 +2,22 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 import os
+import re
 import shutil
 import socket
 import subprocess
 from collections.abc import Callable
 from dataclasses import fields
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Self
 
-from qq_lib.core.common import equals_normalized
-from qq_lib.core.constants import QQ_OUT_SUFFIX, SHARED_SUBMIT
+from qq_lib.core.common import equals_normalized, hhmmss_to_duration
+from qq_lib.core.constants import PBS_DATE_FORMAT, QQ_OUT_SUFFIX, SHARED_SUBMIT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
+from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
 from .interface import (
@@ -100,6 +103,16 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
     def getJobInfo(job_id: str) -> PBSJobInfo:
         return PBSJobInfo(job_id)  # ty: ignore[invalid-return-type]
+
+    def getUnfinishedJobsInfo(user: str) -> list[PBSJobInfo]:
+        command = f"qstat -fwu {user}"
+        logger.debug(command)
+        return QQPBS._getJobsInfoUsingCommand(command)
+
+    def getJobsInfo(user: str) -> list[PBSJobInfo]:
+        command = f"qstat -fwxu {user}"
+        logger.debug(command)
+        return QQPBS._getJobsInfoUsingCommand(command)
 
     def readRemoteFile(host: str, file: Path) -> str:
         if os.environ.get(SHARED_SUBMIT):
@@ -588,6 +601,40 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                     f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
                 )
 
+    @staticmethod
+    def _getJobsInfoUsingCommand(command: str) -> list[PBSJobInfo]:
+        """
+        Execute a shell command to retrieve information about PBS jobs and parse it.
+
+        Args:
+            command (str): The shell command to execute, typically a PBS query command.
+
+        Returns:
+            list[PBSJobInfo]: A list of `PBSJobInfo` instances corresponding to the jobs
+                            returned by the command.
+
+        Raises:
+            QQError: If the command fails (non-zero return code) or if the output
+                    cannot be parsed into valid job information.
+        """
+        ...
+        result = subprocess.run(
+            ["bash"], input=command, text=True, check=False, capture_output=True
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not retrieve information about jobs: {result.stderr.strip()}."
+            )
+
+        jobs = []
+        for data, job_id in PBSJobInfo._parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+            result.stdout.strip()
+        ):
+            jobs.append(PBSJobInfo.fromDict(job_id, data))  # ty: ignore[possibly-unbound-attribute]
+
+        return jobs
+
 
 class PBSJobInfo(BatchJobInfoInterface):
     """
@@ -599,6 +646,9 @@ class PBSJobInfo(BatchJobInfoInterface):
         self._info: dict[str, str] = {}
 
         self.update()
+
+    def getJobId(self) -> str:
+        return self._job_id
 
     def update(self):
         # get job info from PBS
@@ -620,8 +670,8 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         # if the job is finished and the return code is not zero, return FAILED
         if state == "F":
-            exit_code = self._info.get("Exit_status")
-            if exit_code is not None and exit_code.strip() != "0":
+            exit_code = self.getExitCode()
+            if exit_code is not None and exit_code != 0:
                 return BatchState.FAILED
 
         return BatchState.fromCode(state)
@@ -634,7 +684,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             logger.debug("No 'estimated.start_time' found.")
             return None
 
-        time = datetime.strptime(raw_time, "%a %b %d %H:%M:%S %Y")
+        time = datetime.strptime(raw_time, PBS_DATE_FORMAT)
 
         if not (raw_vnode := self._info.get("estimated.exec_vnode")):
             logger.debug("No 'estimated.exec_vnode' found.")
@@ -662,13 +712,171 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         return nodes
 
+    def getJobName(self) -> str:
+        if not (name := self._info.get("Job_Name")):
+            logger.warning(f"Could not get job name for '{self._job_id}'.")
+            return "?????"
+
+        return name
+
+    def getNCPUs(self) -> int:
+        return self._getIntProperty("Resource_List.ncpus", "the number of CPUs")
+
+    def getNGPUs(self) -> int:
+        return self._getIntProperty("Resource_List.ngpus", "the number of GPUs")
+
+    def getNNodes(self) -> int:
+        return self._getIntProperty("Resource_List.nodect", "the number of nodes")
+
+    def getMem(self) -> Size:
+        if not (mem := self._info.get("Resource_List.mem")):
+            logger.debug(
+                f"Could not get information about the amount of memory from the batch system for '{self._job_id}'."
+            )
+            return Size(1, "kb")
+
+        try:
+            return Size.from_string(mem)
+        except Exception as e:
+            logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
+            return Size(1, "kb")
+
+    def getStartTime(self) -> datetime | None:
+        return self._getDatetimeProperty("stime", "the job starting time")
+
+    def getSubmissionTime(self) -> datetime:
+        return (
+            self._getDatetimeProperty("qtime", "the job submission time")
+            or datetime.min  # arbitrary datetime - submission time should always be available
+        )
+
+    def getCompletionTime(self) -> datetime | None:
+        return self._getDatetimeProperty("obittime", "the job completion time")
+
+    def getUser(self) -> str:
+        if not (user := self._info.get("Job_Owner")):
+            logger.warning(f"Could not get user for '{self._job_id}'.")
+            return "?????"
+
+        return user.split("@")[0]
+
+    def getWalltime(self) -> timedelta:
+        if not (walltime := self._info.get("Resource_List.walltime")):
+            logger.warning(f"Could not get walltime for '{self._job_id}'.")
+            return timedelta(0)
+
+        try:
+            return hhmmss_to_duration(walltime)
+        except QQError as e:
+            logger.warning(f"Could not parse walltime for '{self._job_id}': {e}.")
+            return timedelta(0)
+
+    def getQueue(self) -> str:
+        if not (queue := self._info.get("queue")):
+            logger.warning(f"Could not get queue for '{self._job_id}'.")
+            return "?????"
+
+        return queue
+
+    def getUtilCPU(self) -> int | None:
+        if not (util_cpu := self._info.get("resources_used.cpupercent")):
+            logger.debug(
+                f"Information about CPU utilization is not available for '{self._job_id}'."
+            )
+            return None
+
+        try:
+            # PBS report CPU utilization in the same way as `top` - we have to divide by number of CPUs
+            return int(util_cpu) // self.getNCPUs()
+        except Exception as e:
+            # this catches both invalid util_cpu and invalid getNCPUs
+            logger.warning(
+                f"Could not parse information about CPU utilization for '{self._job_id}': {e}."
+            )
+            return None
+
+    def getUtilMem(self) -> int | None:
+        if not (util_mem := self._info.get("resources_used.mem")):
+            logger.debug(
+                f"Information about memory utilization is not available for '{self._job_id}'."
+            )
+            return None
+
+        try:
+            # we assume that resources_used.mem is always in kb (or in b if 0)
+            util_mem_kb = int(util_mem.replace("kb", "").replace("b", ""))
+            return int(util_mem_kb / self.getMem().to_kb() * 100.0)
+        except Exception as e:
+            logger.warning(
+                f"Could not parse information about memory utilization for '{self._job_id}': {e}."
+            )
+            return None
+
+    def getExitCode(self) -> int | None:
+        if not (exit := self._info.get("Exit_status")):
+            return None
+
+        try:
+            return int(exit)
+        except Exception as e:
+            logger.warning(f"Could not parse exit code for '{self._job_id}': {e}.")
+            return None
+
+    @classmethod
+    def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
+        """
+        Construct a new instance of PBSJobInfo from a job ID and a dictionary of job information.
+
+        This method bypasses the standard initializer and directly sets the `_job_id` and `_info`
+        attributes of the new instance.
+
+        Args:
+            job_id (str): The unique identifier of the job.
+            info (dict[str, str]): A dictionary containing PBS job metadata as key-value pairs.
+
+        Returns:
+            Self: A new instance of PBSJobInfo.
+
+        Note:
+            This method does not perform any validation or processing of the provided dictionary.
+        """
+        job_info = cls.__new__(cls)
+        job_info._job_id = job_id
+        job_info._info = info
+
+        return job_info
+
+    def _getIntProperty(self, property: str, property_name: str) -> int:
+        try:
+            return int(self._info[property])
+        except Exception:
+            logger.debug(
+                f"Could not get information about {property_name} from the batch system for '{self._job_id}'."
+            )
+            # if not specified, we assume 0
+            return 0
+
+    def _getDatetimeProperty(
+        self, property: str, property_name: str
+    ) -> datetime | None:
+        if not (raw_datetime := self._info.get(property)):
+            return None
+
+        try:
+            return datetime.strptime(raw_datetime, PBS_DATE_FORMAT)
+        except Exception:
+            logger.warning(
+                f"Could not parse information about {property_name} for '{self._job_id}'."
+            )
+            return None
+
     @staticmethod
     def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:
         """
         Parse a PBS job status dump into a dictionary.
 
         Returns:
-            Dictionary mapping keys to values.
+            dict[str, str]: Dictionary mapping keys to values.
         """
         result: dict[str, str] = {}
 
@@ -683,6 +891,46 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         logger.debug(f"PBS qstat dump: {result}")
         return result
+
+    @staticmethod
+    def _parseMultiPBSDumpToDictionaries(text: str) -> list[tuple[dict[str, str], str]]:
+        """
+        Parse a PBS job dump containing metadata for multiple jobs into structured dictionaries.
+
+        Args:
+            text (str): The raw PBS job dump containing information about one or more jobs.
+
+        Returns:
+            list[tuple[dict[str, str], str]]: A list of tuples, each containing:
+                - dict[str, str]: Parsed job metadata for a single job.
+                - str: The job ID extracted from job information.
+
+        Raises:
+            QQError: If the job ID cannot be extracted.
+        """
+        if text.strip() == "":
+            return []
+
+        data = []
+
+        job_id_pattern = re.compile(r"^\s*Job Id:\s*(.*)$")
+        for chunk in text.rstrip().split("\n\n"):
+            try:
+                first_line = chunk.splitlines()[0]
+                match = job_id_pattern.match(first_line)
+                if not match:
+                    raise
+
+                job_id = match.group(1)
+            except Exception as e:
+                raise QQError(
+                    f"Invalid PBS dump format. Could not extract job id from:\n{chunk}"
+                ) from e
+
+            data.append((PBSJobInfo._parsePBSDumpToDictionary(chunk), job_id))  # ty: ignore[possibly-unbound-attribute]
+
+        logger.debug(f"Detected and parsed metadata for {len(data)} PBS jobs.")
+        return data
 
     @staticmethod
     def _cleanNodeName(raw: str) -> str:

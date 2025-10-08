@@ -19,7 +19,7 @@ logger = get_logger(__name__)
     short_help="Change to the qq job's working directory.",
     help="Go to the qq job's working directory, using `cd` locally or `ssh` if the directory is on a remote host.",
     cls=GNUHelpColorsCommand,
-    help_options_color="blue",
+    help_options_color="bright_blue",
 )
 def go():
     """

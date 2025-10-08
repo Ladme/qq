@@ -62,6 +62,9 @@ ARCHIVE_FORMAT = "QQ_ARCHIVE_FORMAT"
 # Format string for dates and times
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+# Format string for dates and times used by PBS
+PBS_DATE_FORMAT = "%a %b %d %H:%M:%S %Y"
+
 # Name of the work directory inside the scratch directory
 SCRATCH_DIR_INNER = "main"
 

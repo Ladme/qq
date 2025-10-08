@@ -32,8 +32,6 @@ class QQJobsPresenter:
         content = Group(
             jobs_panel,
             Text(""),
-            # Rule(style="grey70", characters="- "),
-            # Text(""),
             stats_panel,
         )
 

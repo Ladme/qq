@@ -95,3 +95,15 @@ ARCHIVER_RETRY_WAIT = 300
 
 # Pattern used for numbering qq loop jobs.
 LOOP_JOB_PATTERN = "+%04d"
+
+# Main color used in QQJobsPresenter
+JOBS_PRESENTER_MAIN_COLOR = "white"
+
+# Secondary color used in QQJobsPresenter
+JOBS_PRESENTER_SECONDARY_COLOR = "grey70"
+
+# Color used to indicate a strong warning in QQJobsPresenter.
+JOBS_PRESENTER_STRONG_WARNING_COLOR = "bright_red"
+
+# Color used to indicate a mild warning in QQJobsPresenter.
+JOBS_PRESENTER_MILD_WARNING_COLOR = "bright_yellow"

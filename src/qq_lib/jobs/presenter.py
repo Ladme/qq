@@ -13,7 +13,13 @@ from qq_lib.batch.interface import BatchJobInfoInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
 )
-from qq_lib.core.constants import DATE_FORMAT
+from qq_lib.core.constants import (
+    DATE_FORMAT,
+    JOBS_PRESENTER_MAIN_COLOR,
+    JOBS_PRESENTER_MILD_WARNING_COLOR,
+    JOBS_PRESENTER_SECONDARY_COLOR,
+    JOBS_PRESENTER_STRONG_WARNING_COLOR,
+)
 from qq_lib.properties.states import BatchState
 
 
@@ -77,44 +83,23 @@ class QQJobsPresenter:
 
             self._stats.addJob(state, cpus, gpus, nodes)
 
-            cpu_util = job.getUtilCPU()
-            # TODO: move into separate function
-            if cpu_util:
-                if cpu_util < 60:
-                    cpu_color = "bright_red"
-                elif cpu_util < 80:
-                    cpu_color = "bright_yellow"
-                else:
-                    cpu_color = "white"
-
-            mem_util = job.getUtilMem()
-            # TODO: move into separate function
-            if mem_util:
-                if mem_util < 90:
-                    mem_color = "white"
-                elif mem_util < 100:
-                    mem_color = "bright_yellow"
-                else:
-                    mem_color = "bright_red"
-            exit = job.getExitCode()
-
             table.add_row(
                 Text(state.toCode(), style=state.color),
-                Text(QQJobsPresenter._shortenJobId(job.getJobId()), style="white"),
-                Text(job.getUser(), style="white"),
-                Text(job.getJobName(), style="white"),
-                Text(job.getQueue(), style="white"),
-                Text(str(cpus), style="white"),
-                Text(str(gpus), style="white"),
-                Text(str(nodes), style="white"),
+                QQJobsPresenter._mainColorText(
+                    QQJobsPresenter._shortenJobId(job.getJobId())
+                ),
+                QQJobsPresenter._mainColorText(job.getUser()),
+                QQJobsPresenter._mainColorText(job.getJobName()),
+                QQJobsPresenter._mainColorText(job.getQueue()),
+                QQJobsPresenter._mainColorText(str(cpus)),
+                QQJobsPresenter._mainColorText(str(gpus)),
+                QQJobsPresenter._mainColorText(str(nodes)),
                 QQJobsPresenter._formatTime(
                     state, start_time, end_time, job.getWalltime()
                 ),
-                Text(str(cpu_util), style=cpu_color) if cpu_util is not None else "",
-                Text(str(mem_util), style=mem_color) if mem_util is not None else "",
-                Text(str(exit), style="bright_red" if exit != 0 else "white")
-                if exit is not None
-                else "",
+                QQJobsPresenter._formatUtilCPU(job.getUtilCPU()),
+                QQJobsPresenter._formatUtilMem(job.getUtilMem()),
+                QQJobsPresenter._formatExitCode(job.getExitCode()),
             )
 
         return table
@@ -127,24 +112,66 @@ class QQJobsPresenter:
             case BatchState.UNKNOWN | BatchState.SUSPENDED:
                 return Text("")
             case BatchState.FAILED | BatchState.FINISHED:
-                return Text(end_time.strftime(DATE_FORMAT), style="white")
+                return QQJobsPresenter._mainColorText(end_time.strftime(DATE_FORMAT))
             case (
                 BatchState.HELD
                 | BatchState.QUEUED
                 | BatchState.WAITING
                 | BatchState.MOVING
             ):
-                return Text(
-                    format_duration_wdhhmmss(end_time - start_time), style="white"
+                return QQJobsPresenter._mainColorText(
+                    format_duration_wdhhmmss(end_time - start_time),
                 )
             case BatchState.RUNNING | BatchState.EXITING:
                 run_time = end_time - start_time
                 return Text(
                     format_duration_wdhhmmss(run_time),
-                    style="bright_red" if run_time > walltime else "white",
-                ) + Text(f" / {format_duration_wdhhmmss(walltime)}", style="white")
+                    style="bright_red"
+                    if run_time > walltime
+                    else JOBS_PRESENTER_MAIN_COLOR,
+                ) + QQJobsPresenter._mainColorText(
+                    f" / {format_duration_wdhhmmss(walltime)}"
+                )
 
         return Text("")
+
+    @staticmethod
+    def _formatUtilCPU(util: int | None) -> Text:
+        if util is None:
+            return Text("")
+
+        if util < 60:
+            color = JOBS_PRESENTER_STRONG_WARNING_COLOR
+        elif util < 80:
+            color = JOBS_PRESENTER_MILD_WARNING_COLOR
+        else:
+            color = JOBS_PRESENTER_MAIN_COLOR
+
+        return Text(str(util), style=color)
+
+    @staticmethod
+    def _formatUtilMem(util: int | None) -> Text:
+        if util is None:
+            return Text("")
+
+        if util < 90:
+            color = JOBS_PRESENTER_MAIN_COLOR
+        elif util < 100:
+            color = JOBS_PRESENTER_MILD_WARNING_COLOR
+        else:
+            color = JOBS_PRESENTER_STRONG_WARNING_COLOR
+
+        return Text(str(util), style=color)
+
+    @staticmethod
+    def _formatExitCode(exit_code: int | None) -> Text:
+        if exit_code is None:
+            return Text("")
+
+        if exit_code == 0:
+            return Text(str(exit_code), style=JOBS_PRESENTER_MAIN_COLOR)
+
+        return Text(str(exit_code), style=JOBS_PRESENTER_STRONG_WARNING_COLOR)
 
     @staticmethod
     def _shortenJobId(job_id: str) -> str:
@@ -153,6 +180,18 @@ class QQJobsPresenter:
             return split[0]
 
         return split[0] + split[1][0].upper()
+
+    @staticmethod
+    def _mainColorText(string: str, bold: bool = False) -> Text:
+        return Text(
+            string, style=f"{JOBS_PRESENTER_MAIN_COLOR} {'bold' if bold else ''}"
+        )
+
+    @staticmethod
+    def _secondaryColorText(string: str, bold: bool = False) -> Text:
+        return Text(
+            string, style=f"{JOBS_PRESENTER_SECONDARY_COLOR} {'bold' if bold else ''}"
+        )
 
 
 @dataclass
@@ -216,7 +255,9 @@ class QQJobsStatistics:
         spacing = "    "
         line = Text(spacing)
 
-        line.append(f"\n\n Jobs{spacing}", style="grey70 bold")
+        line.append(
+            QQJobsPresenter._secondaryColorText(f"\n\n Jobs{spacing}", bold=True)
+        )
 
         total = 0
         for state in BatchState:
@@ -224,11 +265,11 @@ class QQJobsStatistics:
                 count = self.n_jobs[state]
                 total += count
                 line.append(f"{state.toCode()} ", style=f"{state.color} bold")
-                line.append(f"{count}", style="grey70")
+                line.append(QQJobsPresenter._secondaryColorText(str(count)))
                 line.append(spacing)
 
         line.append("Σ ", style="white bold")
-        line.append(f"{total}", style="grey70")
+        line.append(QQJobsPresenter._secondaryColorText(str(total)))
         line.append(spacing)
 
         return line
@@ -237,21 +278,21 @@ class QQJobsStatistics:
         table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
 
         table.add_column("", justify="left")
-        table.add_column(Text("CPUs", style="grey70"), justify="center")
-        table.add_column(Text("GPUs", style="grey70"), justify="center")
-        table.add_column(Text("Nodes", style="grey70"), justify="center")
+        table.add_column(QQJobsPresenter._secondaryColorText("CPUs"), justify="center")
+        table.add_column(QQJobsPresenter._secondaryColorText("GPUs"), justify="center")
+        table.add_column(QQJobsPresenter._secondaryColorText("Nodes"), justify="center")
 
         table.add_row(
-            Text("Requested", style="bold grey70"),
-            Text(str(self.n_requested_cpus), style="grey70"),
-            Text(str(self.n_requested_gpus), style="grey70"),
-            Text(str(self.n_requested_nodes), style="grey70"),
+            QQJobsPresenter._secondaryColorText("Requested", bold=True),
+            QQJobsPresenter._secondaryColorText(str(self.n_requested_cpus)),
+            QQJobsPresenter._secondaryColorText(str(self.n_requested_gpus)),
+            QQJobsPresenter._secondaryColorText(str(self.n_requested_nodes)),
         )
         table.add_row(
-            Text("Allocated", style="bold grey70"),
-            Text(str(self.n_allocated_cpus), style="grey70"),
-            Text(str(self.n_allocated_gpus), style="grey70"),
-            Text(str(self.n_allocated_nodes), style="grey70"),
+            QQJobsPresenter._secondaryColorText("Allocated", bold=True),
+            QQJobsPresenter._secondaryColorText(str(self.n_allocated_cpus)),
+            QQJobsPresenter._secondaryColorText(str(self.n_allocated_gpus)),
+            QQJobsPresenter._secondaryColorText(str(self.n_allocated_nodes)),
         )
 
         return table

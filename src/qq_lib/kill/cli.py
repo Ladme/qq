@@ -102,11 +102,9 @@ def kill(job: str | None, yes: bool = False, force: bool = False):
     # QQErrors should be caught by QQRepeater
     except QQError as e:
         logger.error(e)
-        print()
         sys.exit(91)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        print()
         sys.exit(99)
 
 
@@ -136,7 +134,7 @@ def _kill_job(info_file: Path, force: bool, yes: bool, job: str | None):
 
     # check whether the job can be killed
     if not killer.shouldTerminate():
-        raise _QQKillNotSuitableError("Job not suitable for killing.")
+        raise _QQKillNotSuitableError("Job is not suitable for killing.")
 
     # perform the kill if confirmed
     if force or yes or killer.askForConfirm():
@@ -157,6 +155,13 @@ def _handle_not_suitable_error(
     """
     Handle cases where a job is unsuitable to be terminated.
     """
+    # if this is the only item, print exception as an error
+    if len(metadata.items) == 1:
+        logger.error(exception)
+        print()
+        sys.exit(91)
+
+    # if this is one of many items, print exception as info
     if len(metadata.items) > 1:
         logger.info(exception)
 
@@ -171,12 +176,11 @@ def _handle_not_suitable_error(
 
 def _handle_job_mismatch_error(
     exception: BaseException,
-    metadata: QQRepeater,
+    _metadata: QQRepeater,
 ):
     """
     Handle cases where the provided job ID does not match the qq info file.
     """
-    _ = metadata
     logger.error(exception)
     sys.exit(91)
 
@@ -190,6 +194,7 @@ def _handle_general_qq_error(
     """
     logger.error(exception)
 
+    # if the operation failed for all items
     if len(metadata.items) == len(metadata.encountered_errors):
         print()
         sys.exit(91)

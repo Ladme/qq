@@ -55,7 +55,7 @@ No matter the employed method, this always opens a new shell at the destination.
     required=False,
     default=None,
 )
-def go(job: str):
+def go(job: str | None):
     """
     Go to the working directory (directories) of the specified qq job or qq job(s) submitted from this directory.
     """
@@ -70,11 +70,9 @@ def go(job: str):
         sys.exit(0)
     except QQError as e:
         logger.error(e)
-        print()
         sys.exit(91)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        print()
         sys.exit(99)
 
 
@@ -126,6 +124,13 @@ def _handle_not_suitable_error(
     """
     Handle cases where a job is unsuitable for qq go.
     """
+    # if this is the only item, print exception as an error
+    if len(metadata.items) == 1:
+        logger.error(exception)
+        print()
+        sys.exit(91)
+
+    # if this is one of many items, print exception as info
     if len(metadata.items) > 1:
         logger.info(exception)
 
@@ -140,12 +145,11 @@ def _handle_not_suitable_error(
 
 def _handle_job_mismatch_error(
     exception: BaseException,
-    metadata: QQRepeater,
+    _metadata: QQRepeater,
 ):
     """
     Handle cases where the provided job ID does not match the qq info file.
     """
-    _ = metadata
     logger.error(exception)
     sys.exit(91)
 
@@ -159,6 +163,7 @@ def _handle_general_qq_error(
     """
     logger.error(exception)
 
+    # if the operation failed for all items
     if len(metadata.items) == len(metadata.encountered_errors):
         print()
         sys.exit(91)

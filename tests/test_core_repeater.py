@@ -63,8 +63,7 @@ def test_qqrepeater_handles_registered_exception(sample_items, error_func):
     repeater.run()
 
     handler.assert_called_once()
-    exc_arg = handler.call_args.kwargs["exception"]
-    meta_arg = handler.call_args.kwargs["metadata"]
+    exc_arg, meta_arg = handler.call_args.args
 
     assert isinstance(exc_arg, ValueError)
     assert meta_arg is repeater

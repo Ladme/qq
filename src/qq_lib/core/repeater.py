@@ -47,9 +47,9 @@ class QQRepeater:
         Args:
             exc_type (type[BaseException]): The exception type to handle.
             handler (Callable): Function to call when `exc_type` is raised.
-                The handler must accept two keyword arguments:
-                - `exception`: The caught exception instance.
-                - `metadata`: Reference to this `QQRepeater` instance.
+                The handler must accept two arguments:
+                - BaseException: The caught exception instance.
+                - QQRepeater: Reference to this `QQRepeater` instance.
         """
         self._handlers[exc_type] = handler
 
@@ -73,7 +73,4 @@ class QQRepeater:
             except tuple(self._handlers.keys()) as e:
                 self.encountered_errors[i] = e
                 handler = self._handlers[type(e)]
-                handler(
-                    exception=e,
-                    metadata=self,
-                )
+                handler(e, self)

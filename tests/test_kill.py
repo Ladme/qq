@@ -545,7 +545,7 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
         informer2.toFile(info_file2)
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
-        sleep(0.2)
+        sleep(0.3)
         assert result_kill.exit_code == 91
 
         # check that neither info file is updated

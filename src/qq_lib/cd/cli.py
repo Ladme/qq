@@ -19,7 +19,7 @@ logger = get_logger(__name__)
     short_help="Change to the qq job's input directory.",
     help=f"""Change directory to the input directory of the specified job.
 
-{click.style("JOB_ID", fg="green")}   Identifier of the job to go to.
+{click.style("JOB_ID", fg="green")}   Identifier of the job whose input directory should be visited.
 
 Note that this command never opens a new shell.
 """,

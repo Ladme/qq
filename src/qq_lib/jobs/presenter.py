@@ -59,7 +59,7 @@ class QQJobsPresenter:
     def _createBasicJobsTable(self) -> Table:
         table = Table(box=None, padding=(0, 1), expand=False)
         for property in [
-            "State",
+            "S",
             "Job ID",
             "User",
             "Job Name",

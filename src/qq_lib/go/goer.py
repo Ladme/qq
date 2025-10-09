@@ -118,6 +118,19 @@ class QQGoer:
         """
         return self._directory and self._host
 
+    def isJob(self, job_id: str) -> bool:
+        """
+        Determine whether this goer corresponds to the specified job ID.
+
+        Args:
+            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
+
+        Returns:
+            bool: True if both job IDs refer to the same job (same numeric/job part),
+                False otherwise.
+        """
+        return self._informer.isJob(job_id)
+
     def _navigate(self):
         """
         Navigate to the job's working directory using batch system-specific commands.

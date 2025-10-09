@@ -32,9 +32,8 @@ def test_cd_command_success_pbs_o_workdir():
 
     with patch.object(QQPBS, "getJobInfo", return_value=job_info):
         result = runner.invoke(cd, ["1234"])
-        print(result.stderr)
         assert result.exit_code == 0
-        assert result.output.strip() == "/pbs/job/dir"
+        assert result.stdout.strip() == "/pbs/job/dir"
 
 
 def test_cd_command_success_input_dir():
@@ -44,9 +43,8 @@ def test_cd_command_success_input_dir():
 
     with patch.object(QQPBS, "getJobInfo", return_value=job_info):
         result = runner.invoke(cd, ["1234"])
-        print(result.stderr)
         assert result.exit_code == 0
-        assert result.output.strip() == "/qq/input/dir"
+        assert result.stdout.strip() == "/qq/input/dir"
 
 
 def test_cd_command_job_does_not_exist():

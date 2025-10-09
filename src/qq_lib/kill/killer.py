@@ -127,6 +127,19 @@ class QQKiller:
         # which state is managed by `qq kill` does not hurt anything
         self._lockFile(self._info_file)
 
+    def isJob(self, job_id: str) -> bool:
+        """
+        Determine whether this killer corresponds to the specified job ID.
+
+        Args:
+            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
+
+        Returns:
+            bool: True if both job IDs refer to the same job (same numeric/job part),
+                False otherwise.
+        """
+        return self._informer.isJob(job_id)
+
     def _isBooting(self) -> bool:
         """Check if the job is currently booting."""
         return self._state == RealState.BOOTING

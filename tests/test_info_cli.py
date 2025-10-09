@@ -4,19 +4,13 @@
 
 import os
 from datetime import datetime
-from pathlib import Path
 from time import sleep
 from unittest.mock import patch
 
-import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.batch.vbs import QQVBS
-from qq_lib.core.constants import INFO_FILE
-from qq_lib.core.error import QQError
 from qq_lib.info import info
-from qq_lib.info.cli import _get_info_file_from_job_id
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.states import BatchState
 from qq_lib.submit import submit
@@ -179,53 +173,3 @@ def test_info_multiple_jobs_integration(tmp_path):
         assert "queued" in stdout
         assert "running" in stdout
         assert "finished" in stdout
-
-
-def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
-    job = PBSJobInfo.__new__(PBSJobInfo)
-    job._job_id = "1234"
-    job._info = info
-    return job
-
-
-def test_get_info_file_from_job_id_success():
-    with patch.object(
-        QQPBS,
-        "getJobInfo",
-        return_value=_make_jobinfo_with_info(
-            {
-                "Variable_List": f"{INFO_FILE}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
-            }
-        ),
-    ):
-        assert _get_info_file_from_job_id(QQPBS, "12345") == Path(
-            "/path/to/info_file.qqinfo"
-        )
-
-
-def test_get_info_file_from_job_id_no_info():
-    with (
-        patch.object(
-            QQPBS,
-            "getJobInfo",
-            return_value=_make_jobinfo_with_info(
-                {
-                    "Variable_List": "SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
-                }
-            ),
-        ),
-        pytest.raises(QQError, match="is not a qq job"),
-    ):
-        _get_info_file_from_job_id(QQPBS, "12345")
-
-
-def test_get_info_file_from_job_id_nonexistent_job():
-    with (
-        patch.object(
-            QQPBS,
-            "getJobInfo",
-            return_value=_make_jobinfo_with_info({}),
-        ),
-        pytest.raises(QQError, match="does not exist"),
-    ):
-        _get_info_file_from_job_id(QQPBS, "12345")

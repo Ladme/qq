@@ -80,6 +80,58 @@ def get_info_files(directory: Path) -> list[Path]:
     return sorted(info_files, key=lambda f: f.stat().st_mtime)
 
 
+def get_info_file_from_job_id(job_id: str) -> Path:
+    """
+    Get path to the qq info file corresponding to a job with the given ID.
+    The BatchSystem to use is obtained from the environment variable or guessed.
+
+    Args:
+        job_id (str): The ID of the job for which to retrieve the info file.
+
+    Returns:
+        Path: Absolute path to the QQ job information file.
+
+    Raises:
+        QQError: If the batch system could not be guessed,
+        the job does not exist or is not a qq job.
+    """
+
+    from qq_lib.batch.interface import (
+        BatchJobInfoInterface,
+        QQBatchMeta,
+    )
+
+    BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+    job_info: BatchJobInfoInterface = BatchSystem.getJobInfo(job_id)
+
+    if job_info.isEmpty():
+        raise QQError(f"Job '{job_id}' does not exist.")
+
+    if not (path := job_info.getInfoFile()):
+        raise QQError(f"Job '{job_id}' is not a valid qq job.")
+
+    return path
+
+
+def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
+    if job_id:
+        info_file = get_info_file_from_job_id(job_id)
+        # check that the detected info file exists
+        if not info_file.is_file():
+            raise QQError(
+                f"Info file for job '{job_id}' does not exist or is not reachable."
+            )
+
+        return [info_file]
+
+    # get info files from the directory
+    info_files = get_info_files(Path())
+    if not info_files:
+        raise QQError("No qq job info file found.")
+
+    return info_files
+
+
 def yes_or_no_prompt(prompt: str) -> bool:
     """
     Display an interactive yes/no prompt to the user and return the selection.

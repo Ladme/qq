@@ -520,11 +520,13 @@ class QQRunner:
         """
         Signal handler for SIGTERM.
 
-        Performs cleanup, logs termination, and exits with code 15.
+        Performs cleanup, logs termination, and exits.
         """
         logger.info("Received SIGTERM, initiating shutdown.")
         self._cleanup()
         logger.error("Execution was terminated by SIGTERM.")
+        # this may get ignored by the batch system
+        # so you should not really on this exit code
         sys.exit(143)
 
 

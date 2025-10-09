@@ -122,6 +122,16 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         logger.debug(command)
         return QQPBS._getJobsInfoUsingCommand(command)
 
+    def getAllUnfinishedJobsInfo() -> list[PBSJobInfo]:
+        command = "qstat -fw"
+        logger.debug(command)
+        return QQPBS._getJobsInfoUsingCommand(command)
+
+    def getAllJobsInfo() -> list[PBSJobInfo]:
+        command = "qstat -fxw"
+        logger.debug(command)
+        return QQPBS._getJobsInfoUsingCommand(command)
+
     def readRemoteFile(host: str, file: Path) -> str:
         if os.environ.get(SHARED_SUBMIT):
             # file is on shared storage, we can read it directly
@@ -971,7 +981,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             key, value = line.split(" = ", 1)
             result[key.strip()] = value.strip()
 
-        logger.debug(f"PBS qstat dump: {result}")
+        # logger.debug(f"PBS qstat dump: {result}")
         return result
 
     @staticmethod

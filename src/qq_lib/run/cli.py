@@ -41,7 +41,11 @@ def run(script_path: str):
             92: Fatal error not logged into an info file
             93: Job killed without qq run being notified.
             99: Fatal unexpected error (indicates a bug)
-            143: Execution terminated by SIGTERM.
+
+        In case the execution is terminated by SIGTERM or SIGKILL,
+        a specific value of the exit code cannot be guaranteed
+        because it is typically set by the batch system itself
+        (PBS uses 256 + signal number).
     """
 
     # the script path provided points to a script copied to a temporary

@@ -457,7 +457,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     @abstractmethod
     def getUnfinishedJobsInfo(user: str) -> list[TBatchInfo]:
         """
-        Retrieve information about all non-finished jobs submitted by `user`.
+        Retrieve information about all unfinished jobs submitted by `user`.
 
         Args:
             user (str): Username for which to fetch unfinished jobs.
@@ -478,6 +478,28 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
         Returns:
             list[TBatchInfo]: A list of job info objects representing all jobs of the user.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def getAllUnfinishedJobsInfo() -> list[TBatchInfo]:
+        """
+        Retrieve information about unfinished jobs of all users.
+
+        Returns:
+            list[TBatchInfo]: A list of job info objects representing unfinished jobs of all users.
+        """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def getAllJobsInfo() -> list[TBatchInfo]:
+        """
+        Retrieve information about all jobs of all users.
+
+        Returns:
+            list[TBatchInfo]: A list of job info objects representing all jobs of all users.
         """
         pass
 

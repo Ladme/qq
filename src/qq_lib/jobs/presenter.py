@@ -134,7 +134,6 @@ class QQJobsPresenter:
                     format_duration_wdhhmmss(end_time - start_time),
                 )
             case BatchState.RUNNING | BatchState.EXITING:
-                print(end_time)
                 run_time = end_time - start_time
                 return Text(
                     format_duration_wdhhmmss(run_time),

@@ -123,23 +123,24 @@ class QQJobsPresenter:
             case BatchState.UNKNOWN | BatchState.SUSPENDED:
                 return Text("")
             case BatchState.FAILED | BatchState.FINISHED:
-                return QQJobsPresenter._mainColorText(end_time.strftime(DATE_FORMAT))
+                return Text(end_time.strftime(DATE_FORMAT), style=state.color)
             case (
                 BatchState.HELD
                 | BatchState.QUEUED
                 | BatchState.WAITING
                 | BatchState.MOVING
             ):
-                return QQJobsPresenter._mainColorText(
+                return Text(
                     format_duration_wdhhmmss(end_time - start_time),
+                    style=state.color,
                 )
             case BatchState.RUNNING | BatchState.EXITING:
                 run_time = end_time - start_time
                 return Text(
                     format_duration_wdhhmmss(run_time),
-                    style="bright_red"
+                    style=JOBS_PRESENTER_STRONG_WARNING_COLOR
                     if run_time > walltime
-                    else JOBS_PRESENTER_MAIN_COLOR,
+                    else state.color,
                 ) + QQJobsPresenter._mainColorText(
                     f" / {format_duration_wdhhmmss(walltime)}"
                 )
@@ -151,12 +152,14 @@ class QQJobsPresenter:
         if util is None:
             return Text("")
 
-        if util < 60:
+        if util > 100:
             color = JOBS_PRESENTER_STRONG_WARNING_COLOR
-        elif util < 80:
+        elif util >= 80:
+            color = JOBS_PRESENTER_MAIN_COLOR
+        elif util >= 60:
             color = JOBS_PRESENTER_MILD_WARNING_COLOR
         else:
-            color = JOBS_PRESENTER_MAIN_COLOR
+            color = JOBS_PRESENTER_STRONG_WARNING_COLOR
 
         return Text(str(util), style=color)
 
@@ -196,8 +199,8 @@ class QQJobsPresenter:
 
         if estimated := job.getJobEstimated():
             return Text(
-                f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
-                style="bright_magenta",
+                f"{estimated[1]} within {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
+                style=state.color,
             )
 
         return Text("")

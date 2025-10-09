@@ -31,6 +31,17 @@ class BatchJobInfoInterface(ABC):
     """
 
     @abstractmethod
+    def isEmpty(self) -> bool:
+        """
+        Check whether the job contains any information.
+        This should return True if the job does not exist in the batch system.
+
+        Returns:
+            bool: True if the job contains no information.
+        """
+        pass
+
+    @abstractmethod
     def getJobId(self) -> str:
         """
         Return the ID of the job.
@@ -106,6 +117,18 @@ class BatchJobInfoInterface(ABC):
             list[str] | None:
                 A list of hostnames or node identifiers used by the job,
                 or `None` if node information is not available.
+        """
+        pass
+
+    @abstractmethod
+    def getShortNodes(self) -> list[str] | None:
+        """
+        Retrieve the short hostnames of all execution nodes allocated for the job.
+
+        Returns:
+            list[str] | None:
+                A list of short hostnames used by the job, or `None` if node information
+                is not available.
         """
         pass
 
@@ -202,6 +225,16 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
+    def getModificationTime(self) -> datetime:
+        """
+        Return the timestamp at which the job was last modified.
+
+        Returns:
+            datetime: Time when the job was last modified.
+        """
+        pass
+
+    @abstractmethod
     def getWalltime(self) -> timedelta:
         """
         Return the walltime limit of the job.
@@ -246,11 +279,52 @@ class BatchJobInfoInterface(ABC):
     @abstractmethod
     def getExitCode(self) -> int | None:
         """
-        Returns the exit code of the job.
+        Return the exit code of the job.
 
         Returns:
             int | None: Exit code of the job or None
             if exit code is not assigned.
+        """
+        pass
+
+    @abstractmethod
+    def getInputDir(self) -> Path:
+        """
+        Return path to the directory from which the job was submitted.
+
+        Returns:
+            Path: Path to the submission directory.
+        """
+        pass
+
+    @abstractmethod
+    def getInputMachine(self) -> str:
+        """
+        Return the hostname of the submission machine.
+
+        Returns:
+            str: Hostname of the submission machine.
+        """
+        pass
+
+    @abstractmethod
+    def getInfoFile(self) -> Path | None:
+        """
+        Return path to the info file associated with this job.
+
+        Returns:
+            Path | None: Path to the qq info file or `None` if
+            this is not a qq job.
+        """
+        pass
+
+    @abstractmethod
+    def toYaml(self) -> str:
+        """
+        Return all information about the job from the batch system in YAML format.
+
+        Returns:
+            str: YAML-formatted string of job metadata.
         """
         pass
 

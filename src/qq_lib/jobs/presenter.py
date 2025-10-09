@@ -30,7 +30,7 @@ class QQJobsPresenter:
 
     def createJobsInfoPanel(self, console: Console | None = None) -> Group:
         console = console or Console()
-        panel_width = max(120, 2 * console.size.width // 3)
+        panel_width = console.size.width
 
         jobs_panel = self._createBasicJobsTable()
         stats_panel = self._stats.createStatsPanel()
@@ -43,7 +43,7 @@ class QQJobsPresenter:
 
         panel = Panel(
             content,
-            title=Text("List of collected jobs", style="bold", justify="center"),
+            title=Text("COLLECTED JOBS", style="bold", justify="center"),
             border_style="white",
             padding=(1, 1),
             width=panel_width,
@@ -51,6 +51,10 @@ class QQJobsPresenter:
         )
 
         return Group(Text(""), panel, Text(""))
+
+    def dumpYaml(self):
+        for job in self._jobs:
+            print(job.toYaml())
 
     def _createBasicJobsTable(self) -> Table:
         table = Table(box=None, padding=(0, 1), expand=False)
@@ -60,22 +64,28 @@ class QQJobsPresenter:
             "User",
             "Job Name",
             "Queue",
-            "CPUs",
-            "GPUs",
-            "Nodes",
-            "Time",
-            "%Util CPU",
-            "%Util Mem",
+            "NCPUs",
+            "NGPUs",
+            "NNodes",
+            "Times",
+            "Node",
+            "%CPU",
+            "%Mem",
             "Exit",
         ]:
             table.add_column(
-                justify="center", header=Text(property, style="bold", justify="center")
+                justify="center",
+                header=Text(property, style="bold", justify="center"),
             )
 
         for job in self._jobs:
             state = job.getJobState()
             start_time = job.getStartTime() or job.getSubmissionTime()
-            end_time = job.getCompletionTime() or datetime.now()
+            if state not in {BatchState.FINISHED, BatchState.FAILED}:
+                end_time = datetime.now()
+            else:
+                # if completion time is not available, use the last modification time
+                end_time = job.getCompletionTime() or job.getModificationTime()
 
             cpus = job.getNCPUs()
             gpus = job.getNGPUs()
@@ -97,6 +107,7 @@ class QQJobsPresenter:
                 QQJobsPresenter._formatTime(
                     state, start_time, end_time, job.getWalltime()
                 ),
+                QQJobsPresenter._formatNodesOrComment(state, job),
                 QQJobsPresenter._formatUtilCPU(job.getUtilCPU()),
                 QQJobsPresenter._formatUtilMem(job.getUtilMem()),
                 QQJobsPresenter._formatExitCode(job.getExitCode()),
@@ -123,6 +134,7 @@ class QQJobsPresenter:
                     format_duration_wdhhmmss(end_time - start_time),
                 )
             case BatchState.RUNNING | BatchState.EXITING:
+                print(end_time)
                 run_time = end_time - start_time
                 return Text(
                     format_duration_wdhhmmss(run_time),
@@ -174,12 +186,26 @@ class QQJobsPresenter:
         return Text(str(exit_code), style=JOBS_PRESENTER_STRONG_WARNING_COLOR)
 
     @staticmethod
-    def _shortenJobId(job_id: str) -> str:
-        split = job_id.split(".", maxsplit=1)
-        if len(split) == 1:
-            return split[0]
+    def _formatNodesOrComment(state: BatchState, job: BatchJobInfoInterface) -> Text:
+        if nodes := job.getShortNodes():
+            return QQJobsPresenter._mainColorText(
+                " + ".join(nodes),
+            )
 
-        return split[0] + split[1][0].upper()
+        if state in {BatchState.FINISHED, BatchState.FAILED}:
+            return Text("")
+
+        if estimated := job.getJobEstimated():
+            return Text(
+                f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
+                style="bright_magenta",
+            )
+
+        return Text("")
+
+    @staticmethod
+    def _shortenJobId(job_id: str) -> str:
+        return job_id.split(".", 1)[0]
 
     @staticmethod
     def _mainColorText(string: str, bold: bool = False) -> Text:

@@ -37,6 +37,9 @@ INFO_FILE = "QQ_INFO"
 # Name of the machine used to submit the qq job
 INPUT_MACHINE = "QQ_INPUT_MACHINE"
 
+# Absolute path to the directory from which the job was submitted.
+INPUT_DIR = "QQ_INPUT_DIR"
+
 # Indicates whether the job was submitted from shared storage
 SHARED_SUBMIT = "QQ_SHARED_SUBMIT"
 

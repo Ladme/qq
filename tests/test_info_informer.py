@@ -292,3 +292,30 @@ def test_get_main_node_none_when_missing():
     batch_info = _make_pbsjobinfo_with_info({})
     informer = _make_informer_with_batch_info(batch_info)
     assert informer.getMainNode() is None
+
+
+@pytest.mark.parametrize(
+    "input_id,expected",
+    [
+        ("12345.fake.server.com", True),
+        ("12345.other.domain.net", True),
+        ("12345", True),
+        ("12345.", True),
+        ("12345.fake.server.com.subdomain", True),
+        ("99999.fake.server.com", False),
+        ("54321", False),
+        ("abcd.fake.server.com", False),
+        ("", False),
+        (".fake.server.com", False),
+        ("12345.fake", True),
+        (" 12345.fake.server.com ", True),
+        ("12345.FAKE.SERVER.COM", True),
+        ("123456.fake.server.com", False),
+        ("12345.....fake.server.com", True),
+        ("1234.fake.server.com", False),
+    ],
+)
+def test_is_job_matches_and_mismatches(sample_info, input_id, expected):
+    informer = QQInformer(sample_info)
+    input_id = input_id.strip()
+    assert informer.isJob(input_id) == expected

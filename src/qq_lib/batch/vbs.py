@@ -10,6 +10,7 @@ import getpass
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import tempfile
 import threading
@@ -331,6 +332,9 @@ class VBSJobInfo(BatchJobInfoInterface):
         # store a reference to the virtual job
         self._job = job
 
+    def isEmpty(self) -> bool:
+        return False
+
     def update(self):
         # does nothing
         pass
@@ -366,6 +370,9 @@ class VBSJobInfo(BatchJobInfoInterface):
 
         return None
 
+    def getShortNodes(self) -> list[str] | None:
+        return self.getNodes()
+
     def getJobName(self) -> str:
         return self._job.script
 
@@ -400,6 +407,10 @@ class VBSJobInfo(BatchJobInfoInterface):
         # arbitrary time
         return datetime.now()
 
+    def getModificationTime(self) -> datetime:
+        # arbitrary time
+        return datetime.now()
+
     def getUser(self) -> str:
         return getpass.getuser()
 
@@ -423,3 +434,17 @@ class VBSJobInfo(BatchJobInfoInterface):
             return 1
 
         return None
+
+    def getInputDir(self) -> Path:
+        # arbitrary path
+        return Path()
+
+    def getInputMachine(self) -> str:
+        return socket.gethostname()
+
+    def getInfoFile(self) -> Path:
+        # arbitrary path
+        return Path()
+
+    def toYaml(self) -> str:
+        return ""

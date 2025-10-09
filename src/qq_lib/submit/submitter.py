@@ -16,6 +16,7 @@ from qq_lib.core.constants import (
     BATCH_SYSTEM,
     GUARD,
     INFO_FILE,
+    INPUT_DIR,
     INPUT_MACHINE,
     LOOP_CURRENT,
     LOOP_END,
@@ -270,6 +271,9 @@ class QQSubmitter:
 
         # this contains the name of the used batch system
         os.environ[BATCH_SYSTEM] = str(self._batch_system)
+
+        # this contains the path to the input directory
+        os.environ[INPUT_DIR] = str(Path.cwd())
 
         # loop job-specific environment variables
         if self._loop_info:

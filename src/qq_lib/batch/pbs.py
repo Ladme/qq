@@ -12,8 +12,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
 
+import yaml
+
 from qq_lib.core.common import equals_normalized, hhmmss_to_duration
-from qq_lib.core.constants import PBS_DATE_FORMAT, QQ_OUT_SUFFIX, SHARED_SUBMIT
+from qq_lib.core.constants import (
+    INFO_FILE,
+    INPUT_DIR,
+    PBS_DATE_FORMAT,
+    QQ_OUT_SUFFIX,
+    SHARED_SUBMIT,
+)
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
@@ -647,6 +655,9 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         self.update()
 
+    def isEmpty(self) -> bool:
+        return not self._info
+
     def getJobId(self) -> str:
         return self._job_id
 
@@ -685,7 +696,11 @@ class PBSJobInfo(BatchJobInfoInterface):
             logger.debug("No 'estimated.start_time' found.")
             return None
 
-        time = datetime.strptime(raw_time, PBS_DATE_FORMAT)
+        try:
+            time = datetime.strptime(raw_time, PBS_DATE_FORMAT)
+        except Exception as e:
+            logger.debug(f"Could not parse 'estimated.start_time': {e}.")
+            return None
 
         if not (raw_vnode := self._info.get("estimated.exec_vnode")):
             logger.debug("No 'estimated.exec_vnode' found.")
@@ -705,6 +720,16 @@ class PBSJobInfo(BatchJobInfoInterface):
 
     def getNodes(self) -> list[str] | None:
         if not (raw_nodes := self._info.get("exec_host2")):
+            return None
+
+        nodes = []
+        for node in raw_nodes.split("+"):
+            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))  # ty: ignore[possibly-unbound-attribute]
+
+        return nodes
+
+    def getShortNodes(self) -> list[str] | None:
+        if not (raw_nodes := self._info.get("exec_host")):
             return None
 
         nodes = []
@@ -747,12 +772,18 @@ class PBSJobInfo(BatchJobInfoInterface):
 
     def getSubmissionTime(self) -> datetime:
         return (
-            self._getDatetimeProperty("qtime", "the job submission time")
+            self._getDatetimeProperty("ctime", "the job submission time")
             or datetime.min  # arbitrary datetime - submission time should always be available
         )
 
     def getCompletionTime(self) -> datetime | None:
         return self._getDatetimeProperty("obittime", "the job completion time")
+
+    def getModificationTime(self) -> datetime:
+        return (
+            self._getDatetimeProperty("mtime", "the job modification time")
+            or self.getSubmissionTime()
+        )
 
     def getUser(self) -> str:
         if not (user := self._info.get("Job_Owner")):
@@ -823,6 +854,48 @@ class PBSJobInfo(BatchJobInfoInterface):
             logger.warning(f"Could not parse exit code for '{self._job_id}': {e}.")
             return None
 
+    def getInputMachine(self) -> str:
+        if not (input_machine := self._info.get("Submit_Host")):
+            logger.warning(f"Could not get input machine for '{self._job_id}'.")
+            return "?????"
+
+        return input_machine
+
+    def getInputDir(self) -> Path:
+        if not (env_vars := self._getEnvVars()):
+            logger.warning(
+                f"Could not get list of environment variables for '{self._job_id}'."
+            )
+            return Path("???")
+
+        if not (
+            job_dir := env_vars.get("PBS_O_WORKDIR")  # try PBS first
+            or env_vars.get(INPUT_DIR)  # if this fails, try qq
+            or env_vars.get("INF_INPUT_DIR")  # if this fails, try Infinity
+        ):
+            logger.warning(f"Could not obtain input directory for '{self._job_id}'.")
+            return Path("???")
+
+        return Path(job_dir).resolve()
+
+    def getInfoFile(self) -> Path | None:
+        if not (env_vars := self._getEnvVars()):
+            logger.warning(
+                f"Could not get list of environment variables for '{self._job_id}'."
+            )
+            return None
+
+        if not (info_file := env_vars.get(INFO_FILE)):
+            logger.debug(
+                f"Job '{self._job_id}' does not have an assigned qq info file."
+            )
+            return None
+
+        return Path(info_file)
+
+    def toYaml(self) -> str:
+        return yaml.dump(self._info, default_flow_style=False, sort_keys=False)
+
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
@@ -846,6 +919,14 @@ class PBSJobInfo(BatchJobInfoInterface):
         job_info._info = info
 
         return job_info
+
+    def _getEnvVars(self) -> dict[str, str] | None:
+        if not (variable_list := self._info.get("Variable_List")):
+            return None
+
+        return dict(
+            item.split("=", 1) for item in variable_list.split(",") if "=" in item
+        )
 
     def _getIntProperty(self, property: str, property_name: str) -> int:
         try:
@@ -944,4 +1025,4 @@ class PBSJobInfo(BatchJobInfoInterface):
         Returns:
             str: Cleaned node name.
         """
-        return raw.split(":", 1)[0].replace("(", "").replace(")", "")
+        return raw.split(":", 1)[0].split("/", 1)[0].replace("(", "").replace(")", "")

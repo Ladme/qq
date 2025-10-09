@@ -12,7 +12,13 @@ import pytest
 
 from qq_lib.batch.interface import QQBatchInterface
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
-from qq_lib.core.constants import QQ_OUT_SUFFIX, SHARED_SUBMIT, SSH_TIMEOUT
+from qq_lib.core.constants import (
+    INFO_FILE,
+    INPUT_DIR,
+    QQ_OUT_SUFFIX,
+    SHARED_SUBMIT,
+    SSH_TIMEOUT,
+)
 from qq_lib.core.error import QQError
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.size import Size
@@ -269,6 +275,24 @@ def test_get_nodes():
     ]
 
 
+def test_get_short_nodes_single():
+    job = _make_jobinfo_with_info({"exec_host": "node04/3*8"})
+
+    assert job.getShortNodes() == [
+        "node04",
+    ]
+
+
+def test_get_short_nodes():
+    job = _make_jobinfo_with_info({"exec_host": "node04/3*8+node05/3*8 + node07/3*8"})
+
+    assert job.getShortNodes() == [
+        "node04",
+        "node05",
+        "node07",
+    ]
+
+
 def test_clean_node_name():
     assert PBSJobInfo._cleanNodeName("node02") == "node02"
     assert PBSJobInfo._cleanNodeName("(node02:ncpus=4)") == "node02"
@@ -373,7 +397,7 @@ def test_pbs_job_info_get_start_time_missing():
 
 def test_pbs_job_info_get_submission_time_present():
     raw_time = "Sun Sep 21 03:15:27 2025"
-    job = _make_jobinfo_with_info({"qtime": raw_time})
+    job = _make_jobinfo_with_info({"ctime": raw_time})
     result = job.getSubmissionTime()
     assert isinstance(result, datetime)
     assert result.year == 2025
@@ -407,6 +431,38 @@ def test_pbs_job_info_get_completion_time_missing():
     job = _make_jobinfo_with_info({})
     result = job.getCompletionTime()
     assert result is None
+
+
+def test_pbs_job_info_get_modification_time_present():
+    raw_time = "Sun Sep 21 03:15:27 2025"
+    job = _make_jobinfo_with_info({"mtime": raw_time})
+    result = job.getModificationTime()
+    assert isinstance(result, datetime)
+    assert result.year == 2025
+    assert result.month == 9
+    assert result.day == 21
+    assert result.hour == 3
+    assert result.minute == 15
+    assert result.second == 27
+
+
+def test_pbs_job_info_get_modification_time_missing_submission_time_present():
+    raw_time = "Sun Sep 21 03:15:27 2025"
+    job = _make_jobinfo_with_info({"ctime": raw_time})
+    result = job.getModificationTime()
+    assert isinstance(result, datetime)
+    assert result.year == 2025
+    assert result.month == 9
+    assert result.day == 21
+    assert result.hour == 3
+    assert result.minute == 15
+    assert result.second == 27
+
+
+def test_pbs_job_info_get_modification_time_missing():
+    job = _make_jobinfo_with_info({})
+    result = job.getModificationTime()
+    assert result == datetime.min
 
 
 def test_pbs_job_info_get_user_present():
@@ -525,6 +581,167 @@ def test_from_dict_creates_instance():
     assert isinstance(job, PBSJobInfo)
     assert job._job_id == "job123"
     assert job._info is info
+
+
+def test_pbs_job_info_get_input_machine():
+    job = _make_jobinfo_with_info({"Submit_Host": "random.machine.org"})
+    assert job.getInputMachine() == "random.machine.org"
+
+
+def test_pbs_job_info_get_input_machine_missing():
+    job = _make_jobinfo_with_info({})
+    assert job.getInputMachine() == "?????"
+
+
+def test_pbs_job_info_get_input_dir_pbs():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": "PBS_O_LOGNAME=user,PBS_O_WORKDIR=/path/to/job_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job.getInputDir() == Path("/path/to/job_dir")
+
+
+def test_pbs_job_info_get_input_dir_qq():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": f"PBS_O_LOGNAME=user,{INPUT_DIR}=/path/to/job_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job.getInputDir() == Path("/path/to/job_dir")
+
+
+def test_pbs_job_info_get_input_dir_infinity():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": "PBS_O_LOGNAME=user,INF_INPUT_DIR=/path/to/job_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job.getInputDir() == Path("/path/to/job_dir")
+
+
+def test_pbs_job_info_get_input_dir_nonexistent():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": "PBS_O_LOGNAME=user,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job.getInputDir() == Path("???")
+
+
+def test_pbs_job_info_get_info_file():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": f"{INFO_FILE}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job.getInfoFile() == Path("/path/to/info_file.qqinfo")
+
+
+def test_pbs_job_info_get_info_file_nonexistent():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": "PBS_O_LOGNAME=user,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job.getInfoFile() is None
+
+
+def test_pbs_job_info_get_env_vars():
+    job = _make_jobinfo_with_info(
+        {
+            "Variable_List": "PBS_O_LOGNAME=user,PBS_O_QUEUE=gpu,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,,,SCRATCH=/scratch/user/job_123456"
+        }
+    )
+    assert job._getEnvVars() == {
+        "PBS_O_LOGNAME": "user",
+        "PBS_O_QUEUE": "gpu",
+        "PBS_O_HOST": "host.example.com",
+        "SCRATCH": "/scratch/user/job_123456",
+    }
+
+
+def test_pbs_job_info_get_env_vars_nonexistent():
+    job = _make_jobinfo_with_info({})
+    assert job._getEnvVars() is None
+
+
+def test_pbs_job_info_get_env_vars_empty():
+    job = _make_jobinfo_with_info({"Variable_List": " "})
+    assert job._getEnvVars() == {}
+
+
+def test_pbs_job_info_to_yaml(sample_dump_file):
+    info = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
+    job = _make_jobinfo_with_info(info)
+
+    assert (
+        job.toYaml()
+        == """Job_Name: example_job
+Job_Owner: user@EXAMPLE
+resources_used.cpupercent: '100'
+resources_used.cput: 01:23:45
+resources_used.diag_messages: '''{}'''
+resources_used.mem: 102400kb
+resources_used.ncpus: '8'
+resources_used.vmem: 102400kb
+resources_used.walltime: 02:00:00
+job_state: R
+queue: gpu
+server: fake-cluster.example.com
+ctime: Sun Sep 21 00:00:00 2025
+depend: afterany:123455.fake-cluster.example.com@fake-cluster.example.com
+Error_Path: /fake/path/job_123456.log
+exec_host: node1/8*8
+exec_host2: node1.example.com:15002/8*8
+exec_vnode: (node1:ncpus=8:ngpus=1:mem=8192mb:scratch_local=8192mb)
+group_list: examplegroup
+Hold_Types: n
+Join_Path: oe
+Mail_Points: n
+mtime: Sun Sep 21 02:00:00 2025
+Output_Path: /fake/path/job_123456.log
+qtime: Sun Sep 21 00:00:00 2025
+Rerunable: 'False'
+Resource_List.mem: 8gb
+Resource_List.mpiprocs: '8'
+Resource_List.ncpus: '8'
+Resource_List.ngpus: '1'
+Resource_List.nodect: '1'
+Resource_List.place: free
+Resource_List.scratch_local: 8gb
+Resource_List.select: 1:ncpus=8:ngpus=1:mpiprocs=8:mem=8gb:scratch_local=8gb:cl_two=true:ompthreads=1:node_owner=everybody
+Resource_List.walltime: '24:00:00'
+stime: Sun Sep 21 00:00:00 2025
+session_id: '123456'
+jobdir: /fake/home/user
+substate: '42'
+Variable_List: QQ_DEBUG=true,QQ_ENV_SET=true,AMS_SITE_SUPPORT=linuxsupport@example.com,PBS_O_LOGNAME=user,PBS_O_QUEUE=gpu,PBS_O_HOST=host.example.com,SCRATCHDIR=/scratch/user/job_123456,SCRATCH=/scratch/user/job_123456,SINGULARITY_TMPDIR=/scratch/user/job_123456,SINGULARITY_CACHEDIR=/scratch/user/job_123456
+etime: Sun Sep 21 00:00:00 2025
+umask: '77'
+run_count: '1'
+eligible_time: 00:00:00
+project: _pbs_project_default
+Submit_Host: host.example.com
+credential_id: user@EXAMPLE
+credential_validity: Mon Sep 22 06:38:19 2025
+"""
+    )
+
+
+def test_pbs_job_info_to_yaml_empty():
+    job = _make_jobinfo_with_info({})
+    assert job.toYaml() == "{}\n"
+
+
+def test_pbs_job_info_is_empty():
+    job = _make_jobinfo_with_info({"Submit_Host": "random.machine.org"})
+    assert not job.isEmpty()
+
+
+def test_pbs_job_info_is_empty_false():
+    job = _make_jobinfo_with_info({})
+    assert job.isEmpty()
 
 
 @pytest.fixture

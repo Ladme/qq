@@ -33,7 +33,10 @@ logger = get_logger(__name__)
 @click.option(
     "-a", "--all", is_flag=True, help="Show both unfinished and finished jobs."
 )
-def jobs(user: str, all: bool):
+@click.option(
+    "--yaml", is_flag=True, help="Export jobs metadata in technical YAML format."
+)
+def jobs(user: str, all: bool, yaml: bool):
     try:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
         if not user:
@@ -50,9 +53,12 @@ def jobs(user: str, all: bool):
             return
 
         presenter = QQJobsPresenter(jobs)
-        console = Console()
-        panel = presenter.createJobsInfoPanel(console)
-        console.print(panel)
+        if yaml:
+            presenter.dumpYaml()
+        else:
+            console = Console()
+            panel = presenter.createJobsInfoPanel(console)
+            console.print(panel)
 
         sys.exit(0)
     except QQError as e:

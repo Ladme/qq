@@ -14,7 +14,12 @@ from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.batch.pbs import QQPBS
 from qq_lib.batch.vbs import QQVBS
 from qq_lib.core.constants import (
+    BATCH_SYSTEM,
     DATE_FORMAT,
+    GUARD,
+    INFO_FILE,
+    INPUT_DIR,
+    INPUT_MACHINE,
     QQ_INFO_SUFFIX,
     QQ_OUT_SUFFIX,
     STDERR_SUFFIX,
@@ -240,8 +245,11 @@ def test_set_env_vars_sets_variables(script_with_shebang, sample_resources, tmp_
         True,
     )
     submitter._setEnvVars()
-    assert os.environ.get("QQ_ENV_SET") == "true"
-    assert os.environ.get("QQ_INFO") == str(submitter._info_file)
+    assert os.environ.get(GUARD) == "true"
+    assert os.environ.get(INFO_FILE) == str(submitter._info_file)
+    assert os.environ.get(INPUT_MACHINE) == socket.gethostname()
+    assert os.environ.get(BATCH_SYSTEM) == str(QQVBS)
+    assert os.environ.get(INPUT_DIR) == str(Path.cwd())
 
 
 def test_has_valid_shebang(script_with_shebang, sample_resources, tmp_path):

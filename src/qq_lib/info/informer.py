@@ -250,3 +250,16 @@ class QQInformer:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
         return self._batch_info.getNodes()
+
+    def isJob(self, job_id: str) -> bool:
+        """
+        Determine whether this informer corresponds to the specified job ID.
+
+        Args:
+            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
+
+        Returns:
+            bool: True if both job IDs refer to the same job (same numeric/job part),
+                False otherwise.
+        """
+        return self.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]

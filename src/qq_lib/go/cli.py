@@ -17,7 +17,9 @@ logger = get_logger(__name__)
 
 @click.command(
     short_help="Change to the qq job's working directory.",
-    help="Go to the qq job's working directory, using `cd` locally or `ssh` if the directory is on a remote host.",
+    help="""Go to the qq job's working directory, using `cd` locally or `ssh` if the directory is on a remote host.
+
+Note that this always opens a new shell at the destination.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )

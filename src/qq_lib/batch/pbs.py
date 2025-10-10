@@ -36,6 +36,16 @@ from .interface import (
 
 logger = get_logger(__name__)
 
+# load faster YAML dumper
+try:
+    from yaml import CDumper as Dumper  # ty: ignore[possibly-unbound-import]
+
+    logger.debug("Loaded YAML CDumper.")
+except ImportError:
+    from yaml import Dumper
+
+    logger.debug("Loaded default YAML dumper.")
+
 
 # forward declaration
 class PBSJobInfo(BatchJobInfoInterface):
@@ -904,7 +914,11 @@ class PBSJobInfo(BatchJobInfoInterface):
         return Path(info_file)
 
     def toYaml(self) -> str:
-        return yaml.dump(self._info, default_flow_style=False, sort_keys=False)
+        # we need to add job id to the start of the dictionary
+        to_dump = {"Job Id": self._job_id} | self._info
+        return yaml.dump(
+            to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
+        )
 
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:

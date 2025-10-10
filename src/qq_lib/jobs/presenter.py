@@ -8,6 +8,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from tabulate import Line, TableFormat, tabulate
 
 from qq_lib.batch.interface import BatchJobInfoInterface
 from qq_lib.core.common import (
@@ -24,15 +25,77 @@ from qq_lib.properties.states import BatchState
 
 
 class QQJobsPresenter:
+    """
+    Present information about a collection of qq jobs and their statistics.
+    """
+
+    # Mapping of human-readable color names to ANSI escape codes.
+    ANSI_COLORS = {
+        # standard colors
+        "black": "\033[30m",
+        "red": "\033[31m",
+        "green": "\033[32m",
+        "yellow": "\033[33m",
+        "blue": "\033[34m",
+        "magenta": "\033[35m",
+        "cyan": "\033[36m",
+        "white": "\033[37m",
+        # bright colors
+        "bright_black": "\033[90m",
+        "bright_red": "\033[91m",
+        "bright_green": "\033[92m",
+        "bright_yellow": "\033[93m",
+        "bright_blue": "\033[94m",
+        "bright_magenta": "\033[95m",
+        "bright_cyan": "\033[96m",
+        "bright_white": "\033[97m",
+        # other colors
+        "grey70": "\033[38;5;245m",
+        # bold:
+        "bold": "\033[1m",
+        # reset
+        "reset": "\033[0m",
+    }
+
+    # Table formatting configuration for `tabulate`.
+    COMPACT_TABLE = TableFormat(
+        lineabove=Line("", "", "", ""),
+        linebelowheader="",
+        linebetweenrows="",
+        linebelow=Line("", "", "", ""),
+        headerrow=("", " ", ""),
+        datarow=("", " ", ""),
+        padding=0,
+        with_header_hide=["lineabove", "linebelow"],
+    )
+
     def __init__(self, jobs: list[BatchJobInfoInterface]):
+        """
+        Initialize the presenter with a list of jobs.
+
+        Args:
+            jobs (list[BatchJobInfoInterface]): List of job information objects
+                to be presented.
+        """
         self._jobs = jobs
         self._stats = QQJobsStatistics()
 
     def createJobsInfoPanel(self, console: Console | None = None) -> Group:
+        """
+        Create a Rich panel displaying job information and statistics.
+
+        Args:
+            console (Console | None): Optional Rich Console instance.
+                If None, a new Console will be created.
+
+        Returns:
+            Group: Rich Group containing the jobs table and stats panel.
+        """
         console = console or Console()
         panel_width = console.size.width
 
-        jobs_panel = self._createBasicJobsTable()
+        # convert ANSI codes to Rich Text
+        jobs_panel = Text.from_ansi(self._createBasicJobsTable())
         stats_panel = self._stats.createStatsPanel()
 
         content = Group(
@@ -53,12 +116,25 @@ class QQJobsPresenter:
         return Group(Text(""), panel, Text(""))
 
     def dumpYaml(self):
+        """
+        Print the YAML representation of all jobs to stdout.
+        """
         for job in self._jobs:
             print(job.toYaml())
 
-    def _createBasicJobsTable(self) -> Table:
-        table = Table(box=None, padding=(0, 1), expand=False)
-        for property in [
+    def _createBasicJobsTable(self) -> str:
+        """
+        Build a compact tabulated string representation of the job list.
+
+        Returns:
+            str: Tabulated job information with ANSI color codes applied.
+
+        Notes:
+            - Uses `tabulate` with `COMPACT_TABLE` format because
+              Rich's Table is prohibitively slow for large number of items.
+            - Updates internal job statistics via `self._stats`.
+        """
+        headers = [
             "S",
             "Job ID",
             "User",
@@ -72,38 +148,34 @@ class QQJobsPresenter:
             "%CPU",
             "%Mem",
             "Exit",
-        ]:
-            table.add_column(
-                justify="center",
-                header=Text(property, style="bold", justify="center"),
-            )
+        ]
 
+        rows = []
         for job in self._jobs:
             state = job.getJobState()
             start_time = job.getStartTime() or job.getSubmissionTime()
-            if state not in {BatchState.FINISHED, BatchState.FAILED}:
-                end_time = datetime.now()
-            else:
-                # if completion time is not available, use the last modification time
-                end_time = job.getCompletionTime() or job.getModificationTime()
+            end_time = (
+                datetime.now()
+                if state not in {BatchState.FINISHED, BatchState.FAILED}
+                else job.getCompletionTime() or job.getModificationTime()
+            )
 
             cpus = job.getNCPUs()
             gpus = job.getNGPUs()
             nodes = job.getNNodes()
-
             self._stats.addJob(state, cpus, gpus, nodes)
 
-            table.add_row(
-                Text(state.toCode(), style=state.color),
-                QQJobsPresenter._mainColorText(
+            row = [
+                QQJobsPresenter._color(state.toCode(), state.color),
+                QQJobsPresenter._mainColor(
                     QQJobsPresenter._shortenJobId(job.getJobId())
                 ),
-                QQJobsPresenter._mainColorText(job.getUser()),
-                QQJobsPresenter._mainColorText(job.getJobName()),
-                QQJobsPresenter._mainColorText(job.getQueue()),
-                QQJobsPresenter._mainColorText(str(cpus)),
-                QQJobsPresenter._mainColorText(str(gpus)),
-                QQJobsPresenter._mainColorText(str(nodes)),
+                QQJobsPresenter._mainColor(job.getUser()),
+                QQJobsPresenter._mainColor(job.getJobName()),
+                QQJobsPresenter._mainColor(job.getQueue()),
+                QQJobsPresenter._mainColor(str(cpus)),
+                QQJobsPresenter._mainColor(str(gpus)),
+                QQJobsPresenter._mainColor(str(nodes)),
                 QQJobsPresenter._formatTime(
                     state, start_time, end_time, job.getWalltime()
                 ),
@@ -111,46 +183,77 @@ class QQJobsPresenter:
                 QQJobsPresenter._formatUtilCPU(job.getUtilCPU()),
                 QQJobsPresenter._formatUtilMem(job.getUtilMem()),
                 QQJobsPresenter._formatExitCode(job.getExitCode()),
-            )
+            ]
+            rows.append(row)
 
-        return table
+        return tabulate(
+            rows,
+            headers=[QQJobsPresenter._color(header, bold=True) for header in headers],
+            tablefmt=QQJobsPresenter.COMPACT_TABLE,
+            stralign="center",
+            numalign="center",
+        )
 
     @staticmethod
     def _formatTime(
         state: BatchState, start_time: datetime, end_time: datetime, walltime: timedelta
-    ) -> Text:
+    ) -> str:
+        """
+        Format the job running time, queued time or completion time with color coding.
+
+        Args:
+            state (BatchState): Current job state.
+            start_time (datetime): Job submission or start time.
+            end_time (datetime): Job completion or current time.
+            walltime (timedelta): Scheduled walltime for the job.
+
+        Returns:
+            str: ANSI-colored string representing elapsed or finished time.
+        """
         match state:
             case BatchState.UNKNOWN | BatchState.SUSPENDED:
-                return Text("")
+                return ""
             case BatchState.FAILED | BatchState.FINISHED:
-                return Text(end_time.strftime(DATE_FORMAT), style=state.color)
+                return QQJobsPresenter._color(
+                    end_time.strftime(DATE_FORMAT), color=state.color
+                )
             case (
                 BatchState.HELD
                 | BatchState.QUEUED
                 | BatchState.WAITING
                 | BatchState.MOVING
             ):
-                return Text(
+                return QQJobsPresenter._color(
                     format_duration_wdhhmmss(end_time - start_time),
-                    style=state.color,
+                    color=state.color,
                 )
             case BatchState.RUNNING | BatchState.EXITING:
                 run_time = end_time - start_time
-                return Text(
+                return QQJobsPresenter._color(
                     format_duration_wdhhmmss(run_time),
-                    style=JOBS_PRESENTER_STRONG_WARNING_COLOR
+                    color=JOBS_PRESENTER_STRONG_WARNING_COLOR
                     if run_time > walltime
                     else state.color,
-                ) + QQJobsPresenter._mainColorText(
+                ) + QQJobsPresenter._mainColor(
                     f" / {format_duration_wdhhmmss(walltime)}"
                 )
 
         return Text("")
 
     @staticmethod
-    def _formatUtilCPU(util: int | None) -> Text:
+    def _formatUtilCPU(util: int | None) -> str:
+        """
+        Format CPU utilization with color coding.
+
+        Args:
+            util (int | None): CPU usage percentage.
+
+        Returns:
+            str: ANSI-colored string representation of CPU utilization,
+                 or empty string if `util` is None.
+        """
         if util is None:
-            return Text("")
+            return ""
 
         if util > 100:
             color = JOBS_PRESENTER_STRONG_WARNING_COLOR
@@ -161,12 +264,22 @@ class QQJobsPresenter:
         else:
             color = JOBS_PRESENTER_STRONG_WARNING_COLOR
 
-        return Text(str(util), style=color)
+        return QQJobsPresenter._color(str(util), color=color)
 
     @staticmethod
-    def _formatUtilMem(util: int | None) -> Text:
+    def _formatUtilMem(util: int | None) -> str:
+        """
+        Format memory utilization with color coding.
+
+        Args:
+            util (int | None): Memory usage percentage.
+
+        Returns:
+            str: ANSI-colored string representation of memory utilization,
+                 or empty string if `util` is None.
+        """
         if util is None:
-            return Text("")
+            return ""
 
         if util < 90:
             color = JOBS_PRESENTER_MAIN_COLOR
@@ -175,51 +288,113 @@ class QQJobsPresenter:
         else:
             color = JOBS_PRESENTER_STRONG_WARNING_COLOR
 
-        return Text(str(util), style=color)
+        return QQJobsPresenter._color(str(util), color=color)
 
     @staticmethod
-    def _formatExitCode(exit_code: int | None) -> Text:
+    def _formatExitCode(exit_code: int | None) -> str:
+        """
+        Format the job exit code with appropriate coloring.
+
+        Args:
+            exit_code (int | None): Job exit code.
+
+        Returns:
+            str: ANSI-colored exit code. Empty string if None.
+        """
         if exit_code is None:
-            return Text("")
+            return ""
 
         if exit_code == 0:
-            return Text(str(exit_code), style=JOBS_PRESENTER_MAIN_COLOR)
+            return QQJobsPresenter._mainColor(str(exit_code))
 
-        return Text(str(exit_code), style=JOBS_PRESENTER_STRONG_WARNING_COLOR)
+        return QQJobsPresenter._color(
+            str(exit_code), color=JOBS_PRESENTER_STRONG_WARNING_COLOR
+        )
 
     @staticmethod
-    def _formatNodesOrComment(state: BatchState, job: BatchJobInfoInterface) -> Text:
+    def _formatNodesOrComment(state: BatchState, job: BatchJobInfoInterface) -> str:
+        """
+        Format node information or an estimated runtime comment.
+
+        Args:
+            state (BatchState): Current job state.
+            job (BatchJobInfoInterface): Job information object.
+
+        Returns:
+            str: ANSI-colored string for working node(s) or estimated start,
+                 or an empty string if neither information is available.
+        """
         if nodes := job.getShortNodes():
-            return QQJobsPresenter._mainColorText(
+            return QQJobsPresenter._mainColor(
                 " + ".join(nodes),
             )
 
         if state in {BatchState.FINISHED, BatchState.FAILED}:
-            return Text("")
+            return ""
 
         if estimated := job.getJobEstimated():
-            return Text(
-                f"{estimated[1]} within {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
-                style=state.color,
+            return QQJobsPresenter._color(
+                f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
+                color=state.color,
             )
 
-        return Text("")
+        return ""
 
     @staticmethod
     def _shortenJobId(job_id: str) -> str:
+        """
+        Shorten the job ID to its primary component (before the first dot).
+
+        Args:
+            job_id (str): Full job identifier.
+
+        Returns:
+            str: Shortened job ID.
+        """
         return job_id.split(".", 1)[0]
 
     @staticmethod
-    def _mainColorText(string: str, bold: bool = False) -> Text:
-        return Text(
-            string, style=f"{JOBS_PRESENTER_MAIN_COLOR} {'bold' if bold else ''}"
-        )
+    def _color(string: str, color: str | None = None, bold: bool = False) -> str:
+        """
+        Apply ANSI color codes and optional bold styling to a string.
+
+        Args:
+            string (str): The string to colorize.
+            color (str | None): Optional color.
+            bold (bool): Whether to apply bold formatting.
+
+        Returns:
+            str: ANSI-colored and optionally bolded string.
+        """
+        return f"{QQJobsPresenter.ANSI_COLORS['bold'] if bold else ''}{QQJobsPresenter.ANSI_COLORS[color] if color else ''}{string}{QQJobsPresenter.ANSI_COLORS['reset'] if color or bold else ''}"
 
     @staticmethod
-    def _secondaryColorText(string: str, bold: bool = False) -> Text:
-        return Text(
-            string, style=f"{JOBS_PRESENTER_SECONDARY_COLOR} {'bold' if bold else ''}"
-        )
+    def _mainColor(string: str, bold: bool = False) -> str:
+        """
+        Apply the main presenter color with optional bold styling.
+
+        Args:
+            string (str): String to format.
+            bold (bool): Whether to apply bold formatting.
+
+        Returns:
+            str: ANSI-colored string in the main presenter color.
+        """
+        return QQJobsPresenter._color(string, JOBS_PRESENTER_MAIN_COLOR, bold)
+
+    @staticmethod
+    def _secondaryColor(string: str, bold: bool = False) -> str:
+        """
+        Apply the secondary presenter color with optional bold styling.
+
+        Args:
+            string (str): String to format.
+            bold (bool): Whether to apply bold formatting.
+
+        Returns:
+            Text: ANSI-colored Rich Text object in secondary color.
+        """
+        return QQJobsPresenter._color(string, JOBS_PRESENTER_SECONDARY_COLOR, bold)
 
 
 @dataclass
@@ -250,6 +425,20 @@ class QQJobsStatistics:
     n_allocated_nodes: int = 0
 
     def addJob(self, state: BatchState, cpus: int, gpus: int, nodes: int):
+        """
+        Update the collected resources based on the state of the job.
+
+        Args:
+            state (BatchState): State of the job according to the batch system.
+            cpus (int): Number of CPUs requested by the job.
+            gpus (int): Number of GPUs requested by the job.
+            nodes (int): Number of nodes requested by the job.
+
+        Notes:
+            - Resources of QUEUED and HELD jobs are counted as REQUESTED.
+            - Resources of RUNNING and EXITING jobs are counted as ALLOCATED.
+            - Resources of jobs in other states are not counted at all.
+        """
         try:
             self.n_jobs[state] += 1
         except KeyError:
@@ -266,6 +455,12 @@ class QQJobsStatistics:
             self.n_allocated_nodes += nodes
 
     def createStatsPanel(self) -> Group:
+        """
+        Build a Rich Group containing job statistics sections.
+
+        Returns:
+            Group: Rich Group with job state counts and resource usage.
+        """
         jobs_text = self._createJobStatesStats()
         resources_table = self._createResourcesStatsTable()
 
@@ -280,11 +475,17 @@ class QQJobsStatistics:
         return Group(table)
 
     def _createJobStatesStats(self) -> Text:
+        """
+        Generate Rich Text summarizing the number of jobs in each state.
+
+        Returns:
+            Text: Rich Text object listing job states and counts.
+        """
         spacing = "    "
         line = Text(spacing)
 
         line.append(
-            QQJobsPresenter._secondaryColorText(f"\n\n Jobs{spacing}", bold=True)
+            QQJobsStatistics._secondaryColorText(f"\n\n Jobs{spacing}", bold=True)
         )
 
         total = 0
@@ -292,35 +493,79 @@ class QQJobsStatistics:
             if state in self.n_jobs:
                 count = self.n_jobs[state]
                 total += count
-                line.append(f"{state.toCode()} ", style=f"{state.color} bold")
-                line.append(QQJobsPresenter._secondaryColorText(str(count)))
+                line.append(
+                    QQJobsStatistics._colorText(
+                        f"{state.toCode()} ", color=state.color, bold=True
+                    )
+                )
+                line.append(QQJobsStatistics._secondaryColorText(str(count)))
                 line.append(spacing)
 
-        line.append("Σ ", style="white bold")
-        line.append(QQJobsPresenter._secondaryColorText(str(total)))
+        # sum of all jobs
+        line.append(QQJobsStatistics._colorText("Σ ", color="white", bold=True))
+        line.append(QQJobsStatistics._secondaryColorText(str(total)))
         line.append(spacing)
 
         return line
 
     def _createResourcesStatsTable(self) -> Table:
+        """
+        Create a Rich Table summarizing requested and allocated resources.
+
+        Returns:
+            Table: Rich Table showing CPU, GPU, and node usage for jobs.
+        """
         table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
 
         table.add_column("", justify="left")
-        table.add_column(QQJobsPresenter._secondaryColorText("CPUs"), justify="center")
-        table.add_column(QQJobsPresenter._secondaryColorText("GPUs"), justify="center")
-        table.add_column(QQJobsPresenter._secondaryColorText("Nodes"), justify="center")
+        table.add_column(QQJobsStatistics._secondaryColorText("CPUs"), justify="center")
+        table.add_column(QQJobsStatistics._secondaryColorText("GPUs"), justify="center")
+        table.add_column(
+            QQJobsStatistics._secondaryColorText("Nodes"), justify="center"
+        )
 
         table.add_row(
-            QQJobsPresenter._secondaryColorText("Requested", bold=True),
-            QQJobsPresenter._secondaryColorText(str(self.n_requested_cpus)),
-            QQJobsPresenter._secondaryColorText(str(self.n_requested_gpus)),
-            QQJobsPresenter._secondaryColorText(str(self.n_requested_nodes)),
+            QQJobsStatistics._secondaryColorText("Requested", bold=True),
+            QQJobsStatistics._secondaryColorText(str(self.n_requested_cpus)),
+            QQJobsStatistics._secondaryColorText(str(self.n_requested_gpus)),
+            QQJobsStatistics._secondaryColorText(str(self.n_requested_nodes)),
         )
         table.add_row(
-            QQJobsPresenter._secondaryColorText("Allocated", bold=True),
-            QQJobsPresenter._secondaryColorText(str(self.n_allocated_cpus)),
-            QQJobsPresenter._secondaryColorText(str(self.n_allocated_gpus)),
-            QQJobsPresenter._secondaryColorText(str(self.n_allocated_nodes)),
+            QQJobsStatistics._secondaryColorText("Allocated", bold=True),
+            QQJobsStatistics._secondaryColorText(str(self.n_allocated_cpus)),
+            QQJobsStatistics._secondaryColorText(str(self.n_allocated_gpus)),
+            QQJobsStatistics._secondaryColorText(str(self.n_allocated_nodes)),
         )
 
         return table
+
+    @staticmethod
+    def _colorText(string: str, color: str | None = None, bold: bool = False) -> Text:
+        """
+        Create Rich Text with optional color and bold formatting.
+
+        Args:
+            string (str): The string to colorize.
+            color (str | None): Optional color.
+            bold (bool): Whether to apply bold formatting.
+
+        Returns:
+            Text: Rich Text object with applied style.
+        """
+        return Text(string, style=f"{color if color else ''} {'bold' if bold else ''}")
+
+    @staticmethod
+    def _secondaryColorText(string: str, bold: bool = False) -> Text:
+        """
+        Apply the secondary presenter color with optional bold style.
+
+        Args:
+            string (str): String to format.
+            bold (bool): Whether to apply bold formatting.
+
+        Returns:
+            str: Rich Text in main color.
+        """
+        return QQJobsStatistics._colorText(
+            string, color=JOBS_PRESENTER_SECONDARY_COLOR, bold=bold
+        )

@@ -119,14 +119,14 @@ class VirtualBatchSystem:
     def killJob(self, job_id: str, hard: bool = False):
         """Terminate a running job."""
         job = self.jobs[job_id]
-        if job.state == BatchState.FINISHED:
-            raise VBSError(f"Job '{job_id}' is finished.")
+        if job.state in {BatchState.FINISHED, BatchState.FAILED}:
+            raise VBSError(f"Job '{job_id}' is completed.")
 
         if job.state == BatchState.RUNNING and job.process:
             sig = signal.SIGKILL if hard else signal.SIGTERM
             job.process.send_signal(sig)
 
-        job.state = BatchState.FINISHED
+        job.state = BatchState.FAILED
         job.process = None
 
     def releaseFrozenJob(self, job_id: str):
@@ -160,7 +160,10 @@ class VirtualBatchSystem:
 
         stdout, _ = job.process.communicate()
         job.output = stdout
-        job.state = BatchState.FINISHED
+        if job.process and job.process.returncode == 0:
+            job.state = BatchState.FINISHED
+        else:
+            job.state = BatchState.FAILED
         job.process = None
 
 
@@ -198,19 +201,19 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         try:
             return QQVBS._batch_system.submitJob(script, res.useScratch())
         except VBSError as e:
-            raise QQError(f"Failed to submit script '{str(script)}': {e}.")
+            raise QQError(f"Failed to submit script '{str(script)}': {e}")
 
     def jobKill(job_id: str):
         try:
             QQVBS._batch_system.killJob(job_id)
         except VBSError as e:
-            raise QQError(f"Failed to kill job '{job_id}': {e}.")
+            raise QQError(f"Failed to kill job '{job_id}': {e}")
 
     def jobKillForce(job_id: str):
         try:
             QQVBS._batch_system.killJob(job_id, hard=True)
         except VBSError as e:
-            raise QQError(f"Failed to kill job '{job_id}': {e}.")
+            raise QQError(f"Failed to kill job '{job_id}': {e}")
 
     def navigateToDestination(host: str, directory: Path):
         try:

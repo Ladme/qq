@@ -21,6 +21,7 @@ from .states import NaiveState
 
 logger = get_logger(__name__)
 
+# load faster YAML loader and dumper
 try:
     from yaml import CSafeLoader as SafeLoader  # ty: ignore[possibly-unbound-import]
 
@@ -29,6 +30,15 @@ except ImportError:
     from yaml import SafeLoader
 
     logger.debug("Loaded default YAML loader.")
+
+try:
+    from yaml import CDumper as Dumper  # ty: ignore[possibly-unbound-import]
+
+    logger.debug("Loaded YAML CDumper.")
+except ImportError:
+    from yaml import Dumper
+
+    logger.debug("Loaded default YAML dumper.")
 
 
 @dataclass
@@ -198,7 +208,9 @@ class QQInfo:
         Returns:
             str: YAML representation of the QQInfo object.
         """
-        return yaml.dump(self._toDict(), default_flow_style=False, sort_keys=False)
+        return yaml.dump(
+            self._toDict(), default_flow_style=False, sort_keys=False, Dumper=Dumper
+        )
 
     def _toDict(self) -> dict[str, object]:
         """

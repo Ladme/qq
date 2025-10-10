@@ -45,7 +45,7 @@ def stat(all: bool, yaml: bool):
         if yaml:
             presenter.dumpYaml()
         else:
-            console = Console()
+            console = Console(record=False, markup=False)
             panel = presenter.createJobsInfoPanel(console)
             console.print(panel)
 

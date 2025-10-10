@@ -677,7 +677,8 @@ def test_pbs_job_info_to_yaml(sample_dump_file):
 
     assert (
         job.toYaml()
-        == """Job_Name: example_job
+        == """Job Id: '1234'
+Job_Name: example_job
 Job_Owner: user@EXAMPLE
 resources_used.cpupercent: '100'
 resources_used.cput: 01:23:45
@@ -731,7 +732,7 @@ credential_validity: Mon Sep 22 06:38:19 2025
 
 def test_pbs_job_info_to_yaml_empty():
     job = _make_jobinfo_with_info({})
-    assert job.toYaml() == "{}\n"
+    assert job.toYaml().strip() == "Job Id: '1234'"
 
 
 def test_pbs_job_info_is_empty():

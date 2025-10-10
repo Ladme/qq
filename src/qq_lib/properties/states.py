@@ -140,6 +140,7 @@ class BatchState(Enum):
             self.FAILED: RealState.FAILED.color,
             self.FINISHED: RealState.FINISHED.color,
             self.EXITING: RealState.EXITING.color,
+            self.MOVING: RealState.QUEUED.color,
             self.UNKNOWN: RealState.UNKNOWN.color,
         }[self]
 

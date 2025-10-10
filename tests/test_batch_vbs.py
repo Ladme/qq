@@ -102,7 +102,7 @@ def test_kill_job(tmp_path):
 
     job = vbs.jobs[job_id]
     vbs.killJob(job_id, hard=False)
-    assert job.state == BatchState.FINISHED
+    assert job.state == BatchState.FAILED
 
 
 def test_kill_job_hard(tmp_path):
@@ -118,22 +118,25 @@ def test_kill_job_hard(tmp_path):
 
     job = vbs.jobs[job_id]
     vbs.killJob(job_id, hard=True)
-    assert job.state == BatchState.FINISHED
+    assert job.state == BatchState.FAILED
 
 
-def test_kill_finished_job(tmp_path):
+@pytest.mark.parametrize("state", [BatchState.FINISHED, BatchState.FAILED])
+def test_kill_completed_job(tmp_path, state):
     vbs = VirtualBatchSystem()
     script = tmp_path / "sleep.sh"
-    script.write_text("#!/bin/bash\necho hello\n")
+    script.write_text(
+        f"#!/bin/bash\necho hello; {'exit 0' if state == BatchState.FINISHED else 'exit 1'}\n"
+    )
     script.chmod(script.stat().st_mode | 0o111)
 
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
     time.sleep(0.3)
-    assert vbs.jobs[job_id].state == BatchState.FINISHED
+    assert vbs.jobs[job_id].state == state
 
-    with pytest.raises(VBSError, match="is finished"):
+    with pytest.raises(VBSError, match="is completed"):
         vbs.killJob(job_id, hard=False)
 
 
@@ -212,7 +215,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
 
     QQVBS.jobKill(job_id)
     job = QQVBS._batch_system.jobs["0"]
-    assert job.state == BatchState.FINISHED
+    assert job.state == BatchState.FAILED
     assert job.process is None
 
     # forced kill
@@ -223,7 +226,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
 
     QQVBS.jobKillForce(job_id2)
     job = QQVBS._batch_system.jobs["1"]
-    assert job.state == BatchState.FINISHED
+    assert job.state == BatchState.FAILED
     assert job.process is None
 
 
@@ -241,7 +244,7 @@ def test_job_kill_fails_if_finished(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
-    with pytest.raises(QQError, match="is finished"):
+    with pytest.raises(QQError, match="is completed"):
         QQVBS.jobKill(job_id)
 
 
@@ -259,7 +262,7 @@ def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs[job_id]
     assert job.state == BatchState.FINISHED
 
-    with pytest.raises(QQError, match="is finished"):
+    with pytest.raises(QQError, match="is completed"):
         QQVBS.jobKillForce(job_id)
 
 

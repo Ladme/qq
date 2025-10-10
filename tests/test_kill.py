@@ -254,10 +254,10 @@ def test_kill_queued_integration(tmp_path, forced):
         assert informer.info.job_state == NaiveState.KILLED
         assert isinstance(informer.info.completion_time, datetime)
 
-        # check that the VBS job is marked finished
+        # check that the VBS job is marked failed
         job_id = informer.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED
 
 
 @pytest.mark.parametrize("forced", [False, True])
@@ -297,10 +297,10 @@ def test_kill_booting_integration(tmp_path, forced):
         assert informer.info.job_state == NaiveState.KILLED
         assert isinstance(informer.info.completion_time, datetime)
 
-        # check that the VBS job is marked finished
+        # check that the VBS job is marked failed
         job_id = informer.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED
 
 
 @pytest.mark.parametrize("forced", [False, True])
@@ -350,10 +350,10 @@ def test_kill_running_integration(tmp_path, forced):
             assert informer.info.job_state == NaiveState.RUNNING
             assert informer.info.completion_time is None
 
-        # check that the VBS job is marked finished
+        # check that the VBS job is marked failed
         job_id = informer.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED
 
 
 @pytest.mark.parametrize("forced", [False, True])
@@ -485,7 +485,7 @@ def test_kill_finished_and_queued_integration(tmp_path, forced):
 
         job_id = informer2.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED
 
 
 @pytest.mark.parametrize("forced", [False, True])
@@ -534,19 +534,21 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
         job_id2 = informer2.info.job_id
         QQVBS._batch_system.runJob(job_id2)
 
-        sleep(0.3)
+        sleep(0.2)
 
         # set the first job as finished in qq info
         informer.setFinished(datetime.now())
         informer.toFile(info_file)
+        assert informer.getRealState() == RealState.FINISHED
 
         # set the second job as failed in qq info
         informer2.setFailed(datetime.now(), 2)
         informer2.toFile(info_file2)
+        assert informer2.getRealState() == RealState.FAILED
 
         result_kill = runner.invoke(kill, ["--force"] if forced else ["-y"])
-        sleep(0.3)
         assert result_kill.exit_code == 91
+        sleep(0.2)
 
         # check that neither info file is updated
         info_file = tmp_path / "test_script.qqinfo"
@@ -565,7 +567,7 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
 
         job_id = informer2.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED
 
 
 @pytest.mark.parametrize("forced", [False, True])
@@ -617,10 +619,10 @@ def test_kill_queued_and_running_integration(tmp_path, forced):
         informer = QQInformer.fromFile(info_file)
         informer.info.job_state == NaiveState.RUNNING
 
-        # check that the VBS job is marked finished
+        # check that the VBS job is marked failed
         job_id = informer.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED
 
         # check the second job
         info_file2 = tmp_path / "test_script2.qqinfo"
@@ -629,4 +631,4 @@ def test_kill_queued_and_running_integration(tmp_path, forced):
 
         job_id = informer2.info.job_id
         job = QQVBS._batch_system.jobs[job_id]
-        assert job.state == BatchState.FINISHED
+        assert job.state == BatchState.FAILED

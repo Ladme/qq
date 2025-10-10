@@ -108,7 +108,7 @@ def get_info_file_from_job_id(job_id: str) -> Path:
         raise QQError(f"Job '{job_id}' does not exist.")
 
     if not (path := job_info.getInfoFile()):
-        raise QQError(f"Job '{job_id}' is not a valid qq job.")
+        raise QQError(f"Job '{job_id}' is not an active qq job.")
 
     return path
 

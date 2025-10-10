@@ -697,7 +697,7 @@ def test_get_info_file_from_job_id_no_info():
                 }
             ),
         ),
-        pytest.raises(QQError, match="is not a valid qq job"),
+        pytest.raises(QQError, match="is not an active qq job"),
     ):
         get_info_file_from_job_id("12345")
 

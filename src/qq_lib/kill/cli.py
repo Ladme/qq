@@ -28,7 +28,7 @@ console = Console()
 
 
 @click.command(
-    short_help="Terminate a qq job.",
+    short_help="Terminate a job.",
     help=f"""Terminate the specified qq job or the qq job(s) in this directory.
 
 {click.style("JOB_ID", fg="green")}   Identifier of the job to kill. Optional.
@@ -60,7 +60,7 @@ already finished or killed. This can be used to remove lingering (stuck) jobs.""
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."
 )
 @click.option(
-    "--force", is_flag=True, help="Kill the job forcibly and without confirmation."
+    "--force", is_flag=True, help="Terminate the job forcibly and without confirmation."
 )
 def kill(job: str | None, yes: bool = False, force: bool = False):
     """
@@ -115,8 +115,8 @@ def _kill_job(info_file: Path, force: bool, yes: bool, job: str | None):
         job (str | None): Optional job ID for matching the target job.
 
     Raises:
-        _QQKillJobIDError: If the job ID does not match the info file.
-        _QQKillNotSuitableError: If the job is not suitable for termination.
+        QQJobMismatchError: If the job ID does not match the info file.
+        QQNotSuitableError: If the job is not suitable for termination.
         QQError: If the job cannot be killed or the qq info file cannot be updated.
     """
     killer = QQKiller(info_file, force)

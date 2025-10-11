@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 # Note that all options must be part of an optgroup otherwise QQParser breaks.
 @click.command(
-    short_help="Submit a qq job to the batch system.",
+    short_help="Submit a job to the batch system.",
     help=f"""
 Submit a qq job to a batch system from the command line.
 

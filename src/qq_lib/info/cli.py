@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="Get information about a qq job.",
+    short_help="Get information about a job.",
     help=f"""Get information about the state and properties of the specified qq job or qq job(s) in the current directory.
 
 {click.style("JOB_ID", fg="green")}   Identifier of the job to get info for. Optional.

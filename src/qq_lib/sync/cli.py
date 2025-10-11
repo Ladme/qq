@@ -27,7 +27,7 @@ console = Console()
 
 
 @click.command(
-    short_help="Fetch files from job's working directory.",
+    short_help="Fetch files from a job's working directory.",
     help=f"""Fetch files from the working directory of the specified qq job or
 working directory (directories) of qq job(s) submitted from this directory.
 

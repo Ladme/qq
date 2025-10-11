@@ -28,7 +28,7 @@ console = Console()
 
 
 @click.command(
-    short_help="Change to the qq job's working directory.",
+    short_help="Change to a job's working directory.",
     help=f"""Go to the working directory of the specified qq job or to the working directory
 (directories) of job(s) submitted from this directory.
 

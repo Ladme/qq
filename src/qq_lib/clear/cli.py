@@ -16,8 +16,8 @@ logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="Delete qq run files.",
-    help="""Delete qq run files from the current directory.
+    short_help="Delete qq runtime files.",
+    help="""Delete qq runtime files from the current directory.
 
 By default, `qq clear` only removes files if the directory does not contain an active or successfully completed job.
 To force deletion of the files regardless of job status, use the `--force` flag.""",

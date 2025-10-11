@@ -15,6 +15,7 @@ from qq_lib.kill import kill
 from qq_lib.run import run
 from qq_lib.stat import stat
 from qq_lib.submit import submit
+from qq_lib.sync import sync
 
 
 @click.group(cls=HelpColorsGroup, help_options_color="bright_blue")
@@ -34,6 +35,7 @@ cli.add_command(kill)
 cli.add_command(jobs)
 cli.add_command(stat)
 cli.add_command(cd)
+cli.add_command(sync)
 
 # register the PBS Pro batch system
 QQBatchMeta.register(QQPBS)

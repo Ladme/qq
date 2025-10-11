@@ -833,7 +833,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If the rsync command fails or times out.
         """
-        # convert absolute paths of files to include into relative to src_dir
+        # convert absolute paths of files to include relative to src_dir
         relative_included = (
             convert_absolute_to_relative(include_files, src_dir)
             if include_files

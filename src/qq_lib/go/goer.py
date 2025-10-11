@@ -14,7 +14,6 @@ from qq_lib.info.informer import QQInformer
 from qq_lib.info.presenter import QQPresenter
 from qq_lib.properties.states import RealState
 
-console = Console()
 logger = get_logger(__name__)
 
 
@@ -37,7 +36,7 @@ class QQGoer:
         self._info_file = info_file
         self.update()
 
-    def printInfo(self):
+    def printInfo(self, console: Console):
         """
         Display the current job status using a formatted panel.
         """
@@ -169,7 +168,7 @@ class QQGoer:
 
     def _setDestination(self):
         """
-        Determine the job's host and working directory from the QQInformer.
+        Get the job's host and working directory from the QQInformer.
 
         Updates:
             - _host: hostname of the node where the job runs

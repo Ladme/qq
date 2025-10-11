@@ -14,7 +14,6 @@ from qq_lib.info.presenter import QQPresenter
 from qq_lib.properties.states import RealState
 
 logger = get_logger(__name__)
-console = Console()
 
 
 class QQKiller:
@@ -42,7 +41,7 @@ class QQKiller:
         """
         return self._informer.info.job_id
 
-    def printInfo(self):
+    def printInfo(self, console: Console):
         """
         Display the current job status using a formatted panel.
         """

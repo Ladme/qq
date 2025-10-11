@@ -17,6 +17,7 @@ from qq_lib.core.common import (
 from qq_lib.core.constants import (
     DATE_FORMAT,
     JOBS_PRESENTER_MAIN_COLOR,
+    JOBS_PRESENTER_MAX_JOB_NAME_LENGH,
     JOBS_PRESENTER_MILD_WARNING_COLOR,
     JOBS_PRESENTER_SECONDARY_COLOR,
     JOBS_PRESENTER_STRONG_WARNING_COLOR,
@@ -171,7 +172,9 @@ class QQJobsPresenter:
                     QQJobsPresenter._shortenJobId(job.getJobId())
                 ),
                 QQJobsPresenter._mainColor(job.getUser()),
-                QQJobsPresenter._mainColor(job.getJobName()),
+                QQJobsPresenter._mainColor(
+                    QQJobsPresenter._shortenJobName(job.getJobName())
+                ),
                 QQJobsPresenter._mainColor(job.getQueue()),
                 QQJobsPresenter._mainColor(str(cpus)),
                 QQJobsPresenter._mainColor(str(gpus)),
@@ -352,6 +355,23 @@ class QQJobsPresenter:
             str: Shortened job ID.
         """
         return job_id.split(".", 1)[0]
+
+    @staticmethod
+    def _shortenJobName(job_name: str) -> str:
+        """
+        Truncate a job name if it exceeds the maximum allowed display length.
+
+        Args:
+            job_name (str): The original job name string.
+
+        Returns:
+            str: The possibly shortened job name. If the original name length is
+                less than or equal to the configured limit, it is returned unchanged.
+        """
+        if len(job_name) > JOBS_PRESENTER_MAX_JOB_NAME_LENGH:
+            return f"{job_name[:JOBS_PRESENTER_MAX_JOB_NAME_LENGH]}…"
+
+        return job_name
 
     @staticmethod
     def _color(string: str, color: str | None = None, bold: bool = False) -> str:

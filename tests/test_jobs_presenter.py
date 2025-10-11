@@ -18,6 +18,7 @@ from qq_lib.core.common import format_duration_wdhhmmss
 from qq_lib.core.constants import (
     DATE_FORMAT,
     JOBS_PRESENTER_MAIN_COLOR,
+    JOBS_PRESENTER_MAX_JOB_NAME_LENGH,
     JOBS_PRESENTER_MILD_WARNING_COLOR,
     JOBS_PRESENTER_SECONDARY_COLOR,
     JOBS_PRESENTER_STRONG_WARNING_COLOR,
@@ -507,6 +508,43 @@ def test_create_jobs_info_panel_structure(parsed_jobs):
         QQJobsPresenter._shortenJobId(job.getJobId()) in jobs_table.plain
         for job in parsed_jobs
     )
+
+
+@pytest.mark.parametrize(
+    "job_name,expected,should_truncate",
+    [
+        # 1. shorter than limit
+        ("short_name", "short_name", False),
+        # 2. exactly at limit
+        (
+            "a" * JOBS_PRESENTER_MAX_JOB_NAME_LENGH,
+            "a" * JOBS_PRESENTER_MAX_JOB_NAME_LENGH,
+            False,
+        ),
+        # 3. exceeds limit
+        ("a" * (JOBS_PRESENTER_MAX_JOB_NAME_LENGH + 1), None, True),
+        # 4. exceeds limit by a lot
+        ("a" * (JOBS_PRESENTER_MAX_JOB_NAME_LENGH + 15), None, True),
+        # 5. empty string
+        ("", "", False),
+        # 6. whitespace only
+        (" " * 5, " " * 5, False),
+    ],
+)
+def test_jobs_presenter_shorten_job_name_behavior(job_name, expected, should_truncate):
+    result = QQJobsPresenter._shortenJobName(job_name)
+
+    if should_truncate:
+        # must end with ellipsis
+        assert result.endswith("…")
+        # should have correct total length (limit + ellipsis)
+        assert len(result) == JOBS_PRESENTER_MAX_JOB_NAME_LENGH + 1
+        # prefix should match the original start
+        assert result.startswith(job_name[:JOBS_PRESENTER_MAX_JOB_NAME_LENGH])
+    else:
+        # must not be truncated
+        assert result == expected
+        assert "…" not in result
 
 
 @pytest.mark.parametrize(

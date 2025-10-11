@@ -110,3 +110,6 @@ JOBS_PRESENTER_STRONG_WARNING_COLOR = "bright_red"
 
 # Color used to indicate a mild warning in QQJobsPresenter.
 JOBS_PRESENTER_MILD_WARNING_COLOR = "bright_yellow"
+
+# Maximal length of a job name before truncating in QQJobsPresenter.
+JOBS_PRESENTER_MAX_JOB_NAME_LENGH = 25

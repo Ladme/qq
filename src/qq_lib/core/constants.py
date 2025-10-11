@@ -58,6 +58,9 @@ LOOP_END = "QQ_LOOP_END"
 # The format used for archived data.
 ARCHIVE_FORMAT = "QQ_ARCHIVE_FORMAT"
 
+# Path to the scratch directory created for the job.
+PBS_SCRATCH_DIR = "SCRATCHDIR"
+
 # ----------------------------
 # OTHER CONSTANTS
 # ----------------------------

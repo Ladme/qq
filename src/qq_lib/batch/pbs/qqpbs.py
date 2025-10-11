@@ -14,7 +14,7 @@ from qq_lib.batch.interface.interface import QQBatchInterface
 from qq_lib.batch.interface.meta import QQBatchMeta
 from qq_lib.batch.pbs.job import PBSJobInfo
 from qq_lib.core.common import equals_normalized
-from qq_lib.core.constants import QQ_OUT_SUFFIX, SHARED_SUBMIT
+from qq_lib.core.constants import PBS_SCRATCH_DIR, QQ_OUT_SUFFIX, SHARED_SUBMIT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
@@ -37,7 +37,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return shutil.which("qsub") is not None
 
     def getScratchDir(job_id: str) -> Path:
-        scratch_dir = os.environ.get("SCRATCHDIR")
+        scratch_dir = os.environ.get(PBS_SCRATCH_DIR)
         if not scratch_dir:
             raise QQError(f"Scratch directory for job '{job_id}' is undefined")
 

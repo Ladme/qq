@@ -26,7 +26,7 @@ Submit a qq job to a batch system from the command line.
 {click.style("SCRIPT", fg="green")}   Path to the script to submit.
 
 The submitted script must be located in the directory from which
-'qq submit' is invoked.
+`qq submit` is invoked.
 """,
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
@@ -52,75 +52,80 @@ The submitted script must be located in the directory from which
     default=None,
     help=(
         f"A colon-, comma-, or space-separated list of files and directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
-        "     By default, all files and directories except for the qq info file and the archive directory are copied to the working directory.\n"
+        "By default, all files and directories except the qq info file and the archive directory are copied to the working directory.\n"
     ),
 )
 @optgroup.option(
     "--batch-system",
     type=str,
     default=None,
-    help=f"Batch system to submit the job into. If not specified, will load the batch system from the environment variable '{BATCH_SYSTEM}' or guess it.",
+    help=f"Name of the batch system to submit the job to. If not specified, the system will use the environment variable '{BATCH_SYSTEM}' or attempt to auto-detect it.",
 )
 @optgroup.option(
     "--non-interactive",
     is_flag=True,
-    help="Use when using qq submit in a non-interactive environment. Any interactive prompt will be automatically skipped and evaluated as 'no'.",
+    help="Run `qq submit` in a non-interactive environment. Any prompts will automatically be answered 'no'.",
 )
 @optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
 @optgroup.option(
-    "--nnodes", type=int, default=None, help="Number of computing nodes to use."
+    "--nnodes",
+    type=int,
+    default=None,
+    help="Number of computing nodes to allocate for the job.",
 )
 @optgroup.option(
     "--ncpus",
     type=int,
     default=None,
-    help="Number of CPU cores to use.",
+    help="Number of CPU cores to allocate for the job.",
 )
 @optgroup.option(
     "--mem-per-cpu",
     type=str,
     default=None,
-    help="Amount of memory to use per a single CPU core. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 2gb).",
+    help="Memory to allocate per CPU core. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 2gb).",
 )
 @optgroup.option(
     "--mem",
     type=str,
     default=None,
-    help="Absolute amount of memory to use. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides '--mem-per-cpu'.",
+    help="Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides '--mem-per-cpu'.",
 )
-@optgroup.option("--ngpus", type=int, default=None, help="Number of GPUs to use.")
+@optgroup.option(
+    "--ngpus", type=int, default=None, help="Number of GPUs to allocate for the job."
+)
 @optgroup.option(
     "--walltime",
     type=str,
     default=None,
-    help="Maximum allowed runtime for the job.",
+    help="Maximum runtime allowed for the job.",
 )
 @optgroup.option(
     "--work-dir",
     "--workdir",
     type=str,
     default=None,
-    help="Type of working directory to use.",
+    help="Type of working directory to use for the job.",
 )
 @optgroup.option(
     "--work-size-per-cpu",
     "--worksize-per-cpu",
     type=str,
     default=None,
-    help="Size of the storage requested for running the job per a single CPU core. Specify as 'Ngb' (e.g., 1gb).",
+    help="Storage to allocate per CPU core. Specify as 'Ngb' (e.g., 1gb).",
 )
 @optgroup.option(
     "--work-size",
     "--worksize",
     type=str,
     default=None,
-    help="Absolute size of the storage requested for running the job. Specify as 'Ngb' (e.g., 10gb). Overrides '--work-size-per-cpu'.",
+    help="Total storage to allocate for the job. Specify as 'Ngb' (e.g., 10gb). Overrides '--work-size-per-cpu'.",
 )
 @optgroup.option(
     "--props",
     type=str,
     default=None,
-    help="A colon-, comma-, or space-separated list of properties that a node must include (e.g., cl_two) or exclude (e.g., ^cl_two) in order to run the job.",
+    help="Colon-, comma-, or space-separated list of node properties required (e.g., cl_two) or prohibited (e.g., ^cl_two) to run the job.",
 )
 @optgroup.group(
     f"{click.style('Loop options', fg='yellow')}",
@@ -130,22 +135,22 @@ The submitted script must be located in the directory from which
     "--loop-start",
     type=int,
     default=None,
-    help="The first cycle of the loop job. Defaults to 1.",
+    help="Starting cycle for a loop job. Defaults to 1.",
 )
 @optgroup.option(
-    "--loop-end", type=int, default=None, help="The last cycle of the loop job."
+    "--loop-end", type=int, default=None, help="Ending cycle for a loop job."
 )
 @optgroup.option(
     "--archive",
     type=str,
     default=None,
-    help="Name of the directory for archiving files from the loop job. Defaults to 'storage'.",
+    help="Directory name for archiving files from a loop job. Defaults to 'storage'.",
 )
 @optgroup.option(
     "--archive-format",
     type=str,
     default=None,
-    help="Format of the archived filenames. Defaults to 'job%04d'.",
+    help="Filename format for archived files. Defaults to 'job%04d'.",
 )
 def submit(script: str, **kwargs):
     """

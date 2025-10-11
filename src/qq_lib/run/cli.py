@@ -17,7 +17,7 @@ logger = get_logger(__name__, show_time=True)
 
 @click.command(
     hidden=True,
-    help=f"Execute a script inside qq environment. {click.style('Do not run directly!', fg='red')}",
+    help=f"Execute a script inside the qq environment. {click.style('Do not run directly!', fg='red')}",
 )
 @click.argument("script_path", type=str, metavar=click.style("SCRIPT"))
 def run(script_path: str):

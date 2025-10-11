@@ -28,18 +28,18 @@ console = Console()
 
 
 @click.command(
-    short_help="Change to a job's working directory.",
-    help=f"""Go to the working directory of the specified qq job or to the working directory
-(directories) of job(s) submitted from this directory.
+    short_help="Open a shell in a job's working directory.",
+    help=f"""Open a new shell in the working directory of the specified qq job, or in the
+working directory of the job submitted from the current directory.
 
-{click.style("JOB_ID", fg="green")}   Identifier of the job whose working directory should be visited. Optional.
+{click.style("JOB_ID", fg="green")}   The identifier of the job whose working directory should be entered. Optional.
 
 If JOB_ID is not specified, `qq go` searches for qq jobs in the current directory.
+If multiple suitable jobs are found, `qq go` opens a shell for each job in turn.
 
-***
-
-Uses `cd` locally or `ssh` if the working directory is on a remote host.
-No matter the employed method, this always opens a new shell at the destination.
+Uses `cd` for local directories or `ssh` if the working directory is on a remote host.
+Note that this command does not change the working directory of the current shell;
+it always opens a new shell at the destination.
 """,
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",

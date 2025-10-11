@@ -28,12 +28,16 @@ console = Console()
 
 @click.command(
     short_help="Fetch files from a job's working directory.",
-    help=f"""Fetch files from the working directory of the specified qq job or
-working directory (directories) of qq job(s) submitted from this directory.
+    help=f"""Fetch files from the working directory of the specified qq job, or from the
+working directory of the job submitted from the current directory.
 
-{click.style("JOB_ID", fg="green")}   Identifier of the job whose working directory files should be fetched. Optional.
+{click.style("JOB_ID", fg="green")}   The identifier of the job whose working directory files should be fetched. Optional.
 
 If JOB_ID is not specified, `qq sync` searches for qq jobs in the current directory.
+If multiple suitable jobs are found, `qq sync` fetches files from each job in turn.
+Files fetched from later jobs may overwrite files from earlier jobs in the input directory.
+
+Files are copied from the job's working directory to its input directory, not to the current directory.
 """,
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
@@ -50,7 +54,7 @@ If JOB_ID is not specified, `qq sync` searches for qq jobs in the current direct
     "--files",
     type=str,
     default=None,
-    help="A colon-, comma-, or space-separated list of files to fetch from the working directory. If not specified, all files are fetched.",
+    help="A colon-, comma-, or space-separated list of files to fetch. If not specified, all files are fetched.",
 )
 def sync(job: str | None, files: str | None):
     """

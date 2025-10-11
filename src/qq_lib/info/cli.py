@@ -21,13 +21,13 @@ logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="Get information about a job.",
-    help=f"""Get information about the state and properties of the specified qq job or qq job(s) in the current directory.
+    short_help="Display information about a job.",
+    help=f"""Display information about the state and properties of the specified qq job,
+or of qq jobs found in the current directory.
 
-{click.style("JOB_ID", fg="green")}   Identifier of the job to get info for. Optional.
+{click.style("JOB_ID", fg="green")}   The identifier of the job to display information for. Optional.
 
-If JOB_ID is not specified, `qq info` searches for qq jobs in the current directory.
-    """,
+If JOB_ID is not specified, `qq info` searches for qq jobs in the current directory.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
@@ -39,7 +39,7 @@ If JOB_ID is not specified, `qq info` searches for qq jobs in the current direct
     default=None,
 )
 @click.option(
-    "-s", "--short", is_flag=True, help="Print only the job ID and the current state."
+    "-s", "--short", is_flag=True, help="Display only the job ID and current state."
 )
 def info(job: str | None, short: bool):
     """

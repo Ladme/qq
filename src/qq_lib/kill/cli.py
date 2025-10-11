@@ -29,23 +29,19 @@ console = Console()
 
 @click.command(
     short_help="Terminate a job.",
-    help=f"""Terminate the specified qq job or the qq job(s) in this directory.
+    help=f"""Terminate the specified qq job, or all qq jobs in the current directory.
 
-{click.style("JOB_ID", fg="green")}   Identifier of the job to kill. Optional.
+{click.style("JOB_ID", fg="green")}   The identifier of the job to terminate. Optional.
 
-If JOB_ID is not specified, `qq kíll` searches for qq jobs in the current directory.
+If JOB_ID is not specified, `qq kill` searches for qq jobs in the current directory.
 
-***
+By default, `qq kill` prompts for confirmation before terminating a job.
+Without the `--force` flag, it will only attempt to terminate jobs that
+are queued, held, booting, or running, but not yet finished or already killed.
 
-Unless the `-y` or `--force` flag is used, `qq kill` always
-asks for confirmation before killing a job.
-
-By default (without --force), `qq kill` will only attempt to kill jobs
-that are queued, held, booting, or running but not yet finished or already killed.
-
-When the --force flag is used, `qq kill` will attempt to terminate any job
-regardless of its state, including jobs that are, according to the qq,
-already finished or killed. This can be used to remove lingering (stuck) jobs.""",
+When the `--force` flag is used, `qq kill` attempts to terminate any job regardless of its state,
+including jobs that are already finished or killed.
+This can be useful for removing lingering or stuck jobs.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
@@ -60,7 +56,9 @@ already finished or killed. This can be used to remove lingering (stuck) jobs.""
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."
 )
 @click.option(
-    "--force", is_flag=True, help="Terminate the job forcibly and without confirmation."
+    "--force",
+    is_flag=True,
+    help="Terminate the job forcibly, ignoring its current state and without confirmation.",
 )
 def kill(job: str | None, yes: bool = False, force: bool = False):
     """

@@ -17,17 +17,18 @@ logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="See a summary of everyone's jobs.",
-    help="See a summary of everyone's jobs. Only unfinished jobs are shown by default.",
+    short_help="Display a summary of all users' jobs.",
+    help="Display a summary of jobs from all users. By default, only unfinished jobs are shown.",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
 @click.option(
-    "-a", "--all", is_flag=True, help="Show both unfinished and finished jobs."
+    "-a",
+    "--all",
+    is_flag=True,
+    help="Include both unfinished and finished jobs in the summary.",
 )
-@click.option(
-    "--yaml", is_flag=True, help="Export jobs metadata in technical YAML format."
-)
+@click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
 def stat(all: bool, yaml: bool):
     try:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()

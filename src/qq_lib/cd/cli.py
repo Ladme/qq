@@ -17,11 +17,11 @@ logger = get_logger(__name__)
 
 @click.command(
     short_help="Change to a job's input directory.",
-    help=f"""Change directory to the input directory of the specified job.
+    help=f"""Change the current working directory to the input directory of the specified job.
 
-{click.style("JOB_ID", fg="green")}   Identifier of the job whose input directory should be visited.
+{click.style("JOB_ID", fg="green")}   The identifier of the job whose input directory should be entered.
 
-Note that this command never opens a new shell.
+Note that this command does not open a new shell.
 """,
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",

@@ -609,6 +609,48 @@ def test_jobs_statistics_create_resources_stats_table_structure():
     assert "1" in allocated_line
     assert "3" in allocated_line
 
+    # Unknown not displayed
+    assert all("Unknown" not in line for line in output_lines)
+
+
+def test_jobs_statistics_create_resources_stats_with_unknown_table_structure():
+    stats = QQJobsStatistics(
+        n_requested_cpus=16,
+        n_requested_gpus=2,
+        n_requested_nodes=4,
+        n_allocated_cpus=8,
+        n_allocated_gpus=1,
+        n_allocated_nodes=3,
+        n_unknown_cpus=9,
+        n_unknown_gpus=0,
+        n_unknown_nodes=5,
+    )
+
+    table = stats._createResourcesStatsTable()
+    console = Console(record=True, width=100)
+    console.print(table)
+    output_lines = console.export_text().splitlines()
+
+    header_line = output_lines[0]
+    assert "CPUs" in header_line
+    assert "GPUs" in header_line
+    assert "Nodes" in header_line
+
+    requested_line = next(line for line in output_lines if "Requested" in line)
+    assert "16" in requested_line
+    assert "2" in requested_line
+    assert "4" in requested_line
+
+    allocated_line = next(line for line in output_lines if "Allocated" in line)
+    assert "8" in allocated_line
+    assert "1" in allocated_line
+    assert "3" in allocated_line
+
+    unknown_line = next(line for line in output_lines if "Unknown" in line)
+    assert "9" in unknown_line
+    assert "0" in unknown_line
+    assert "5" in unknown_line
+
 
 def test_create_job_states_stats_no_jobs():
     stats = QQJobsStatistics()
@@ -673,6 +715,10 @@ def test_add_job_queued_counts_requested():
     assert stats.n_allocated_gpus == 0
     assert stats.n_allocated_nodes == 0
 
+    assert stats.n_unknown_cpus == 0
+    assert stats.n_unknown_gpus == 0
+    assert stats.n_unknown_nodes == 0
+
 
 def test_add_job_held_counts_requested():
     stats = QQJobsStatistics()
@@ -687,6 +733,10 @@ def test_add_job_held_counts_requested():
     assert stats.n_allocated_cpus == 0
     assert stats.n_allocated_gpus == 0
     assert stats.n_allocated_nodes == 0
+
+    assert stats.n_unknown_cpus == 0
+    assert stats.n_unknown_gpus == 0
+    assert stats.n_unknown_nodes == 0
 
 
 def test_add_job_running_counts_allocated():
@@ -703,6 +753,10 @@ def test_add_job_running_counts_allocated():
     assert stats.n_requested_gpus == 0
     assert stats.n_requested_nodes == 0
 
+    assert stats.n_unknown_cpus == 0
+    assert stats.n_unknown_gpus == 0
+    assert stats.n_unknown_nodes == 0
+
 
 def test_add_job_exiting_counts_allocated():
     stats = QQJobsStatistics()
@@ -717,13 +771,34 @@ def test_add_job_exiting_counts_allocated():
     assert stats.n_requested_gpus == 0
     assert stats.n_requested_nodes == 0
 
+    assert stats.n_unknown_cpus == 0
+    assert stats.n_unknown_gpus == 0
+    assert stats.n_unknown_nodes == 0
+
+
+def test_add_job_unknown_counts_unknown():
+    stats = QQJobsStatistics()
+    stats.addJob(BatchState.UNKNOWN, cpus=16, gpus=4, nodes=8)
+
+    assert stats.n_jobs[BatchState.UNKNOWN] == 1
+    assert stats.n_allocated_cpus == 0
+    assert stats.n_allocated_gpus == 0
+    assert stats.n_allocated_nodes == 0
+
+    assert stats.n_requested_cpus == 0
+    assert stats.n_requested_gpus == 0
+    assert stats.n_requested_nodes == 0
+
+    assert stats.n_unknown_cpus == 16
+    assert stats.n_unknown_gpus == 4
+    assert stats.n_unknown_nodes == 8
+
 
 @pytest.mark.parametrize(
     "state",
     [
         BatchState.FINISHED,
         BatchState.FAILED,
-        BatchState.UNKNOWN,
         BatchState.SUSPENDED,
         BatchState.MOVING,
         BatchState.WAITING,
@@ -741,6 +816,9 @@ def test_add_job_other_states_not_counted(state):
     assert stats.n_allocated_cpus == 0
     assert stats.n_allocated_gpus == 0
     assert stats.n_allocated_nodes == 0
+    assert stats.n_unknown_cpus == 0
+    assert stats.n_unknown_gpus == 0
+    assert stats.n_unknown_nodes == 0
 
 
 def test_add_job_multiple_same_state_accumulates():

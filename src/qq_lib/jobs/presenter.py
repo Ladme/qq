@@ -432,17 +432,26 @@ class QQJobsStatistics:
     # Number of allocated CPUs.
     n_allocated_cpus: int = 0
 
+    # Number of CPUs for unknown jobs.
+    n_unknown_cpus: int = 0
+
     # Number of requested GPUs.
     n_requested_gpus: int = 0
 
     # Number of allocated GPUs.
     n_allocated_gpus: int = 0
 
+    # Number of GPUs for unknown jobs.
+    n_unknown_gpus: int = 0
+
     # Number of requested nodes.
     n_requested_nodes: int = 0
 
     # Number of allocated nodes.
     n_allocated_nodes: int = 0
+
+    # Number of nodes for unknown jobs.
+    n_unknown_nodes: int = 0
 
     def addJob(self, state: BatchState, cpus: int, gpus: int, nodes: int):
         """
@@ -457,6 +466,7 @@ class QQJobsStatistics:
         Notes:
             - Resources of QUEUED and HELD jobs are counted as REQUESTED.
             - Resources of RUNNING and EXITING jobs are counted as ALLOCATED.
+            - Resources of UNKNOWN jobs are counted as UNKNOWN.
             - Resources of jobs in other states are not counted at all.
         """
         try:
@@ -468,11 +478,14 @@ class QQJobsStatistics:
             self.n_requested_cpus += cpus
             self.n_requested_gpus += gpus
             self.n_requested_nodes += nodes
-
-        if state in {BatchState.RUNNING, BatchState.EXITING}:
+        elif state in {BatchState.RUNNING, BatchState.EXITING}:
             self.n_allocated_cpus += cpus
             self.n_allocated_gpus += gpus
             self.n_allocated_nodes += nodes
+        elif state == BatchState.UNKNOWN:
+            self.n_unknown_cpus += cpus
+            self.n_unknown_gpus += gpus
+            self.n_unknown_nodes += nodes
 
     def createStatsPanel(self) -> Group:
         """
@@ -556,6 +569,18 @@ class QQJobsStatistics:
             QQJobsStatistics._secondaryColorText(str(self.n_allocated_gpus)),
             QQJobsStatistics._secondaryColorText(str(self.n_allocated_nodes)),
         )
+        # unknown resources are displayed only if non-zero
+        if (
+            self.n_unknown_cpus > 0
+            or self.n_unknown_gpus > 0
+            or self.n_unknown_nodes > 0
+        ):
+            table.add_row(
+                QQJobsStatistics._secondaryColorText("Unknown", bold=True),
+                QQJobsStatistics._secondaryColorText(str(self.n_unknown_cpus)),
+                QQJobsStatistics._secondaryColorText(str(self.n_unknown_gpus)),
+                QQJobsStatistics._secondaryColorText(str(self.n_unknown_nodes)),
+            )
 
         return table
 

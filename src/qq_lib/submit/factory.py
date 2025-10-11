@@ -12,8 +12,8 @@ from qq_lib.core.error import QQError
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
-from qq_lib.submit.parser import QQParser
 
+from .parser import QQParser
 from .submitter import QQSubmitter
 
 

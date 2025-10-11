@@ -7,10 +7,11 @@ import socket
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from qq_lib.batch.interface.job import BatchJobInfoInterface
-from qq_lib.batch.vbs.system import VirtualJob
+from qq_lib.batch.interface import BatchJobInfoInterface
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
+
+from .system import VirtualJob
 
 
 class VBSJobInfo(BatchJobInfoInterface):

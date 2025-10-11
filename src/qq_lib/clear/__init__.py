@@ -13,4 +13,5 @@ The process goes as follows:
     - files are removed if clearing is allowed.
 """
 
+from .clearer import QQClearer
 from .cli import clear

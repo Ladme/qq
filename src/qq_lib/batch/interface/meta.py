@@ -5,10 +5,11 @@
 import os
 from abc import ABCMeta
 
-from qq_lib.batch.interface.interface import QQBatchInterface
 from qq_lib.core.constants import BATCH_SYSTEM
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+
+from .interface import QQBatchInterface
 
 logger = get_logger(__name__)
 

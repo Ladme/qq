@@ -4,3 +4,4 @@
 # ruff: noqa: F401
 
 from .cli import go
+from .goer import QQGoer

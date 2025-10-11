@@ -3,8 +3,8 @@
 
 import sys
 
-from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
+from .logger import get_logger
+from .repeater import QQRepeater
 
 logger = get_logger(__name__)
 

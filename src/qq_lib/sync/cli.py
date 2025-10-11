@@ -20,7 +20,8 @@ from qq_lib.core.error import (
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import QQRepeater
-from qq_lib.sync.syncer import QQSyncer
+
+from .syncer import QQSyncer
 
 logger = get_logger(__name__)
 console = Console()

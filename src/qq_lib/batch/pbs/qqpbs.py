@@ -10,14 +10,14 @@ from collections.abc import Callable
 from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch.interface.interface import QQBatchInterface
-from qq_lib.batch.interface.meta import QQBatchMeta
-from qq_lib.batch.pbs.job import PBSJobInfo
+from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.constants import PBS_SCRATCH_DIR, QQ_OUT_SUFFIX, SHARED_SUBMIT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
+
+from .job import PBSJobInfo
 
 logger = get_logger(__name__)
 

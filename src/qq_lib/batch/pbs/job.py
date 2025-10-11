@@ -9,7 +9,7 @@ from typing import Self
 
 import yaml
 
-from qq_lib.batch.interface.job import BatchJobInfoInterface
+from qq_lib.batch.interface import BatchJobInfoInterface
 from qq_lib.core.common import hhmmss_to_duration
 from qq_lib.core.constants import INFO_FILE, INPUT_DIR, PBS_DATE_FORMAT
 from qq_lib.core.error import QQError

@@ -10,3 +10,4 @@ Read the documentation of the `kill` function for more details.
 """
 
 from .cli import kill
+from .killer import QQKiller

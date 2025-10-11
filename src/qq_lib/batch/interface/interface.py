@@ -7,12 +7,13 @@ import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from qq_lib.batch.interface.job import BatchJobInfoInterface
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.constants import RSYNC_TIMEOUT, SSH_TIMEOUT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
+
+from .job import BatchJobInfoInterface
 
 logger = get_logger(__name__)
 

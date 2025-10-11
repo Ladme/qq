@@ -6,12 +6,12 @@ import os
 import shutil
 from pathlib import Path
 
-from qq_lib.batch.interface.interface import QQBatchInterface
-from qq_lib.batch.interface.meta import QQBatchMeta
-from qq_lib.batch.vbs.job import VBSJobInfo
-from qq_lib.batch.vbs.system import VBSError, VirtualBatchSystem
+from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.error import QQError
 from qq_lib.properties.resources import QQResources
+
+from .job import VBSJobInfo
+from .system import VBSError, VirtualBatchSystem
 
 
 class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
@@ -162,3 +162,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
             work_size_per_cpu="1gb",
             walltime="1d",
         )
+
+
+# register QQVBS
+QQBatchMeta.register(QQVBS)

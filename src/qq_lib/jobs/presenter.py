@@ -153,7 +153,7 @@ class QQJobsPresenter:
 
         rows = []
         for job in self._jobs:
-            state = job.getJobState()
+            state = job.getState()
             start_time = job.getStartTime() or job.getSubmissionTime()
             end_time = (
                 datetime.now()
@@ -168,12 +168,10 @@ class QQJobsPresenter:
 
             row = [
                 QQJobsPresenter._color(state.toCode(), state.color),
-                QQJobsPresenter._mainColor(
-                    QQJobsPresenter._shortenJobId(job.getJobId())
-                ),
+                QQJobsPresenter._mainColor(QQJobsPresenter._shortenJobId(job.getId())),
                 QQJobsPresenter._mainColor(job.getUser()),
                 QQJobsPresenter._mainColor(
-                    QQJobsPresenter._shortenJobName(job.getJobName())
+                    QQJobsPresenter._shortenJobName(job.getName())
                 ),
                 QQJobsPresenter._mainColor(job.getQueue()),
                 QQJobsPresenter._mainColor(str(cpus)),
@@ -335,7 +333,7 @@ class QQJobsPresenter:
         if state in {BatchState.FINISHED, BatchState.FAILED}:
             return ""
 
-        if estimated := job.getJobEstimated():
+        if estimated := job.getEstimated():
             return QQJobsPresenter._color(
                 f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
                 color=state.color,

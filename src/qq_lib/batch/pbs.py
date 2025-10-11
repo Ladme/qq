@@ -684,7 +684,7 @@ class PBSJobInfo(BatchJobInfoInterface):
     def isEmpty(self) -> bool:
         return not self._info
 
-    def getJobId(self) -> str:
+    def getId(self) -> str:
         return self._job_id
 
     def update(self):
@@ -701,7 +701,7 @@ class PBSJobInfo(BatchJobInfoInterface):
         else:
             self._info = PBSJobInfo._parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
 
-    def getJobState(self) -> BatchState:
+    def getState(self) -> BatchState:
         if not (state := self._info.get("job_state")):
             return BatchState.UNKNOWN
 
@@ -714,10 +714,10 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         return BatchState.fromCode(state)
 
-    def getJobComment(self) -> str | None:
+    def getComment(self) -> str | None:
         return self._info.get("comment")
 
-    def getJobEstimated(self) -> tuple[datetime, str] | None:
+    def getEstimated(self) -> tuple[datetime, str] | None:
         if not (raw_time := self._info.get("estimated.start_time")):
             logger.debug("No 'estimated.start_time' found.")
             return None
@@ -767,7 +767,7 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         return nodes
 
-    def getJobName(self) -> str:
+    def getName(self) -> str:
         if not (name := self._info.get("Job_Name")):
             logger.warning(f"Could not get job name for '{self._job_id}'.")
             return "?????"

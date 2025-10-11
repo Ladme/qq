@@ -121,29 +121,29 @@ NOTCONTINUATION
     assert "KEY" not in result
 
 
-def test_get_job_state(sample_dump_file):
+def test_get_state(sample_dump_file):
     pbs_job_info = object.__new__(PBSJobInfo)
     pbs_job_info._info = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
 
-    assert pbs_job_info.getJobState() == BatchState.RUNNING
+    assert pbs_job_info.getState() == BatchState.RUNNING
 
     pbs_job_info._info["job_state"] = "Q"
-    assert pbs_job_info.getJobState() == BatchState.QUEUED
+    assert pbs_job_info.getState() == BatchState.QUEUED
 
     pbs_job_info._info["job_state"] = "F"
     # no exit code
-    assert pbs_job_info.getJobState() == BatchState.FAILED
+    assert pbs_job_info.getState() == BatchState.FAILED
 
     pbs_job_info._info["job_state"] = "F"
     pbs_job_info._info["Exit_status"] = " 0 "
-    assert pbs_job_info.getJobState() == BatchState.FINISHED
+    assert pbs_job_info.getState() == BatchState.FINISHED
 
     pbs_job_info._info["job_state"] = "F"
     pbs_job_info._info["Exit_status"] = " 3"
-    assert pbs_job_info.getJobState() == BatchState.FAILED
+    assert pbs_job_info.getState() == BatchState.FAILED
 
     pbs_job_info._info["job_state"] = "z"
-    assert pbs_job_info.getJobState() == BatchState.UNKNOWN
+    assert pbs_job_info.getState() == BatchState.UNKNOWN
 
 
 def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
@@ -153,24 +153,24 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
     return job
 
 
-def test_get_job_comment_present():
+def test_get_comment_present():
     job = _make_jobinfo_with_info({"comment": "This is a test"})
-    assert job.getJobComment() == "This is a test"
+    assert job.getComment() == "This is a test"
 
 
-def test_get_job_comment_missing():
+def test_get_comment_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getJobComment() is None
+    assert job.getComment() is None
 
 
-def test_get_job_estimated_success():
+def test_get_estimated_success():
     raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node01:some_extra:additional_info)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getJobEstimated()
+    result = job.getEstimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -180,14 +180,14 @@ def test_get_job_estimated_success():
     assert parsed_vnode == "node01"
 
 
-def test_get_job_estimated_in_past_success():
+def test_get_estimated_in_past_success():
     raw_time = "Fri Oct  4 15:30:00 2024"  # in the past
     vnode = "(node01:some_extra:additional_info)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getJobEstimated()
+    result = job.getEstimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -197,14 +197,14 @@ def test_get_job_estimated_in_past_success():
     assert parsed_vnode == "node01"
 
 
-def test_get_job_estimated_success_simple_node_name():
+def test_get_estimated_success_simple_node_name():
     raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "node01"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getJobEstimated()
+    result = job.getEstimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -214,39 +214,39 @@ def test_get_job_estimated_success_simple_node_name():
     assert parsed_vnode == "node01"
 
 
-def test_get_job_estimated_missing_time():
+def test_get_estimated_missing_time():
     job = _make_jobinfo_with_info(
         {"estimated.exec_vnode": "(node01:some_extra:additional_info)"}
     )
-    assert job.getJobEstimated() is None
+    assert job.getEstimated() is None
 
 
-def test_get_job_estimated_missing_vnode():
+def test_get_estimated_missing_vnode():
     raw_time = "Fri Oct  4 15:30:00 2024"
     job = _make_jobinfo_with_info({"estimated.start_time": raw_time})
-    assert job.getJobEstimated() is None
+    assert job.getEstimated() is None
 
 
-def test_get_job_estimated_parses_vnode_correctly():
+def test_get_estimated_parses_vnode_correctly():
     raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node02:ncpus=4)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
-    estimated = job.getJobEstimated()
+    estimated = job.getEstimated()
     assert estimated is not None
     _, parsed_vnode = estimated
     assert parsed_vnode == "node02"
 
 
-def test_get_job_estimated_multiple_nodes():
+def test_get_estimated_multiple_nodes():
     raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node01:some_extra:additional_info)+(node03:something_else:fake_property) +node05  +  node07+(node09)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getJobEstimated()
+    result = job.getEstimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -327,14 +327,14 @@ def test_clean_node_name():
     )
 
 
-def test_pbs_job_info_get_job_name_present():
+def test_pbs_job_info_get_name_present():
     job = _make_jobinfo_with_info({"Job_Name": "training_job"})
-    assert job.getJobName() == "training_job"
+    assert job.getName() == "training_job"
 
 
-def test_pbs_job_info_get_job_name_missing():
+def test_pbs_job_info_get_name_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getJobName()
+    result = job.getName()
     assert result == "?????"
 
 

@@ -42,7 +42,7 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
-    def getJobId(self) -> str:
+    def getId(self) -> str:
         """
         Return the ID of the job.
 
@@ -62,7 +62,7 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
-    def getJobState(self) -> BatchState:
+    def getState(self) -> BatchState:
         """
         Return the current state of the job as reported by the batch system.
 
@@ -74,7 +74,7 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
-    def getJobComment(self) -> str | None:
+    def getComment(self) -> str | None:
         """
         Retrieve the batch system-provided comment for the job.
 
@@ -85,7 +85,7 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
-    def getJobEstimated(self) -> tuple[datetime, str] | None:
+    def getEstimated(self) -> tuple[datetime, str] | None:
         """
         Retrieve the batch system's estimated job start time and execution node.
 
@@ -183,7 +183,7 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
-    def getJobName(self) -> str:
+    def getName(self) -> str:
         """
         Return the name of the job.
 

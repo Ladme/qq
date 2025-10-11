@@ -92,8 +92,8 @@ def test_jobs_command_unfinished_shows_jobs(parsed_jobs):
         output = result.output
 
         for job in parsed_jobs:
-            assert QQJobsPresenter._shortenJobId(job.getJobId()) in output
-            assert job.getJobName() in output
+            assert QQJobsPresenter._shortenJobId(job.getId()) in output
+            assert job.getName() in output
             assert job.getUser() in output
 
 
@@ -115,8 +115,8 @@ def test_jobs_command_all_flag_shows_all_jobs(parsed_jobs):
         output = result.output
 
         for job in parsed_jobs:
-            assert QQJobsPresenter._shortenJobId(job.getJobId()) in output
-            assert job.getJobName() in output
+            assert QQJobsPresenter._shortenJobId(job.getId()) in output
+            assert job.getName() in output
             assert job.getUser() in output
 
 

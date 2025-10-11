@@ -157,7 +157,7 @@ class QQInformer:
         if not self._batch_info:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
-        return self._batch_info.getJobState()
+        return self._batch_info.getState()
 
     def getRealState(self) -> RealState:
         """
@@ -195,7 +195,7 @@ class QQInformer:
         if not self._batch_info:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
-        return self._batch_info.getJobComment()
+        return self._batch_info.getComment()
 
     def getEstimated(self) -> tuple[datetime, str] | None:
         """
@@ -212,7 +212,7 @@ class QQInformer:
         if not self._batch_info:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
-        return self._batch_info.getJobEstimated()
+        return self._batch_info.getEstimated()
 
     def getMainNode(self) -> str | None:
         """

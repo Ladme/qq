@@ -342,19 +342,19 @@ class VBSJobInfo(BatchJobInfoInterface):
         # does nothing
         pass
 
-    def getJobId(self) -> str:
+    def getId(self) -> str:
         return self._job.job_id
 
-    def getJobState(self) -> BatchState:
+    def getState(self) -> BatchState:
         if self._job:
             return self._job.state
 
         return BatchState.UNKNOWN
 
-    def getJobComment(self) -> str | None:
+    def getComment(self) -> str | None:
         return None
 
-    def getJobEstimated(self) -> tuple[datetime, str] | None:
+    def getEstimated(self) -> tuple[datetime, str] | None:
         return None
 
     def getMainNode(self) -> str | None:
@@ -376,7 +376,7 @@ class VBSJobInfo(BatchJobInfoInterface):
     def getShortNodes(self) -> list[str] | None:
         return self.getNodes()
 
-    def getJobName(self) -> str:
+    def getName(self) -> str:
         return self._job.script
 
     def getNCPUs(self) -> int:

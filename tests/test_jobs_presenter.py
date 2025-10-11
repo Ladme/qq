@@ -100,7 +100,7 @@ def mock_job():
 def test_format_nodes_or_comment_returns_single_node(mock_job):
     with (
         patch.object(mock_job, "getShortNodes", return_value=["node1"]),
-        patch.object(mock_job, "getJobEstimated", return_value=None),
+        patch.object(mock_job, "getEstimated", return_value=None),
     ):
         result = QQJobsPresenter._formatNodesOrComment(BatchState.RUNNING, mock_job)
         expected = QQJobsPresenter._mainColor("node1")
@@ -110,7 +110,7 @@ def test_format_nodes_or_comment_returns_single_node(mock_job):
 def test_format_nodes_or_comment_returns_nodes(mock_job):
     with (
         patch.object(mock_job, "getShortNodes", return_value=["node1", "node2"]),
-        patch.object(mock_job, "getJobEstimated", return_value=None),
+        patch.object(mock_job, "getEstimated", return_value=None),
     ):
         result = QQJobsPresenter._formatNodesOrComment(BatchState.RUNNING, mock_job)
         expected = QQJobsPresenter._mainColor("node1 + node2")
@@ -121,7 +121,7 @@ def test_format_nodes_or_comment_returns_nodes(mock_job):
 def test_format_nodes_or_comment_finished_or_failed_no_nodes(mock_job, state):
     with (
         patch.object(mock_job, "getShortNodes", return_value=[]),
-        patch.object(mock_job, "getJobEstimated", return_value=None),
+        patch.object(mock_job, "getEstimated", return_value=None),
     ):
         result = QQJobsPresenter._formatNodesOrComment(state, mock_job)
         assert result == ""
@@ -131,7 +131,7 @@ def test_format_nodes_or_comment_finished_or_failed_no_nodes(mock_job, state):
 def test_format_nodes_or_comment_finished_or_failed_single_node(mock_job, state):
     with (
         patch.object(mock_job, "getShortNodes", return_value=["node1"]),
-        patch.object(mock_job, "getJobEstimated", return_value=None),
+        patch.object(mock_job, "getEstimated", return_value=None),
     ):
         result = QQJobsPresenter._formatNodesOrComment(state, mock_job)
         expected = QQJobsPresenter._mainColor("node1")
@@ -145,7 +145,7 @@ def test_format_nodes_or_comment_returns_estimated(mock_job):
 
     with (
         patch.object(mock_job, "getShortNodes", return_value=[]),
-        patch.object(mock_job, "getJobEstimated", return_value=(estimated_time, desc)),
+        patch.object(mock_job, "getEstimated", return_value=(estimated_time, desc)),
     ):
         result = QQJobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
 
@@ -160,7 +160,7 @@ def test_format_nodes_or_comment_returns_estimated(mock_job):
 def test_format_nodes_or_comment_returns_empty_when_no_info(mock_job):
     with (
         patch.object(mock_job, "getShortNodes", return_value=[]),
-        patch.object(mock_job, "getJobEstimated", return_value=None),
+        patch.object(mock_job, "getEstimated", return_value=None),
     ):
         result = QQJobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
         assert result == ""
@@ -427,15 +427,15 @@ def test_create_basic_jobs_table_contains_all_headers_and_jobs(parsed_jobs):
         assert header in result
 
     for job in parsed_jobs:
-        short_id = QQJobsPresenter._shortenJobId(job.getJobId())
+        short_id = QQJobsPresenter._shortenJobId(job.getId())
         assert short_id in result
 
     for job in parsed_jobs:
-        assert job.getJobName() in result
+        assert job.getName() in result
         assert job.getUser() in result
 
-    count_1 = result.count(parsed_jobs[0].getJobName())
-    count_2 = result.count(parsed_jobs[1].getJobName())
+    count_1 = result.count(parsed_jobs[0].getName())
+    count_2 = result.count(parsed_jobs[1].getName())
     assert count_1 == 1
     assert count_2 == 1
 
@@ -474,14 +474,14 @@ def test_dump_yaml_roundtrip(parsed_jobs):
 
     # compare key fields
     for orig, loaded in zip(parsed_jobs, reloaded_jobs):
-        assert orig.getJobId() == loaded.getJobId()
-        assert orig.getJobName() == loaded.getJobName()
+        assert orig.getId() == loaded.getId()
+        assert orig.getName() == loaded.getName()
         assert orig.getUser() == loaded.getUser()
         assert orig.getQueue() == loaded.getQueue()
         assert orig.getWalltime() == loaded.getWalltime()
         assert orig.getNCPUs() == loaded.getNCPUs()
         assert orig.getNGPUs() == loaded.getNGPUs()
-        assert orig.getJobState() == loaded.getJobState()
+        assert orig.getState() == loaded.getState()
         assert orig.getInputDir() == loaded.getInputDir()
 
 
@@ -505,7 +505,7 @@ def test_create_jobs_info_panel_structure(parsed_jobs):
     jobs_table = content.renderables[0]
     assert isinstance(jobs_table, Text)
     assert all(
-        QQJobsPresenter._shortenJobId(job.getJobId()) in jobs_table.plain
+        QQJobsPresenter._shortenJobId(job.getId()) in jobs_table.plain
         for job in parsed_jobs
     )
 

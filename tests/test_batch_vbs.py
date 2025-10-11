@@ -160,11 +160,11 @@ def test_qqvbs_job_submit_and_get_job_info(tmp_path, sample_resources):
 
     info = QQVBS.getJobInfo("0")
     assert isinstance(info, VBSJobInfo)
-    assert info.getJobState() == BatchState.QUEUED
+    assert info.getState() == BatchState.QUEUED
 
     empty_info = QQVBS.getJobInfo("999")
     assert isinstance(empty_info, VBSJobInfo)
-    assert empty_info.getJobState() == BatchState.UNKNOWN
+    assert empty_info.getState() == BatchState.UNKNOWN
 
 
 def test_qqvbs_get_scratch_dir_success(tmp_path, sample_resources):
@@ -289,17 +289,17 @@ def test_vbs_job_info_get_job_state_returns_state(tmp_path, sample_resources):
     job = QQVBS._batch_system.jobs["0"]
 
     info = VBSJobInfo(job)
-    assert info.getJobState() == BatchState.QUEUED
+    assert info.getState() == BatchState.QUEUED
 
     job.state = BatchState.RUNNING
-    assert info.getJobState() == BatchState.RUNNING
+    assert info.getState() == BatchState.RUNNING
 
 
 def test_vbs_job_info_get_job_state_job_none():
     QQVBS._batch_system.clearJobs()
 
     info = VBSJobInfo(None)
-    assert info.getJobState() == BatchState.UNKNOWN
+    assert info.getState() == BatchState.UNKNOWN
 
 
 def test_qqvbs_read_remote_file_and_write_remote_file(tmp_path):

@@ -38,12 +38,18 @@ class QQKiller:
     def getJobId(self) -> str:
         """
         Get the job ID of the job to kill.
+
+        Returns:
+            str: Job identifier.
         """
         return self._informer.info.job_id
 
     def printInfo(self, console: Console):
         """
-        Display the current job status using a formatted panel.
+        Display the current job information in a formatted Rich panel.
+
+        Args:
+            console (Console): Rich Console instance used to render output.
         """
         presenter = QQPresenter(self._informer)
         panel = presenter.createJobStatusPanel(console)

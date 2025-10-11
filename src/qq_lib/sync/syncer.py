@@ -15,21 +15,66 @@ logger = get_logger(__name__)
 
 
 class QQSyncer:
+    """
+    Handle synchronization of job files between a remote working directory
+    (on a compute node or cluster) and the local input directory.
+    """
+
     def __init__(self, info_file: Path):
+        """
+        Initialize the synchronizer for a given job.
+
+        Args:
+            info_file (Path): Path to the job's qq info file.
+        """
         self._info_file = info_file
         self._informer = QQInformer.fromFile(self._info_file)
         self._batch_system = self._informer.batch_system
         self._state = self._informer.getRealState()
 
+        self._setDestination()
+
     def isFinished(self) -> bool:
+        """
+        Check whether the job has completely finished execution.
+
+        Returns:
+            bool: True if the job's real state is `FINISHED`, False otherwise.
+        """
         return self._state == RealState.FINISHED
 
+    def isKilled(self) -> bool:
+        """
+        Check whether the job has been killed.
+
+        Returns:
+            bool: True if the job's real state is `KILLED` or
+            `EXITING` without an exit code, False otherwise.
+        """
+        return self._state == RealState.KILLED or (
+            self._state == RealState.EXITING
+            and self._informer.info.job_exit_code is None
+        )
+
     def isExitingSuccessfully(self) -> bool:
+        """
+        Check whether the job is currently successfully exiting.
+
+        Returns:
+            bool: True if the job's real state is `EXITING` and its exit code is 0,
+                  indicating a successful completion.
+        """
         return (
             self._state == RealState.EXITING and self._informer.info.job_exit_code == 0
         )
 
     def isQueued(self) -> bool:
+        """
+        Determine whether the job is still waiting to start or booting.
+
+        Returns:
+            bool: True if the job is in a queued, booting, waiting, or held state.
+        """
         return self._state in {
             RealState.QUEUED,
             RealState.BOOTING,
@@ -39,9 +84,23 @@ class QQSyncer:
 
     def sync(self, files: list[str] | None = None) -> None:
         """
-        `files`: Names of files in the working directory.
+        Synchronize files from the remote working directory to the local input directory.
+
+        Args:
+            files (list[str] | None): Optional list of specific filenames to fetch.
+                If omitted, all files are synchronized except those excluded by the batch system.
+
+        Behavior:
+            - If `files` is provided, only those specific files are copied.
+            - If omitted, the entire working directory is synchronized.
+
+        Raises:
+            QQError: If the job's destination (host or working directory) cannot be determined.
         """
-        self._setDestination()
+        if not self.hasDestination():
+            raise QQError(
+                "Host ('main_node') or working directory ('work_dir') are not defined."
+            )
 
         if files:
             logger.info(
@@ -64,11 +123,24 @@ class QQSyncer:
 
     def printInfo(self, console: Console):
         """
-        Display the current job status using a formatted panel.
+        Display the current job information in a formatted Rich panel.
+
+        Args:
+            console (Console): Rich Console instance used to render output.
         """
         presenter = QQPresenter(self._informer)
         panel = presenter.createJobStatusPanel(console)
         console.print(panel)
+
+    def hasDestination(self) -> bool:
+        """
+        Check that the job has an assigned host and working directory.
+
+        Returns:
+            bool: True if the job has both a host and a working directory,
+            False otherwise.
+        """
+        return self._directory and self._host
 
     def isJob(self, job_id: str) -> bool:
         """
@@ -100,6 +172,5 @@ class QQSyncer:
         if destination:
             (self._host, self._directory) = destination
         else:
-            raise QQError(
-                "Host ('main_node') or working directory ('work_dir') are not defined."
-            )
+            self._host = None
+            self._directory = None

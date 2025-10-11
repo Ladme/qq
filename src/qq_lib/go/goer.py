@@ -38,7 +38,10 @@ class QQGoer:
 
     def printInfo(self, console: Console):
         """
-        Display the current job status using a formatted panel.
+        Display the current job information in a formatted Rich panel.
+
+        Args:
+            console (Console): Rich Console instance used to render output.
         """
         presenter = QQPresenter(self._informer)
         panel = presenter.createJobStatusPanel(console)
@@ -194,7 +197,10 @@ class QQGoer:
 
     def isKilled(self) -> bool:
         """Check if the job has been killed."""
-        return self._state == RealState.KILLED
+        return self._state == RealState.KILLED or (
+            self._state == RealState.EXITING
+            and self._informer.info.job_exit_code is None
+        )
 
     def isFinished(self) -> bool:
         """Check if the job has finished succesfully."""

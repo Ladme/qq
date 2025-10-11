@@ -53,6 +53,10 @@ If JOB_ID is not specified, `qq sync` searches for qq jobs in the current direct
     help="A colon-, comma-, or space-separated list of files to fetch from the working directory. If not specified, all files are fetched.",
 )
 def sync(job: str | None, files: str | None):
+    """
+    Fetch files from the working directory of the specified qq job or
+    working directory (directories) of qq job(s) submitted from this directory.
+    """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
         repeater = QQRepeater(
@@ -74,23 +78,51 @@ def sync(job: str | None, files: str | None):
 
 
 def _sync_job(info_file: Path, job: str | None, files: list[str] | None):
-    syncer = QQSyncer(info_file)
+    """
+    Perform synchronization of job files from a remote working directory to the local input directory.
 
-    syncer.printInfo(console)
+    Args:
+        info_file (Path): Path to the qq info file associated with the job.
+        job (str | None): Optional job ID. If provided, it must correspond to the job id in
+            `info_file`; otherwise, a `QQJobMismatchError` is raised.
+        files (list[str] | None): Optional list of specific file names to synchronize.
+            If not provided, all files are fetched from the job's working directory
+            except those excluded by the batch system.
+
+    Raises:
+        QQJobMismatchError: If the given `job` does not match the job described in `info_file`.
+        QQNotSuitableError: If the job is not in a state suitable for synchronization,
+            e.g., it has already finished, is exiting successfully, has been killed while queued,
+            or is queued/booting.
+        QQError: If an error occurs during synchronization setup or execution.
+    """
+
+    syncer = QQSyncer(info_file)
 
     # check that the info file in the killer corresponds
     # to the specified job
     if job and not syncer.isJob(job):
         raise QQJobMismatchError(f"Info file for job '{job}' does not exist.")
 
+    syncer.printInfo(console)
+
+    # finished jobs do not have working directory
     if syncer.isFinished():
         raise QQNotSuitableError(
             "Job has finished and was synchronized: nothing to sync."
         )
 
+    # killed jobs may not have working directory
+    if syncer.isKilled() and not syncer.hasDestination():
+        raise QQNotSuitableError(
+            "Job has been killed and no working directory is available."
+        )
+
+    # succesfully exiting jobs do not have working directory
     if syncer.isExitingSuccessfully():
         raise QQNotSuitableError("Job is finishing successfully: nothing to sync.")
 
+    # queued jobs do not have working directory
     if syncer.isQueued():
         raise QQNotSuitableError("Job is queued or booting: nothing to sync.")
 

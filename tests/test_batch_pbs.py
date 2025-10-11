@@ -613,28 +613,28 @@ def test_pbs_job_info_get_input_machine_missing():
 def test_pbs_job_info_get_input_dir_pbs():
     job = _make_jobinfo_with_info(
         {
-            "Variable_List": "PBS_O_LOGNAME=user,PBS_O_WORKDIR=/path/to/job_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+            "Variable_List": "PBS_O_LOGNAME=user,PBS_O_WORKDIR=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("/path/to/job_dir")
+    assert job.getInputDir() == Path("/path/to/input_dir")
 
 
 def test_pbs_job_info_get_input_dir_qq():
     job = _make_jobinfo_with_info(
         {
-            "Variable_List": f"PBS_O_LOGNAME=user,{INPUT_DIR}=/path/to/job_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+            "Variable_List": f"PBS_O_LOGNAME=user,{INPUT_DIR}=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("/path/to/job_dir")
+    assert job.getInputDir() == Path("/path/to/input_dir")
 
 
 def test_pbs_job_info_get_input_dir_infinity():
     job = _make_jobinfo_with_info(
         {
-            "Variable_List": "PBS_O_LOGNAME=user,INF_INPUT_DIR=/path/to/job_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+            "Variable_List": "PBS_O_LOGNAME=user,INF_INPUT_DIR=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("/path/to/job_dir")
+    assert job.getInputDir() == Path("/path/to/input_dir")
 
 
 def test_pbs_job_info_get_input_dir_nonexistent():
@@ -822,19 +822,21 @@ def test_shared_guard_does_not_set_env_var():
         assert SHARED_SUBMIT not in os.environ
 
 
-def test_shared_guard_jobdir_does_not_raise():
+@pytest.mark.parametrize("dir", ["input_dir", "job_dir"])
+def test_shared_guard_input_dir_does_not_raise(dir):
     os.environ.pop(SHARED_SUBMIT, None)
 
     # patch isShared to return True
     with patch.object(QQPBS, "isShared", return_value=True):
-        QQPBS._sharedGuard(QQResources(work_dir="job_dir"))
+        QQPBS._sharedGuard(QQResources(work_dir=dir))
         assert os.environ.get(SHARED_SUBMIT) == "true"
 
     # clean up
     os.environ.pop(SHARED_SUBMIT, None)
 
 
-def test_shared_guard_jobdir_raises():
+@pytest.mark.parametrize("dir", ["input_dir", "job_dir"])
+def test_shared_guard_input_dir_raises(dir):
     os.environ.pop(SHARED_SUBMIT, None)
 
     # patch isShared to return False
@@ -845,7 +847,7 @@ def test_shared_guard_jobdir_raises():
             match="Job was requested to run directly in the submission directory",
         ),
     ):
-        QQPBS._sharedGuard(QQResources(work_dir="job_dir"))
+        QQPBS._sharedGuard(QQResources(work_dir=dir))
         assert SHARED_SUBMIT not in os.environ
 
 
@@ -1211,8 +1213,8 @@ def test_move_remote_files_remote():
         mock_move.assert_called_once_with("remotehost", [src], [dst])
 
 
-def test_translate_work_dir_job_dir_returns_none():
-    res = QQResources(nnodes=1, work_dir="job_dir")
+def test_translate_work_dir_input_dir_returns_none():
+    res = QQResources(nnodes=1, work_dir="input_dir")
     assert QQPBS._translateWorkDir(res) is None
 
 
@@ -1273,21 +1275,21 @@ def test_translate_per_chunk_resources_ngpus_not_divisible_raises():
 
 
 def test_translate_per_chunk_resources_mem_division():
-    res = QQResources(nnodes=2, ncpus=4, mem="7mb", work_dir="job_dir")
+    res = QQResources(nnodes=2, ncpus=4, mem="7mb", work_dir="input_dir")
     result = QQPBS._translatePerChunkResources(res)
     assert "ncpus=2" in result
     assert "mem=4mb" in result
 
 
 def test_translate_per_chunk_resources_mem_per_cpu_used():
-    res = QQResources(nnodes=2, ncpus=4, mem_per_cpu="2mb", work_dir="job_dir")
+    res = QQResources(nnodes=2, ncpus=4, mem_per_cpu="2mb", work_dir="input_dir")
     result = QQPBS._translatePerChunkResources(res)
     # 2mb * 4 / 2 = 4mb
     assert "mem=4mb" in result
 
 
 def test_translate_per_chunk_resources_ngpus_included():
-    res = QQResources(nnodes=3, ncpus=9, mem="8mb", ngpus=6, work_dir="job_dir")
+    res = QQResources(nnodes=3, ncpus=9, mem="8mb", ngpus=6, work_dir="input_dir")
     result = QQPBS._translatePerChunkResources(res)
     assert "ngpus=2" in result
 
@@ -1438,7 +1440,7 @@ def test_get_default_queue_resources_calls_parse_queue_info():
 
 
 def test_translate_submit_minimal_fields():
-    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="job_dir")
+    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=1gb script.sh"
@@ -1446,7 +1448,7 @@ def test_translate_submit_minimal_fields():
 
 
 def test_translate_submit_multiple_nodes():
-    res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="job_dir")
+    res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=4:ncpus=2:mem=256mb -l place=scatter script.sh"
@@ -1455,7 +1457,7 @@ def test_translate_submit_multiple_nodes():
 
 def test_translate_submit_with_walltime():
     res = QQResources(
-        nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="job_dir"
+        nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
         QQPBS._translateSubmit(res, "queue", "script.sh", "job")
@@ -1465,7 +1467,7 @@ def test_translate_submit_with_walltime():
 
 def test_translate_submit_with_walltime2():
     res = QQResources(
-        nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="job_dir"
+        nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="input_dir"
     )
     assert (
         QQPBS._translateSubmit(res, "queue", "script.sh", "job")
@@ -1585,7 +1587,7 @@ def test_translate_submit_with_props():
         ncpus=1,
         mem="1gb",
         props={"vnode": "my_node", "infiniband": "true"},
-        work_dir="job_dir",
+        work_dir="input_dir",
     )
     assert (
         QQPBS._translateSubmit(res, "queue", "script.sh", "job")
@@ -1611,8 +1613,27 @@ def test_translate_submit_complex_case():
     )
 
 
+def test_transform_resources_input_dir_warns_and_sets_work_dir():
+    provided = QQResources(work_dir="input_dir", work_size="10gb")
+    with (
+        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch("qq_lib.batch.pbs.logger.warning") as mock_warning,
+    ):
+        res = QQPBS.transformResources(
+            "gpu", QQResources(work_dir="input_dir", work_size="10gb")
+        )
+
+    assert res.work_dir == "input_dir"
+
+    called_args = mock_warning.call_args[0]
+    assert "Setting work-size is not supported" in called_args[0]
+    assert "input_dir" in called_args[0]
+
+
 def test_transform_resources_job_dir_warns_and_sets_work_dir():
-    provided = QQResources(work_dir="job_dir", work_size="10gb")
+    provided = QQResources(work_dir="input_dir", work_size="10gb")
     with (
         patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
         patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
@@ -1623,7 +1644,7 @@ def test_transform_resources_job_dir_warns_and_sets_work_dir():
             "gpu", QQResources(work_dir="job_dir", work_size="10gb")
         )
 
-    assert res.work_dir == "job_dir"
+    assert res.work_dir == "input_dir"
 
     called_args = mock_warning.call_args[0]
     assert "Setting work-size is not supported" in called_args[0]

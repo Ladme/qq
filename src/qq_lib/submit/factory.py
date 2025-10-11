@@ -168,7 +168,7 @@ class QQSubmitterFactory:
             self._kwargs.get("archive_format")
             or self._parser.getArchiveFormat()
             or "job%04d",
-            job_dir=Path.cwd(),
+            input_dir=Path.cwd(),
         )
 
     def _getExclude(self) -> list[Path]:

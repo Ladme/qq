@@ -45,6 +45,7 @@ def test_info_basic_integration(tmp_path):
                 submit,
                 ["-q", "default", str(script_file), "--batch-system", "VBS"],
             )
+        print(result_submit.stderr)
         assert result_submit.exit_code == 0
 
         result_info = runner.invoke(info)

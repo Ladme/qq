@@ -38,7 +38,7 @@ class QQResources:
     # Maximum allowed runtime for the job
     walltime: str | None = None
 
-    # Type of working directory to use (e.g., scratch_local, scratch_shared, job_dir)
+    # Type of working directory to use (e.g., scratch_local, scratch_shared, input_dir)
     work_dir: str | None = None
 
     # Absolute size of storage requested for the job (overrides work_size_per_cpu)
@@ -108,9 +108,11 @@ class QQResources:
         Determine if the job uses a scratch directory.
 
         Returns:
-            bool: True if a work_dir is not 'job-dir', otherwise False.
+            bool: True if a work_dir is not 'job_dir' or 'input_dir', otherwise False.
         """
-        return not equals_normalized(self.work_dir, "jobdir")
+        return not equals_normalized(
+            self.work_dir, "job_dir"
+        ) and not equals_normalized(self.work_dir, "input_dir")
 
     @staticmethod
     def mergeResources(*resources: "QQResources") -> "QQResources":

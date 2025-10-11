@@ -12,31 +12,31 @@ from qq_lib.properties.loop import QQLoopInfo
 
 
 def test_valid_constructor(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     loop_info = QQLoopInfo(
         start=1,
         end=5,
-        archive=job_dir / "archive",
-        job_dir=job_dir,
+        archive=input_dir / "archive",
+        input_dir=input_dir,
         archive_format="md%04d",
     )
 
     assert loop_info.start == 1
     assert loop_info.end == 5
     assert loop_info.current == 1
-    assert loop_info.archive == (job_dir / "archive").resolve()
+    assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
 
 
 def test_constructor_with_current(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     loop_info = QQLoopInfo(
         start=1,
         end=5,
-        archive=job_dir / "archive",
-        job_dir=job_dir,
+        archive=input_dir / "archive",
+        input_dir=input_dir,
         archive_format="md%04d",
         current=5,
     )
@@ -44,74 +44,74 @@ def test_constructor_with_current(tmp_path):
     assert loop_info.start == 1
     assert loop_info.end == 5
     assert loop_info.current == 5
-    assert loop_info.archive == (job_dir / "archive").resolve()
+    assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
 
 
 def test_missing_end(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="loop-end"):
         QQLoopInfo(
             start=1,
             end=None,
-            archive=job_dir / "archive",
-            job_dir=job_dir,
+            archive=input_dir / "archive",
+            input_dir=input_dir,
             archive_format="md%04d",
         )
 
 
 def test_start_greater_than_end(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="loop-start"):
         QQLoopInfo(
             start=10,
             end=5,
-            archive=job_dir / "archive",
-            job_dir=job_dir,
+            archive=input_dir / "archive",
+            input_dir=input_dir,
             archive_format="md%04d",
         )
 
 
 def test_start_negative(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="loop-start"):
         QQLoopInfo(
             start=-1,
             end=5,
-            archive=job_dir / "archive",
-            job_dir=job_dir,
+            archive=input_dir / "archive",
+            input_dir=input_dir,
             archive_format="md%04d",
         )
 
 
 def test_current_greater_than_end(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="Current cycle number"):
         QQLoopInfo(
             start=1,
             end=5,
-            archive=job_dir / "archive",
-            job_dir=job_dir,
+            archive=input_dir / "archive",
+            input_dir=input_dir,
             archive_format="md%04d",
             current=6,
         )
 
 
 def test_invalid_archive_dir(tmp_path):
-    job_dir = tmp_path / "job"
+    input_dir = tmp_path / "job"
 
     with pytest.raises(
-        QQError, match="Job directory cannot be used as the loop job's archive"
+        QQError, match="Input directory cannot be used as the loop job's archive"
     ):
         QQLoopInfo(
             start=1,
             end=5,
-            archive=job_dir,
-            job_dir=job_dir,
+            archive=input_dir,
+            input_dir=input_dir,
             archive_format="md%04d",
         )
 

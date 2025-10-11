@@ -101,9 +101,9 @@ class QQRunner:
             f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
         )
 
-        # get job directory
-        self._job_dir = Path(self._informer.info.job_dir)
-        logger.debug(f"Job directory: {self._job_dir}.")
+        # get input directory
+        self._input_dir = Path(self._informer.info.input_dir)
+        logger.debug(f"Input directory: {self._input_dir}.")
 
         # get the batch system
         self._batch_system = self._informer.batch_system
@@ -119,7 +119,7 @@ class QQRunner:
                 loop_info.archive,
                 loop_info.archive_format,
                 self._informer.info.input_machine,
-                self._informer.info.job_dir,
+                self._informer.info.input_dir,
                 self._batch_system,
             )
 
@@ -229,7 +229,7 @@ class QQRunner:
                 QQRetryer(
                     self._batch_system.syncWithExclusions,
                     self._work_dir,
-                    self._job_dir,
+                    self._input_dir,
                     socket.gethostname(),
                     self._informer.info.input_machine,
                     max_tries=RUNNER_RETRY_TRIES,
@@ -274,8 +274,8 @@ class QQRunner:
         """
         Configure the job directory as the working directory.
         """
-        # set qq working directory to job directory
-        self._work_dir = self._job_dir
+        # set qq working directory to the input dir
+        self._work_dir = self._input_dir
 
         # move to the working directory
         QQRetryer(
@@ -301,7 +301,7 @@ class QQRunner:
         # create working directory inside the scratch directory allocated by the batch system
         # we create this directory because other processes may write files
         # into the allocated scratch directory and we do not want these files
-        # to affect the job execution or be copied back to job_dir
+        # to affect the job execution or be copied back to input_dir
         # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
@@ -328,7 +328,7 @@ class QQRunner:
         # copy files to the working directory
         QQRetryer(
             self._batch_system.syncWithExclusions,
-            self._job_dir,
+            self._input_dir,
             self._work_dir,
             self._informer.info.input_machine,
             socket.gethostname(),
@@ -487,7 +487,7 @@ class QQRunner:
         QQRetryer(
             self._batch_system.resubmit,
             input_machine=self._informer.info.input_machine,
-            job_dir=self._informer.info.job_dir,
+            input_dir=self._informer.info.input_dir,
             command_line=self._informer.info.command_line,
             max_tries=RUNNER_RETRY_TRIES,
             wait_seconds=RUNNER_RETRY_WAIT,

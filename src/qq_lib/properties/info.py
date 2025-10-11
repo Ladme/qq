@@ -79,7 +79,7 @@ class QQInfo:
     input_machine: str
 
     # Directory from which the job was submitted
-    job_dir: Path
+    input_dir: Path
 
     # Job state according to qq
     job_state: NaiveState

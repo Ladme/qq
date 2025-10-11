@@ -71,7 +71,7 @@ def sample_info(sample_resources):
         queue="default",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=Path("/shared/storage/"),
+        input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="script.out",
@@ -90,15 +90,15 @@ def write_info_file_no_scratch_and_set_env_var(tmp_path, sample_info):
     os.environ[SHARED_SUBMIT] = "true"
 
     # create a job dir
-    job_dir = tmp_path / "job"
-    job_dir.mkdir()
-    sample_info.job_dir = job_dir
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
+    sample_info.input_dir = input_dir
     sample_info.script_name = "script.sh"
 
     # work in shared storage
-    sample_info.resources.work_dir = "job_dir"
+    sample_info.resources.work_dir = "input_dir"
 
-    info_file = job_dir / "job.qqinfo"
+    info_file = input_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
@@ -124,9 +124,9 @@ def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_i
     os.environ[GUARD] = "true"
 
     # create a job dir
-    job_dir = tmp_path / "job"
-    job_dir.mkdir()
-    sample_info.job_dir = job_dir
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
+    sample_info.input_dir = input_dir
     sample_info.script_name = "script.sh"
 
     # create a scratch dir & set a monkeypatch for it
@@ -138,7 +138,7 @@ def write_info_file_with_scratch_and_set_env_var(monkeypatch, tmp_path, sample_i
         staticmethod(lambda _: scratch_dir),
     )
 
-    info_file = job_dir / "job.qqinfo"
+    info_file = input_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     os.environ[INFO_FILE] = str(info_file)
@@ -268,17 +268,17 @@ def test_set_up_initializes_runner(monkeypatch, tmp_path, sample_info):
 
     runner.setUp()
 
-    assert runner._job_dir == sample_info.job_dir
+    assert runner._input_dir == sample_info.input_dir
     assert runner._batch_system == sample_info.batch_system
     assert runner._use_scratch == sample_info.resources.useScratch()
 
 
 @pytest.fixture
 def runner_with_dirs(monkeypatch, tmp_path, sample_info):
-    job_dir = tmp_path / "job"
-    job_dir.mkdir()
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
 
-    info_file = job_dir / "job.qqinfo"
+    info_file = input_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     monkeypatch.setenv(INFO_FILE, str(info_file))
@@ -290,7 +290,7 @@ def runner_with_dirs(monkeypatch, tmp_path, sample_info):
 
     runner._work_dir = tmp_path / "work"
     runner._work_dir.mkdir()
-    runner._job_dir = job_dir
+    runner._input_dir = input_dir
     return runner
 
 
@@ -337,7 +337,7 @@ def test_execute_script_success(tmp_path, runner_with_dirs):
 
     assert "stdout success" in (tmp_path / "script.out").read_text()
     assert "stderr success" in (tmp_path / "script.err").read_text()
-    updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
+    updated_info = QQInfo.fromFile(runner._input_dir / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 
 
@@ -360,30 +360,30 @@ def test_execute_script_failure(tmp_path, runner_with_dirs):
 
     assert "stdout success" in (tmp_path / "script.out").read_text()
     assert "stderr success" in (tmp_path / "script.err").read_text()
-    updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
+    updated_info = QQInfo.fromFile(runner._input_dir / "job.qqinfo")
     assert updated_info.job_state == NaiveState.RUNNING
 
 
 @pytest.fixture
 def runner_with_dirs_and_files(monkeypatch, tmp_path, sample_info):
-    job_dir = tmp_path / "job"
-    job_dir.mkdir()
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
 
     # setup info file
-    info_file = job_dir / "job.qqinfo"
+    info_file = input_dir / "job.qqinfo"
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     monkeypatch.setenv(INFO_FILE, str(info_file))
 
     # setup runner
     runner = QQRunner()
-    runner._job_dir = job_dir
+    runner._input_dir = input_dir
     runner._work_dir = tmp_path / "work"
     runner._work_dir.mkdir()
 
-    # sample file in work_dir and job_dir
+    # sample file in work_dir and input_dir
     (runner._work_dir / "file_work.txt").write_text("work content")
-    (runner._job_dir / "file_job.txt").write_text("job content")
+    (runner._input_dir / "file_job.txt").write_text("job content")
 
     return runner
 
@@ -410,34 +410,34 @@ def test_finalize(runner_with_dirs_and_files, use_scratch, returncode):
 
     runner.finalize()
 
-    updated_info = QQInfo.fromFile(runner._job_dir / "job.qqinfo")
+    updated_info = QQInfo.fromFile(runner._input_dir / "job.qqinfo")
 
     if returncode == 0:
         assert updated_info.job_state == NaiveState.FINISHED
         if use_scratch:
-            # all files should be in job_dir and none in work_dir
-            assert (runner._job_dir / "file_job.txt").exists()
-            assert (runner._job_dir / "file_work.txt").exists()
+            # all files should be in input_dir and none in work_dir
+            assert (runner._input_dir / "file_job.txt").exists()
+            assert (runner._input_dir / "file_work.txt").exists()
             assert not (runner._work_dir / "file_job.txt").exists()
             assert not (runner._work_dir / "file_work.txt").exists()
         else:
             # work_dir was not used at all; work file still remains there
-            assert (runner._job_dir / "file_job.txt").exists()
-            assert not (runner._job_dir / "file_work.txt").exists()
+            assert (runner._input_dir / "file_job.txt").exists()
+            assert not (runner._input_dir / "file_work.txt").exists()
             assert not (runner._work_dir / "file_job.txt").exists()
             assert (runner._work_dir / "file_work.txt").exists()
     else:
         assert updated_info.job_state == NaiveState.FAILED
         if use_scratch:
             # no files copied from work_dir; all files remain on work_dir
-            assert (runner._job_dir / "file_job.txt").exists()
-            assert not (runner._job_dir / "file_work.txt").exists()
+            assert (runner._input_dir / "file_job.txt").exists()
+            assert not (runner._input_dir / "file_work.txt").exists()
             assert not (runner._work_dir / "file_job.txt").exists()
             assert (runner._work_dir / "file_work.txt").exists()
         else:
             # work_dir was not used at all; work file still remains there
-            assert (runner._job_dir / "file_job.txt").exists()
-            assert not (runner._job_dir / "file_work.txt").exists()
+            assert (runner._input_dir / "file_job.txt").exists()
+            assert not (runner._input_dir / "file_work.txt").exists()
             assert not (runner._work_dir / "file_job.txt").exists()
             assert (runner._work_dir / "file_work.txt").exists()
 
@@ -446,17 +446,17 @@ def test_set_up_shared_dir_success(runner_with_dirs):
     runner = runner_with_dirs
 
     # create a dummy file in the job directory
-    dummy_file = runner._job_dir / "dummy.txt"
+    dummy_file = runner._input_dir / "dummy.txt"
     dummy_file.write_text("hello world")
 
     # call the method
     runner._setUpSharedDir()
 
     # working directory should now be the job directory
-    assert runner._work_dir == runner._job_dir
-    assert Path.cwd() == runner._job_dir
+    assert runner._work_dir == runner._input_dir
+    assert Path.cwd() == runner._input_dir
 
-    # files in job_dir should still exist
+    # files in input_dir should still exist
     assert (runner._work_dir / "dummy.txt").exists()
 
 
@@ -464,12 +464,12 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     runner = runner_with_dirs
 
     # create some dummy files in the job directory
-    file1 = runner._job_dir / "file1.txt"
+    file1 = runner._input_dir / "file1.txt"
     file1.write_text("hello")
-    file2 = runner._job_dir / "file2.log"
+    file2 = runner._input_dir / "file2.log"
     file2.write_text("world")
 
-    # create info file in job_dir
+    # create info file in input_dir
     runner._informer.toFile(runner._info_file)
 
     # mock batch system to return success
@@ -484,13 +484,13 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     assert runner._work_dir == scratch_dir / SCRATCH_DIR_INNER
     assert Path.cwd() == scratch_dir / SCRATCH_DIR_INNER
 
-    # files should be copied from job_dir to work_dir
+    # files should be copied from input_dir to work_dir
     for f in ["file1.txt", "file2.log"]:
         assert (runner._work_dir / f).exists()
-        assert (runner._job_dir / f).exists()
+        assert (runner._input_dir / f).exists()
 
-    # info file should exist in job_dir but not in work_dir
-    assert (runner._job_dir / "job.qqinfo").exists()
+    # info file should exist in input_dir but not in work_dir
+    assert (runner._input_dir / "job.qqinfo").exists()
     assert not (runner._work_dir / "job.qqinfo").exists()
 
 

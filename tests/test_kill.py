@@ -50,7 +50,7 @@ def sample_info(sample_resources):
         queue="default",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=Path("/shared/storage/"),
+        input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",

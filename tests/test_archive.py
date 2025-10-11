@@ -74,14 +74,14 @@ def test_prepare_regex_pattern_already_anchored():
 
 
 @pytest.fixture
-def job_dir(tmp_path):
+def input_dir(tmp_path):
     (tmp_path / "job").mkdir()
     return tmp_path / "job"
 
 
 @pytest.fixture
-def archive_dir(job_dir):
-    return job_dir / "archive"
+def archive_dir(input_dir):
+    return input_dir / "archive"
 
 
 @pytest.fixture
@@ -90,14 +90,14 @@ def work_dir(tmp_path):
     return tmp_path / "work"
 
 
-def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, job_dir):
+def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
 
     archiver = QQArchiver(
         archive=archive_dir,
         archive_format="job%04d",
         input_machine="fake_host",
-        job_dir=job_dir,
+        input_dir=input_dir,
         batch_system=QQPBS,
     )
 
@@ -106,7 +106,7 @@ def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, job_dir):
     assert archive_dir.exists()
 
 
-def test_make_archive_dir_already_exists(monkeypatch, archive_dir, job_dir):
+def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
 
     # pre-create the archive directory
@@ -116,7 +116,7 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, job_dir):
         archive=archive_dir,
         archive_format="job%04d",
         input_machine="fake_host",
-        job_dir=job_dir,
+        input_dir=input_dir,
         batch_system=QQPBS,
     )
 
@@ -126,12 +126,12 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, job_dir):
 
 
 @pytest.fixture
-def archiver(job_dir, archive_dir):
+def archiver(input_dir, archive_dir):
     return QQArchiver(
         archive=archive_dir,
         archive_format="job%04d",
         input_machine="fake_host",
-        job_dir=job_dir,
+        input_dir=input_dir,
         batch_system=QQPBS,
     )
 
@@ -145,88 +145,88 @@ HOSTS = [None, "fake_host", socket.gethostname()]
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_printf_pattern_with_cycle(monkeypatch, archiver, job_dir, host):
+def test_get_files_printf_pattern_with_cycle(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     filenames = ["job0001.dat", "job0002.dat", "job0001.qqout", "job0001.err"]
-    touch_files(job_dir, filenames)
+    touch_files(input_dir, filenames)
 
-    result = archiver._getFiles(job_dir, host=host, pattern="job%04d", cycle=1)
-    expected = [job_dir / "job0001.dat"]
+    result = archiver._getFiles(input_dir, host=host, pattern="job%04d", cycle=1)
+    expected = [input_dir / "job0001.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_include_qq_files(monkeypatch, archiver, job_dir, host):
+def test_get_files_include_qq_files(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in QQ_SUFFIXES]
-    touch_files(job_dir, filenames)
+    touch_files(input_dir, filenames)
 
     # include_qq_files=False: QQ_SUFFIXES filtered out
     result = archiver._getFiles(
-        job_dir, host=host, pattern="job%04d", cycle=1, include_qq_files=False
+        input_dir, host=host, pattern="job%04d", cycle=1, include_qq_files=False
     )
-    expected = [job_dir / "job0001.dat"]
+    expected = [input_dir / "job0001.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
     # include_qq_files=True: QQ_SUFFIXES included
     result2 = archiver._getFiles(
-        job_dir, host=host, pattern="job%04d", cycle=1, include_qq_files=True
+        input_dir, host=host, pattern="job%04d", cycle=1, include_qq_files=True
     )
-    expected2 = [job_dir / f for f in filenames]
+    expected2 = [input_dir / f for f in filenames]
     assert set(result2) == {f.resolve() for f in expected2}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_cycle_not_matching(monkeypatch, archiver, job_dir, host):
+def test_get_files_cycle_not_matching(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     filenames = ["job0001.dat", "job0002.dat"]
-    touch_files(job_dir, filenames)
+    touch_files(input_dir, filenames)
 
-    result = archiver._getFiles(job_dir, host=host, pattern="job%04d", cycle=3)
+    result = archiver._getFiles(input_dir, host=host, pattern="job%04d", cycle=3)
     assert result == []
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_regex_pattern(monkeypatch, archiver, job_dir, host):
+def test_get_files_regex_pattern(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     filenames = ["data_01.txt", "data_02.txt", "job0001.dat"]
-    touch_files(job_dir, filenames)
+    touch_files(input_dir, filenames)
 
-    result = archiver._getFiles(job_dir, host=host, pattern=r"data_\d\d")
-    expected = [job_dir / "data_01.txt", job_dir / "data_02.txt"]
+    result = archiver._getFiles(input_dir, host=host, pattern=r"data_\d\d")
+    expected = [input_dir / "data_01.txt", input_dir / "data_02.txt"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_regex_pattern_with_cycle(monkeypatch, archiver, job_dir, host):
+def test_get_files_regex_pattern_with_cycle(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     filenames = ["data_01.txt", "data_02.txt", "job0001.dat"]
-    touch_files(job_dir, filenames)
+    touch_files(input_dir, filenames)
 
-    result = archiver._getFiles(job_dir, host=host, pattern=r"data_\d\d", cycle=2)
-    expected = [job_dir / "data_01.txt", job_dir / "data_02.txt"]
+    result = archiver._getFiles(input_dir, host=host, pattern=r"data_\d\d", cycle=2)
+    expected = [input_dir / "data_01.txt", input_dir / "data_02.txt"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, job_dir, host):
+def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
 
     filenames = ["job0001.dat", "job0002.dat", "job0003.qqout", "job4.dat"]
     for f in filenames:
-        (job_dir / f).touch()
+        (input_dir / f).touch()
 
-    result = archiver._getFiles(job_dir, host=host, pattern="job%04d", cycle=None)
-    expected = [job_dir / "job0001.dat", job_dir / "job0002.dat"]
+    result = archiver._getFiles(input_dir, host=host, pattern="job%04d", cycle=None)
+    expected = [input_dir / "job0001.dat", input_dir / "job0002.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
     result = archiver._getFiles(
-        job_dir, host=host, pattern="job%04d", cycle=None, include_qq_files=True
+        input_dir, host=host, pattern="job%04d", cycle=None, include_qq_files=True
     )
     expected = [
-        job_dir / "job0001.dat",
-        job_dir / "job0002.dat",
-        job_dir / "job0003.qqout",
+        input_dir / "job0001.dat",
+        input_dir / "job0002.dat",
+        input_dir / "job0003.qqout",
     ]
     assert set(result) == {f.resolve() for f in expected}
 
@@ -340,13 +340,13 @@ def test_archive_to_qq_suffix_files(monkeypatch, archiver, archive_dir, work_dir
 
 
 def test_archive_runtime_files_moves_and_renames(
-    monkeypatch, archiver, job_dir, archive_dir
+    monkeypatch, archiver, input_dir, archive_dir
 ):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     archiver.makeArchiveDir()
 
     filenames = [f"script+0005{ext}" for ext in QQ_SUFFIXES] + ["other.txt"]
-    touch_files(job_dir, filenames)
+    touch_files(input_dir, filenames)
 
     archiver.archiveRunTimeFiles("script\\+0005", 5)
 
@@ -355,35 +355,35 @@ def test_archive_runtime_files_moves_and_renames(
     for f in expected_files:
         assert f.exists() and f.is_file()
 
-    # original runtime files removed from job_dir
-    for f in [job_dir / f"script+0005{ext}" for ext in QQ_SUFFIXES]:
+    # original runtime files removed from input_dir
+    for f in [input_dir / f"script+0005{ext}" for ext in QQ_SUFFIXES]:
         assert not f.exists()
 
     # non-matching files remain
-    assert (job_dir / "other.txt").exists()
+    assert (input_dir / "other.txt").exists()
 
     # non-matching files are not present in the archive
     assert not (archive_dir / "other.txt").exists()
 
 
 def test_archive_runtime_files_nothing_to_archive(
-    monkeypatch, archiver, job_dir, archive_dir
+    monkeypatch, archiver, input_dir, archive_dir
 ):
     monkeypatch.setenv(SHARED_SUBMIT, "true")
     archiver.makeArchiveDir()
 
-    # no relevant runtime files in job_dir
-    touch_files(job_dir, ["other.txt", "script+0006.qqinfo", "script+0004.qqout"])
+    # no relevant runtime files in input_dir
+    touch_files(input_dir, ["other.txt", "script+0006.qqinfo", "script+0004.qqout"])
 
     archiver.archiveRunTimeFiles("script\\+0005", 5)
 
     # archive dir should remain empty
     assert list(archive_dir.iterdir()) == []
 
-    # job_dir files remain
-    assert (job_dir / "other.txt").exists()
-    assert (job_dir / "script+0006.qqinfo").exists()
-    assert (job_dir / "script+0004.qqout").exists()
+    # input_dir files remain
+    assert (input_dir / "other.txt").exists()
+    assert (input_dir / "script+0006.qqinfo").exists()
+    assert (input_dir / "script+0004.qqout").exists()
 
     # job dir files not present in archive
     assert not (archive_dir / "other.txt").exists()

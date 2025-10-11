@@ -152,7 +152,7 @@ class QQGoer:
 
         Returns:
             bool: True if the current directory matches the job's work_dir and:
-              a) either a job_dir was used to run the job, or
+              a) either an input_dir was used to run the job, or
               b) local hostname matches the job's main node
         """
         # note that we cannot just compare directory paths, since

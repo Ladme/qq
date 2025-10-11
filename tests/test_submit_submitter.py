@@ -489,7 +489,7 @@ def base_info(resources, tmp_path):
         script_name="job.sh",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=tmp_path,
+        input_dir=tmp_path,
         job_state=NaiveState.FINISHED,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",

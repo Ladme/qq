@@ -58,7 +58,7 @@ def sample_info(tmp_path, sample_resources):
         script_name="script.sh",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=tmp_path / "job_dir",
+        input_dir=tmp_path / "input_dir",
         job_state=NaiveState.RUNNING,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",
@@ -136,14 +136,14 @@ def test_is_in_work_dir_false_directory_none(tmp_path, sample_info):
         assert goer._isInWorkDir() is False
 
 
-def test_is_in_work_dir_true_different_host_job_dir(tmp_path, sample_info):
+def test_is_in_work_dir_true_different_host_input_dir(tmp_path, sample_info):
     goer = QQGoer.__new__(QQGoer)
     goer._directory = tmp_path
     # different host
     goer._host = "fake_host"
     goer._informer = QQInformer(sample_info)
-    # set work_dir to job_dir
-    goer._informer.info.resources.work_dir = "job_dir"
+    # set work_dir to input_dir
+    goer._informer.info.resources.work_dir = "input_dir"
 
     with patch("pathlib.Path.cwd", return_value=tmp_path):
         assert goer._isInWorkDir() is True

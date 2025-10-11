@@ -28,7 +28,7 @@ class QQArchiver:
         archive: Path,
         archive_format: str,
         input_machine: str,
-        job_dir: Path,
+        input_dir: Path,
         batch_system: type[QQBatchInterface],
     ):
         """
@@ -38,14 +38,14 @@ class QQArchiver:
             archive (Path): Absolute path to the archive directory.
             archive_format (str): The pattern describing which files to archive.
             input_machine (str): The hostname from which the job was submitted.
-            job_dir (Path): The directory from which the job was submitted.
+            input_dir (Path): The directory from which the job was submitted.
             batch_system (type[QQBatchInterface]): The batch system used to run the qq job.
         """
         self._batch_system = batch_system
         self._archive = archive
         self._archive_format = archive_format
         self._input_machine = input_machine
-        self._job_dir = job_dir
+        self._input_dir = input_dir
 
     def makeArchiveDir(self):
         """
@@ -158,7 +158,7 @@ class QQArchiver:
         """
         if not (
             files := self._getFiles(
-                self._job_dir,
+                self._input_dir,
                 self._input_machine,
                 job_name,
                 cycle=None,

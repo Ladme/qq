@@ -44,7 +44,7 @@ def sample_info(sample_resources):
         script_name="script.sh",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=Path("/shared/storage/"),
+        input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",
@@ -199,7 +199,7 @@ def test_create_basic_info_table(sample_info):
     assert "Input machine:" in output
     assert sample_info.input_machine in output
     assert "Input directory:" in output
-    assert str(sample_info.job_dir) in output
+    assert str(sample_info.input_dir) in output
     assert "Working node:" in output
     assert str(sample_info.main_node) in output
     assert "Working directory:" in output
@@ -227,7 +227,7 @@ def test_create_basic_info_table_multiple_nodes(sample_info):
     assert "Input machine:" in output
     assert sample_info.input_machine in output
     assert "Input directory:" in output
-    assert str(sample_info.job_dir) in output
+    assert str(sample_info.input_dir) in output
     assert "Working nodes:" in output
     assert " + ".join(sample_info.all_nodes) in output
     assert "Working directory:" in output
@@ -255,7 +255,7 @@ def test_create_basic_info_table_no_working(sample_info):
     assert "Input machine:" in output
     assert sample_info.input_machine in output
     assert "Input directory:" in output
-    assert str(sample_info.job_dir) in output
+    assert str(sample_info.input_dir) in output
 
     assert "Main working node:" not in output
     assert "Working directory:" not in output

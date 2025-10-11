@@ -142,7 +142,7 @@ class QQSubmitter:
                 queue=self._queue,
                 job_type=self._job_type,
                 input_machine=socket.gethostname(),
-                job_dir=Path.cwd(),
+                input_dir=Path.cwd(),
                 job_state=NaiveState.QUEUED,
                 submission_time=datetime.now(),
                 stdout_file=str(Path(self._job_name).with_suffix(STDOUT_SUFFIX)),

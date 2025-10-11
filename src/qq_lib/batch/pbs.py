@@ -145,7 +145,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def readRemoteFile(host: str, file: Path) -> str:
         if os.environ.get(SHARED_SUBMIT):
             # file is on shared storage, we can read it directly
-            # this assumes that this method is only used to read files in job_dir
+            # this assumes that this method is only used to read files in input_dir
             logger.debug(f"Reading a file '{file}' from shared storage.")
             try:
                 return file.read_text()
@@ -159,7 +159,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def writeRemoteFile(host: str, file: Path, content: str):
         if os.environ.get(SHARED_SUBMIT):
             # file should be written to shared storage
-            # this assumes that the method is only used to write files into job_dir
+            # this assumes that the method is only used to write files into input_dir
             logger.debug(f"Writing a file '{file}' to shared storage.")
             try:
                 file.write_text(content)
@@ -172,7 +172,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
     def makeRemoteDir(host: str, directory: Path):
         if os.environ.get(SHARED_SUBMIT):
-            # assuming the directory is created in job_dir
+            # assuming the directory is created in input_dir
             logger.debug(f"Creating a directory '{directory}' on shared storage.")
             try:
                 directory.mkdir(exist_ok=True)
@@ -187,7 +187,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
     def listRemoteDir(host: str, directory: Path) -> list[Path]:
         if os.environ.get(SHARED_SUBMIT):
-            # assuming we are listing job_dir or another directory on shared storage
+            # assuming we are listing input_dir or another directory on shared storage
             logger.debug(f"Listing a directory '{directory}' on shared storage.")
             try:
                 return list(directory.iterdir())
@@ -205,7 +205,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             )
 
         if os.environ.get(SHARED_SUBMIT):
-            # assuming we are moving files inside job_dir or another directory on shared storage
+            # assuming we are moving files inside input_dir or another directory on shared storage
             logger.debug(
                 f"Moving files '{files}' -> '{moved_files}' on a shared storage."
             )
@@ -263,17 +263,19 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                 "Work-dir is not set after filling in default attributes. This is a bug."
             )
 
-        # sanity check job_dir
-        if equals_normalized(resources.work_dir, "job_dir"):
+        # sanity check input_dir
+        if equals_normalized(resources.work_dir, "job_dir") or equals_normalized(
+            resources.work_dir, "input_dir"
+        ):
             # work-size should not be used with job_dir
             if provided_resources.work_size:
                 logger.warning(
-                    "Setting work-size is not supported for work-dir='job_dir'.\n"
+                    "Setting work-size is not supported for work-dir='job_dir' or 'input_dir'.\n"
                     'Job will run in the submission directory with "unlimited" capacity.\n'
                     "The work-size attribute will be ignored."
                 )
 
-            resources.work_dir = "job_dir"
+            resources.work_dir = "input_dir"
             return resources
 
         # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
@@ -303,7 +305,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             return resources
 
         # unknown work-dir type
-        supported_types = QQPBS.SUPPORTED_SCRATCHES + ["scratch_shm", "job_dir"]
+        supported_types = QQPBS.SUPPORTED_SCRATCHES + [
+            "scratch_shm",
+            "job_dir",
+            "input_dir",  # same as job_dir
+        ]
         raise QQError(
             f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for PBS are: '{' '.join(supported_types)}'."
         )
@@ -311,9 +317,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def isShared(directory: Path) -> bool:
         return QQBatchInterface.isShared(directory)
 
-    def resubmit(input_machine: str, job_dir: str, command_line: list[str]):
+    def resubmit(input_machine: str, input_dir: str, command_line: list[str]):
         QQBatchInterface.resubmit(
-            input_machine=input_machine, job_dir=job_dir, command_line=command_line
+            input_machine=input_machine, input_dir=input_dir, command_line=command_line
         )
 
     @staticmethod
@@ -326,7 +332,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         is later used e.g. to select the appropriate data copying method.
 
         If the job is configured to use the submission directory as a working directory
-        (`work-dir=job_dir`) but that directory is not shared, a `QQError` is raised.
+        (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
         Args:
             res (QQResources): The job's resource configuration.
@@ -341,7 +347,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             # if job directory is used as working directory, it must always be shared
             if not res.useScratch():
                 raise QQError(
-                    "Job was requested to run directly in the submission directory (work-dir='job_dir'), but submission is done from a local filesystem."
+                    "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem."
                 )
 
     @staticmethod
@@ -462,11 +468,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             res (QQResources): The resources requested for the job.
 
         Returns:
-            str | None: Resource string specifying the working directory, or None if job_dir is used.
+            str | None: Resource string specifying the working directory, or None if input_dir is used.
         """
         assert res.nnodes is not None
 
-        if res.work_dir == "job_dir":
+        if res.work_dir == "job_dir" or res.work_dir == "input_dir":
             return None
 
         if res.work_dir == "scratch_shm":
@@ -610,11 +616,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                 accessed simultaneously, or if syncing fails internally.
         """
         if os.environ.get(SHARED_SUBMIT):
-            # job_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
+            # input_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
             logger.debug("Syncing directories on local and shared filesystem.")
             sync_function(src_dir, dest_dir, None, None, files)
         else:
-            # job_dir is not on shared storage -> fall back to the default implementation
+            # input_dir is not on shared storage -> fall back to the default implementation
             logger.debug("Syncing directories on local filesystems.")
 
             # convert local hosts to none
@@ -892,14 +898,14 @@ class PBSJobInfo(BatchJobInfoInterface):
             return Path("???")
 
         if not (
-            job_dir := env_vars.get("PBS_O_WORKDIR")  # try PBS first
+            input_dir := env_vars.get("PBS_O_WORKDIR")  # try PBS first
             or env_vars.get(INPUT_DIR)  # if this fails, try qq
             or env_vars.get("INF_INPUT_DIR")  # if this fails, try Infinity
         ):
             logger.warning(f"Could not obtain input directory for '{self._job_id}'.")
             return Path("???")
 
-        return Path(job_dir).resolve()
+        return Path(input_dir).resolve()
 
     def getInfoFile(self) -> Path | None:
         if not (env_vars := self._getEnvVars()):

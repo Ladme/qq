@@ -78,12 +78,12 @@ def test_init_leaves_already_converted_types_unchanged():
 
 
 def test_merge_resources_basic_field_precedence():
-    r1 = QQResources(ncpus=4, work_dir="job_dir")
+    r1 = QQResources(ncpus=4, work_dir="input_dir")
     r2 = QQResources(ncpus=8, work_dir="scratch_local")
     merged = QQResources.mergeResources(r1, r2)
 
     assert merged.ncpus == 4
-    assert merged.work_dir == "job_dir"
+    assert merged.work_dir == "input_dir"
 
 
 def test_merge_resources_props_merging_order_and_dedup():

@@ -31,7 +31,7 @@ class QQLoopInfo:
         archive: Path,
         archive_format: str,
         current: int | None = None,
-        job_dir: Path | None = None,
+        input_dir: Path | None = None,
     ):
         """
         Initialize loop job information with validation checks.
@@ -40,7 +40,7 @@ class QQLoopInfo:
             start (int): The starting cycle number.
             end (int | None): The ending cycle number. Must be provided and >= `start`.
             archive (Path): Path to the archive directory.
-            job_dir (Path | None): The job submission directory. Used to validate archive.
+            input_dir (Path | None): The job submission directory. Used to validate archive.
                 If `None`, no validation is performed.
             archive_format (str): File naming pattern used for archived files.
             current (int | None): The current cycle number. Defaults to `start`
@@ -54,8 +54,8 @@ class QQLoopInfo:
             raise QQError("Attribute 'loop-end' is undefined.")
 
         self.archive = archive.resolve()
-        if job_dir and self.archive == job_dir.resolve():
-            raise QQError("Job directory cannot be used as the loop job's archive.")
+        if input_dir and self.archive == input_dir.resolve():
+            raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format
 

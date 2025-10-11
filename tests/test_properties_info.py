@@ -41,7 +41,7 @@ def sample_info(sample_resources):
         script_name="script.sh",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=Path("/shared/storage/"),
+        input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",
@@ -62,7 +62,7 @@ def test_to_dict_skips_none(sample_info):
     assert result["job_id"] == "12345.fake.server.com"
     assert result["resources"]["ncpus"] == 8
     assert result["work_dir"] == "/scratch/job_12345.fake.server.com"
-    assert result["job_dir"] == "/shared/storage"
+    assert result["input_dir"] == "/shared/storage"
     assert result["submission_time"] == "2025-09-21 12:00:00"
 
 
@@ -77,7 +77,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
         "script_name",
         "job_type",
         "input_machine",
-        "job_dir",
+        "input_dir",
         "job_state",
         "submission_time",
         "stdout_file",
@@ -176,7 +176,7 @@ def test_from_dict_roundtrip(sample_info):
         "script_name",
         "job_type",
         "input_machine",
-        "job_dir",
+        "input_dir",
         "job_state",
         "submission_time",
         "stdout_file",
@@ -263,7 +263,7 @@ def test_from_file_missing_required_field(tmp_path):
         "script_name": "script.sh",
         "job_type": "standard",
         "input_machine": "fake.machine.com",
-        "job_dir": "/shared/storage/",
+        "input_dir": "/shared/storage/",
         "job_state": "running",
         "submission_time": "2025-09-21 12:00:00",
         "stdout_file": "stdout.log",

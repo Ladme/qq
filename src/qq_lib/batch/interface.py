@@ -906,7 +906,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Keyword Args:
             input_machine (str): The hostname of the machine where the job
                 should be resubmitted.
-            job_dir (str | Path): The directory on the remote machine containing
+            input_dir (str | Path): The directory on the remote machine containing
                 the job data and submission files.
             command_line (list[str]): The original command-line arguments that
                 should be passed to `qq submit`.
@@ -916,13 +916,13 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             SSH command).
         """
         input_machine = kwargs["input_machine"]
-        job_dir = kwargs["job_dir"]
+        input_dir = kwargs["input_dir"]
         command_line = kwargs["command_line"]
 
         qq_submit_command = "qq submit " + " ".join(command_line)
 
         logger.debug(
-            f"Navigating to '{input_machine}:{job_dir}' to execute '{qq_submit_command}'."
+            f"Navigating to '{input_machine}:{input_dir}' to execute '{qq_submit_command}'."
         )
         result = subprocess.run(
             [
@@ -931,7 +931,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
                 f"-o ConnectTimeout={SSH_TIMEOUT}",
                 "-q",  # suppress some SSH messages
                 input_machine,
-                f"cd {job_dir} && {qq_submit_command}",
+                f"cd {input_dir} && {qq_submit_command}",
             ],
             capture_output=True,
             text=True,

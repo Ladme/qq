@@ -40,7 +40,7 @@ def sample_info(sample_resources):
         script_name="script.sh",
         job_type=QQJobType.STANDARD,
         input_machine="fake.machine.com",
-        job_dir=Path("/shared/storage/"),
+        input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
         submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
         stdout_file="stdout.log",
@@ -148,7 +148,7 @@ def test_use_scratch_true(sample_info):
 
 def test_use_scratch_false(sample_info):
     informer = QQInformer(sample_info)
-    informer.info.resources.work_dir = "job_dir"
+    informer.info.resources.work_dir = "input_dir"
     assert not informer.useScratch()
 
 

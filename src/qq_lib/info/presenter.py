@@ -153,7 +153,7 @@ class QQPresenter:
             "Input machine:", Text(self._informer.info.input_machine, style="white")
         )
         table.add_row(
-            "Input directory:", Text(str(self._informer.info.job_dir), style="white")
+            "Input directory:", Text(str(self._informer.info.input_dir), style="white")
         )
         if self._informer.info.main_node:
             if len(self._informer.info.all_nodes) == 1:

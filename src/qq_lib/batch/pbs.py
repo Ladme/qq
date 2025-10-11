@@ -718,6 +718,9 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         try:
             time = datetime.strptime(raw_time, PBS_DATE_FORMAT)
+            # if the estimated start time is in the past, use the current time
+            if (current_time := datetime.now()) > time:
+                time = current_time
         except Exception as e:
             logger.debug(f"Could not parse 'estimated.start_time': {e}.")
             return None

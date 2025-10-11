@@ -164,7 +164,7 @@ def test_get_job_comment_missing():
 
 
 def test_get_job_estimated_success():
-    raw_time = "Fri Oct  4 15:30:00 2024"
+    raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node01:some_extra:additional_info)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
@@ -175,13 +175,30 @@ def test_get_job_estimated_success():
 
     parsed_time, parsed_vnode = result
 
-    expected_time = datetime(2024, 10, 4, 15, 30, 0)
+    expected_time = datetime(2124, 10, 4, 15, 30, 0)
     assert parsed_time == expected_time
     assert parsed_vnode == "node01"
 
 
+def test_get_job_estimated_in_past_success():
+    raw_time = "Fri Oct  4 15:30:00 2024"  # in the past
+    vnode = "(node01:some_extra:additional_info)"
+    job = _make_jobinfo_with_info(
+        {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
+    )
+
+    result = job.getJobEstimated()
+    assert isinstance(result, tuple)
+
+    parsed_time, parsed_vnode = result
+
+    # current time should be used (within 5 seconds)
+    assert abs((parsed_time - datetime.now()).total_seconds()) <= 5
+    assert parsed_vnode == "node01"
+
+
 def test_get_job_estimated_success_simple_node_name():
-    raw_time = "Fri Oct  4 15:30:00 2024"
+    raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "node01"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
@@ -192,7 +209,7 @@ def test_get_job_estimated_success_simple_node_name():
 
     parsed_time, parsed_vnode = result
 
-    expected_time = datetime(2024, 10, 4, 15, 30, 0)
+    expected_time = datetime(2124, 10, 4, 15, 30, 0)
     assert parsed_time == expected_time
     assert parsed_vnode == "node01"
 
@@ -211,7 +228,7 @@ def test_get_job_estimated_missing_vnode():
 
 
 def test_get_job_estimated_parses_vnode_correctly():
-    raw_time = "Fri Oct  4 15:30:00 2024"
+    raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node02:ncpus=4)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
@@ -223,7 +240,7 @@ def test_get_job_estimated_parses_vnode_correctly():
 
 
 def test_get_job_estimated_multiple_nodes():
-    raw_time = "Fri Oct  4 15:30:00 2024"
+    raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node01:some_extra:additional_info)+(node03:something_else:fake_property) +node05  +  node07+(node09)"
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
@@ -234,7 +251,7 @@ def test_get_job_estimated_multiple_nodes():
 
     parsed_time, parsed_vnode = result
 
-    expected_time = datetime(2024, 10, 4, 15, 30, 0)
+    expected_time = datetime(2124, 10, 4, 15, 30, 0)
     assert parsed_time == expected_time
     assert parsed_vnode == "node01 + node03 + node05 + node07 + node09"
 

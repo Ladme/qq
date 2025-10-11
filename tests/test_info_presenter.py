@@ -431,7 +431,7 @@ def mock_informer():
     informer = Mock()
     # default return values
     informer.getComment.return_value = "Job comment"
-    informer.getEstimated.return_value = (datetime(2026, 10, 4, 15, 30, 0), "node01")
+    informer.getEstimated.return_value = (datetime(2124, 10, 4, 15, 30, 0), "node01")
     return informer
 
 
@@ -454,7 +454,7 @@ def test_get_comment_and_estimated_for_active_states(presenter, mock_informer, s
 
     # check that the values returned are what the informer provides
     assert comment == "Job comment"
-    assert estimated == (datetime(2026, 10, 4, 15, 30, 0), "node01")
+    assert estimated == (datetime(2124, 10, 4, 15, 30, 0), "node01")
 
     # check that the presenter actually called the informer methods
     mock_informer.getComment.assert_called_once()

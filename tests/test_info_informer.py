@@ -238,7 +238,7 @@ def test_get_comment_none_when_missing():
 
 
 def test_get_estimated_success():
-    raw_time = "Fri Oct  4 15:30:00 2024"
+    raw_time = "Fri Oct  4 15:30:00 2124"
     vnode = "(node01:cpu=4)"
     batch_info = _make_pbsjobinfo_with_info(
         {
@@ -251,7 +251,7 @@ def test_get_estimated_success():
     result = informer.getEstimated()
     assert isinstance(result, tuple)
     est_time, est_node = result
-    assert est_time == datetime(2024, 10, 4, 15, 30, 0)
+    assert est_time == datetime(2124, 10, 4, 15, 30, 0)
     assert est_node == "node01"
 
 
@@ -262,7 +262,7 @@ def test_get_estimated_none_if_missing_time():
 
 
 def test_get_estimated_none_if_missing_vnode():
-    raw_time = "Fri Oct  4 15:30:00 2024"
+    raw_time = "Fri Oct  4 15:30:00 2124"
     batch_info = _make_pbsjobinfo_with_info({"estimated.start_time": raw_time})
     informer = _make_informer_with_batch_info(batch_info)
     assert informer.getEstimated() is None

@@ -235,10 +235,14 @@ def test_kill_queued_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["-q", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
@@ -272,10 +276,14 @@ def test_kill_booting_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["-q", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
@@ -315,10 +323,14 @@ def test_kill_running_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
@@ -368,10 +380,14 @@ def test_kill_finished_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
@@ -434,22 +450,25 @@ def test_kill_finished_and_queued_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the first job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["-q", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
         # submit the second job (ignore duplicate files)
+        args2 = ["-q", "default", str(script_file2), "--batch-system", "VBS"]
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
             patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+            patch("sys.argv", args2),
         ):
-            result_submit = runner.invoke(
-                submit,
-                ["-q", "default", str(script_file2), "--batch-system", "VBS"],
-            )
+            result_submit = runner.invoke(submit, args2)
         assert result_submit.exit_code == 0
 
         # run the first job
@@ -504,22 +523,25 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the first job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
         # submit the second job (ignore duplicate files)
+        args2 = ["-q", "default", str(script_file2), "--batch-system", "VBS"]
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
             patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+            patch("sys.argv", args2),
         ):
-            result_submit = runner.invoke(
-                submit,
-                ["-q", "default", str(script_file2), "--batch-system", "VBS"],
-            )
+            result_submit = runner.invoke(submit, args2)
         assert result_submit.exit_code == 0
 
         # run the first job
@@ -586,22 +608,26 @@ def test_kill_queued_and_running_integration(tmp_path, forced):
         os.chdir(tmp_path)
 
         # submit the first job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        args = ["-q", "default", str(script_file), "--batch-system", "VBS"]
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch("sys.argv", args),
+        ):
             result_submit = runner.invoke(
                 submit,
-                ["--queue", "default", str(script_file), "--batch-system", "VBS"],
+                args,
             )
         assert result_submit.exit_code == 0
 
         # submit the second job (ignore duplicate files)
+        args2 = ["-q", "default", str(script_file2), "--batch-system", "VBS"]
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
             patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+            patch("sys.argv", args2),
         ):
-            result_submit = runner.invoke(
-                submit,
-                ["-q", "default", str(script_file2), "--batch-system", "VBS"],
-            )
+            result_submit = runner.invoke(submit, args2)
+
         assert result_submit.exit_code == 0
 
         # run the first job

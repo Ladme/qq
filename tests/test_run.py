@@ -774,3 +774,100 @@ def test_reload_info_killed_exits(tmp_path, sample_info):
 
     with pytest.raises(SystemExit):
         runner._reloadInfoAndCheckKill()
+
+
+def make_runner_with_command_line(sample_info, command_line):
+    """Helper to construct a QQRunner with a given command line."""
+    info = sample_info
+    info.command_line = command_line
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = QQInformer.__new__(QQInformer)
+    runner._informer.info = info
+    return runner
+
+
+def test_prepare_command_line_no_depend(sample_info):
+    cmd = ["script.sh", "-q", "gpu"]
+    runner = make_runner_with_command_line(sample_info, cmd)
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == cmd + [f"--depend=afterok={sample_info.job_id}"]
+
+
+def test_prepare_command_line_inline_depend(sample_info):
+    cmd = ["script.sh", "--depend=afterok=11111", "-q", "gpu"]
+    runner = make_runner_with_command_line(sample_info, cmd)
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert "--depend=afterok=11111" not in result
+    assert result == [
+        "script.sh",
+        "-q",
+        "gpu",
+        f"--depend=afterok={sample_info.job_id}",
+    ]
+
+
+def test_prepare_command_line_separate_depend_argument(sample_info):
+    cmd = ["script.sh", "--depend", "afterok=11111", "-q", "gpu"]
+    runner = make_runner_with_command_line(sample_info, cmd)
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert "--depend" not in result
+    assert "afterok=11111" not in result
+    assert result == [
+        "script.sh",
+        "-q",
+        "gpu",
+        f"--depend=afterok={sample_info.job_id}",
+    ]
+
+
+def test_prepare_command_line_multiple_depends(sample_info):
+    cmd = [
+        "script.sh",
+        "--depend=afterok=11111",
+        "--depend",
+        "afterany=33333",
+        "--depend=after=22222",
+        "-q",
+        "gpu",
+    ]
+    runner = make_runner_with_command_line(sample_info, cmd)
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert "--depend" not in result
+    assert all("afterok=11111" not in arg for arg in result)
+    assert all("afterany=33333" not in arg for arg in result)
+
+    # only one new depend at the end
+    assert result[-1] == f"--depend=afterok={sample_info.job_id}"
+    assert "gpu" in result
+    assert "script.sh" in result
+
+
+def test_prepare_command_line_depend_last_arg(sample_info):
+    cmd = ["script.sh", "--depend"]
+    runner = make_runner_with_command_line(sample_info, cmd)
+
+    result = runner._prepareCommandLineForResubmit()
+
+    # '--depend' should be removed even without a following argument
+    assert "--depend" not in result
+    assert result == [
+        "script.sh",
+        f"--depend=afterok={sample_info.job_id}",
+    ]
+
+
+def test_prepare_command_line_only_depend(sample_info):
+    cmd = ["--depend=afterok=11111"]
+    runner = make_runner_with_command_line(sample_info, cmd)
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == [f"--depend=afterok={sample_info.job_id}"]

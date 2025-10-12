@@ -486,12 +486,42 @@ class QQRunner:
             self._batch_system.resubmit,
             input_machine=self._informer.info.input_machine,
             input_dir=self._informer.info.input_dir,
-            command_line=self._informer.info.command_line,
+            command_line=self._prepareCommandLineForResubmit(),
             max_tries=RUNNER_RETRY_TRIES,
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
 
         logger.info("Job successfully resubmitted.")
+
+    def _prepareCommandLineForResubmit(self) -> list[str]:
+        """
+        Prepare a modified command line for submitting the next cycle of a loop job.
+
+        This method takes the original command line from the job's informer,
+        removes any existing dependency options (i.e., arguments containing or
+        following `"--depend"`), and appends a new dependency referencing the
+        current job ID. This ensures that the resubmitted job depends on the
+        successful completion (`afterok`) of the current one.
+
+        Returns:
+            line[str]: The sanitized and updated list of command line arguments.
+        """
+        command_line = self._informer.info.command_line
+
+        # we need to remove dependencies for the previous cycle
+        modified = []
+        it = iter(command_line)
+        for arg in it:
+            if arg.strip() == "--depend":
+                next(it, None)  # skip the following argument
+            elif "--depend" not in arg:
+                modified.append(arg)
+
+        # and add in a new dependency for the current cycle
+        modified.append(f"--depend=afterok={self._informer.info.job_id}")
+
+        logger.debug(f"Command line for resubmit: {modified}.")
+        return modified
 
     def _cleanup(self) -> None:
         """

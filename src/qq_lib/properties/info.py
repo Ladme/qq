@@ -234,7 +234,7 @@ class QQInfo:
                 continue
 
             # empty lists are ignored
-            if f.type is list and not value:
+            if isinstance(value, list) and not value:
                 continue
 
             # convert job type

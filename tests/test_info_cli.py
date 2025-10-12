@@ -40,16 +40,19 @@ def test_info_basic_integration(tmp_path):
         os.chdir(tmp_path)
 
         # submit the job using VBS
-        with patch.object(QQSubmitter, "_hasValidShebang", return_value=True):
+        with (
+            patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+            patch(
+                "sys.argv", ["-q", "default", str(script_file), "--batch-system", "VBS"]
+            ),
+        ):
             result_submit = runner.invoke(
                 submit,
                 ["-q", "default", str(script_file), "--batch-system", "VBS"],
             )
-        print(result_submit.stderr)
         assert result_submit.exit_code == 0
 
         result_info = runner.invoke(info)
-        print(result_info.stderr)
         assert result_info.exit_code == 0
         assert "queued" in result_info.stdout
 
@@ -134,6 +137,16 @@ def test_info_multiple_jobs_integration(tmp_path):
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
             patch.object(QQSubmitter, "guardOrClear"),
+            patch(
+                "sys.argv",
+                [
+                    "--queue",
+                    "default",
+                    str(script_files[i]),
+                    "--batch-system",
+                    "VBS",
+                ],
+            ),
         ):
             for i in range(3):
                 result_submit = runner.invoke(

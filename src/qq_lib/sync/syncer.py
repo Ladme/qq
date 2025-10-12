@@ -121,7 +121,7 @@ class QQSyncer:
                 self._directory, self._informer.info.input_dir, self._host, None
             )
 
-    def printInfo(self, console: Console):
+    def printInfo(self, console: Console) -> None:
         """
         Display the current job information in a formatted Rich panel.
 
@@ -155,7 +155,7 @@ class QQSyncer:
         """
         return self._informer.isJob(job_id)
 
-    def _setDestination(self):
+    def _setDestination(self) -> None:
         """
         Get the job's host and working directory from the QQInformer.
 

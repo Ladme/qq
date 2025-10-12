@@ -45,19 +45,19 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         except VBSError as e:
             raise QQError(f"Failed to submit script '{str(script)}': {e}")
 
-    def jobKill(job_id: str):
+    def jobKill(job_id: str) -> None:
         try:
             QQVBS._batch_system.killJob(job_id)
         except VBSError as e:
             raise QQError(f"Failed to kill job '{job_id}': {e}")
 
-    def jobKillForce(job_id: str):
+    def jobKillForce(job_id: str) -> None:
         try:
             QQVBS._batch_system.killJob(job_id, hard=True)
         except VBSError as e:
             raise QQError(f"Failed to kill job '{job_id}': {e}")
 
-    def navigateToDestination(host: str, directory: Path):
+    def navigateToDestination(host: str, directory: Path) -> None:
         try:
             os.chdir(Path(host) / directory)
         except Exception:
@@ -72,14 +72,14 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not read file '{file}': {e}.") from e
 
-    def writeRemoteFile(_host: str, file: Path, content: str):
+    def writeRemoteFile(_host: str, file: Path, content: str) -> None:
         # file is always local
         try:
             file.write_text(content)
         except Exception as e:
             raise QQError(f"Could not write file '{file}': {e}.") from e
 
-    def makeRemoteDir(_host: str, directory: Path):
+    def makeRemoteDir(_host: str, directory: Path) -> None:
         # always local
         try:
             directory.mkdir(exist_ok=True)
@@ -93,7 +93,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not list a directory '{directory}': {e}") from e
 
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]):
+    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
         if len(files) != len(moved_files):
             raise QQError(
                 "The provided 'files' and 'moved_files' must have the same length."
@@ -112,7 +112,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         _src_host: str | None,
         _dest_host: str | None,
         exclude_files: list[Path] | None = None,
-    ):
+    ) -> None:
         # directories are always local
         QQBatchInterface.syncWithExclusions(
             src_dir, dest_dir, None, None, exclude_files
@@ -124,7 +124,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         _src_host: str | None,
         _dest_host: str | None,
         include_files: list[Path],
-    ):
+    ) -> None:
         # directories are always local
         QQBatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
 

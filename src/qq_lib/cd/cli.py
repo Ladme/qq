@@ -3,6 +3,7 @@
 
 
 import sys
+from typing import NoReturn
 
 import click
 
@@ -31,7 +32,7 @@ Note that this command does not open a new shell.
     type=str,
     metavar=click.style("JOB_ID", fg="green"),
 )
-def cd(job: str):
+def cd(job: str) -> NoReturn:
     """
     This command gets the input directory for the specified job
     and prints it. A bash qq cd function should be set up

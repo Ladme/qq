@@ -43,7 +43,7 @@ class BatchJobInfoInterface(ABC):
         pass
 
     @abstractmethod
-    def update(self):
+    def update(self) -> None:
         """
         Refresh the stored job information from the batch system.
 

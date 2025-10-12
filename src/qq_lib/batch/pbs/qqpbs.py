@@ -62,7 +62,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         return result.stdout.strip()
 
-    def jobKill(job_id: str):
+    def jobKill(job_id: str) -> None:
         command = QQPBS._translateKill(job_id)
         logger.debug(command)
 
@@ -74,7 +74,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         if result.returncode != 0:
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def jobKillForce(job_id: str):
+    def jobKillForce(job_id: str) -> None:
         command = QQPBS._translateKillForce(job_id)
         logger.debug(command)
 
@@ -86,7 +86,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         if result.returncode != 0:
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def navigateToDestination(host: str, directory: Path):
+    def navigateToDestination(host: str, directory: Path) -> None:
         QQBatchInterface.navigateToDestination(host, directory)
 
     def getJobInfo(job_id: str) -> PBSJobInfo:
@@ -126,7 +126,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             logger.debug(f"Reading a remote file '{file}' on '{host}'.")
             return QQBatchInterface.readRemoteFile(host, file)
 
-    def writeRemoteFile(host: str, file: Path, content: str):
+    def writeRemoteFile(host: str, file: Path, content: str) -> None:
         if os.environ.get(SHARED_SUBMIT):
             # file should be written to shared storage
             # this assumes that the method is only used to write files into input_dir
@@ -140,7 +140,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
             QQBatchInterface.writeRemoteFile(host, file, content)
 
-    def makeRemoteDir(host: str, directory: Path):
+    def makeRemoteDir(host: str, directory: Path) -> None:
         if os.environ.get(SHARED_SUBMIT):
             # assuming the directory is created in input_dir
             logger.debug(f"Creating a directory '{directory}' on shared storage.")
@@ -168,7 +168,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             logger.debug(f"Listing a directory '{directory}' on '{host}'.")
             return QQBatchInterface.listRemoteDir(host, directory)
 
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]):
+    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
         if len(files) != len(moved_files):
             raise QQError(
                 "The provided 'files' and 'moved_files' must have the same length."
@@ -192,7 +192,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         src_host: str | None,
         dest_host: str | None,
         exclude_files: list[Path] | None = None,
-    ):
+    ) -> None:
         QQPBS._syncDirectories(
             src_dir,
             dest_dir,
@@ -208,7 +208,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         src_host: str | None,
         dest_host: str | None,
         include_files: list[Path] | None = None,
-    ):
+    ) -> None:
         QQPBS._syncDirectories(
             src_dir,
             dest_dir,
@@ -287,13 +287,13 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def isShared(directory: Path) -> bool:
         return QQBatchInterface.isShared(directory)
 
-    def resubmit(input_machine: str, input_dir: str, command_line: list[str]):
+    def resubmit(input_machine: str, input_dir: str, command_line: list[str]) -> None:
         QQBatchInterface.resubmit(
             input_machine=input_machine, input_dir=input_dir, command_line=command_line
         )
 
     @staticmethod
-    def _sharedGuard(res: QQResources):
+    def _sharedGuard(res: QQResources) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
 
@@ -569,7 +569,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         sync_function: Callable[
             [Path, Path, str | None, str | None, list[Path] | None], None
         ],
-    ):
+    ) -> None:
         """
         Synchronize directories either locally or across remote hosts, depending on the environment and setup.
 

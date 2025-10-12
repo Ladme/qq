@@ -4,6 +4,7 @@
 
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import click
 from click_option_group import optgroup
@@ -152,7 +153,7 @@ The submitted script must be located in the directory from which
     default=None,
     help="Filename format for archived files. Defaults to 'job%04d'.",
 )
-def submit(script: str, **kwargs):
+def submit(script: str, **kwargs) -> NoReturn:
     """
     Submit a qq job to a batch system from the command line.
 

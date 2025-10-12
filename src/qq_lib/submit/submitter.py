@@ -157,7 +157,7 @@ class QQSubmitter:
         informer.toFile(self._info_file)
         return job_id
 
-    def guardOrClear(self):
+    def guardOrClear(self) -> None:
         """
         Prevent multiple submissions from the same directory.
 
@@ -256,7 +256,7 @@ class QQSubmitter:
                 return True
         return False
 
-    def _setEnvVars(self):
+    def _setEnvVars(self) -> None:
         """
         Set environment variables required for qq runtime.
         """

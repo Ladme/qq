@@ -36,7 +36,7 @@ class QQGoer:
         self._info_file = info_file
         self.update()
 
-    def printInfo(self, console: Console):
+    def printInfo(self, console: Console) -> None:
         """
         Display the current job information in a formatted Rich panel.
 
@@ -47,7 +47,7 @@ class QQGoer:
         panel = presenter.createJobStatusPanel(console)
         console.print(panel)
 
-    def update(self):
+    def update(self) -> None:
         """
         Refresh internal state from the QQ info file.
         """
@@ -56,7 +56,7 @@ class QQGoer:
         self._state = self._informer.getRealState()
         self._setDestination()
 
-    def checkAndNavigate(self):
+    def checkAndNavigate(self) -> None:
         """
         Check the job state and navigate to the working directory if appropriate.
 
@@ -133,7 +133,7 @@ class QQGoer:
         """
         return self._informer.isJob(job_id)
 
-    def _navigate(self):
+    def _navigate(self) -> None:
         """
         Navigate to the job's working directory using batch system-specific commands.
 
@@ -169,7 +169,7 @@ class QQGoer:
             and (not self._informer.useScratch() or self._host == socket.gethostname())
         )
 
-    def _setDestination(self):
+    def _setDestination(self) -> None:
         """
         Get the job's host and working directory from the QQInformer.
 

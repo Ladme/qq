@@ -21,7 +21,7 @@ class NaiveState(Enum):
     KILLED = 5
     UNKNOWN = 6
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return the lowercase string representation of the enum variant.
 
@@ -63,7 +63,7 @@ class BatchState(Enum):
     SUSPENDED = 9
     UNKNOWN = 10
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return the lowercase string representation of the enum variant.
 
@@ -163,7 +163,7 @@ class RealState(Enum):
     IN_AN_INCONSISTENT_STATE = 11
     UNKNOWN = 12
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Return the human-readable string representation of the state.
 

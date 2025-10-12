@@ -2,26 +2,30 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
+from collections.abc import Sequence
+
 import click
-from click import HelpFormatter
+from click import Context, HelpFormatter
 from click_help_colors import HelpColorsCommand
 
 
 class GNUHelpColorsCommand(HelpColorsCommand):
     """Custom formatter that prints options in GNU-style."""
 
-    def get_help(self, ctx):
+    def get_help(self, ctx: Context) -> str:
         class GNUHelpFormatter(HelpFormatter):
             def __init__(self, width=None, headers_color=None, options_color=None):
                 super().__init__(width=width)
                 self.headers_color = headers_color or "white"
                 self.options_color = options_color or "white"
 
-            def write_heading(self, heading):
+            def write_heading(self, heading: str) -> None:
                 styled_heading = click.style(heading, fg=self.headers_color, bold=True)
                 self.write(f"{styled_heading}\n")
 
-            def write_usage(self, prog_name, args, prefix=None):
+            def write_usage(
+                self, prog_name: str, args: str | None, prefix: str | None = None
+            ) -> None:
                 """Override to make Usage: header bold"""
                 if prefix is None:
                     prefix = "Usage:"
@@ -34,7 +38,12 @@ class GNUHelpColorsCommand(HelpColorsCommand):
 
                 self.write(f"{usage_line}\n")
 
-            def write_dl(self, rows, _col_max=30, _col_spacing=2):
+            def write_dl(
+                self,
+                rows: Sequence[tuple[str, str | None]],
+                _col_max: int = 30,
+                _col_spacing: int = 2,
+            ) -> None:
                 for term, definition in rows:
                     colored_term = click.style(term, fg=self.options_color, bold=True)
                     self.write(f"  {colored_term}\n")

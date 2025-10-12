@@ -41,7 +41,7 @@ class QQClearer:
 
         return files
 
-    def clearFiles(self, files: list[Path], force: bool):
+    def clearFiles(self, files: list[Path], force: bool) -> None:
         """
         Remove the specified qq files from the directory if it is safe to do so.
 

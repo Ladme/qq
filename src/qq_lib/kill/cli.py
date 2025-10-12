@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import click
 from rich.console import Console
@@ -15,6 +16,8 @@ from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
     QQNotSuitableError,
+)
+from qq_lib.core.error_handlers import (
     handle_general_qq_error,
     handle_job_mismatch_error,
     handle_not_suitable_error,
@@ -60,7 +63,7 @@ This can be useful for removing lingering or stuck jobs.""",
     is_flag=True,
     help="Terminate the job forcibly, ignoring its current state and without confirmation.",
 )
-def kill(job: str | None, yes: bool = False, force: bool = False):
+def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     """
     Terminate the specified qq job or qq job(s) submitted from the current directory.
 
@@ -102,7 +105,7 @@ def kill(job: str | None, yes: bool = False, force: bool = False):
         sys.exit(99)
 
 
-def _kill_job(info_file: Path, force: bool, yes: bool, job: str | None):
+def _kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
     """
     Attempt to terminate a qq job associated with the specified info file.
 

@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import click
 from rich.console import Console
@@ -41,7 +42,7 @@ If JOB_ID is not specified, `qq info` searches for qq jobs in the current direct
 @click.option(
     "-s", "--short", is_flag=True, help="Display only the job ID and current state."
 )
-def info(job: str | None, short: bool):
+def info(job: str | None, short: bool) -> NoReturn:
     """
     Get information about the specified qq job or qq job(s) submitted from this directory.
     """
@@ -57,7 +58,7 @@ def info(job: str | None, short: bool):
         sys.exit(99)
 
 
-def _info_for_job(info_file: Path, short: bool, job: str | None):
+def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
     """
     Display information about a qq job based on its info file and the batch system information.
 

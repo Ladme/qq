@@ -3,6 +3,7 @@
 
 
 import sys
+from typing import NoReturn
 
 import click
 
@@ -20,7 +21,7 @@ logger = get_logger(__name__, show_time=True)
     help=f"Execute a script inside the qq environment. {click.style('Do not run directly!', fg='red')}",
 )
 @click.argument("script_path", type=str, metavar=click.style("SCRIPT"))
-def run(script_path: str):
+def run(script_path: str) -> NoReturn:
     """
     Entrypoint for executing a script inside the qq batch environment.
 

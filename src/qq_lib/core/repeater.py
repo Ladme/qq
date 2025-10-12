@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Self
 
 
 class QQRepeater:
@@ -35,12 +35,18 @@ class QQRepeater:
         self.items = items
         self.current_iteration = 0
 
-        self._handlers: dict[type[BaseException], Callable[[BaseException], Any]] = {}
+        self._handlers: dict[
+            type[BaseException], Callable[[BaseException, Self], Any]
+        ] = {}
         self._func = func
         self._args = args
         self._kwargs = kwargs
 
-    def onException(self, exc_type: type[BaseException], handler: Callable) -> None:
+    def onException(
+        self,
+        exc_type: type[BaseException],
+        handler: Callable[[BaseException, Self], Any],
+    ) -> None:
         """
         Register a handler function for a specific exception type.
 
@@ -53,7 +59,7 @@ class QQRepeater:
         """
         self._handlers[exc_type] = handler
 
-    def run(self):
+    def run(self) -> None:
         """
         Execute the target function for all items, invoking handlers for exceptions.
 

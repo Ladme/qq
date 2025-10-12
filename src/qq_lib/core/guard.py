@@ -7,7 +7,7 @@ from .constants import GUARD
 from .error import QQError
 
 
-def guard():
+def guard() -> None:
     """
     Raises an exception if the script is not running inside qq environment.
     """
@@ -18,7 +18,7 @@ def guard():
         )
 
 
-def guard_command(command: str):
+def guard_command(command: str) -> None:
     """
     Raises an exception if a qq command is not used inside qq environment.
     """

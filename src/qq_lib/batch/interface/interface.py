@@ -99,7 +99,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def jobKill(job_id: str):
+    def jobKill(job_id: str) -> None:
         """
         Terminate a job gracefully. This assumes that job has time for cleanup.
 
@@ -113,7 +113,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def jobKillForce(job_id: str):
+    def jobKillForce(job_id: str) -> None:
         """
         Forcefully terminate a job. This assumes that the job has no time for cleanup.
 
@@ -194,7 +194,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def navigateToDestination(host: str, directory: Path):
+    def navigateToDestination(host: str, directory: Path) -> None:
         """
         Open a new terminal on the specified host and change the working directory
         to the given path, handing control over to the user.
@@ -283,7 +283,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def writeRemoteFile(host: str, file: Path, content: str):
+    def writeRemoteFile(host: str, file: Path, content: str) -> None:
         """
         Write the given content to a file on a remote host, overwriting it if it exists.
 
@@ -323,7 +323,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def makeRemoteDir(host: str, directory: Path):
+    def makeRemoteDir(host: str, directory: Path) -> None:
         """
         Create a directory at the specified path on a remote host.
 
@@ -409,7 +409,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]):
+    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
         """
         Move files on a remote host from their current paths to new paths.
 
@@ -457,7 +457,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         src_host: str | None,
         dest_host: str | None,
         exclude_files: list[Path] | None = None,
-    ):
+    ) -> None:
         """
         Synchronize the contents of two directories using rsync, optionally across remote hosts,
         while excluding specified files or subdirectories.
@@ -500,7 +500,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         src_host: str | None,
         dest_host: str | None,
         include_files: list[Path] | None = None,
-    ):
+    ) -> None:
         """
         Synchronize only the explicitly selected files and directories from the source
         to the destination, optionally across remote hosts.
@@ -582,7 +582,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def resubmit(**kwargs):
+    def resubmit(**kwargs) -> None:
         """
         Resubmit a job to the batch system.
 
@@ -655,7 +655,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         ]
 
     @staticmethod
-    def _navigateSameHost(directory: Path):
+    def _navigateSameHost(directory: Path) -> None:
         """
         Navigate to a directory on the current host using a subprocess.
 
@@ -676,7 +676,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         # no matter what the user does inside the terminal
 
     @staticmethod
-    def _translateMoveCommand(files: list[Path], moved_files: list[Path]):
+    def _translateMoveCommand(files: list[Path], moved_files: list[Path]) -> str:
         """
         Translate lists of source and destination file paths into a single shell
         command string for moving the files.
@@ -700,7 +700,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
                 "The provided 'files' and 'moved_files' must have the same length."
             )
 
-        mv_commands = []
+        mv_commands: list[str] = []
         for src, dst in zip(files, moved_files):
             mv_commands.append(f"mv '{src}' '{dst}'")
 
@@ -757,7 +757,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         src_host: str | None,
         dest_host: str | None,
         relative_included: list[Path],
-    ):
+    ) -> list[str]:
         """
         Build an rsync command to synchronize only the explicitly included files.
 
@@ -799,7 +799,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         src_host: str | None,
         dest_host: str | None,
         command: list[str],
-    ):
+    ) -> None:
         """
         Execute an rsync command to synchronize files between source and destination.
 

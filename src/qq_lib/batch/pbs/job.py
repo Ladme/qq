@@ -47,7 +47,7 @@ class PBSJobInfo(BatchJobInfoInterface):
     def getId(self) -> str:
         return self._job_id
 
-    def update(self):
+    def update(self) -> None:
         # get job info from PBS
         command = f"qstat -fxw {self._job_id}"
 

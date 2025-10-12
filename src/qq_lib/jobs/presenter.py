@@ -116,7 +116,7 @@ class QQJobsPresenter:
 
         return Group(Text(""), panel, Text(""))
 
-    def dumpYaml(self):
+    def dumpYaml(self) -> None:
         """
         Print the YAML representation of all jobs to stdout.
         """
@@ -451,7 +451,7 @@ class QQJobsStatistics:
     # Number of nodes for unknown jobs.
     n_unknown_nodes: int = 0
 
-    def addJob(self, state: BatchState, cpus: int, gpus: int, nodes: int):
+    def addJob(self, state: BatchState, cpus: int, gpus: int, nodes: int) -> None:
         """
         Update the collected resources based on the state of the job.
 

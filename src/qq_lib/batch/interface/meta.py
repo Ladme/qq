@@ -22,14 +22,14 @@ class QQBatchMeta(ABCMeta):
     # registry of supported batch systems
     _registry: dict[str, type[QQBatchInterface]] = {}
 
-    def __str__(cls: type[QQBatchInterface]):
+    def __str__(cls: type[QQBatchInterface]) -> str:
         """
         Get the string representation of the batch system class.
         """
         return cls.envName()
 
     @classmethod
-    def register(cls, batch_cls: type[QQBatchInterface]):
+    def register(cls, batch_cls: type[QQBatchInterface]) -> None:
         """
         Register a batch system class in the metaclass registry.
 

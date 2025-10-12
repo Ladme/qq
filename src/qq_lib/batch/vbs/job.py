@@ -26,7 +26,7 @@ class VBSJobInfo(BatchJobInfoInterface):
     def isEmpty(self) -> bool:
         return False
 
-    def update(self):
+    def update(self) -> None:
         # does nothing
         pass
 

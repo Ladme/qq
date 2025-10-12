@@ -4,6 +4,7 @@
 import re
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import click
 from rich.console import Console
@@ -14,6 +15,8 @@ from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
     QQNotSuitableError,
+)
+from qq_lib.core.error_handlers import (
     handle_general_qq_error,
     handle_job_mismatch_error,
     handle_not_suitable_error,
@@ -57,7 +60,7 @@ Files are copied from the job's working directory to its input directory, not to
     default=None,
     help="A colon-, comma-, or space-separated list of files to fetch. If not specified, all files are fetched.",
 )
-def sync(job: str | None, files: str | None):
+def sync(job: str | None, files: str | None) -> NoReturn:
     """
     Fetch files from the working directory of the specified qq job or
     working directory (directories) of qq job(s) submitted from this directory.
@@ -82,7 +85,7 @@ def sync(job: str | None, files: str | None):
         sys.exit(99)
 
 
-def _sync_job(info_file: Path, job: str | None, files: list[str] | None):
+def _sync_job(info_file: Path, job: str | None, files: list[str] | None) -> None:
     """
     Perform synchronization of job files from a remote working directory to the local input directory.
 

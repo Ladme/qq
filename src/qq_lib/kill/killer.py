@@ -44,7 +44,7 @@ class QQKiller:
         """
         return self._informer.info.job_id
 
-    def printInfo(self, console: Console):
+    def printInfo(self, console: Console) -> None:
         """
         Display the current job information in a formatted Rich panel.
 
@@ -76,7 +76,7 @@ class QQKiller:
             not self._isFinished() and not self._isKilled() and not self._isExiting()
         )
 
-    def terminate(self):
+    def terminate(self) -> None:
         """
         Execute the kill command for the job using the batch system.
 
@@ -121,7 +121,7 @@ class QQKiller:
             and not self._isUnknownInconsistent()
         )
 
-    def updateInfoFile(self):
+    def updateInfoFile(self) -> None:
         """
         Mark the job as killed in the info file and lock it to prevent overwriting.
         """
@@ -173,7 +173,7 @@ class QQKiller:
         """Check if the job is in an unknown or inconsistent state."""
         return self._state in {RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE}
 
-    def _lockFile(self, file_path: Path):
+    def _lockFile(self, file_path: Path) -> None:
         """
         Remove write permissions for an info file to prevent overwriting
         information about the killed job.

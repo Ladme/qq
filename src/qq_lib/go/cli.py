@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import click
 from rich.console import Console
@@ -15,6 +16,8 @@ from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
     QQNotSuitableError,
+)
+from qq_lib.core.error_handlers import (
     handle_general_qq_error,
     handle_job_mismatch_error,
     handle_not_suitable_error,
@@ -51,7 +54,7 @@ it always opens a new shell at the destination.
     required=False,
     default=None,
 )
-def go(job: str | None):
+def go(job: str | None) -> NoReturn:
     """
     Go to the working directory (directories) of the specified qq job or qq job(s) submitted from this directory.
     """
@@ -72,7 +75,7 @@ def go(job: str | None):
         sys.exit(99)
 
 
-def _go_to_job(info_file: Path, job: str | None):
+def _go_to_job(info_file: Path, job: str | None) -> None:
     """
     Navigate to the working directory of a qq job if it is accessible.
 

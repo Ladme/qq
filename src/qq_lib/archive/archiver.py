@@ -47,7 +47,7 @@ class QQArchiver:
         self._input_machine = input_machine
         self._input_dir = input_dir
 
-    def makeArchiveDir(self):
+    def makeArchiveDir(self) -> None:
         """
         Create the archive directory if it does not already exist.
         """
@@ -56,7 +56,7 @@ class QQArchiver:
         )
         self._batch_system.makeRemoteDir(self._input_machine, self._archive)
 
-    def archiveFrom(self, work_dir: Path, cycle: int | None = None):
+    def archiveFrom(self, work_dir: Path, cycle: int | None = None) -> None:
         """
         Fetch files from the archive to a local working directory.
 
@@ -96,7 +96,7 @@ class QQArchiver:
             wait_seconds=ARCHIVER_RETRY_WAIT,
         ).run()
 
-    def archiveTo(self, work_dir: Path):
+    def archiveTo(self, work_dir: Path) -> None:
         """
         Archive all files matching the archive format in the specified working directory.
 
@@ -137,7 +137,7 @@ class QQArchiver:
             wait_seconds=ARCHIVER_RETRY_WAIT,
         ).run()
 
-    def archiveRunTimeFiles(self, job_name: str, cycle: int):
+    def archiveRunTimeFiles(self, job_name: str, cycle: int) -> None:
         """
         Archive qq runtime files from a specific job located in the submission directory.
 
@@ -271,7 +271,7 @@ class QQArchiver:
         return re.compile(pattern)
 
     @staticmethod
-    def _removeFiles(files: list[Path]):
+    def _removeFiles(files: list[Path]) -> None:
         """
         Remove a list of files from the filesystem.
 

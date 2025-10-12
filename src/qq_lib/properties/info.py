@@ -171,7 +171,7 @@ class QQInfo:
                 f"Mandatory information missing from the qq info file '{file}': {e}."
             ) from e
 
-    def toFile(self, file: Path, host: str | None = None):
+    def toFile(self, file: Path, host: str | None = None) -> None:
         """
         Export this QQInfo instance to a YAML file, either locally or on a remote host.
 

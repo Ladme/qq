@@ -30,7 +30,7 @@ class VirtualJob:
     scratch: Path | None = None
     process: subprocess.Popen | None = None
 
-    def tryCreateScratch(self):
+    def tryCreateScratch(self) -> None:
         """Create a scratch directory on the given node."""
         if not self.use_scratch:
             return
@@ -57,14 +57,14 @@ class VirtualBatchSystem:
         self.nodes: list[Path] = []
         self._freeze_events: dict[str, threading.Event] = {}
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Remove the virtual nodes."""
         for node in self.nodes:
             if node.exists():
                 shutil.rmtree(node)
         self.nodes.clear()
 
-    def clearJobs(self):
+    def clearJobs(self) -> None:
         """
         Removes all jobs from the batch system (does not terminate their threads).
         """
@@ -85,7 +85,7 @@ class VirtualBatchSystem:
 
         return job_id
 
-    def runJob(self, job_id: str, freeze: bool = False):
+    def runJob(self, job_id: str, freeze: bool = False) -> None:
         """Assign a node to the target job and run it asynchronously."""
         job = self.jobs[job_id]
         job.node = self._createNode()
@@ -99,7 +99,7 @@ class VirtualBatchSystem:
         thread = threading.Thread(target=self._worker, args=(job, event), daemon=True)
         thread.start()
 
-    def killJob(self, job_id: str, hard: bool = False):
+    def killJob(self, job_id: str, hard: bool = False) -> None:
         """Terminate a running job."""
         job = self.jobs[job_id]
         if job.state in {BatchState.FINISHED, BatchState.FAILED}:
@@ -112,7 +112,7 @@ class VirtualBatchSystem:
         job.state = BatchState.FAILED
         job.process = None
 
-    def releaseFrozenJob(self, job_id: str):
+    def releaseFrozenJob(self, job_id: str) -> None:
         """Release a frozen job so it can complete."""
         if job_id not in self._freeze_events:
             raise VBSError(f"Job '{job_id}' is not frozen or does not exist.")
@@ -126,7 +126,9 @@ class VirtualBatchSystem:
 
         return node
 
-    def _worker(self, job: VirtualJob, freeze_event: threading.Event | None = None):
+    def _worker(
+        self, job: VirtualJob, freeze_event: threading.Event | None = None
+    ) -> None:
         """Run the script associated with target job."""
         job.state = BatchState.RUNNING
 

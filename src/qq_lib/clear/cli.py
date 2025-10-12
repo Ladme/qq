@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 import click
 
@@ -30,7 +31,7 @@ To force deletion of the files regardless of job status, use the `--force` flag.
     help="Force deletion of all qq runtime files, even if jobs are active or successfully completed.",
     default=False,
 )
-def clear(force: bool):
+def clear(force: bool) -> NoReturn:
     """
     Delete all qq run files in the current directory.
     """

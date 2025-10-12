@@ -115,10 +115,10 @@ class Size:
     # allow 3 * Size
     __rmul__ = __mul__
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.value}{self.unit}"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Size(value={self.value}, unit='{self.unit}')"
 
     def __floordiv__(self, n: int) -> "Size":

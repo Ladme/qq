@@ -4,6 +4,7 @@
 
 import getpass
 import sys
+from typing import NoReturn
 
 import click
 from rich.console import Console
@@ -37,7 +38,7 @@ logger = get_logger(__name__)
     help="Include both unfinished and finished jobs in the summary.",
 )
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
-def jobs(user: str, all: bool, yaml: bool):
+def jobs(user: str, all: bool, yaml: bool) -> NoReturn:
     try:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
         if not user:
@@ -51,7 +52,7 @@ def jobs(user: str, all: bool, yaml: bool):
 
         if not jobs:
             logger.info("No jobs found.")
-            return
+            sys.exit(91)
 
         presenter = QQJobsPresenter(jobs)
         if yaml:

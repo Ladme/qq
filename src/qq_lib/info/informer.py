@@ -57,7 +57,7 @@ class QQInformer:
         """
         return cls(QQInfo.fromFile(file, host))
 
-    def toFile(self, file: Path, host: str | None = None):
+    def toFile(self, file: Path, host: str | None = None) -> None:
         """
         Export the job information to a file.
 
@@ -74,7 +74,7 @@ class QQInformer:
 
     def setRunning(
         self, time: datetime, main_node: str, all_nodes: list[str], work_dir: Path
-    ):
+    ) -> None:
         """
         Mark the job as running and set associated metadata.
 
@@ -89,7 +89,7 @@ class QQInformer:
         self.info.all_nodes = all_nodes
         self.info.work_dir = work_dir
 
-    def setFinished(self, time: datetime):
+    def setFinished(self, time: datetime) -> None:
         """
         Mark the job as finished successfully.
 
@@ -100,7 +100,7 @@ class QQInformer:
         self.info.completion_time = time
         self.info.job_exit_code = 0
 
-    def setFailed(self, time: datetime, exit_code: int):
+    def setFailed(self, time: datetime, exit_code: int) -> None:
         """
         Mark the job as failed.
 
@@ -112,7 +112,7 @@ class QQInformer:
         self.info.completion_time = time
         self.info.job_exit_code = exit_code
 
-    def setKilled(self, time: datetime):
+    def setKilled(self, time: datetime) -> None:
         """
         Mark the job as killed.
 

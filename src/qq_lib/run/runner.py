@@ -89,7 +89,7 @@ class QQRunner:
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
 
-    def setUp(self):
+    def setUp(self) -> None:
         """
         Perform the full setup of the QQRunner.
 
@@ -134,7 +134,7 @@ class QQRunner:
                 loop_info.current - 1,
             )
 
-    def setUpWorkDir(self):
+    def setUpWorkDir(self) -> None:
         """
         Prepare the working directory for job execution.
 
@@ -197,7 +197,7 @@ class QQRunner:
 
         return self._process.returncode
 
-    def finalize(self):
+    def finalize(self) -> None:
         """
         Finalize the execution of the job script.
 
@@ -270,7 +270,7 @@ class QQRunner:
         except Exception as e:
             log_fatal_unexpected_error(e, exit_code)
 
-    def _setUpSharedDir(self):
+    def _setUpSharedDir(self) -> None:
         """
         Configure the job directory as the working directory.
         """
@@ -285,7 +285,7 @@ class QQRunner:
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
 
-    def _setUpScratchDir(self):
+    def _setUpScratchDir(self) -> None:
         """
         Configure a scratch directory as the working directory.
 
@@ -337,7 +337,7 @@ class QQRunner:
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
 
-    def _deleteWorkDir(self):
+    def _deleteWorkDir(self) -> None:
         """
         Delete the entire working directory.
 
@@ -351,7 +351,7 @@ class QQRunner:
             wait_seconds=RUNNER_RETRY_WAIT,
         ).run()
 
-    def _updateInfoRunning(self):
+    def _updateInfoRunning(self) -> None:
         """
         Update the qq info file to mark the job as running.
 
@@ -380,7 +380,7 @@ class QQRunner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
             ) from e
 
-    def _updateInfoFinished(self):
+    def _updateInfoFinished(self) -> None:
         """
         Update the qq info file to mark the job as successfully finished.
 
@@ -402,7 +402,7 @@ class QQRunner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB COMPLETION: {e}."
             )
 
-    def _updateInfoFailed(self, return_code: int):
+    def _updateInfoFailed(self, return_code: int) -> None:
         """
         Update the qq info file to mark the job as failed.
 
@@ -427,7 +427,7 @@ class QQRunner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB FAILURE: {e}."
             )
 
-    def _updateInfoKilled(self):
+    def _updateInfoKilled(self) -> None:
         """
         Update the qq info file to mark the job as killed.
 
@@ -447,7 +447,7 @@ class QQRunner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
-    def _reloadInfoAndCheckKill(self):
+    def _reloadInfoAndCheckKill(self) -> None:
         """
         Reload the qq job info file and check the job's state.
 
@@ -470,7 +470,7 @@ class QQRunner:
             )
             sys.exit(93)
 
-    def _resubmit(self):
+    def _resubmit(self) -> None:
         """
         Resubmit the current loop job to the batch system if additional cycles remain.
 

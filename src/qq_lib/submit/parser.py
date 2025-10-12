@@ -40,7 +40,7 @@ class QQParser:
 
         self._options: dict[str, object] = {}
 
-    def parse(self):
+    def parse(self) -> None:
         """
         Parse the qq options from the script.
 

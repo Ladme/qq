@@ -713,7 +713,7 @@ def test_translate_submit_multiple_nodes():
     res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=4:ncpus=2:mem=256mb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
     )
 
 
@@ -751,7 +751,7 @@ def test_translate_submit_scratch_local_work_size():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_local=8gb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_local=8gb -l place=vscatter script.sh"
     )
 
 
@@ -761,7 +761,7 @@ def test_translate_submit_scratch_ssd_work_size():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_ssd=8gb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_ssd=8gb -l place=vscatter script.sh"
     )
 
 
@@ -771,7 +771,7 @@ def test_translate_submit_scratch_shared_work_size():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_shared=8gb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_shared=8gb -l place=vscatter script.sh"
     )
 
 
@@ -791,7 +791,7 @@ def test_translate_submit_work_size_per_cpu_multiple_nodes():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=3:ncpus=1:mem=2gb:scratch_local=2gb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=3:ncpus=1:mem=2gb:scratch_local=2gb -l place=vscatter script.sh"
     )
 
 
@@ -811,7 +811,7 @@ def test_translate_submit_mem_per_cpu_multiple_nodes():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
     )
 
 
@@ -839,7 +839,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
-        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=scatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
     )
 
 
@@ -871,7 +871,7 @@ def test_translate_submit_complex_case():
     assert QQPBS._translateSubmit(res, "gpu", "myscript.sh", "job") == (
         f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V "
         f"-l select=3:ncpus=2:mem=2gb:ngpus=1:scratch_local=4gb:cl_cluster=true "
-        f"-l walltime=1:30:00 -l place=scatter myscript.sh"
+        f"-l walltime=1:30:00 -l place=vscatter myscript.sh"
     )
 
 

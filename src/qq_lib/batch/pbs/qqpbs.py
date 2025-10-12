@@ -362,7 +362,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         if res.nnodes and res.nnodes > 1:
             # 'place=scatter' causes each chunk to be placed on a different node
-            command += "-l place=scatter "
+            command += "-l place=vscatter "
 
         # add script
         command += script

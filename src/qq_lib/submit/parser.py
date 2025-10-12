@@ -12,6 +12,7 @@ from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.resources import QQResources
 
@@ -201,6 +202,18 @@ class QQParser:
             str | None: Archive filename format string, or None if not set.
         """
         return self._options.get("archive_format")
+
+    def getDepend(self) -> list[Depend]:
+        """
+        Return the list of job dependencies.
+
+        Returns:
+            list[Depend]: List of job dependencies.
+        """
+        if raw := self._options.get("depend"):
+            return Depend.multiFromStr(raw)
+
+        return []
 
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:

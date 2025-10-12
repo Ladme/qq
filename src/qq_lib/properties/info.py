@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Self
@@ -13,6 +13,7 @@ from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.constants import DATE_FORMAT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.depend import Depend
 
 from .job_type import QQJobType
 from .loop import QQLoopInfo
@@ -93,14 +94,17 @@ class QQInfo:
     # Name of the file for storing error output of the executed script
     stderr_file: str
 
-    # List of files to not copy to the working directory
-    excluded_files: list[Path]
-
     # Resources allocated to the job
     resources: QQResources
 
     # Command line arguments and options provided when submitting.
     command_line: list[str]
+
+    # List of files to not copy to the working directory
+    excluded_files: list[Path] = field(default_factory=list)
+
+    # List of dependencies.
+    depend: list[Depend] = field(default_factory=list)
 
     # Loop job-associated information.
     loop_info: QQLoopInfo | None = None
@@ -229,6 +233,10 @@ class QQInfo:
             if value is None:
                 continue
 
+            # empty lists are ignored
+            if f.type is list and not value:
+                continue
+
             # convert job type
             if f.type == QQJobType:
                 result[f.name] = str(value)
@@ -246,6 +254,8 @@ class QQInfo:
             # convert list of excluded files
             elif f.type == list[Path]:
                 result[f.name] = [str(x) for x in value]
+            elif f.type == list[Depend]:
+                result[f.name] = [Depend.toStr(x) for x in value]
             # convert timestamp
             elif f.type == datetime or f.type == datetime | None:
                 result[f.name] = value.strftime(DATE_FORMAT)
@@ -305,6 +315,9 @@ class QQInfo:
                 init_kwargs[name] = [
                     Path(v) if isinstance(v, str) else v for v in value
                 ]
+            # convert dependencies
+            elif f.type == list[Depend] and isinstance(value, list):
+                init_kwargs[name] = [Depend.fromStr(x) for x in value]
             # convert timestamp
             elif (f.type == datetime or f.type == datetime | None) and isinstance(
                 value, str

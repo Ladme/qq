@@ -8,6 +8,7 @@ import pytest
 
 from qq_lib.batch.pbs import QQPBS
 from qq_lib.core.error import QQError
+from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.submit import submit
 from qq_lib.submit.parser import QQParser
@@ -464,3 +465,51 @@ def test_qqparser_integration_nonexistent_script_raises():
 )
 def test_strip_and_split(input_line, expected):
     assert QQParser._stripAndSplit(input_line) == expected
+
+
+@pytest.mark.parametrize(
+    "options, expected",
+    [
+        ({}, []),  # no depend key
+        ({"depend": ""}, []),  # empty string
+    ],
+)
+def test_get_depend_no_depend(options, expected):
+    parser = _make_parser_with_options(options)
+    result = parser.getDepend()
+    assert result == expected
+
+
+def test_get_depend_single_dependency():
+    options = {"depend": "after=12345"}
+    parser = _make_parser_with_options(options)
+    result = parser.getDepend()
+    assert len(result) == 1
+    dep = result[0]
+    assert isinstance(dep, Depend)
+    assert dep.type == DependType.AFTER_START
+    assert dep.jobs == ["12345"]
+
+
+def test_get_depend_multiple_dependencies_space_comma():
+    options = {"depend": "after=1,afterok=2 afterany=3:4"}
+    parser = _make_parser_with_options(options)
+    result = parser.getDepend()
+    assert len(result) == 3
+
+    # check types and jobs
+    assert result[0].type == DependType.AFTER_START
+    assert result[0].jobs == ["1"]
+
+    assert result[1].type == DependType.AFTER_SUCCESS
+    assert result[1].jobs == ["2"]
+
+    assert result[2].type == DependType.AFTER_COMPLETION
+    assert result[2].jobs == ["3", "4"]
+
+
+def test_get_depend_malformed_dependency():
+    options = {"depend": "invaliddepend"}
+    parser = _make_parser_with_options(options)
+    with pytest.raises(QQError, match="Could not parse dependency specification"):
+        parser.getDepend()

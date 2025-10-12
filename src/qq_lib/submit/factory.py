@@ -9,6 +9,7 @@ from click import Parameter
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.common import split_files_list
 from qq_lib.core.error import QQError
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
@@ -66,9 +67,10 @@ class QQSubmitterFactory:
             self._script,
             job_type,
             self._getResources(BatchSystem, queue),
+            self._command_line,
             loop_info,
             self._getExclude(),
-            self._command_line,
+            self._getDepend(),
             self._getInteractive(),
         )
 
@@ -187,6 +189,20 @@ class QQSubmitterFactory:
                 + self._parser.getExclude()
             )
         )
+
+    def _getDepend(self) -> list[Depend]:
+        """
+        Determine the list of dependencies.
+
+        Merges the list of dependencies specified in command-line arguments
+        with the list parsed from the script.
+
+        Returns:
+            list[Depend]: List of job dependencies.
+        """
+        return (
+            Depend.multiFromStr(self._kwargs.get("depend") or "") or []
+        ) + self._parser.getDepend()
 
     def _getInteractive(self) -> bool:
         """

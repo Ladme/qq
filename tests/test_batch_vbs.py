@@ -152,7 +152,7 @@ def test_qqvbs_job_submit_and_get_job_info(tmp_path, sample_resources):
     script.write_text("#!/bin/bash\necho hello\n")
     script.chmod(script.stat().st_mode | 0o111)
 
-    QQVBS.jobSubmit(sample_resources, "", script, "job")
+    QQVBS.jobSubmit(sample_resources, "", script, "job", [])
 
     job = QQVBS._batch_system.jobs["0"]
     assert job.script == script
@@ -173,7 +173,7 @@ def test_qqvbs_get_scratch_dir_success(tmp_path, sample_resources):
     script.write_text("#!/bin/bash\necho hi")
     script.chmod(script.stat().st_mode | 0o111)
 
-    QQVBS.jobSubmit(sample_resources, "", script, "job")
+    QQVBS.jobSubmit(sample_resources, "", script, "job", [])
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
 
@@ -208,7 +208,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     script.chmod(script.stat().st_mode | 0o111)
 
     # normal kill
-    QQVBS.jobSubmit(sample_resources, "", script, "job")
+    QQVBS.jobSubmit(sample_resources, "", script, "job", [])
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
     time.sleep(0.3)
@@ -236,7 +236,7 @@ def test_job_kill_fails_if_finished(tmp_path, sample_resources):
     script.write_text("#!/bin/bash\necho hello\n")
     script.chmod(script.stat().st_mode | 0o111)
 
-    QQVBS.jobSubmit(sample_resources, "", script, "job")
+    QQVBS.jobSubmit(sample_resources, "", script, "job", [])
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
 
@@ -254,7 +254,7 @@ def test_job_kill_force_fails_if_finished(tmp_path, sample_resources):
     script.write_text("#!/bin/bash\necho hello\n")
     script.chmod(script.stat().st_mode | 0o111)
 
-    QQVBS.jobSubmit(sample_resources, "", script, "job")
+    QQVBS.jobSubmit(sample_resources, "", script, "job", [])
     job_id = "0"
     QQVBS._batch_system.runJob(job_id)
 

@@ -15,6 +15,7 @@ from qq_lib.core.common import equals_normalized
 from qq_lib.core.constants import PBS_SCRATCH_DIR, QQ_OUT_SUFFIX, SHARED_SUBMIT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import QQResources
 
 from .job import PBSJobInfo
@@ -43,11 +44,23 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
         return Path(scratch_dir)
 
-    def jobSubmit(res: QQResources, queue: str, script: Path, job_name: str) -> str:
+    def jobSubmit(
+        res: QQResources,
+        queue: str,
+        script: Path,
+        job_name: str,
+        depend: list[Depend],
+    ) -> str:
         QQPBS._sharedGuard(res)
 
         # get the submission command
-        command = QQPBS._translateSubmit(res, queue, str(script), job_name)
+        command = QQPBS._translateSubmit(
+            res,
+            queue,
+            str(script),
+            job_name,
+            depend,
+        )
         logger.debug(command)
 
         # submit the script
@@ -322,7 +335,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
 
     @staticmethod
     def _translateSubmit(
-        res: QQResources, queue: str, script: str, job_name: str
+        res: QQResources,
+        queue: str,
+        script: str,
+        job_name: str,
+        depend: list[Depend],
     ) -> str:
         """
         Generate the PBS submission command for a job.
@@ -332,6 +349,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             queue (str): The queue name to submit to.
             script (str): Path to the job script.
             job_name (str): Name of the job.
+            depend (list[Depend]): List of dependencies of the job.
 
         Returns:
             str: The fully constructed qsub command string.
@@ -363,6 +381,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         if res.nnodes and res.nnodes > 1:
             # 'place=scatter' causes each chunk to be placed on a different node
             command += "-l place=vscatter "
+
+        # handle dependencies
+        if converted_depend := QQPBS._translateDependencies(depend):
+            command += f"-W depend={converted_depend} "
 
         # add script
         command += script
@@ -459,6 +481,23 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         raise QQError(
             "Attribute 'work-size' or attributes 'work-size-per-cpu' and 'ncpus' are not defined."
         )
+
+    @staticmethod
+    def _translateDependencies(depend: list[Depend]) -> str | None:
+        """
+        Convert a list of `Depend` objects into a PBS-compatible dependency string.
+
+        Args:
+            depend (list[Depend]): List of dependency objects to translate.
+
+        Returns:
+            str | None: PBS-style dependency string (e.g., "after:12345,afterok:1:2:3"),
+                        or None if the input list is empty.
+        """
+        if not depend:
+            return None
+
+        return ",".join(Depend.toStr(x).replace("=", ":") for x in depend)
 
     @staticmethod
     def _getDefaultServerResources() -> QQResources:

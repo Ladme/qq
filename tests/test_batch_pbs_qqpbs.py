@@ -17,6 +17,7 @@ from qq_lib.core.constants import (
     SSH_TIMEOUT,
 )
 from qq_lib.core.error import QQError
+from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import QQResources
 
 
@@ -704,7 +705,7 @@ def test_get_default_queue_resources_calls_parse_queue_info():
 def test_translate_submit_minimal_fields():
     res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=1gb script.sh"
     )
 
@@ -712,7 +713,7 @@ def test_translate_submit_minimal_fields():
 def test_translate_submit_multiple_nodes():
     res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
     )
 
@@ -722,7 +723,7 @@ def test_translate_submit_with_walltime():
         nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
-        QQPBS._translateSubmit(res, "queue", "script.sh", "job")
+        QQPBS._translateSubmit(res, "queue", "script.sh", "job", [])
         == f"qsub -N job -q queue -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
     )
 
@@ -732,7 +733,7 @@ def test_translate_submit_with_walltime2():
         nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="input_dir"
     )
     assert (
-        QQPBS._translateSubmit(res, "queue", "script.sh", "job")
+        QQPBS._translateSubmit(res, "queue", "script.sh", "job", [])
         == f"qsub -N job -q queue -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=2,mem=2gb -l walltime=12:30:15 script.sh"
     )
 
@@ -740,7 +741,7 @@ def test_translate_submit_with_walltime2():
 def test_translate_submit_work_dir_scratch_shm():
     res = QQResources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=8gb,scratch_shm=true script.sh"
     )
 
@@ -750,7 +751,7 @@ def test_translate_submit_scratch_local_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_local", work_size="16gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_local=8gb -l place=vscatter script.sh"
     )
 
@@ -760,7 +761,7 @@ def test_translate_submit_scratch_ssd_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_ssd", work_size="16gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_ssd=8gb -l place=vscatter script.sh"
     )
 
@@ -770,7 +771,7 @@ def test_translate_submit_scratch_shared_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_shared", work_size="16gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=1:mem=2gb:scratch_shared=8gb -l place=vscatter script.sh"
     )
 
@@ -780,7 +781,7 @@ def test_translate_submit_work_size_per_cpu():
         nnodes=1, ncpus=8, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=8,mem=4gb,scratch_local=16gb script.sh"
     )
 
@@ -790,7 +791,7 @@ def test_translate_submit_work_size_per_cpu_multiple_nodes():
         nnodes=3, ncpus=3, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=3:ncpus=1:mem=2gb:scratch_local=2gb -l place=vscatter script.sh"
     )
 
@@ -800,7 +801,7 @@ def test_translate_submit_mem_per_cpu():
         nnodes=1, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="10gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=4,mem=8gb,scratch_local=10gb script.sh"
     )
 
@@ -810,7 +811,7 @@ def test_translate_submit_mem_per_cpu_multiple_nodes():
         nnodes=2, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="20gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
     )
 
@@ -824,7 +825,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
         work_size_per_cpu="5gb",
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=4,mem=8gb,scratch_local=20gb script.sh"
     )
 
@@ -838,7 +839,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
         work_size_per_cpu="5gb",
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", "script.sh", "job")
+        QQPBS._translateSubmit(res, "gpu", "script.sh", "job", [])
         == f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
     )
 
@@ -852,7 +853,7 @@ def test_translate_submit_with_props():
         work_dir="input_dir",
     )
     assert (
-        QQPBS._translateSubmit(res, "queue", "script.sh", "job")
+        QQPBS._translateSubmit(res, "queue", "script.sh", "job", [])
         == f"qsub -N job -q queue -j eo -e job{QQ_OUT_SUFFIX} -V -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
     )
 
@@ -868,11 +869,59 @@ def test_translate_submit_complex_case():
         work_size_per_cpu="2gb",
         props={"cl_cluster": "true"},
     )
-    assert QQPBS._translateSubmit(res, "gpu", "myscript.sh", "job") == (
+    assert QQPBS._translateSubmit(res, "gpu", "myscript.sh", "job", []) == (
         f"qsub -N job -q gpu -j eo -e job{QQ_OUT_SUFFIX} -V "
         f"-l select=3:ncpus=2:mem=2gb:ngpus=1:scratch_local=4gb:cl_cluster=true "
         f"-l walltime=1:30:00 -l place=vscatter myscript.sh"
     )
+
+
+def test_translate_submit_single_depend():
+    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    depend = [Depend(DependType.AFTER_START, ["123"])]
+    cmd = QQPBS._translateSubmit(res, "queue", "script.sh", "job", depend)
+    expected = "qsub -N job -q queue -j eo -e job.qqout -V -l ncpus=1,mem=1gb -W depend=after:123 script.sh"
+    assert cmd == expected
+
+
+def test_translate_submit_multiple_jobs_depend():
+    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    depend = [Depend(DependType.AFTER_SUCCESS, ["1", "2"])]
+    cmd = QQPBS._translateSubmit(res, "queue", "script.sh", "job", depend)
+    expected = "qsub -N job -q queue -j eo -e job.qqout -V -l ncpus=1,mem=1gb -W depend=afterok:1:2 script.sh"
+    assert cmd == expected
+
+
+def test_translate_submit_multiple_dependencies():
+    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    depend = [
+        Depend(DependType.AFTER_SUCCESS, ["1"]),
+        Depend(DependType.AFTER_FAILURE, ["2"]),
+    ]
+    cmd = QQPBS._translateSubmit(res, "queue", "script.sh", "job", depend)
+    expected = "qsub -N job -q queue -j eo -e job.qqout -V -l ncpus=1,mem=1gb -W depend=afterok:1,afternotok:2 script.sh"
+    assert cmd == expected
+
+
+def test_translate_submit_complex_with_depend():
+    res = QQResources(
+        nnodes=2,
+        ncpus=4,
+        mem="4gb",
+        walltime="01:00:00",
+        work_dir="scratch_local",
+        work_size_per_cpu="2gb",
+        props={"cl_cluster": "true"},
+    )
+    depend = [Depend(DependType.AFTER_COMPLETION, ["42", "43"])]
+    cmd = QQPBS._translateSubmit(res, "gpu", "myscript.sh", "job", depend)
+
+    expected = (
+        "qsub -N job -q gpu -j eo -e job.qqout -V "
+        "-l select=2:ncpus=2:mem=2gb:scratch_local=4gb:cl_cluster=true "
+        "-l walltime=01:00:00 -l place=vscatter -W depend=afterany:42:43 myscript.sh"
+    )
+    assert cmd == expected
 
 
 def test_transform_resources_input_dir_warns_and_sets_work_dir():
@@ -1076,3 +1125,24 @@ def test_get_jobs_info_using_command_nonzero_returncode():
             match="Could not retrieve information about jobs: Some error occurred",
         ):
             QQPBS._getJobsInfoUsingCommand("will not be used")
+
+
+@pytest.mark.parametrize(
+    "depend_list, expected",
+    [
+        ([], None),
+        ([Depend.fromStr("after=12345")], "after:12345"),
+        ([Depend.fromStr("afterok=1:2:3")], "afterok:1:2:3"),
+        (
+            [Depend.fromStr("after=10"), Depend.fromStr("afternotok=20")],
+            "after:10,afternotok:20",
+        ),
+        (
+            [Depend.fromStr("afterany=100:101"), Depend.fromStr("afterok=200:201")],
+            "afterany:100:101,afterok:200:201",
+        ),
+    ],
+)
+def test_translate_dependencies_various_cases(depend_list, expected):
+    result = QQPBS._translateDependencies(depend_list)
+    assert result == expected

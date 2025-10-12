@@ -30,6 +30,7 @@ from qq_lib.core.constants import (
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import QQInfo
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
@@ -57,10 +58,11 @@ class QQSubmitter:
         script: Path,
         job_type: QQJobType,
         resources: QQResources,
-        loop_info: QQLoopInfo | None,
-        exclude: list[Path],
         command_line: list[str],
-        interactive: bool,
+        loop_info: QQLoopInfo | None = None,
+        exclude: list[Path] | None = None,
+        depend: list[Depend] | None = None,
+        interactive: bool = True,
     ):
         """
         Initialize a QQSubmitter instance.
@@ -73,10 +75,11 @@ class QQSubmitter:
                 the current working directory, and have a valid shebang.
             job_type (QQJobType): Type of the job to submit (e.g. standard, loop).
             resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
-            loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
-            exclude (list[Path]): Files which should not be copied to the working directory.
             command_line (list[str]): List of all arguments and options provided on the command line.
-            interactive (bool): Is the submitter used in an interactive mode?
+            loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
+            exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
+            depend (list[Depend] | None): Optional list of job dependencies.
+            interactive (bool): Is the submitter used in an interactive mode? Defaults to True.
 
         Raises:
             QQError: If the script does not exist, is not in the current directory,
@@ -92,8 +95,9 @@ class QQSubmitter:
         self._job_name = self._constructJobName()
         self._info_file = Path(self._job_name).with_suffix(QQ_INFO_SUFFIX).resolve()
         self._resources = resources
-        self._exclude = exclude
+        self._exclude = exclude or []
         self._command_line = command_line
+        self._depend = depend or []
         self._interactive = interactive
 
         # script must exist
@@ -127,7 +131,11 @@ class QQSubmitter:
 
         # submit the job
         job_id = self._batch_system.jobSubmit(
-            self._resources, self._queue, self._script, self._job_name
+            self._resources,
+            self._queue,
+            self._script,
+            self._job_name,
+            self._depend,
         )
 
         # create info file
@@ -151,6 +159,7 @@ class QQSubmitter:
                 loop_info=self._loop_info,
                 excluded_files=self._exclude,
                 command_line=self._command_line,
+                depend=self._depend,
             )
         )
 

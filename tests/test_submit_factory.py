@@ -11,6 +11,7 @@ import pytest
 from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.batch.pbs import QQPBS
 from qq_lib.core.error import QQError
+from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
@@ -398,3 +399,60 @@ def test_make_submitter_script_not_exists():
 
     with pytest.raises(QQError, match="Could not open"):
         factory.makeSubmitter()
+
+
+@pytest.mark.parametrize(
+    "kwargs_depend, parser_depend, expected_types, expected_jobs",
+    [
+        # no dependencies in kwargs or parser
+        (None, [], [], []),
+        # dependencies only in kwargs
+        ("after=12345", [], [DependType.AFTER_START], [["12345"]]),
+        # dependencies only in parser
+        (
+            None,
+            [Depend.fromStr("afterok=1:2")],
+            [DependType.AFTER_SUCCESS],
+            [["1", "2"]],
+        ),
+        # dependencies in both kwargs and parser
+        (
+            "afternotok=10",
+            [Depend.fromStr("afterany=20:21")],
+            [DependType.AFTER_FAILURE, DependType.AFTER_COMPLETION],
+            [["10"], ["20", "21"]],
+        ),
+    ],
+)
+def test_get_depend_combines_kwargs_and_parser(
+    factory, kwargs_depend, parser_depend, expected_types, expected_jobs
+):
+    factory._parser.getDepend.return_value = parser_depend
+
+    if kwargs_depend is not None:
+        factory._kwargs = {"depend": kwargs_depend}
+    else:
+        factory._kwargs = {}
+
+    result = factory._getDepend()
+
+    # check types and job lists
+    assert all(isinstance(dep, Depend) for dep in result)
+    assert [dep.jobs for dep in result] == expected_jobs
+    assert [dep.type for dep in result] == expected_types
+
+
+def test_get_depend_empty_strings_returns_empty_list(factory):
+    factory._kwargs = {"depend": ""}
+    factory._parser.getDepend.return_value = []
+
+    result = factory._getDepend()
+    assert result == []
+
+
+def test_get_depend_malformed_kwargs_raises(factory):
+    factory._kwargs = {"depend": "invaliddepend"}
+    factory._parser.getDepend.return_value = []
+
+    with pytest.raises(QQError, match="Could not parse dependency specification"):
+        factory._getDepend()

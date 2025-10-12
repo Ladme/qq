@@ -11,6 +11,7 @@ from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.constants import RSYNC_TIMEOUT, SSH_TIMEOUT
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import QQResources
 
 from .job import BatchJobInfoInterface
@@ -77,7 +78,9 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
     @staticmethod
     @abstractmethod
-    def jobSubmit(res: QQResources, queue: str, script: Path, job_name: str) -> str:
+    def jobSubmit(
+        res: QQResources, queue: str, script: Path, job_name: str, depend: list[Depend]
+    ) -> str:
         """
         Submit a job to the batch system.
 
@@ -88,6 +91,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             queue (str): Target queue for the job submission.
             script (Path): Path to the script to execute.
             job_name (str): Name of the job to use.
+            depend (list[Depend]): List of job dependencies.
 
         Returns:
             str: Unique ID of the submitted job.

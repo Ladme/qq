@@ -57,6 +57,13 @@ The submitted script must be located in the directory from which
     ),
 )
 @optgroup.option(
+    "--depend",
+    type=str,
+    default=None,
+    help="""Specify job dependencies. You can provide one or more dependency expressions separated by commas, spaces, or both.
+Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., `after=1234`, `afterok=456:789`.""",
+)
+@optgroup.option(
     "--batch-system",
     type=str,
     default=None,

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.error import QQError
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import QQResources
 
 from .job import VBSJobInfo
@@ -39,7 +40,13 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
 
         return scratch
 
-    def jobSubmit(res: QQResources, _queue: str, script: Path, _job_name: str) -> str:
+    def jobSubmit(
+        res: QQResources,
+        _queue: str,
+        script: Path,
+        _job_name: str,
+        _depend: list[Depend],
+    ) -> str:
         try:
             return QQVBS._batch_system.submitJob(script, res.useScratch())
         except VBSError as e:

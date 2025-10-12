@@ -213,14 +213,10 @@ class RealState(Enum):
 
             case (NaiveState.KILLED, BatchState.RUNNING):
                 return cls.EXITING
-            case (NaiveState.KILLED, BatchState.EXITING):
-                return cls.EXITING
             case (NaiveState.KILLED, _):
                 return cls.KILLED
 
             case (NaiveState.FINISHED, BatchState.RUNNING):
-                return cls.EXITING
-            case (NaiveState.FINISHED, BatchState.EXITING):
                 return cls.EXITING
             case (
                 NaiveState.FINISHED,
@@ -234,8 +230,6 @@ class RealState(Enum):
                 return cls.FINISHED
 
             case (NaiveState.FAILED, BatchState.RUNNING):
-                return cls.EXITING
-            case (NaiveState.FAILED, BatchState.EXITING):
                 return cls.EXITING
             case (
                 NaiveState.FAILED,

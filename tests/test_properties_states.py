@@ -98,13 +98,13 @@ def test_batch_state_to_code(state, expected_code):
         (NaiveState.RUNNING, BatchState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE),
         # KILLED naive state
         (NaiveState.KILLED, BatchState.RUNNING, RealState.EXITING),
-        (NaiveState.KILLED, BatchState.EXITING, RealState.EXITING),
+        (NaiveState.KILLED, BatchState.EXITING, RealState.KILLED),
         (NaiveState.KILLED, BatchState.QUEUED, RealState.KILLED),
         (NaiveState.KILLED, BatchState.FINISHED, RealState.KILLED),
         (NaiveState.KILLED, BatchState.FAILED, RealState.KILLED),
         # FINISHED naive state
-        (NaiveState.FINISHED, BatchState.EXITING, RealState.EXITING),
         (NaiveState.FINISHED, BatchState.RUNNING, RealState.EXITING),
+        (NaiveState.FINISHED, BatchState.EXITING, RealState.FINISHED),
         (NaiveState.FINISHED, BatchState.QUEUED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.FINISHED, BatchState.HELD, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.FINISHED, BatchState.WAITING, RealState.IN_AN_INCONSISTENT_STATE),
@@ -112,8 +112,8 @@ def test_batch_state_to_code(state, expected_code):
         (NaiveState.FINISHED, BatchState.FINISHED, RealState.FINISHED),
         (NaiveState.FINISHED, BatchState.UNKNOWN, RealState.FINISHED),
         # FAILED naive state
-        (NaiveState.FAILED, BatchState.EXITING, RealState.EXITING),
         (NaiveState.FAILED, BatchState.RUNNING, RealState.EXITING),
+        (NaiveState.FAILED, BatchState.EXITING, RealState.FAILED),
         (NaiveState.FAILED, BatchState.QUEUED, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.FAILED, BatchState.HELD, RealState.IN_AN_INCONSISTENT_STATE),
         (NaiveState.FAILED, BatchState.WAITING, RealState.IN_AN_INCONSISTENT_STATE),

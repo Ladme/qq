@@ -159,8 +159,6 @@ class QQRunner:
         """
         Execute the job script in the working directory.
 
-        Handles scratch directory copying and cleaning after the execution.
-
         Returns:
             int: The exit code from the executed script.
 
@@ -225,7 +223,7 @@ class QQRunner:
                 self._archiver.archiveTo(self._work_dir)
 
             if self._use_scratch:
-                # copy files back to the submission (job) directory
+                # copy files back to the input (submission) directory
                 QQRetryer(
                     self._batch_system.syncWithExclusions,
                     self._work_dir,
@@ -272,7 +270,7 @@ class QQRunner:
 
     def _setUpSharedDir(self) -> None:
         """
-        Configure the job directory as the working directory.
+        Configure the input directory as the working directory.
         """
         # set qq working directory to the input dir
         self._work_dir = self._input_dir

@@ -17,7 +17,7 @@ from qq_lib.core.common import (
 from qq_lib.core.constants import (
     DATE_FORMAT,
     JOBS_PRESENTER_MAIN_COLOR,
-    JOBS_PRESENTER_MAX_JOB_NAME_LENGH,
+    JOBS_PRESENTER_MAX_JOB_NAME_LENGTH,
     JOBS_PRESENTER_MILD_WARNING_COLOR,
     JOBS_PRESENTER_SECONDARY_COLOR,
     JOBS_PRESENTER_STRONG_WARNING_COLOR,
@@ -366,8 +366,8 @@ class QQJobsPresenter:
             str: The possibly shortened job name. If the original name length is
                 less than or equal to the configured limit, it is returned unchanged.
         """
-        if len(job_name) > JOBS_PRESENTER_MAX_JOB_NAME_LENGH:
-            return f"{job_name[:JOBS_PRESENTER_MAX_JOB_NAME_LENGH]}…"
+        if len(job_name) > JOBS_PRESENTER_MAX_JOB_NAME_LENGTH:
+            return f"{job_name[:JOBS_PRESENTER_MAX_JOB_NAME_LENGTH]}…"
 
         return job_name
 

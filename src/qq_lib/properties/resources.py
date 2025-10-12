@@ -150,7 +150,7 @@ class QQResources:
                 )
                 continue
 
-            # default: ick the first non-None value for this field
+            # default: pick the first non-None value for this field
             merged_data[f.name] = next(
                 (
                     getattr(r, f.name)

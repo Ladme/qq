@@ -13,6 +13,8 @@ from qq_lib.properties.job_type import QQJobType
 from qq_lib.submit import submit
 from qq_lib.submit.parser import QQParser
 
+# ruff: noqa: W293
+
 
 @pytest.fixture
 def temp_script_file():
@@ -27,20 +29,22 @@ def temp_script_file():
 def test_parse_happy_path(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
+
 # qq batch_system=PBS
 # QQ Queue   default
 # qq ncpus 8
 # qq   WorkDir job_dir
-# qq work-size=4gb
+        # qq work-size=4gb
+# this is a commented - should be ignored
 # qq exclude file1.txt,file2.txt
 # Qq    non_interactive=true
 # qq loop-start 1
+
 # qq    loop_end 10
 # qq Archive    archive
 # qQ   archive_format=cycle_%03d
 # qq props=vnode=my_node
-# first non-qq line
-command run here
+command run here # parsing ends here
 """)
     tmp_file.flush()
 
@@ -122,7 +126,7 @@ qq command that should stop parsing
     assert "work_dir" not in opts
 
 
-def test_parse_stops_at_first_empty_line(temp_script_file):
+def test_parse_skips_empty_lines(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus 8
@@ -135,7 +139,61 @@ def test_parse_stops_at_first_empty_line(temp_script_file):
     parser.parse()
 
     opts = parser._options
-    # only ncpus should be parsed
+    assert opts["ncpus"] == 8
+    assert opts["work_dir"] == "scratch_local"
+
+
+def test_parse_skips_empty_lines_at_start(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("""#!/usr/bin/env -S qq run
+  
+
+    
+
+
+# qq ncpus 8
+
+# qq workdir scratch_local
+""")
+    tmp_file.flush()
+
+    parser = QQParser(path, submit.params)
+    parser.parse()
+
+    opts = parser._options
+    assert opts["ncpus"] == 8
+    assert opts["work_dir"] == "scratch_local"
+
+
+def test_parse_skips_commented_lines(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("""#!/usr/bin/env -S qq run
+# qq ncpus 8
+# comments are allowed
+# qq workdir scratch_local
+""")
+    tmp_file.flush()
+
+    parser = QQParser(path, submit.params)
+    parser.parse()
+
+    opts = parser._options
+    assert opts["ncpus"] == 8
+    assert opts["work_dir"] == "scratch_local"
+
+
+def test_parse_commented_out_qq_command(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("""#!/usr/bin/env -S qq run
+# qq ncpus 8
+## qq workdir scratch_local
+""")
+    tmp_file.flush()
+
+    parser = QQParser(path, submit.params)
+    parser.parse()
+
+    opts = parser._options
     assert opts["ncpus"] == 8
     assert "work_dir" not in opts
 
@@ -160,6 +218,22 @@ def test_parse_normalizes_keys_and_integer_conversion(temp_script_file):
 
     assert opts["ncpus"] == 16
     assert opts["ngpus"] == 4
+
+
+def test_parse_inline_comments_are_ignored(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("""#!/usr/bin/env -S qq run
+# qq ncpus 8  # inline comments are also allowed
+# qq workdir scratch_local
+""")
+    tmp_file.flush()
+
+    parser = QQParser(path, submit.params)
+    parser.parse()
+
+    opts = parser._options
+    assert opts["ncpus"] == 8
+    assert opts["work_dir"] == "scratch_local"
 
 
 def test_parse_no_qq_lines(temp_script_file):
@@ -356,25 +430,31 @@ def test_qqparser_integration():
     script_content = """#!/usr/bin/env -S qq run
 # Qq   BatchSystem=PBS
 # qq queue  default
-#qq job-type=standard
+
+#qq job-type=standard # comments can be here as well
 #   qq   ncpus  8
+   # comment
 # qq workdir scratch_local
 #QQ work-size=4gb
 # qq exclude=file1.txt,file2.txt
-# qq NonInteractive=true
+#               qq NonInteractive=true
+# parsing continues here
 #qq loop-start    2
 # qq loop_end=10
+
+
+
 #   qq archive    archive
 # qq archiveFormat=cycle_%03d
-# this is an example qq script
-# qq ngpus 3
-# the above line should not be parsed
 
 # add a module
 module add random_module
 run_random_program path/to/random/script
-
+# qq ngpus 3
+# the above line should not be parsed
+   
 # qq this line should definitely not be parsed
+# qq mem 16gb
 exit 0
 """
 
@@ -400,6 +480,7 @@ exit 0
     assert resources.work_size.value == 4
     assert resources.work_size.unit == "gb"
     assert resources.ngpus is None
+    assert resources.mem is None
 
     exclude = parser.getExclude()
     assert exclude == [Path.cwd() / "file1.txt", Path.cwd() / "file2.txt"]
@@ -455,6 +536,9 @@ def test_qqparser_integration_nonexistent_script_raises():
         ("# Qq key=value", ["key", "value"]),
         # multiple equals, split only once
         ("# qq name=John=Doe", ["name", "John=Doe"]),
+        # inline comments
+        ("# qq key=value # key is value", ["key", "value"]),
+        ("# qq key value# key is value", ["key", "value"]),
         # empty or malformed input
         ("# qq", [""]),
         ("# qq    ", [""]),

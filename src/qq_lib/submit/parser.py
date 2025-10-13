@@ -43,15 +43,18 @@ class QQParser:
 
     def parse(self) -> None:
         """
-        Parse the qq options from the script.
+        Extract and parse `qq` options from the script.
 
-        Reads the script line by line, skipping the first line (shebang),
-        and stops parsing at the first line that does not start with '# qq' or '#qq'
-        (case-insensitive). Each valid line is split into key-value pairs, normalized
-        to snake_case, and stored in `self._options`.
+        The method processes the script line by line, skipping the first line (shebang).
+        It continues reading until it encounters a line that is not a `qq` directive,
+        is non-empty, and is not a comment. Empty or commented lines are ignored.
+
+        Each valid `qq` line is parsed into key-value pairs, normalized to `snake_case`,
+        and stored in `self._options`.
 
         Raises:
-            QQError: If the script cannot be read, an option line is malformed or contains an unknown option.
+            QQError: If the script cannot be read, or if an option line is malformed or
+                    contains an unknown option.
         """
         if not self._script.is_file():
             raise QQError(f"Could not open '{self._script}' as a file.")
@@ -62,12 +65,17 @@ class QQParser:
 
             for line in f:
                 stripped = line.strip()
-                split = stripped.split()
-                if stripped == "" or (
-                    split[0].lower() != "#qq"
-                    and (split[0] != "#" or split[1].lower() != "qq")
-                ):
-                    break  # stop parsing on the first non-qq line
+                if stripped == "":
+                    logger.debug("QQParser: skipping empty line.")
+                    continue  # skip empty lines
+
+                # check whether this is a qq command
+                if not re.match(r"#\s*qq", stripped, re.IGNORECASE):
+                    if stripped.startswith("#"):
+                        logger.debug(f"QQParser: skipping commented line '{line}'.")
+                        continue  # skip commented lines
+                    logger.debug(f"QQParser: ending parsing at line '{line}'.")
+                    break  # stop parsing at other lines
 
                 # remove the leading '# qq' and split by whitespace or '='
                 parts = QQParser._stripAndSplit(line)
@@ -218,7 +226,8 @@ class QQParser:
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:
         """
-        Remove the leading `# qq` directive from a line and split the remaining content.
+        Remove the leading `# qq` directive from a line, extract content before the next `#`
+        (if any), and split the remaining content.
 
         Args:
             string (str): Input line to process.
@@ -226,5 +235,10 @@ class QQParser:
         Returns:
             list[str]: A list with one or two elements depending on whether a split occurred.
         """
-        content = re.sub(r"^#\s*qq\s*", "", string.strip(), flags=re.IGNORECASE)
+        match = re.search(
+            r"^#\s*qq\s*(.*?)\s*(?:#|$)", string.strip(), flags=re.IGNORECASE
+        )
+        content = match.group(1).strip() if match else string.strip()
+
+        # split by whitespace or '='
         return re.split(r"[=\s]+", content, maxsplit=1)

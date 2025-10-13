@@ -20,6 +20,7 @@ from qq_lib.core.common import (
     get_info_file,
     get_info_file_from_job_id,
     get_info_files,
+    get_info_files_from_job_id_or_dir,
     hhmmss_to_duration,
     hhmmss_to_wdhms,
     is_printf_pattern,
@@ -712,3 +713,54 @@ def test_get_info_file_from_job_id_nonexistent_job():
         pytest.raises(QQError, match="does not exist"),
     ):
         get_info_file_from_job_id("12345")
+
+
+@patch("qq_lib.core.common.get_info_file_from_job_id")
+def test_get_info_files_from_job_id_or_dir_job_id(
+    mock_get_info_file_from_job_id,
+):
+    fake_path = Path("/tmp/fake.qq")
+    mock_get_info_file_from_job_id.return_value = fake_path
+
+    with patch.object(Path, "is_file", return_value=True):
+        result = get_info_files_from_job_id_or_dir("12345")
+
+    mock_get_info_file_from_job_id.assert_called_once_with("12345")
+    assert result == [fake_path]
+
+
+@patch("qq_lib.core.common.get_info_file_from_job_id")
+def test_get_info_files_from_job_id_or_dir_job_id_does_not_exit(
+    mock_get_info_file_from_job_id,
+):
+    fake_path = Path("/tmp/missing.qqinfo")
+    mock_get_info_file_from_job_id.return_value = fake_path
+
+    with (
+        patch.object(Path, "is_file", return_value=False),
+        pytest.raises(QQError, match="Info file for job '12345'"),
+    ):
+        get_info_files_from_job_id_or_dir("12345")
+
+    mock_get_info_file_from_job_id.assert_called_once_with("12345")
+
+
+@patch("qq_lib.core.common.get_info_files")
+def test_get_info_files_from_job_id_or_dir_job_id_no_job_id(mock_get_info_files):
+    fake_files = [Path("/tmp/job1.qqinfo"), Path("/tmp/job2.qqinfo")]
+    mock_get_info_files.return_value = fake_files
+
+    result = get_info_files_from_job_id_or_dir(None)
+
+    mock_get_info_files.assert_called_once_with(Path())
+    assert result == fake_files
+
+
+@patch("qq_lib.core.common.get_info_files")
+def test_raises_if_no_info_files_found(mock_get_info_files):
+    mock_get_info_files.return_value = []
+
+    with pytest.raises(QQError, match="No qq job info file found"):
+        get_info_files_from_job_id_or_dir(None)
+
+    mock_get_info_files.assert_called_once_with(Path())

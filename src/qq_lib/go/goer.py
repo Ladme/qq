@@ -118,7 +118,7 @@ class QQGoer:
             bool: True if the job has both a host and a working directory,
             False otherwise.
         """
-        return self._directory and self._host
+        return self._directory is not None and self._host is not None
 
     def isJob(self, job_id: str) -> bool:
         """

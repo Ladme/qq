@@ -199,7 +199,7 @@ class QQResources:
             otherwise `None`.
         """
         if isinstance(value, str):
-            return Size.from_string(value)
+            return Size.fromString(value)
         if isinstance(value, dict):
             return Size(**value)  # ty: ignore[missing-argument]
         if isinstance(value, Size):

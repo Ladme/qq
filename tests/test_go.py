@@ -236,6 +236,25 @@ def test_check_and_navigate(tmp_path, state, in_workdir, sample_info):
         assert goer._navigate.call_count == 1
 
 
+@pytest.mark.parametrize(
+    "input_id,expected",
+    [
+        ("12345.fake.server.com", True),
+        ("12345.other.domain.net", True),
+        ("12345", True),
+        ("99999.fake.server.com", False),
+        ("54321", False),
+        ("", False),
+    ],
+)
+def test_is_job_matches_and_mismatches(tmp_path, sample_info, input_id, expected):
+    sample_info.toFile(tmp_path / "job.qqinfo")
+
+    informer = QQGoer(tmp_path / "job.qqinfo")
+    input_id = input_id.strip()
+    assert informer.isJob(input_id) == expected
+
+
 def test_go_command_success(tmp_path, sample_info):
     info_file = tmp_path / "job.qqinfo"
     sample_info.toFile(info_file)

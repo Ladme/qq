@@ -223,6 +223,35 @@ def test_terminate(forced, success):
         getattr(batch_mock, method_name).assert_called_once_with("12345")
 
 
+@pytest.mark.parametrize(
+    "input_id,expected",
+    [
+        ("12345.fake.server.com", True),
+        ("12345.other.domain.net", True),
+        ("12345", True),
+        ("12345.", True),
+        ("12345.fake.server.com.subdomain", True),
+        ("99999.fake.server.com", False),
+        ("54321", False),
+        ("abcd.fake.server.com", False),
+        ("", False),
+        (".fake.server.com", False),
+        ("12345.fake", True),
+        (" 12345.fake.server.com ", True),
+        ("12345.FAKE.SERVER.COM", True),
+        ("123456.fake.server.com", False),
+        ("12345.....fake.server.com", True),
+        ("1234.fake.server.com", False),
+    ],
+)
+def test_is_job_matches_and_mismatches(tmp_path, sample_info, input_id, expected):
+    sample_info.toFile(tmp_path / "job.qqinfo")
+
+    informer = QQKiller(tmp_path / "job.qqinfo", False)
+    input_id = input_id.strip()
+    assert informer.isJob(input_id) == expected
+
+
 @pytest.mark.parametrize("forced", [False, True])
 def test_kill_queued_integration(tmp_path, forced):
     QQVBS._batch_system.clearJobs()

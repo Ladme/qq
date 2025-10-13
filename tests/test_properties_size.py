@@ -27,12 +27,12 @@ def test_invalid_unit_raises():
     ],
 )
 def test_from_string_valid(text, expected):
-    assert Size.from_string(text) == expected
+    assert Size.fromString(text) == expected
 
 
 def test_from_string_invalid():
     with pytest.raises(QQError):
-        Size.from_string("nonsense")
+        Size.fromString("nonsense")
 
 
 @pytest.mark.parametrize(
@@ -58,9 +58,9 @@ def test_post_init_conversions(value, unit, expected_value, expected_unit):
 
 
 def test_to_kb():
-    assert Size(1, "kb").to_kb() == 1
-    assert Size(1, "mb").to_kb() == 1024
-    assert Size(1, "gb").to_kb() == 1024 * 1024
+    assert Size(1, "kb").toKB() == 1
+    assert Size(1, "mb").toKB() == 1024
+    assert Size(1, "gb").toKB() == 1024 * 1024
 
 
 def test_multiplication():
@@ -160,3 +160,26 @@ def test_truediv_type_error(a, other):
 )
 def test_truediv_case_insensitive_units(a, b, expected):
     assert a / b == expected
+
+
+@pytest.mark.parametrize(
+    "kb,unit,expected_value",
+    [
+        (1024, "mb", 1),  # exact 1 MB
+        (1025, "mb", 2),  # rounding up
+        (1048576, "gb", 1),  # exact 1 GB
+        (1048577, "gb", 2),  # rounding up
+        (1536, "mb", 2),  # 1.5 MB - 2 MB (ceil)
+    ],
+)
+def test_size_from_kb_valid_conversions(kb, unit, expected_value):
+    size = Size._fromKB(kb, unit)
+    assert isinstance(size, Size)
+    assert size.value == expected_value
+    assert size.unit == unit
+
+
+@pytest.mark.parametrize("invalid_unit", ["tb", "b", "", None])
+def test_size_from_kb_invalid_unit(invalid_unit):
+    with pytest.raises((KeyError, TypeError)):
+        Size._fromKB(1024, invalid_unit)

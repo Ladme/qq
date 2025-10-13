@@ -151,7 +151,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             return Size(1, "kb")
 
         try:
-            return Size.from_string(mem)
+            return Size.fromString(mem)
         except Exception as e:
             logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
             return Size(1, "kb")
@@ -226,7 +226,7 @@ class PBSJobInfo(BatchJobInfoInterface):
         try:
             # we assume that resources_used.mem is always in kb (or in b if 0)
             util_mem_kb = int(util_mem.replace("kb", "").replace("b", ""))
-            return int(util_mem_kb / self.getMem().to_kb() * 100.0)
+            return int(util_mem_kb / self.getMem().toKB() * 100.0)
         except Exception as e:
             logger.warning(
                 f"Could not parse information about memory utilization for '{self._job_id}': {e}."

@@ -114,6 +114,23 @@ def get_info_file_from_job_id(job_id: str) -> Path:
 
 
 def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
+    """
+    Retrieve qq job info files based on a job ID or from the current directory.
+
+    Args:
+        job_id (str | None): The ID of the qq job to retrieve the info file for.
+            If None, the function searches for qq job info files in the current directory.
+
+    Returns:
+        list[Path]: A list containing the qq job info file(s). If a job ID is provided,
+            the list contains a single Path. If not, it contains all detected info files
+            in the current directory.
+
+    Raises:
+        QQError: If the info file corresponding to the given job ID does not exist
+            or is not reachable, or if no qq job info file is found in the current
+            directory when no job ID is provided.
+    """
     if job_id:
         info_file = get_info_file_from_job_id(job_id)
         # check that the detected info file exists

@@ -36,7 +36,7 @@ class Size:
             raise QQError(f"Unsupported unit for size: '{self.unit}'.")
 
         # convert total KB to the largest unit possible where value >= 1
-        total_kb = self.to_kb()
+        total_kb = self.toKB()
         for unit, factor in reversed(list(self._unit_map.items())):
             if total_kb >= factor:
                 self.value = math.ceil(total_kb / factor)
@@ -48,7 +48,7 @@ class Size:
             self.unit = "kb"
 
     @classmethod
-    def from_string(cls, s: str) -> Self:
+    def fromString(cls, s: str) -> Self:
         """
         Create a Size object from a string.
 
@@ -67,7 +67,7 @@ class Size:
         value, unit = match.groups()
         return cls(int(value), unit.lower())
 
-    def to_kb(self) -> int:
+    def toKB(self) -> int:
         """
         Convert the Size to kilobytes.
 
@@ -77,7 +77,7 @@ class Size:
         return self.value * self._unit_map[self.unit]
 
     @classmethod
-    def _from_kb(cls, kb: int, unit: str) -> Self:
+    def _fromKB(cls, kb: int, unit: str) -> Self:
         """
         Create a Size object from a value in kilobytes.
 
@@ -110,7 +110,7 @@ class Size:
         if n == 0:
             return Size(0, self.unit)
 
-        return Size(self.to_kb() * n, "kb")
+        return Size(self.toKB() * n, "kb")
 
     # allow 3 * Size
     __rmul__ = __mul__
@@ -140,7 +140,7 @@ class Size:
         if n == 0:
             raise ZeroDivisionError("division by zero")
 
-        return Size(math.ceil(self.to_kb() / n), "kb")
+        return Size(math.ceil(self.toKB() / n), "kb")
 
     def __truediv__(self, other: "Size") -> float:
         """
@@ -165,9 +165,9 @@ class Size:
                 f"Unsupported operand type(s) for /: 'Size' and '{type(other).__name__}'"
             )
 
-        other_kb = other.to_kb()
-        # the smallest Size is 1kb, so this should never happen, but we keep it to be safe
+        other_kb = other.toKB()
+        # the smallest Size is 1 kB, so this should never happen, but we keep it to be safe
         if other_kb == 0:
             raise ZeroDivisionError("division by zero size")
 
-        return self.to_kb() / other_kb
+        return self.toKB() / other_kb

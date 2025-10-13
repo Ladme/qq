@@ -147,11 +147,12 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
     def getJobInfo(job_id: str) -> VBSJobInfo:
         return VBSJobInfo(QQVBS._batch_system.jobs.get(job_id))  # ty: ignore[invalid-return-type]
 
-    def resubmit(res: QQResources, script: Path) -> str:
-        try:
-            return QQVBS._batch_system.submitJob(script, res.useScratch())
-        except VBSError as e:
-            raise QQError(f"Failed to resubmit script '{str(script)}': {e}.")
+    def resubmit(input_machine: str, input_dir: str, command_line: list[str]) -> str:
+        # TODO: fix
+        _ = input_machine
+        _ = input_dir
+        _ = command_line
+        raise QQError("Resubmitting is currently not supported for VBS.")
 
     @staticmethod
     def _getDefaultServerResources() -> QQResources:

@@ -15,6 +15,7 @@ from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.batch.pbs import QQPBS
 from qq_lib.batch.vbs import QQVBS
 from qq_lib.core.constants import (
+    BATCH_SYSTEM,
     DATE_FORMAT,
     GUARD,
     INFO_FILE,
@@ -26,6 +27,7 @@ from qq_lib.core.error import QQError
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.info import QQInfo
 from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
 from qq_lib.run import run
@@ -263,6 +265,8 @@ def test_set_up_initializes_runner(monkeypatch, tmp_path, sample_info):
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     monkeypatch.setenv(INFO_FILE, str(info_file))
+    monkeypatch.setenv(INPUT_MACHINE, str(socket.gethostname()))
+    monkeypatch.setenv(BATCH_SYSTEM, "VBS")
 
     runner = QQRunner()
 
@@ -271,6 +275,41 @@ def test_set_up_initializes_runner(monkeypatch, tmp_path, sample_info):
     assert runner._input_dir == sample_info.input_dir
     assert runner._batch_system == sample_info.batch_system
     assert runner._use_scratch == sample_info.resources.useScratch()
+
+
+def test_set_up_initializes_runner_with_loop_info(monkeypatch, tmp_path, sample_info):
+    sample_info.job_type = QQJobType.LOOP
+    sample_info.loop_info = QQLoopInfo(1, 5, tmp_path / "storage", "job%03d")
+
+    info_file = tmp_path / "job.qqinfo"
+    informer = QQInformer(sample_info)
+    informer.toFile(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
+    monkeypatch.setenv(INPUT_MACHINE, str(socket.gethostname()))
+    monkeypatch.setenv(BATCH_SYSTEM, "VBS")
+
+    runner = QQRunner()
+
+    with (
+        patch("qq_lib.archive.archiver.QQArchiver.makeArchiveDir") as mock_archive_dir,
+        patch(
+            "qq_lib.archive.archiver.QQArchiver.archiveRunTimeFiles"
+        ) as mock_archive_files,
+    ):
+        runner.setUp()
+
+    assert runner._input_dir == sample_info.input_dir
+    assert runner._batch_system == sample_info.batch_system
+    assert runner._use_scratch == sample_info.resources.useScratch()
+    assert runner._archiver is not None
+    assert runner._archiver._archive == tmp_path / "storage"
+    assert runner._archiver._archive_format == "job%03d"
+    assert runner._archiver._input_machine == sample_info.input_machine
+    assert runner._archiver._input_dir == sample_info.input_dir
+    assert runner._archiver._batch_system == sample_info.batch_system
+
+    mock_archive_dir.assert_called_once()
+    mock_archive_files.assert_called_once()
 
 
 @pytest.fixture
@@ -282,11 +321,11 @@ def runner_with_dirs(monkeypatch, tmp_path, sample_info):
     informer = QQInformer(sample_info)
     informer.toFile(info_file)
     monkeypatch.setenv(INFO_FILE, str(info_file))
+    monkeypatch.setenv(INPUT_MACHINE, str(socket.gethostname()))
+    monkeypatch.setenv(BATCH_SYSTEM, "VBS")
 
     runner = QQRunner()
     runner.setUp()
-
-    # Path.unlink(info_file)
 
     runner._work_dir = tmp_path / "work"
     runner._work_dir.mkdir()
@@ -316,6 +355,49 @@ def test_set_up_work_dir_calls_correct_method(runner_with_dirs):
         runner.setUpWorkDir()
         mock_shared.assert_called_once()
         mock_scratch.assert_not_called()
+
+
+@pytest.fixture
+def loop_runner_with_dirs(monkeypatch, tmp_path, sample_info):
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
+
+    sample_info.job_type = QQJobType.LOOP
+    sample_info.loop_info = QQLoopInfo(1, 5, tmp_path / "storage", "job%03d", current=3)
+    info_file = input_dir / "job.qqinfo"
+    informer = QQInformer(sample_info)
+    informer.toFile(info_file)
+    monkeypatch.setenv(INFO_FILE, str(info_file))
+    monkeypatch.setenv(INPUT_MACHINE, str(socket.gethostname()))
+    monkeypatch.setenv(BATCH_SYSTEM, "VBS")
+
+    runner = QQRunner()
+    with (
+        patch("qq_lib.archive.archiver.QQArchiver.makeArchiveDir"),
+        patch("qq_lib.archive.archiver.QQArchiver.archiveRunTimeFiles"),
+    ):
+        runner.setUp()
+
+    runner._work_dir = tmp_path / "work"
+    runner._work_dir.mkdir()
+    runner._input_dir = input_dir
+    return runner
+
+
+@pytest.mark.parametrize("use_scratch", [True, False])
+def test_set_up_work_dir_calls_archive(loop_runner_with_dirs, use_scratch):
+    runner = loop_runner_with_dirs
+
+    runner._use_scratch = use_scratch
+    with (
+        patch.object(runner, "_setUpScratchDir"),
+        patch.object(runner, "_setUpSharedDir"),
+        patch("qq_lib.archive.archiver.QQArchiver.archiveFrom") as mock_archive,
+    ):
+        runner.setUpWorkDir()
+        mock_archive.assert_called_once_with(
+            runner._work_dir, runner._informer.info.loop_info.current
+        )
 
 
 def test_execute_script_success(tmp_path, runner_with_dirs):
@@ -442,6 +524,27 @@ def test_finalize(runner_with_dirs_and_files, use_scratch, returncode):
             assert (runner._work_dir / "file_work.txt").exists()
 
 
+@pytest.mark.parametrize("use_scratch", [True, False])
+def test_finalize_calls_archive_and_resubmit(loop_runner_with_dirs, use_scratch):
+    runner = loop_runner_with_dirs
+
+    runner._use_scratch = use_scratch
+
+    class DummyProcess:
+        def __init__(self, code):
+            self.returncode = code
+
+    runner._process = DummyProcess(0)
+
+    with (
+        patch("qq_lib.archive.archiver.QQArchiver.archiveTo") as mock_archive,
+        patch.object(QQRunner, "_resubmit") as mock_resubmit,
+    ):
+        runner.finalize()
+        mock_archive.assert_called_once_with(runner._work_dir)
+        mock_resubmit.assert_called_once()
+
+
 def test_set_up_shared_dir_success(runner_with_dirs):
     runner = runner_with_dirs
 
@@ -475,9 +578,8 @@ def test_set_up_scratch_dir_success(runner_with_dirs, tmp_path):
     # mock batch system to return success
     scratch_dir = tmp_path / "scratch"
     scratch_dir.mkdir()
-    runner._batch_system = QQPBS
 
-    with patch.object(QQPBS, "getScratchDir", return_value=scratch_dir):
+    with patch.object(QQVBS, "getScratchDir", return_value=scratch_dir):
         runner._setUpScratchDir()
 
     # working directory should now be scratch_dir / inner_dir
@@ -507,6 +609,47 @@ def test_set_up_scratch_dir_failure(runner_with_dirs):
 
     with pytest.raises(QQError, match="failed to get scratch"):
         runner._setUpScratchDir()
+
+
+def test_set_up_scratch_dir_excluded_files_with_archive(
+    loop_runner_with_dirs, tmp_path
+):
+    runner = loop_runner_with_dirs
+
+    # create some dummy files in the job directory
+    file1 = runner._input_dir / "file1.txt"
+    file1.write_text("hello")
+    file2 = runner._input_dir / "file2.log"
+    file2.write_text("world")
+
+    # change the archive path to one of the created files
+    runner._archiver._archive = file2
+
+    # create info file in input_dir
+    runner._informer.toFile(runner._info_file)
+
+    # mock batch system to return success
+    scratch_dir = tmp_path / "scratch"
+    scratch_dir.mkdir()
+
+    with patch.object(QQVBS, "getScratchDir", return_value=scratch_dir):
+        runner._setUpScratchDir()
+
+    # working directory should now be scratch_dir / inner_dir
+    assert runner._work_dir == scratch_dir / SCRATCH_DIR_INNER
+    assert Path.cwd() == scratch_dir / SCRATCH_DIR_INNER
+
+    # file1 should be copied from input_dir to work_dir
+    assert (runner._work_dir / "file1.txt").exists()
+    assert (runner._input_dir / "file1.txt").exists()
+
+    # but file2 should only exist in input_dir (it is the 'archive')
+    assert (runner._input_dir / "file2.log").exists()
+    assert not (runner._work_dir / "file2.log").exists()
+
+    # info file should exist in input_dir but not in work_dir
+    assert (runner._input_dir / "job.qqinfo").exists()
+    assert not (runner._work_dir / "job.qqinfo").exists()
 
 
 @pytest.fixture
@@ -871,3 +1014,55 @@ def test_prepare_command_line_only_depend(sample_info):
     result = runner._prepareCommandLineForResubmit()
 
     assert result == [f"--depend=afterok={sample_info.job_id}"]
+
+
+def test_runner_resubmit_does_not_resubmit_when_final_cycle(loop_runner_with_dirs):
+    runner = loop_runner_with_dirs
+    runner._informer.info.loop_info.current = runner._informer.info.loop_info.end
+
+    with patch("qq_lib.core.retryer.QQRetryer") as mock_retryer:
+        runner._resubmit()
+
+    mock_retryer.assert_not_called()
+
+
+def test_runner_resubmit_invokes_retryer_with_correct_arguments(loop_runner_with_dirs):
+    runner = loop_runner_with_dirs
+
+    with (
+        patch("qq_lib.run.runner.QQRetryer") as mock_retryer_class,
+    ):
+        mock_retryer_instance = MagicMock()
+        mock_retryer_class.return_value = mock_retryer_instance
+
+        runner._resubmit()
+
+    mock_retryer_class.assert_called_once()
+    mock_retryer_instance.run.assert_called_once()
+
+    args, kwargs = mock_retryer_class.call_args
+    assert args[0] == runner._batch_system.resubmit
+    assert kwargs["input_machine"] == runner._informer.info.input_machine
+    assert kwargs["input_dir"] == runner._informer.info.input_dir
+    assert kwargs["command_line"] == [
+        "-q",
+        "default",
+        "script.sh",
+        "--depend=afterok=12345.fake.server.com",
+    ]
+    assert "max_tries" in kwargs
+    assert "wait_seconds" in kwargs
+
+
+def test_runner_resubmit_raises_qqerror_on_failure(loop_runner_with_dirs):
+    runner = loop_runner_with_dirs
+
+    with (
+        patch("qq_lib.run.runner.QQRetryer") as mock_retryer_class,
+    ):
+        mock_retryer_instance = MagicMock()
+        mock_retryer_instance.run.side_effect = QQError("Resubmit failed")
+        mock_retryer_class.return_value = mock_retryer_instance
+
+        with pytest.raises(QQError, match="Resubmit failed"):
+            runner._resubmit()

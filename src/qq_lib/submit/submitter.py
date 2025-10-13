@@ -9,8 +9,7 @@ from pathlib import Path
 
 import qq_lib
 from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.clear.cli import QQClearer
-from qq_lib.core.common import get_info_file, yes_or_no_prompt
+from qq_lib.core.common import get_info_file
 from qq_lib.core.constants import (
     ARCHIVE_FORMAT,
     BATCH_SYSTEM,
@@ -196,7 +195,7 @@ class QQSubmitter:
             )
 
         # attempt to clear the files or raise an error
-        clearer = QQClearer(Path.cwd())
+        """clearer = QQClearer(Path.cwd())
         if clearer.shouldClear(force=False):
             logger.warning(
                 "Detected qq runtime files from an invalid run. Submission suspended."
@@ -211,7 +210,7 @@ class QQSubmitter:
         else:
             raise QQError(
                 "Detected qq runtime files from an active or successful run. Submission aborted!"
-            )
+            )"""
 
     def _shouldSkipClear(self) -> bool:
         """

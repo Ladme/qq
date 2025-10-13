@@ -2,10 +2,11 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.core.common import get_files_with_suffix, get_info_files
-from qq_lib.core.constants import QQ_SUFFIXES
+from qq_lib.core.constants import QQ_OUT_SUFFIX, QQ_SUFFIXES
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
@@ -16,7 +17,7 @@ logger = get_logger(__name__)
 
 class QQClearer:
     """
-    Handles detection and removal of qq run files from a directory.
+    Handles detection and removal of qq runtime files from a directory.
     """
 
     def __init__(self, directory: Path):
@@ -24,65 +25,73 @@ class QQClearer:
         Initialize a QQClearer for a specific directory.
 
         Args:
-            directory (Path): The directory to clear qq run files from.
+            directory (Path): The directory to clear qq runtime files from.
         """
         self._directory = directory
 
-    def getQQFiles(self) -> list[Path]:
+    def clear(self, force: bool = False) -> None:
         """
-        Get a list of all qq-related files in the directory.
+        Remove all qq runtime files from the directory that are safe to be removed.
+
+        Only qq files that do **not** correspond to an active or successfully
+        finished job will be removed, unless `force` is set to True.
+
+        Args:
+            force (bool): If True, remove all qq runtime files, even if unsafe.
+        """
+        # get all qq runtime files
+        files = self._collectRunTimeFiles()
+        logger.debug(f"All qq runtime files: {files}.")
+        if not files:
+            logger.info("Nothing to clear.")
+            return
+
+        # get files that should not be deleted
+        excluded: set[Path] = self._collectExcludedFiles() if not force else set()
+        logger.debug(f"Files excluded from clearing: {excluded}.")
+
+        # get files that are safe to be deleted
+        to_delete = files - excluded
+        logger.debug(f"Files to delete: {to_delete}.")
+        if not to_delete:
+            logger.info(
+                "No qq files could be safely cleared. Rerun as 'qq clear --force' to clear them forcibly."
+            )
+            return
+
+        # remove the files that are safe to be deleted
+        QQClearer._deleteFiles(to_delete)
+        logger.info(
+            f"Removed {len(to_delete)} qq file{'s' if len(to_delete) > 1 else ''}."
+        )
+        if excluded:
+            logger.info(
+                f"{len(excluded)} qq files were not safe to clear. Rerun as 'qq clear --force' to clear them forcibly."
+            )
+
+    def _collectRunTimeFiles(self) -> set[Path]:
+        """
+        Collect all qq runtime files in the directory.
 
         Returns:
-            list[Path]: Paths to all files matching qq-specific suffixes.
+            set[Path]: Paths to all files matching qq-specific suffixes.
         """
         files = []
         for suffix in QQ_SUFFIXES:
             files.extend(get_files_with_suffix(self._directory, suffix))
 
-        return files
+        return set(files)
 
-    def clearFiles(self, files: list[Path], force: bool) -> None:
+    def _collectExcludedFiles(self) -> set[Path]:
         """
-        Remove the specified qq files from the directory if it is safe to do so.
+        Collect qq runtime files that should not be deleted.
 
-        Args:
-            files (list[Path]): The files to remove.
-            force (bool): Whether to forcibly remove files even if the job is active.
-
-        Raises:
-            QQError: If clearing may corrupt or delete useful data and --force is not used.
-        """
-        if len(files) == 0:
-            return
-
-        if self.shouldClear(force):
-            for file in files:
-                logger.debug(f"Removing file '{file}'.")
-                Path.unlink(file)
-            logger.info(
-                f"Removed {len(files)} qq run file{'s' if len(files) != 1 else ''}."
-            )
-        else:
-            raise QQError(
-                "Clearing this qq job directory may corrupt or delete useful data. Use 'qq clear --force' if sure."
-            )
-
-    def shouldClear(self, force: bool) -> bool:
-        """
-        Determine whether it is safe to clear qq files from the directory.
-
-        Args:
-            force (bool): If True, allows clearing regardless of job state.
+        Runtime files corresponding to active or successfully finished jobs are included.
 
         Returns:
-            bool: True if clearing is allowed, False otherwise.
-
-        Notes:
-            - Jobs in KILLED, FAILED, or INCONSISTENT states are safe to clear.
-            - If no qq info file can be loaded, the directory is assumed safe to clear.
+            set[Path]: Paths to qq runtime files that should not be deleted.
         """
-        if force:
-            return True
+        excluded = []
 
         # iterate through info files
         for file in get_info_files(self._directory):
@@ -94,13 +103,34 @@ class QQClearer:
                 # ignore the file if it cannot be read
                 continue
 
-            # if any info file is active or finished, return False
-            if state not in {
+            if state not in [
                 RealState.KILLED,
                 RealState.FAILED,
                 RealState.IN_AN_INCONSISTENT_STATE,
-            }:
-                return False
+            ]:
+                excluded.append(file)  # qq info file
+                excluded.append(
+                    self._directory / informer.info.stdout_file
+                )  # script stdout
+                excluded.append(
+                    self._directory / informer.info.stderr_file
+                )  # script stderr
+                excluded.append(
+                    (self._directory / informer.info.job_name).with_suffix(
+                        QQ_OUT_SUFFIX
+                    )
+                )  # qq out file
 
-        # we return true if all info files are from invalid runs
-        return True
+        return set(excluded)
+
+    @staticmethod
+    def _deleteFiles(files: Iterable[Path]) -> None:
+        """
+        Delete all specified files.
+
+        Args:
+            files (Iterable[Path]): The list of files to delete.
+        """
+        for file in files:
+            logger.debug(f"Removing file '{file}'.")
+            file.unlink()

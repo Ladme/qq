@@ -20,8 +20,8 @@ logger = get_logger(__name__)
     short_help="Delete qq runtime files.",
     help="""Delete qq runtime files from the current directory.
 
-By default, `qq clear` removes files only if the directory does not contain an active or successfully completed job.
-To force deletion of the files regardless of job status, use the `--force` flag.""",
+By default, `qq clear` removes only those files that do not correspond to an active or successfully completed job.
+To force deletion of all qq files regardless of job status, use the `--force` flag.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
@@ -33,12 +33,11 @@ To force deletion of the files regardless of job status, use the `--force` flag.
 )
 def clear(force: bool) -> NoReturn:
     """
-    Delete all qq run files in the current directory.
+    Delete qq runtime files in the current directory.
     """
     try:
         clearer = QQClearer(Path())
-        files = clearer.getQQFiles()
-        clearer.clearFiles(files, force)
+        clearer.clear(force)
         sys.exit(0)
     except QQError as e:
         logger.error(e)

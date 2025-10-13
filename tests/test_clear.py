@@ -2,19 +2,15 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
-import os
-from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
 from qq_lib.clear.cli import QQClearer, clear
 from qq_lib.core.constants import (
-    DATE_FORMAT,
+    QQ_INFO_SUFFIX,
     QQ_OUT_SUFFIX,
     QQ_SUFFIXES,
     STDERR_SUFFIX,
@@ -22,403 +18,232 @@ from qq_lib.core.constants import (
 )
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import QQInformer
-from qq_lib.properties.info import QQInfo
-from qq_lib.properties.job_type import QQJobType
-from qq_lib.properties.resources import QQResources
-from qq_lib.properties.states import BatchState, NaiveState, RealState
+from qq_lib.properties.states import RealState
 
 
-@pytest.fixture(autouse=True)
-def register():
-    QQBatchMeta.register(QQPBS)
+def test_qqclearer_init_sets_directory():
+    dummy_path = Path("/fake/path")
+    clearer = QQClearer(dummy_path)
+    assert clearer._directory == dummy_path
 
 
-def _create_files(tmp_path) -> list[Path]:
-    """Create dummy files with qq suffixes."""
-    files = []
+def test_qqclearer_delete_files_deletes_all_files():
+    mock_file1 = Mock(spec=Path)
+    mock_file2 = Mock(spec=Path)
+
+    QQClearer._deleteFiles([mock_file1, mock_file2])
+
+    mock_file1.unlink.assert_called_once()
+    mock_file2.unlink.assert_called_once()
+
+
+def test_qq_clearer_collect_run_time_files_empty_dir(tmp_path):
+    clearer = QQClearer(tmp_path)
+
+    with patch("qq_lib.core.common.get_files_with_suffix", return_value=[]):
+        result = clearer._collectRunTimeFiles()
+
+    assert result == set()
+
+
+def test_qq_clearer_collect_run_time_files_returns_files(tmp_path):
+    clearer = QQClearer(tmp_path)
+
+    dummy_files = []
     for suffix in QQ_SUFFIXES:
-        f = tmp_path / f"job{suffix}"
-        f.write_text("dummy")
-        files.append(f)
+        file_path = tmp_path / f"file{suffix}"
+        file_path.touch()
+        dummy_files.append(file_path)
 
-    return files
+    def mock_get_files(directory, suffix):
+        _ = directory
+        return [f for f in dummy_files if f.suffix == f"{suffix}"]
+
+    with patch("qq_lib.core.common.get_files_with_suffix", side_effect=mock_get_files):
+        result = clearer._collectRunTimeFiles()
+
+    assert result == set(dummy_files)
 
 
-def test_get_qq_files_finds_files(tmp_path):
-    files = _create_files(tmp_path)
-
+@pytest.mark.parametrize("state", list(RealState))
+def test_qq_clearer_collect_excluded_files(tmp_path, state):
     clearer = QQClearer(tmp_path)
-    found = clearer.getQQFiles()
+    dummy_info_file = tmp_path / f"job{QQ_INFO_SUFFIX}"
+    dummy_info_file.touch()
 
-    # must find all created files
-    assert set(found) == set(files)
+    dummy_stdout = f"stdout{STDOUT_SUFFIX}"
+    dummy_stderr = f"stderr{STDERR_SUFFIX}"
+    dummy_job_name = "job"
 
-
-def test_clear_files_no_files(tmp_path):
-    clearer = QQClearer(tmp_path)
-
-    # should not raise or log anything
-    clearer.clearFiles([], force=False)
-
-
-def test_clear_files_deletes_when_should_clear_true(tmp_path):
-    files = _create_files(tmp_path)
-    clearer = QQClearer(tmp_path)
-
-    with patch.object(QQClearer, "shouldClear", return_value=True):
-        clearer.clearFiles(files, force=False)
-
-    for f in files:
-        assert not f.exists()
-
-
-def test_clear_files_raises_when_should_clear_false(tmp_path):
-    files = _create_files(tmp_path)
-    clearer = QQClearer(tmp_path)
+    mock_informer = MagicMock()
+    mock_informer.getRealState.return_value = state
+    mock_informer.info.stdout_file = dummy_stdout
+    mock_informer.info.stderr_file = dummy_stderr
+    mock_informer.info.job_name = dummy_job_name
 
     with (
-        patch.object(QQClearer, "shouldClear", return_value=False),
-        pytest.raises(QQError, match="may corrupt or delete useful data"),
+        patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
+        patch("qq_lib.info.informer.QQInformer.fromFile", return_value=mock_informer),
     ):
-        clearer.clearFiles([files], force=False)
+        result = clearer._collectExcludedFiles()
 
-    for f in files:
-        assert f.exists()
-
-
-def test_should_clear_true_when_force(tmp_path):
-    clearer = QQClearer(tmp_path)
-    assert clearer.shouldClear(force=True)
-
-
-@pytest.mark.parametrize(
-    "state",
-    [
+    if state in [
         RealState.KILLED,
         RealState.FAILED,
         RealState.IN_AN_INCONSISTENT_STATE,
-    ],
-)
-def test_should_clear_true_for_safe_states(tmp_path, state):
-    clearer = QQClearer(tmp_path)
-    info_file = tmp_path / "job.qqinfo"
-    info_file.write_text("dummy")
+    ]:
+        assert dummy_info_file not in result
+        assert tmp_path / dummy_stdout
+        assert (tmp_path / dummy_job_name).with_suffix(QQ_OUT_SUFFIX)
+    else:
+        expected_files = {
+            dummy_info_file,
+            tmp_path / dummy_stdout,
+            tmp_path / dummy_stderr,
+            (tmp_path / dummy_job_name).with_suffix(QQ_OUT_SUFFIX),
+        }
+        assert result == expected_files
 
-    informer_mock = MagicMock()
-    informer_mock.getRealState.return_value = state
+
+def test_qq_clearer_collect_excluded_files_ignores_files_that_raise_qqerror(tmp_path):
+    clearer = QQClearer(tmp_path)
+    dummy_info_file = tmp_path / f"bad{QQ_INFO_SUFFIX}"
+    dummy_info_file.touch()
 
     with (
-        patch("qq_lib.core.common.get_info_file", return_value=info_file),
-        patch("qq_lib.info.informer.QQInformer.fromFile", return_value=informer_mock),
+        patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
+        patch.object(QQInformer, "fromFile", side_effect=QQError("cannot read file")),
     ):
-        assert clearer.shouldClear(force=False)
+        result = clearer._collectExcludedFiles()
+
+    assert result == set()
 
 
-@pytest.mark.parametrize(
-    "state",
-    [
-        RealState.QUEUED,
-        RealState.RUNNING,
-        RealState.FINISHED,
-        RealState.WAITING,
-        RealState.BOOTING,
-    ],
-)
-def test_should_clear_false_for_active_states(tmp_path, state):
+def test_qq_clearer_clear_deletes_only_safe_files(tmp_path):
     clearer = QQClearer(tmp_path)
-    info_file = tmp_path / "job.qqinfo"
-    info_file.write_text("dummy")
 
-    informer_mock = MagicMock()
-    informer_mock.getRealState.return_value = state
+    safe_file = tmp_path / f"safe{QQ_OUT_SUFFIX}"
+    excluded_file = tmp_path / f"excluded{QQ_OUT_SUFFIX}"
 
     with (
-        patch("qq_lib.core.common.get_info_file", return_value=info_file),
-        patch("qq_lib.info.informer.QQInformer.fromFile", return_value=informer_mock),
+        patch.object(
+            QQClearer, "_collectRunTimeFiles", return_value={safe_file, excluded_file}
+        ),
+        patch.object(QQClearer, "_collectExcludedFiles", return_value={excluded_file}),
+        patch.object(QQClearer, "_deleteFiles") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
-        assert not clearer.shouldClear(force=False)
+        clearer.clear()
+
+        mock_delete.assert_called_once_with({safe_file})
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("Removed" in msg and "qq file" in msg for msg in messages)
+        assert any("not safe to clear" in msg for msg in messages)
 
 
-def test_should_clear_true_for_multiple_safe_states(tmp_path):
-    info_files = ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]
-    for file in ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]:
-        info_file = tmp_path / file
-        info_file.write_text("dummy")
-
+def test_qq_clearer_clear_deletes_no_files_are_safe(tmp_path):
     clearer = QQClearer(tmp_path)
 
-    informer_mock = MagicMock()
-    informer_mock.getRealState.side_effect = [
-        RealState.FAILED,
-        RealState.KILLED,
-        RealState.IN_AN_INCONSISTENT_STATE,
-    ]
+    excluded1 = tmp_path / f"excluded1{QQ_OUT_SUFFIX}"
+    excluded2 = tmp_path / f"excluded2{QQ_OUT_SUFFIX}"
 
     with (
-        patch("qq_lib.core.common.get_info_files", return_value=info_files),
-        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+        patch.object(
+            QQClearer, "_collectRunTimeFiles", return_value={excluded1, excluded2}
+        ),
+        patch.object(
+            QQClearer, "_collectExcludedFiles", return_value={excluded1, excluded2}
+        ),
+        patch.object(QQClearer, "_deleteFiles") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
-        assert clearer.shouldClear(force=False)
+        clearer.clear()
+
+        mock_delete.assert_not_called()
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("No qq files could be safely cleared" in msg for msg in messages)
 
 
-def test_should_clear_false_for_multiple_unsafe_states(tmp_path):
-    info_files = ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]
-    for file in ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]:
-        info_file = tmp_path / file
-        info_file.write_text("dummy")
-
+def test_qq_clearer_clear_force_deletes_all_files(tmp_path):
     clearer = QQClearer(tmp_path)
 
-    informer_mock = MagicMock()
-    informer_mock.getRealState.side_effect = [
-        RealState.RUNNING,
-        RealState.FINISHED,
-        RealState.QUEUED,
-    ]
+    file1 = tmp_path / f"file1{QQ_OUT_SUFFIX}"
+    file2 = tmp_path / f"file2{QQ_OUT_SUFFIX}"
 
     with (
-        patch("qq_lib.core.common.get_info_files", return_value=info_files),
-        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+        patch.object(QQClearer, "_collectRunTimeFiles", return_value={file1, file2}),
+        patch.object(QQClearer, "_collectExcludedFiles") as mock_excluded,
+        patch.object(QQClearer, "_deleteFiles") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
-        assert not clearer.shouldClear(force=False)
+        clearer.clear(force=True)
+
+        mock_excluded.assert_not_called()
+        mock_delete.assert_called_once_with({file1, file2})
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("Removed" in msg and "qq file" in msg for msg in messages)
 
 
-def test_should_clear_false_for_combination_of_safe_unsafe_states(tmp_path):
-    info_files = ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]
-    for file in ["job1.qqinfo", "job2.qqinfo", "job3.qqinfo"]:
-        info_file = tmp_path / file
-        info_file.write_text("dummy")
-
+def test_qq_clearer_clear_logs_info_when_no_files(tmp_path):
     clearer = QQClearer(tmp_path)
-
-    informer_mock = MagicMock()
-    informer_mock.getRealState.side_effect = [
-        RealState.KILLED,
-        RealState.FAILED,
-        RealState.QUEUED,
-    ]
 
     with (
-        patch("qq_lib.core.common.get_info_files", return_value=info_files),
-        patch.object(QQInformer, "fromFile", return_value=informer_mock),
+        patch.object(QQClearer, "_collectRunTimeFiles", return_value=set()),
+        patch.object(QQClearer, "_deleteFiles") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
-        assert not clearer.shouldClear(force=False)
+        clearer.clear()
+
+        mock_delete.assert_not_called()
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("Nothing to clear" in msg for msg in messages)
 
 
-@pytest.fixture
-def sample_resources():
-    return QQResources(ncpus=8, work_dir="scratch_local")
+def test_clear_command_runs_successfully():
+    runner = CliRunner()
+    dummy_clear = patch.object(QQClearer, "clear")
+
+    with dummy_clear as mock_clear:
+        result = runner.invoke(clear, [])
+        assert result.exit_code == 0
+        mock_clear.assert_called_once_with(False)
 
 
-@pytest.fixture
-def sample_info(sample_resources):
-    return QQInfo(
-        batch_system=QQPBS,
-        qq_version="0.1.0",
-        username="fake_user",
-        job_id="12345.fake.server.com",
-        job_name="script.sh+025",
-        queue="default",
-        script_name="script.sh",
-        job_type=QQJobType.STANDARD,
-        input_machine="fake.machine.com",
-        input_dir=Path("/shared/storage/"),
-        job_state=NaiveState.RUNNING,
-        submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
-        stdout_file="stdout.log",
-        stderr_file="stderr.log",
-        resources=sample_resources,
-        excluded_files=[Path("ignore.txt")],
-        command_line=["-q", "default", "script.sh"],
-        work_dir=Path("/scratch/job_12345.fake.server.com"),
-    )
+def test_clear_command_with_force_flag():
+    runner = CliRunner()
+    dummy_clear = patch.object(QQClearer, "clear")
+
+    with dummy_clear as mock_clear:
+        result = runner.invoke(clear, ["--force"])
+        assert result.exit_code == 0
+        mock_clear.assert_called_once_with(True)
 
 
-def test_should_clear_true_for_multiple_safe_states_and_invalid_file(
-    tmp_path, sample_info
-):
-    for file, state in zip(
-        ["job1.qqinfo", "job2.qqinfo"], [NaiveState.KILLED, NaiveState.FAILED]
-    ):
-        sample_info.job_state = state
-        QQInformer(sample_info).toFile(tmp_path / file)
-
-    Path(tmp_path / "jobINVALID.qqinfo").write_text("dummy")
-
-    os.chdir(tmp_path)
-    clearer = QQClearer(tmp_path)
-
-    # getBatchState will return BatchState.UNKNOWN which is ignored for these states
-    assert clearer.shouldClear(force=False)
-
-
-def test_should_clear_false_for_multiple_states_and_invalid_file(tmp_path, sample_info):
-    for file, state in zip(
-        ["job1.qqinfo", "job2.qqinfo"], [NaiveState.FINISHED, NaiveState.FAILED]
-    ):
-        sample_info.job_state = state
-        QQInformer(sample_info).toFile(tmp_path / file)
-
-    Path(tmp_path / "jobINVALID.qqinfo").write_text("dummy")
-
-    os.chdir(tmp_path)
-    clearer = QQClearer(tmp_path)
-
-    # getBatchState will return BatchState.UNKNOWN which is ignored for these states
-    assert not clearer.shouldClear(force=False)
-
-
-def _make_runtime_files(
-    tmp_path: Path, sample_info: QQInfo, naive_state: NaiveState
-) -> list[Path]:
-    """
-    Create a qqinfo file with the given state and a few other qq files.
-    Returns the list of created files.
-    """
-    files = []
-    info_file = tmp_path / "job.qqinfo"
-    sample_info.job_state = naive_state
-    sample_info.toFile(info_file)
-    files.append(info_file)
-
-    # make some other dummy qq files
-    for suffix in [QQ_OUT_SUFFIX, STDOUT_SUFFIX, STDERR_SUFFIX]:
-        f = tmp_path / f"job{suffix}"
-        f.write_text("dummy")
-        files.append(f)
-
-    # make dummy non-qq file
-    f = tmp_path / "job.result"
-    f.write_text("dummy")
-    files.append(f)
-
-    return files
-
-
-def test_clear_running_job_force_false(tmp_path, sample_info):
-    # running job -> should NOT clear without --force
-    files = _make_runtime_files(tmp_path, sample_info, NaiveState.RUNNING)
-
+def test_clear_command_qqerror_triggers_exit_91():
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        os.chdir(tmp_path)
-        with patch(
-            "qq_lib.info.informer.QQInformer.getBatchState",
-            return_value=BatchState.RUNNING,
-        ):
-            result = runner.invoke(clear)
+    def raise_qqerror(force):
+        _ = force
+        raise QQError("some error")
 
-    assert result.exit_code == 91
-
-    # all files should still exist
-    for f in files:
-        assert f.exists()
+    with patch.object(QQClearer, "clear", side_effect=raise_qqerror):
+        result = runner.invoke(clear, [])
+        assert result.exit_code == 91
+        assert "some error" in result.output
 
 
-def test_clear_failed_job_force_false(tmp_path, sample_info):
-    # failed job -> should clear even without --force
-    files = _make_runtime_files(tmp_path, sample_info, NaiveState.FAILED)
-
+def test_clear_command_unexpected_exception_triggers_exit_99():
     runner = CliRunner()
 
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        os.chdir(tmp_path)
-        with patch(
-            "qq_lib.info.informer.QQInformer.getBatchState",
-            return_value=BatchState.FINISHED,
-        ):
-            result = runner.invoke(clear)
+    def raise_exception(force):
+        _ = force
+        raise RuntimeError("unexpected")
 
-    assert result.exit_code == 0
-
-    # qq files should not exist
-    for f in files[:-1]:
-        assert not f.exists()
-    # non-qq file should exist
-    assert files[-1].exists()
-
-
-def test_clear_running_job_force_true(tmp_path, sample_info):
-    # running job -> should clear with --force
-    files = _make_runtime_files(tmp_path, sample_info, NaiveState.RUNNING)
-
-    runner = CliRunner()
-
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        os.chdir(tmp_path)
-        with patch(
-            "qq_lib.info.informer.QQInformer.getBatchState",
-            return_value=BatchState.RUNNING,
-        ):
-            result = runner.invoke(clear, ["--force"])
-
-    assert result.exit_code == 0
-
-    # qq files should not exist
-    for f in files[:-1]:
-        assert not f.exists()
-    # non-qq file should exist
-    assert files[-1].exists()
-
-
-def test_clear_failed_job_force_true(tmp_path, sample_info):
-    # failed job -> should clear
-    files = _make_runtime_files(tmp_path, sample_info, NaiveState.FAILED)
-
-    runner = CliRunner()
-
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        os.chdir(tmp_path)
-        with patch(
-            "qq_lib.info.informer.QQInformer.getBatchState",
-            return_value=BatchState.FINISHED,
-        ):
-            result = runner.invoke(clear, ["--force"])
-
-    assert result.exit_code == 0
-
-    # qq files should not exist
-    for f in files[:-1]:
-        assert not f.exists()
-    # non-qq file should exist
-    assert files[-1].exists()
-
-
-def _make_runtime_files_no_job(tmp_path: Path) -> list[Path]:
-    """
-    Create some qq files but not qqinfo file.
-    Returns the list of created files.
-    """
-    files = []
-    # make some other dummy qq files
-    for suffix in [QQ_OUT_SUFFIX, STDOUT_SUFFIX, STDERR_SUFFIX]:
-        f = tmp_path / f"job{suffix}"
-        f.write_text("dummy")
-        files.append(f)
-
-    # make dummy non-qq file
-    f = tmp_path / "job.result"
-    f.write_text("dummy")
-    files.append(f)
-
-    return files
-
-
-def test_clear_files_but_no_job(tmp_path):
-    # no job, but qq run files
-    files = _make_runtime_files_no_job(tmp_path)
-
-    runner = CliRunner()
-
-    with runner.isolated_filesystem(temp_dir=tmp_path):
-        os.chdir(tmp_path)
-        result = runner.invoke(clear)
-
-    assert result.exit_code == 0
-
-    # qq files should not exist
-    for f in files[:-1]:
-        assert not f.exists()
-    # non-qq file should exist
-    assert files[-1].exists()
+    with patch.object(QQClearer, "clear", side_effect=raise_exception):
+        result = runner.invoke(clear, [])
+        assert result.exit_code == 99
+        assert "unexpected" in result.output

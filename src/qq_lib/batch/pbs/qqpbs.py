@@ -57,6 +57,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         command = QQPBS._translateSubmit(
             res,
             queue,
+            script.parent,
             str(script),
             job_name,
             depend,
@@ -337,6 +338,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def _translateSubmit(
         res: QQResources,
         queue: str,
+        input_dir: Path,
         script: str,
         job_name: str,
         depend: list[Depend],
@@ -347,6 +349,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         Args:
             res (QQResources): The resources requested for the job.
             queue (str): The queue name to submit to.
+            input_dir (Path): The directory from which the job is being submitted.
             script (str): Path to the job script.
             job_name (str): Name of the job.
             depend (list[Depend]): List of dependencies of the job.
@@ -354,7 +357,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         Returns:
             str: The fully constructed qsub command string.
         """
-        qq_output = str(Path(job_name).with_suffix(QQ_OUT_SUFFIX))
+        qq_output = str((input_dir / job_name).with_suffix(QQ_OUT_SUFFIX))
         command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} -V "
 
         # handle per-chunk resources, incl. workdir

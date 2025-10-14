@@ -5,8 +5,8 @@
 from collections.abc import Iterable
 from pathlib import Path
 
-from qq_lib.core.common import get_files_with_suffix, get_info_files
-from qq_lib.core.constants import QQ_OUT_SUFFIX, QQ_SUFFIXES
+from qq_lib.core.common import get_info_files, get_runtime_files
+from qq_lib.core.constants import QQ_OUT_SUFFIX
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
@@ -76,11 +76,7 @@ class QQClearer:
         Returns:
             set[Path]: Paths to all files matching qq-specific suffixes.
         """
-        files = []
-        for suffix in QQ_SUFFIXES:
-            files.extend(get_files_with_suffix(self._directory, suffix))
-
-        return set(files)
+        return set(get_runtime_files(self._directory))
 
     def _collectExcludedFiles(self) -> set[Path]:
         """

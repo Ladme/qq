@@ -10,6 +10,7 @@ import click
 from click_option_group import optgroup
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.common import get_runtime_files
 from qq_lib.core.constants import BATCH_SYSTEM
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -68,11 +69,6 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     type=str,
     default=None,
     help=f"Name of the batch system to submit the job to. If not specified, the system will use the environment variable '{BATCH_SYSTEM}' or attempt to auto-detect it.",
-)
-@optgroup.option(
-    "--non-interactive",
-    is_flag=True,
-    help="Run `qq submit` in a non-interactive environment. Any prompts will automatically be answered 'no'.",
 )
 @optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
 @optgroup.option(
@@ -176,8 +172,11 @@ def submit(script: str, **kwargs) -> NoReturn:
         )
         submitter = factory.makeSubmitter()
 
-        # catching multiple submissions
-        submitter.guardOrClear()
+        # guard against multiple submissions from the same directory
+        if get_runtime_files(submitter.getInputDir()) and not submitter.continuesLoop():
+            raise QQError(
+                "Detected qq runtime files in the submission directory. Submission aborted."
+            )
 
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")

@@ -9,7 +9,7 @@ import readchar
 from rich.live import Live
 from rich.text import Text
 
-from .constants import QQ_INFO_SUFFIX
+from .constants import QQ_INFO_SUFFIX, QQ_SUFFIXES
 from .error import QQError
 from .logger import get_logger
 
@@ -31,6 +31,23 @@ def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
     for file in directory.iterdir():
         if file.is_file() and file.suffix == suffix:
             files.append(file)
+
+    return files
+
+
+def get_runtime_files(directory: Path) -> list[Path]:
+    """
+    Retrieve all qq runtime files in a directory.
+
+    Args:
+        directory (Path): The directory to search in.
+
+    Returns:
+        list[Path]: A list of Path objects representing qq runtime files.
+    """
+    files = []
+    for suffix in QQ_SUFFIXES:
+        files.extend(get_files_with_suffix(directory, suffix))
 
     return files
 

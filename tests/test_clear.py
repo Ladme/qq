@@ -12,7 +12,6 @@ from qq_lib.clear.cli import QQClearer, clear
 from qq_lib.core.constants import (
     QQ_INFO_SUFFIX,
     QQ_OUT_SUFFIX,
-    QQ_SUFFIXES,
     STDERR_SUFFIX,
     STDOUT_SUFFIX,
 )
@@ -37,32 +36,17 @@ def test_qqclearer_delete_files_deletes_all_files():
     mock_file2.unlink.assert_called_once()
 
 
-def test_qq_clearer_collect_run_time_files_empty_dir(tmp_path):
+def test_qq_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
     clearer = QQClearer(tmp_path)
+    expected_files = [tmp_path / f"a{QQ_INFO_SUFFIX}", tmp_path / f"b{QQ_OUT_SUFFIX}"]
 
-    with patch("qq_lib.core.common.get_files_with_suffix", return_value=[]):
+    with patch(
+        "qq_lib.clear.clearer.get_runtime_files", return_value=expected_files
+    ) as mock_get:
         result = clearer._collectRunTimeFiles()
 
-    assert result == set()
-
-
-def test_qq_clearer_collect_run_time_files_returns_files(tmp_path):
-    clearer = QQClearer(tmp_path)
-
-    dummy_files = []
-    for suffix in QQ_SUFFIXES:
-        file_path = tmp_path / f"file{suffix}"
-        file_path.touch()
-        dummy_files.append(file_path)
-
-    def mock_get_files(directory, suffix):
-        _ = directory
-        return [f for f in dummy_files if f.suffix == f"{suffix}"]
-
-    with patch("qq_lib.core.common.get_files_with_suffix", side_effect=mock_get_files):
-        result = clearer._collectRunTimeFiles()
-
-    assert result == set(dummy_files)
+        mock_get.assert_called_once_with(tmp_path)
+        assert result == set(expected_files)
 
 
 @pytest.mark.parametrize("state", list(RealState))

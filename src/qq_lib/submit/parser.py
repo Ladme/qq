@@ -163,15 +163,6 @@ class QQParser:
 
         return []
 
-    def getNonInteractive(self) -> bool:
-        """
-        Return whether the job should be submitted in non-interactive mode.
-
-        Returns:
-            bool: True if non-interactive, False otherwise.
-        """
-        return self._options.get("non_interactive") == "true"
-
     def getLoopStart(self) -> int | None:
         """
         Return the starting cycle number for loop jobs.

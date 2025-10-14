@@ -21,6 +21,7 @@ from qq_lib.core.common import (
     get_info_file_from_job_id,
     get_info_files,
     get_info_files_from_job_id_or_dir,
+    get_runtime_files,
     hhmmss_to_duration,
     hhmmss_to_wdhms,
     is_printf_pattern,
@@ -30,7 +31,14 @@ from qq_lib.core.common import (
     wdhms_to_hhmmss,
     yes_or_no_prompt,
 )
-from qq_lib.core.constants import INFO_FILE
+from qq_lib.core.constants import (
+    INFO_FILE,
+    QQ_INFO_SUFFIX,
+    QQ_OUT_SUFFIX,
+    QQ_SUFFIXES,
+    STDERR_SUFFIX,
+    STDOUT_SUFFIX,
+)
 from qq_lib.core.error import QQError
 
 
@@ -764,3 +772,27 @@ def test_raises_if_no_info_files_found(mock_get_info_files):
         get_info_files_from_job_id_or_dir(None)
 
     mock_get_info_files.assert_called_once_with(Path())
+
+
+def test_get_runtime_files(tmp_path):
+    expected_files = [
+        tmp_path / f"f1{QQ_INFO_SUFFIX}",
+        tmp_path / f"f2{QQ_OUT_SUFFIX}",
+        tmp_path / f"f3{STDOUT_SUFFIX}",
+        tmp_path / f"f4{STDERR_SUFFIX}",
+    ]
+
+    def mock_get_files_with_suffix(directory, suffix):
+        _ = directory
+        return [tmp_path / f"f{QQ_SUFFIXES.index(suffix) + 1}{suffix}"]
+
+    with patch(
+        "qq_lib.core.common.get_files_with_suffix",
+        side_effect=mock_get_files_with_suffix,
+    ) as mock_func:
+        result = get_runtime_files(tmp_path)
+
+        assert result == expected_files
+
+        for suffix in QQ_SUFFIXES:
+            mock_func.assert_any_call(tmp_path, suffix)

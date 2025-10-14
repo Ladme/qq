@@ -1,76 +1,139 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import os
+from unittest.mock import MagicMock, patch
 
-import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
-from qq_lib.batch.vbs import QQVBS
-from qq_lib.core.constants import QQ_INFO_SUFFIX
 from qq_lib.submit import submit
 
 
-@pytest.fixture(autouse=True)
-def register():
-    QQBatchMeta.register(QQPBS)
-    QQBatchMeta.register(QQVBS)
-
-
-@pytest.fixture
-def script_with_shebang(tmp_path):
-    script = tmp_path / "test.sh"
-    script.write_text("#!/usr/bin/env -S qq run\n echo 'hello world'\n")
-    script.chmod(script.stat().st_mode | 0o111)
-    return script
-
-
-@pytest.fixture
-def script_invalid_shebang(tmp_path):
-    script = tmp_path / "bad.sh"
-    script.write_text("#!/bin/bash\necho 'nope'\n")
-    script.chmod(script.stat().st_mode | 0o111)
-    return script
-
-
-def test_submit_success(tmp_path, script_with_shebang):
-    os.chdir(tmp_path)
+def test_submit_successful(tmp_path):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
 
     runner = CliRunner()
 
-    result = runner.invoke(
-        submit, ["-q", "default", script_with_shebang.name, "--batch-system", "VBS"]
-    )
+    submitter_mock = MagicMock()
+    submitter_mock.getInputDir.return_value = tmp_path
+    submitter_mock.continuesLoop.return_value = False
+    submitter_mock.submit.return_value = "job123"
 
-    print(result.stderr)
-    assert result.exit_code == 0
+    factory_mock = MagicMock()
+    factory_mock.makeSubmitter.return_value = submitter_mock
 
-    info_file = script_with_shebang.with_suffix(QQ_INFO_SUFFIX)
-    assert info_file.exists()
+    with (
+        patch("qq_lib.submit.cli.Path.is_file", return_value=True),
+        patch(
+            "qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock
+        ) as mock_factory_class,
+        patch("qq_lib.submit.cli.get_runtime_files", return_value=[]),
+        patch("qq_lib.submit.cli.logger") as mock_logger,
+    ):
+        result = runner.invoke(submit, [str(script)])
+
+        assert result.exit_code == 0
+
+        mock_factory_class.assert_called_once()
+        factory_mock.makeSubmitter.assert_called_once()
+        submitter_mock.submit.assert_called_once()
+        info_messages = [call.args[0] for call in mock_logger.info.call_args_list]
+        assert any("job123" in msg for msg in info_messages)
 
 
-def test_submit_missing_script(tmp_path):
-    os.chdir(tmp_path)
+def test_submit_script_does_not_exist(tmp_path):
+    runner = CliRunner()
+    missing_script = tmp_path / "missing.sh"
+
+    with patch("qq_lib.submit.cli.logger") as mock_logger:
+        result = runner.invoke(submit, [str(missing_script)])
+
+        assert result.exit_code == 91
+        error_messages = [call.args[0] for call in mock_logger.error.call_args_list]
+        assert any("does not exist" in str(msg) for msg in error_messages)
+
+
+def test_submit_detects_runtime_files_and_aborts(tmp_path):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
 
     runner = CliRunner()
-    result = runner.invoke(
-        submit, ["--queue", "default", "missing.sh", "--batch-system", "VBS"]
-    )
+    submitter_mock = MagicMock()
+    submitter_mock.getInputDir.return_value = tmp_path
+    submitter_mock.continuesLoop.return_value = False
 
-    assert result.exit_code == 91
-    assert "does not exist" in result.output
+    factory_mock = MagicMock()
+    factory_mock.makeSubmitter.return_value = submitter_mock
+
+    with (
+        patch("qq_lib.submit.cli.Path.is_file", return_value=True),
+        patch("qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock),
+        patch(
+            "qq_lib.submit.cli.get_runtime_files",
+            return_value=[tmp_path / "file.qqout"],
+        ),
+        patch("qq_lib.submit.cli.logger") as mock_logger,
+    ):
+        result = runner.invoke(submit, [str(script)])
+
+        assert result.exit_code == 91
+        error_messages = [call.args[0] for call in mock_logger.error.call_args_list]
+        assert any("Submission aborted" in str(msg) for msg in error_messages)
+        factory_mock.makeSubmitter.assert_called_once()
+        submitter_mock.continuesLoop.assert_called_once()
 
 
-def test_submit_invalid_shebang(tmp_path, script_invalid_shebang):
-    os.chdir(tmp_path)
+def test_submit_continues_loop_even_with_runtime_files(tmp_path):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
+
+    runner = CliRunner()
+    submitter_mock = MagicMock()
+    submitter_mock.getInputDir.return_value = tmp_path
+    submitter_mock.continuesLoop.return_value = True
+    submitter_mock.submit.return_value = "job_loop"
+
+    factory_mock = MagicMock()
+    factory_mock.makeSubmitter.return_value = submitter_mock
+
+    with (
+        patch("qq_lib.submit.cli.Path.is_file", return_value=True),
+        patch("qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock),
+        patch(
+            "qq_lib.submit.cli.get_runtime_files",
+            return_value=[tmp_path / "file.qqout"],
+        ),
+        patch("qq_lib.submit.cli.logger") as mock_logger,
+    ):
+        result = runner.invoke(submit, [str(script)])
+
+        assert result.exit_code == 0
+        info_messages = [call.args[0] for call in mock_logger.info.call_args_list]
+        assert any("job_loop" in msg for msg in info_messages)
+        factory_mock.makeSubmitter.assert_called_once()
+        submitter_mock.submit.assert_called_once()
+        submitter_mock.continuesLoop.assert_called_once()
+
+
+def test_submit_generic_exception_results_in_critical_log(tmp_path):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
 
     runner = CliRunner()
 
-    result = runner.invoke(
-        submit, ["-q", "default", script_invalid_shebang.name, "--batch-system", "VBS"]
-    )
+    factory_mock = MagicMock()
+    factory_mock.makeSubmitter.side_effect = Exception("unexpected error")
 
-    assert result.exit_code == 91
-    assert "invalid shebang" in result.output
+    with (
+        patch("qq_lib.submit.cli.Path.is_file", return_value=True),
+        patch("qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock),
+        patch("qq_lib.submit.cli.logger") as mock_logger,
+    ):
+        result = runner.invoke(submit, [str(script)])
+
+        assert result.exit_code == 99
+        critical_messages = [
+            call.args[0] for call in mock_logger.critical.call_args_list
+        ]
+        assert any("unexpected error" in str(msg) for msg in critical_messages)
+        factory_mock.makeSubmitter.assert_called_once()

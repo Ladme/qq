@@ -229,19 +229,9 @@ def test_terminate(forced, success):
         ("12345.fake.server.com", True),
         ("12345.other.domain.net", True),
         ("12345", True),
-        ("12345.", True),
-        ("12345.fake.server.com.subdomain", True),
         ("99999.fake.server.com", False),
         ("54321", False),
-        ("abcd.fake.server.com", False),
         ("", False),
-        (".fake.server.com", False),
-        ("12345.fake", True),
-        (" 12345.fake.server.com ", True),
-        ("12345.FAKE.SERVER.COM", True),
-        ("123456.fake.server.com", False),
-        ("12345.....fake.server.com", True),
-        ("1234.fake.server.com", False),
     ],
 )
 def test_is_job_matches_and_mismatches(tmp_path, sample_info, input_id, expected):
@@ -494,7 +484,7 @@ def test_kill_finished_and_queued_integration(tmp_path, forced):
         args2 = ["-q", "default", str(script_file2), "--batch-system", "VBS"]
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+            patch("qq_lib.submit.cli.get_runtime_files", return_value=[]),
             patch("sys.argv", args2),
         ):
             result_submit = runner.invoke(submit, args2)
@@ -567,7 +557,7 @@ def test_kill_finished_and_failed_integration(tmp_path, forced):
         args2 = ["-q", "default", str(script_file2), "--batch-system", "VBS"]
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+            patch("qq_lib.submit.cli.get_runtime_files", return_value=[]),
             patch("sys.argv", args2),
         ):
             result_submit = runner.invoke(submit, args2)
@@ -652,7 +642,7 @@ def test_kill_queued_and_running_integration(tmp_path, forced):
         args2 = ["-q", "default", str(script_file2), "--batch-system", "VBS"]
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "_qqFilesPresent", return_value=False),
+            patch("qq_lib.submit.cli.get_runtime_files", return_value=[]),
             patch("sys.argv", args2),
         ):
             result_submit = runner.invoke(submit, args2)

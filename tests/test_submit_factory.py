@@ -1,458 +1,411 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import os
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.interface.interface import QQBatchInterface
 from qq_lib.core.error import QQError
-from qq_lib.properties.depend import Depend, DependType
+from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
-from qq_lib.submit import submit
+from qq_lib.properties.size import Size
 from qq_lib.submit.factory import QQSubmitterFactory
 
 
-@pytest.fixture
-def factory():
+def test_qqsubmitter_factory_init(tmp_path):
+    script = tmp_path / "script.sh"
+    params = [MagicMock(), MagicMock()]
+    command_line = ["-q", "default", str(script)]
+    kwargs = {"queue": "default"}
+
+    with patch("qq_lib.submit.factory.QQParser") as mock_parser_class:
+        mock_parser_instance = MagicMock()
+        mock_parser_class.return_value = mock_parser_instance
+
+        factory = QQSubmitterFactory(script, params, command_line, **kwargs)
+
+    assert factory._parser == mock_parser_instance
+    assert factory._script == script
+    assert factory._input_dir == tmp_path
+    assert factory._command_line == command_line
+    assert factory._kwargs == kwargs
+    mock_parser_class.assert_called_once_with(script, params)
+
+
+def test_qqsubmitter_factory_get_depend():
+    mock_parser = MagicMock()
+    parser_depend = [MagicMock(), MagicMock()]
+    mock_parser.getDepend.return_value = parser_depend
+
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
-    factory._parser = MagicMock()
-    factory._kwargs = {}
-    return factory
+    factory._parser = mock_parser
+    factory._kwargs = {"depend": "afterok=1234,afterany=2345"}
+
+    cli_depend_list = [MagicMock(), MagicMock()]
+
+    with patch.object(
+        Depend, "multiFromStr", return_value=cli_depend_list
+    ) as mock_multi:
+        result = factory._getDepend()
+
+    mock_multi.assert_called_once_with("afterok=1234,afterany=2345")
+    assert result == cli_depend_list + parser_depend
 
 
-@pytest.mark.parametrize(
-    "kwargs_value,parser_value,expected",
-    [
-        (None, False, True),
-        (None, True, False),
-        (True, False, False),
-        (True, True, False),
-        (False, False, True),
-        (False, True, False),
-    ],
-)
-def test_get_interactive(factory, kwargs_value, parser_value, expected):
-    factory._kwargs["non_interactive"] = kwargs_value
-    factory._parser.getNonInteractive.return_value = parser_value
+def test_qqsubmitter_factory_get_exclude():
+    mock_parser = MagicMock()
+    parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    mock_parser.getExclude.return_value = parser_excludes
 
-    result = factory._getInteractive()
-    assert result is expected
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"exclude": "/tmp/file3,/tmp/file4"}
 
+    cli_excludes = [Path("/tmp/file3"), Path("/tmp/file4")]
 
-@pytest.mark.parametrize(
-    "kwargs_value,parser_value_raw,expected_raw",
-    [
-        (None, [], []),
-        ("file1.txt,file2.txt", [], ["file1.txt", "file2.txt"]),
-        (None, ["a.txt", "b.txt"], ["a.txt", "b.txt"]),
-        ("file1.txt", ["a.txt"], ["file1.txt", "a.txt"]),
-        (
-            "file1.txt file2.txt",
-            ["a.txt", "b.txt"],
-            ["file1.txt", "file2.txt", "a.txt", "b.txt"],
-        ),
-        ("file1.txt:file2.txt", ["a.txt"], ["file1.txt", "file2.txt", "a.txt"]),
-        ("file1.txt:file2.txt", ["file1.txt"], ["file1.txt", "file2.txt"]),
-    ],
-)
-def test_get_exclude(factory, kwargs_value, parser_value_raw, expected_raw):
-    parser_value = [Path(p).resolve() for p in parser_value_raw]
-    expected = [Path(p).resolve() for p in expected_raw]
+    with patch(
+        "qq_lib.submit.factory.split_files_list", return_value=cli_excludes
+    ) as mock_split:
+        result = factory._getExclude()
 
-    factory._kwargs["exclude"] = kwargs_value
-    factory._parser.getExclude.return_value = parser_value
-    result = factory._getExclude()
-    assert set(result) == set(expected)
+    mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
+    assert set(result) == set(cli_excludes + parser_excludes)
 
 
-def test_get_loop_info_all_kwargs(factory):
+def test_qqsubmitter_factory_get_loop_info_uses_cli_over_parser():
+    mock_parser = MagicMock()
+    mock_parser.getLoopStart.return_value = 2
+    mock_parser.getLoopEnd.return_value = 5
+    mock_parser.getArchive.return_value = Path("storage")
+    mock_parser.getArchiveFormat.return_value = "job%02d"
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._input_dir = Path("fake_path")
+    factory._parser = mock_parser
     factory._kwargs = {
-        "loop_start": 2,
-        "loop_end": 10,
+        "loop_start": 10,
+        "loop_end": 20,
         "archive": "archive",
-        "archive_format": "cycle_%03d",
+        "archive_format": "job%04d",
     }
 
-    factory._parser.getLoopStart.return_value = None
-    factory._parser.getLoopEnd.return_value = None
-    factory._parser.getArchive.return_value = None
-    factory._parser.getArchiveFormat.return_value = None
+    loop_info = factory._getLoopInfo()
+
+    assert isinstance(loop_info, QQLoopInfo)
+    assert loop_info.start == 10
+    assert loop_info.end == 20
+    assert loop_info.archive == Path("archive").resolve()
+    assert loop_info.archive_format == "job%04d"
+
+
+def test_qqsubmitter_factory_get_loop_info_falls_back_to_parser():
+    mock_parser = MagicMock()
+    mock_parser.getLoopStart.return_value = 2
+    mock_parser.getLoopEnd.return_value = 5
+    mock_parser.getArchive.return_value = Path("archive")
+    mock_parser.getArchiveFormat.return_value = "job%02d"
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._input_dir = Path("fake_path")
+    factory._parser = mock_parser
+    factory._kwargs = {}  # nothing from CLI
 
     loop_info = factory._getLoopInfo()
 
     assert isinstance(loop_info, QQLoopInfo)
     assert loop_info.start == 2
-    assert loop_info.end == 10
+    assert loop_info.end == 5
     assert loop_info.archive == Path("archive").resolve()
-    assert loop_info.archive_format == "cycle_%03d"
+    assert loop_info.archive_format == "job%02d"
 
 
-def test_get_loop_info_fallback_to_parser(factory):
-    factory._kwargs = {}  # nothing provided
-    factory._parser.getLoopStart.return_value = 5
-    factory._parser.getLoopEnd.return_value = 20
-    factory._parser.getArchive.return_value = Path("archive")
-    factory._parser.getArchiveFormat.return_value = "cycle_%03d"
+def test_qqsubmitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
+    mock_parser = MagicMock()
+    mock_parser.getLoopStart.return_value = None
+    mock_parser.getLoopEnd.return_value = 50
+    mock_parser.getArchive.return_value = None
+    mock_parser.getArchiveFormat.return_value = "job%02d"
 
-    loop_info = factory._getLoopInfo()
-
-    assert loop_info.start == 5
-    assert loop_info.end == 20
-    assert loop_info.archive == Path("archive").resolve()
-    assert loop_info.archive_format == "cycle_%03d"
-
-
-def test_get_loop_info_mixed(factory):
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._input_dir = Path("fake_path")
+    factory._parser = mock_parser
     factory._kwargs = {
-        "loop_start": 2,
-        "loop_end": 10,
-        "archive_format": "job%04d",
+        "loop_start": 10,
     }
 
-    factory._parser.getLoopStart.return_value = 5
-    factory._parser.getLoopEnd.return_value = 20
-    factory._parser.getArchive.return_value = Path("archive")  # only this will be used
-    factory._parser.getArchiveFormat.return_value = "cycle_%03d"
-
     loop_info = factory._getLoopInfo()
 
-    assert loop_info.start == 2
-    assert loop_info.end == 10
-    assert loop_info.archive == Path("archive").resolve()
-    assert loop_info.archive_format == "job%04d"
+    assert isinstance(loop_info, QQLoopInfo)
+    assert loop_info.start == 10  # CLI
+    assert loop_info.end == 50  # parser
+    assert loop_info.archive == Path("storage").resolve()  # default
+    assert loop_info.archive_format == "job%02d"  # parser
 
 
-def test_get_loop_info_default_start_and_archive(factory):
-    factory._kwargs = {"loop_end": 7}  # only end provided
-    factory._parser.getLoopStart.return_value = None
-    factory._parser.getLoopEnd.return_value = None
-    factory._parser.getArchive.return_value = None
-    factory._parser.getArchiveFormat.return_value = None
+def test_qqsubmitter_factory_get_resources():
+    mock_parser = MagicMock()
+    parser_resources = QQResources(ncpus=4, mem="4gb")
+    mock_parser.getResources.return_value = parser_resources
 
-    loop_info = factory._getLoopInfo()
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"ncpus": 8, "walltime": "1d", "foo": "bar"}  # CLI resources
 
-    assert loop_info.start == 1
-    assert loop_info.end == 7
-    assert loop_info.archive == Path("storage").resolve()
-    assert loop_info.archive_format == "job%04d"
+    mock_batch_system = MagicMock()
 
+    transformed_resources = QQResources(ncpus=999, mem="999gb")
+    mock_batch_system.transformResources.return_value = transformed_resources
 
-def test_get_loop_info_raises_if_missing(factory):
-    factory._kwargs = {"loop_start": 1}
-    factory._parser.getLoopStart.return_value = None
-    factory._parser.getLoopEnd.return_value = None
-    factory._parser.getArchive.return_value = None
-    factory._parser.getArchiveFormat.return_value = None
+    result = factory._getResources(mock_batch_system, "default")
 
-    with pytest.raises(QQError, match="Attribute 'loop-end' is undefined"):
-        factory._getLoopInfo()
+    merged_resources_arg = mock_batch_system.transformResources.call_args[0][1]
 
+    # CLI overrides parser where provided
+    assert merged_resources_arg.ncpus == 8
+    assert merged_resources_arg.mem == Size(4, "gb")  # from parser
+    assert merged_resources_arg.walltime == "24:00:00"  # from CLI
 
-def test_getResources_all_from_kwargs(factory):
-    factory._kwargs = {
-        "nnodes": 2,
-        "ncpus": 8,
-        "ngpus": 1,
-        "walltime": "01:00:00",
-        "work_dir": "scratch",
-        "work_size": "4gb",
-        "props": {"cl_cluster": "true"},
-    }
-
-    with patch.object(
-        QQPBS, "transformResources", side_effect=lambda _queue, res: res
-    ) as mocked:
-        resources = factory._getResources(QQPBS, "default")
-
-    assert resources.nnodes == 2
-    assert resources.ncpus == 8
-    assert resources.ngpus == 1
-    assert resources.walltime == "01:00:00"
-    assert resources.work_dir == "scratch"
-    assert resources.work_size is not None
-    assert resources.work_size.value == 4
-    assert resources.work_size.unit == "gb"
-    assert resources.props == {"cl_cluster": "true"}
-
-    mocked.assert_called_once()
+    assert result == transformed_resources
 
 
-def test_get_resources_all_from_parser(factory):
-    parser_resources = QQResources(
-        nnodes=4,
-        ncpus=16,
-        ngpus=2,
-        walltime="02:00:00",
-        work_dir="scratch_local",
-        work_size="8gb",
-        props={"cl_cluster": "true"},
-    )
-    factory._parser.getResources.return_value = parser_resources
+def test_qqsubmitter_factory_get_queue_uses_cli_over_parser():
+    mock_parser = MagicMock()
+    mock_parser.getQueue.return_value = "parser_queue"
 
-    with patch.object(
-        QQPBS, "transformResources", side_effect=lambda _queue, res: res
-    ) as mocked:
-        resources = factory._getResources(QQPBS, "queue1")
-
-    assert resources.nnodes == 4
-    assert resources.ncpus == 16
-    assert resources.ngpus == 2
-    assert resources.walltime == "02:00:00"
-    assert resources.work_dir == "scratch_local"
-    assert resources.work_size is not None
-    assert resources.work_size.value == 8
-    assert resources.work_size.unit == "gb"
-    assert resources.props == {"cl_cluster": "true"}
-
-    mocked.assert_called_once()
-
-
-def test_get_resources_mixed_script_and_kwargs(factory):
-    # parser provides some resources
-    parser_resources = QQResources(nnodes=4, ncpus=16, ngpus=2, walltime="02:00:00")
-    factory._parser.getResources.return_value = parser_resources
-
-    # kwargs overrides ncpus and adds work_dir
-    factory._kwargs = {"ncpus": 32, "work_dir": "scratch_local"}
-
-    with patch.object(
-        QQPBS, "transformResources", side_effect=lambda _queue, res: res
-    ) as mocked:
-        resources = factory._getResources(QQPBS, "queue1")
-
-    assert resources.nnodes == 4
-    assert resources.ncpus == 32
-    assert resources.ngpus == 2
-    assert resources.walltime == "02:00:00"
-    assert resources.work_dir == "scratch_local"
-
-    mocked.assert_called_once()
-
-
-def test_get_queue_from_kwargs_overrides_parser(factory):
-    factory._kwargs = {"queue": "default"}
-    factory._parser.getQueue.return_value = "cpu"
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"queue": "cli_queue"}
 
     queue = factory._getQueue()
-    assert queue == "default"
-    factory._parser.getQueue.assert_not_called()
+    assert queue == "cli_queue"
 
 
-def test_get_queue_from_parser_if_kwargs_missing(factory):
-    factory._parser.getQueue.return_value = "cpu"
+def test_qqsubmitter_factory_get_queue_uses_parser_if_no_cli():
+    mock_parser = MagicMock()
+    mock_parser.getQueue.return_value = "parser_queue"
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}  # no CLI queue
 
     queue = factory._getQueue()
-    assert queue == "cpu"
-    factory._parser.getQueue.assert_called_once()
+    assert queue == "parser_queue"
 
 
-def test_get_queue_raises_if_no_queue(factory):
-    factory._parser.getQueue.return_value = None
+def test_qqsubmitter_factory_get_queue_raises_error_if_missing():
+    mock_parser = MagicMock()
+    mock_parser.getQueue.return_value = None
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
 
     with pytest.raises(QQError, match="Submission queue not specified."):
         factory._getQueue()
 
 
-def test_get_job_type_from_kwargs(factory):
-    factory._kwargs = {"job_type": "loop"}
-    factory._parser.getJobType.return_value = QQJobType.STANDARD
+def test_qqsubmitter_factory_get_job_type_uses_cli_over_parser():
+    mock_parser = MagicMock()
+    parser_job_type = QQJobType.LOOP
+    mock_parser.getJobType.return_value = parser_job_type
 
-    job_type = factory._getJobType()
-    assert job_type == QQJobType.LOOP
-    # parser method should not be called if kwargs is present
-    factory._parser.getJobType.assert_not_called()
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"job_type": "standard"}
 
+    with patch.object(
+        QQJobType, "fromStr", return_value=QQJobType.STANDARD
+    ) as mock_from_str:
+        result = factory._getJobType()
 
-def test_get_job_type_from_parser_if_no_kwargs(factory):
-    factory._parser.getJobType.return_value = QQJobType.LOOP
-
-    job_type = factory._getJobType()
-    assert job_type == QQJobType.LOOP
-    factory._parser.getJobType.assert_called_once()
-
-
-def test_get_job_type_default_if_neither(factory):
-    factory._parser.getJobType.return_value = None
-
-    job_type = factory._getJobType()
-    assert job_type == QQJobType.STANDARD
-    factory._parser.getJobType.assert_called_once()
+    mock_from_str.assert_called_once_with("standard")
+    assert result == QQJobType.STANDARD
 
 
-def test_get_job_type_raises_if_invalid_string_in_kwargs(factory):
-    factory._kwargs = {"job_type": "invalid"}
-    factory._parser.getJobType.return_value = QQJobType.STANDARD
+def test_qqsubmitter_factory_get_job_type_uses_parser_if_no_cli():
+    mock_parser = MagicMock()
+    parser_job_type = QQJobType.LOOP
+    mock_parser.getJobType.return_value = parser_job_type
 
-    with pytest.raises(QQError, match="Could not recognize a job type"):
-        factory._getJobType()
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}  # no CLI job_type
+
+    result = factory._getJobType()
+    assert result == parser_job_type
 
 
-def test_get_batch_system_from_kwargs(factory):
+def test_qqsubmitter_factory_get_job_type_defaults_to_standard_if_missing():
+    mock_parser = MagicMock()
+    mock_parser.getJobType.return_value = None
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getJobType()
+    assert result == QQJobType.STANDARD
+
+
+def test_qqsubmitter_factory_get_batch_system_uses_cli_over_parser_and_env():
+    mock_parser = MagicMock()
+    parser_batch = MagicMock(spec=QQBatchInterface)
+    mock_parser.getBatchSystem.return_value = parser_batch
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
     factory._kwargs = {"batch_system": "PBS"}
 
-    batch_system = factory._getBatchSystem()
-    assert batch_system == QQPBS
+    mock_class = MagicMock(spec=QQBatchInterface)
+    with patch.object(QQBatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
+        result = factory._getBatchSystem()
 
-    factory._parser.getBatchSystem.assert_not_called()
-
-
-def test_get_batch_system_from_parser(factory):
-    factory._parser.getBatchSystem.return_value = QQPBS
-
-    batch_system = factory._getBatchSystem()
-    assert batch_system == QQPBS
-    factory._parser.getBatchSystem.assert_called_once()
+    mock_from_str.assert_called_once_with("PBS")
+    assert result == mock_class
 
 
-def test_get_batch_system_from_env(factory):
-    factory._parser.getBatchSystem.return_value = None
-    with patch.object(QQBatchMeta, "fromEnvVarOrGuess") as mock_env:
-        mock_env.return_value = QQPBS
+def test_qqsubmitter_factory_get_batch_system_uses_parser_if_no_cli():
+    mock_parser = MagicMock()
+    parser_batch = MagicMock(spec=QQBatchInterface)
+    mock_parser.getBatchSystem.return_value = parser_batch
 
-        batch_system = factory._getBatchSystem()
-        assert batch_system == QQPBS
-        mock_env.assert_called_once()
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}  # no CLI
 
-
-def test_make_submitter_standard_job(tmp_path):
-    script_content = """#!/usr/bin/env -S qq run
-# qq batch_system PBS
-# qq queue default
-# qq job_type standard
-# qq ncpus 4
-"""
-    with tempfile.NamedTemporaryFile(mode="w+", dir=tmp_path) as tmp:
-        tmp.write(script_content)
-        tmp.flush()
-        script = Path(tmp.name)
-
-        os.chdir(tmp_path)
-
-        factory = QQSubmitterFactory(script, submit.params, ["job.sh"], ncpus=8)
-        submitter = factory.makeSubmitter()
-
-        assert submitter._batch_system == QQPBS
-        assert submitter._queue == "default"
-        assert submitter._job_type == QQJobType.STANDARD
-        assert submitter._resources.ncpus == 8
-        assert submitter._loop_info is None
-        assert submitter._command_line == ["job.sh"]
-        assert submitter._interactive is True
+    result = factory._getBatchSystem()
+    assert result == parser_batch
 
 
-def test_make_submitter_loop_job(tmp_path):
-    script_content = """#!/usr/bin/env -S qq run
-# qq batch_system PBS
-# qq queue default
-# qq job_type loop
-# qq loop_start 2
-# qq loop_end 5
-# qq archive archive
-# qq archive_format job%02d
-"""
-    with tempfile.NamedTemporaryFile(mode="w+", dir=tmp_path, delete=False) as tmp:
-        tmp.write(script_content)
-        tmp.flush()
-        script = Path(tmp.name)
+def test_qqsubmitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser():
+    mock_parser = MagicMock()
+    mock_parser.getBatchSystem.return_value = None
 
-        os.chdir(tmp_path)
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}  # no CLI
 
-        factory = QQSubmitterFactory(
-            script, submit.params, ["job_loop.sh"], loop_end=10
-        )
-        submitter = factory.makeSubmitter()
+    mock_guess = MagicMock(spec=QQBatchInterface)
+    with patch.object(
+        QQBatchMeta, "fromEnvVarOrGuess", return_value=mock_guess
+    ) as mock_method:
+        result = factory._getBatchSystem()
 
-        assert submitter._job_type == QQJobType.LOOP
-        loop_info = submitter._loop_info
-        assert loop_info is not None
-        assert loop_info.start == 2
-        assert loop_info.end == 10
-        assert loop_info.archive == Path("archive").resolve()
-        assert loop_info.archive_format == "job%02d"
+    mock_method.assert_called_once()
+    assert result == mock_guess
 
 
-def test_make_submitter_missing_queue(tmp_path):
-    # queue missing both in kwargs and script
-    script_content = """#!/usr/bin/env -S qq run
-# qq batch_system PBS
-# qq job_type standard
-"""
-    script = tmp_path / "job_missing_queue.sh"
-    script.write_text(script_content)
+def test_qqsubmitter_factory_make_submitter_standard_job():
+    mock_parser = MagicMock()
+    mock_parser.parse = MagicMock()
+    mock_parser.getJobType.return_value = QQJobType.STANDARD
+    resources = QQResources()
+    excludes = [Path("/tmp/file1")]
+    depends = []
 
-    factory = QQSubmitterFactory(script, submit.params, ["job_missing_queue.sh"])
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._script = Path("/tmp/script.sh")
+    factory._command_line = ["--arg"]
+    factory._kwargs = {"queue": "default", "job_type": "standard"}
 
-    with pytest.raises(QQError, match="Submission queue not specified"):
-        factory.makeSubmitter()
+    BatchSystem = MagicMock()
+    queue = "default"
 
+    with (
+        patch.object(
+            factory, "_getBatchSystem", return_value=BatchSystem
+        ) as mock_get_batch,
+        patch.object(factory, "_getQueue", return_value=queue) as mock_get_queue,
+        patch.object(factory, "_getLoopInfo") as mock_get_loop,
+        patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
+        patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
+        patch("qq_lib.submit.factory.QQSubmitter") as mock_submitter_class,
+    ):
+        mock_submit_instance = MagicMock()
+        mock_submitter_class.return_value = mock_submit_instance
 
-def test_make_submitter_script_not_exists():
-    script = Path("nonexistent.sh")
-    factory = QQSubmitterFactory(script, submit.params, ["nonexistent.sh"])
+        result = factory.makeSubmitter()
 
-    with pytest.raises(QQError, match="Could not open"):
-        factory.makeSubmitter()
+    mock_parser.parse.assert_called_once()
+    mock_get_batch.assert_called_once()
+    mock_get_queue.assert_called_once()
+    mock_get_loop.assert_not_called()  # STANDARD job, loop info not used
+    mock_get_res.assert_called_once_with(BatchSystem, queue)
+    mock_get_excl.assert_called_once()
+    mock_get_dep.assert_called_once()
 
-
-@pytest.mark.parametrize(
-    "kwargs_depend, parser_depend, expected_types, expected_jobs",
-    [
-        # no dependencies in kwargs or parser
-        (None, [], [], []),
-        # dependencies only in kwargs
-        ("after=12345", [], [DependType.AFTER_START], [["12345"]]),
-        # dependencies only in parser
-        (
-            None,
-            [Depend.fromStr("afterok=1:2")],
-            [DependType.AFTER_SUCCESS],
-            [["1", "2"]],
-        ),
-        # dependencies in both kwargs and parser
-        (
-            "afternotok=10",
-            [Depend.fromStr("afterany=20:21")],
-            [DependType.AFTER_FAILURE, DependType.AFTER_COMPLETION],
-            [["10"], ["20", "21"]],
-        ),
-    ],
-)
-def test_get_depend_combines_kwargs_and_parser(
-    factory, kwargs_depend, parser_depend, expected_types, expected_jobs
-):
-    factory._parser.getDepend.return_value = parser_depend
-
-    if kwargs_depend is not None:
-        factory._kwargs = {"depend": kwargs_depend}
-    else:
-        factory._kwargs = {}
-
-    result = factory._getDepend()
-
-    # check types and job lists
-    assert all(isinstance(dep, Depend) for dep in result)
-    assert [dep.jobs for dep in result] == expected_jobs
-    assert [dep.type for dep in result] == expected_types
+    mock_submitter_class.assert_called_once_with(
+        BatchSystem,
+        queue,
+        factory._script,
+        QQJobType.STANDARD,
+        resources,
+        factory._command_line,
+        None,  # loop_info is None for STANDARD job
+        excludes,
+        depends,
+    )
+    assert result == mock_submit_instance
 
 
-def test_get_depend_empty_strings_returns_empty_list(factory):
-    factory._kwargs = {"depend": ""}
-    factory._parser.getDepend.return_value = []
+def test_qqsubmitter_factory_make_submitter_loop_job():
+    mock_parser = MagicMock()
+    mock_parser.parse = MagicMock()
+    mock_parser.getJobType.return_value = QQJobType.LOOP
+    resources = QQResources()
+    excludes = [Path("/tmp/file1")]
+    depends = []
 
-    result = factory._getDepend()
-    assert result == []
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._script = Path("/tmp/script.sh")
+    factory._command_line = ["--arg"]
+    factory._kwargs = {"queue": "default", "job_type": "loop"}
 
+    BatchSystem = MagicMock()
+    queue = "default"
+    loop_info = MagicMock()
 
-def test_get_depend_malformed_kwargs_raises(factory):
-    factory._kwargs = {"depend": "invaliddepend"}
-    factory._parser.getDepend.return_value = []
+    with (
+        patch.object(
+            factory, "_getBatchSystem", return_value=BatchSystem
+        ) as mock_get_batch,
+        patch.object(factory, "_getQueue", return_value=queue) as mock_get_queue,
+        patch.object(factory, "_getLoopInfo", return_value=loop_info) as mock_get_loop,
+        patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
+        patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
+        patch("qq_lib.submit.factory.QQSubmitter") as mock_submitter_class,
+    ):
+        mock_submit_instance = MagicMock()
+        mock_submitter_class.return_value = mock_submit_instance
 
-    with pytest.raises(QQError, match="Could not parse dependency specification"):
-        factory._getDepend()
+        result = factory.makeSubmitter()
+
+    mock_parser.parse.assert_called_once()
+    mock_get_batch.assert_called_once()
+    mock_get_queue.assert_called_once()
+    mock_get_loop.assert_called_once()
+    mock_get_res.assert_called_once_with(BatchSystem, queue)
+    mock_get_excl.assert_called_once()
+    mock_get_dep.assert_called_once()
+
+    mock_submitter_class.assert_called_once_with(
+        BatchSystem,
+        queue,
+        factory._script,
+        QQJobType.LOOP,
+        resources,
+        factory._command_line,
+        loop_info,
+        excludes,
+        depends,
+    )
+    assert result == mock_submit_instance

@@ -136,7 +136,7 @@ def test_info_multiple_jobs_integration(tmp_path):
         info_files = []
         with (
             patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
-            patch.object(QQSubmitter, "guardOrClear"),
+            patch("qq_lib.submit.cli.get_runtime_files", return_value=[]),
             patch(
                 "sys.argv",
                 [

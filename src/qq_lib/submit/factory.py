@@ -38,6 +38,7 @@ class QQSubmitterFactory:
         """
         self._parser = QQParser(script, params)
         self._script = script
+        self._input_dir = script.parent
         self._kwargs = kwargs
         self._command_line = command_line
 
@@ -71,7 +72,6 @@ class QQSubmitterFactory:
             loop_info,
             self._getExclude(),
             self._getDepend(),
-            self._getInteractive(),
         )
 
     def _getBatchSystem(self) -> type[QQBatchInterface]:
@@ -170,7 +170,7 @@ class QQSubmitterFactory:
             self._kwargs.get("archive_format")
             or self._parser.getArchiveFormat()
             or "job%04d",
-            input_dir=Path.cwd(),
+            input_dir=self._input_dir,
         )
 
     def _getExclude(self) -> list[Path]:
@@ -203,14 +203,3 @@ class QQSubmitterFactory:
         return (
             Depend.multiFromStr(self._kwargs.get("depend") or "") or []
         ) + self._parser.getDepend()
-
-    def _getInteractive(self) -> bool:
-        """
-        Determine whether the job should be submitted interactively.
-
-        Returns:
-            bool: True if interactive mode should be used, False if non-interactive.
-        """
-        return not (
-            self._kwargs.get("non_interactive") or self._parser.getNonInteractive()
-        )

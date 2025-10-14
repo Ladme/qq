@@ -8,7 +8,7 @@ from time import sleep
 from rich.console import Console
 
 from qq_lib.core.constants import GOER_WAIT_TIME
-from qq_lib.core.error import QQError
+from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
 from qq_lib.info.presenter import QQPresenter
@@ -34,7 +34,7 @@ class QQGoer:
             Reads the qq info file and sets up the initial state and destination.
         """
         self._info_file = info_file
-        self.update()
+        self._update()
 
     def printInfo(self, console: Console) -> None:
         """
@@ -47,69 +47,6 @@ class QQGoer:
         panel = presenter.createJobStatusPanel(console)
         console.print(panel)
 
-    def update(self) -> None:
-        """
-        Refresh internal state from the QQ info file.
-        """
-        self._informer = QQInformer.fromFile(self._info_file)
-        self._batch_system = self._informer.info.batch_system
-        self._state = self._informer.getRealState()
-        self._setDestination()
-
-    def checkAndNavigate(self) -> None:
-        """
-        Check the job state and navigate to the working directory if appropriate.
-
-        Behavior:
-            - If already in the working directory, logs info and returns.
-            - Raises QQError if the job has finished and synchronized (working directory does not exist).
-            - Logs warnings if the job failed or was killed (working directory may not exist).
-            - If the job is queued, retries until the job leaves the queue, updating the state every 5 seconds.
-            - Navigates to the working directory for running jobs.
-
-        Raises:
-            QQError: If navigation to the working directory fails.
-        """
-        if self._isInWorkDir():
-            logger.info("You are already in the working directory.")
-            return
-
-        if self.isFinished():
-            raise QQError(
-                "Job has finished and was synchronized: working directory does not exist."
-            )
-        if self._isFailed():
-            logger.warning(
-                "Job has finished with an error code: working directory may no longer exist."
-            )
-        elif self.isKilled():
-            if not self.hasDestination():
-                raise QQError(
-                    "Job has been killed and no working directory is available."
-                )
-            logger.warning(
-                "Job has been killed: working directory may no longer exist."
-            )
-        elif self._isQueued():
-            logger.warning(
-                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {GOER_WAIT_TIME} seconds."
-            )
-            # keep retrying until the job gets run
-            while self._isQueued():
-                sleep(GOER_WAIT_TIME)
-                self.update()
-
-                if self._isInWorkDir():
-                    logger.info("You are already in the working directory.")
-                    return
-        elif self._isRunning():
-            pass
-        else:
-            logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")
-
-        # navigate to the working directory
-        self._navigate()
-
     def hasDestination(self) -> bool:
         """
         Check that the job has an assigned host and working directory.
@@ -120,7 +57,25 @@ class QQGoer:
         """
         return self._directory is not None and self._host is not None
 
-    def isJob(self, job_id: str) -> bool:
+    def ensureSuitable(self) -> None:
+        """
+        Verify that the job is in a state where its working directory can be visited.
+
+        Raises:
+            QQNotSuitableError: If the job has already finished successfully
+                                or has been killed without creating a working directory.
+        """
+        if self._isFinished():
+            raise QQNotSuitableError(
+                "Job has finished and was synchronized: working directory does not exist."
+            )
+
+        if self._isKilled() and not self.hasDestination():
+            raise QQNotSuitableError(
+                "Job has been killed and no working directory is available."
+            )
+
+    def matchesJob(self, job_id: str) -> bool:
         """
         Determine whether this goer corresponds to the specified job ID.
 
@@ -133,20 +88,59 @@ class QQGoer:
         """
         return self._informer.isJob(job_id)
 
-    def _navigate(self) -> None:
+    def go(self) -> None:
         """
-        Navigate to the job's working directory using batch system-specific commands.
+        Navigate to the job's working directory on the main execution node.
 
         Raises:
-            QQError: If host or directory are undefined, or if navigation fails.
+            QQError: If the working directory or main node is not set and navigation
+                    cannot proceed.
+
+        Notes:
+            - This method may block while waiting for a queued job to start.
         """
-        if not self.hasDestination():
-            raise QQError(
-                "Host ('main_node') or working directory ('work_dir') are not defined."
+        if self._isInWorkDir():
+            logger.info("You are already in the working directory.")
+            return
+
+        if self._isKilled():
+            logger.warning(
+                "Job has been killed: working directory may no longer exist."
             )
+
+        elif self._isFailed():
+            logger.warning(
+                "Job has completed with an error code: working directory may no longer exist."
+            )
+
+        elif self._isUnknownInconsistent():
+            logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")
+
+        elif self._isQueued():
+            logger.warning(
+                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {GOER_WAIT_TIME} seconds."
+            )
+
+            # keep retrying until the job stops being queued
+            self._waitQueued()
+            if self._isInWorkDir():
+                logger.info("You are already in the working directory.")
+                return
+
+        if not self.hasDestination():
+            raise QQError("Nowhere to go. Working directory or main node are not set.")
 
         logger.info(f"Navigating to '{str(self._directory)}' on '{self._host}'.")
         self._batch_system.navigateToDestination(self._host, self._directory)
+
+    def _update(self) -> None:
+        """
+        Refresh internal state of the goer from the qq info file.
+        """
+        self._informer = QQInformer.fromFile(self._info_file)
+        self._batch_system = self._informer.info.batch_system
+        self._state = self._informer.getRealState()
+        self._setDestination()
 
     def _isInWorkDir(self) -> bool:
         """
@@ -168,6 +162,23 @@ class QQGoer:
             and self._directory.resolve() == Path.cwd().resolve()
             and (not self._informer.useScratch() or self._host == socket.gethostname())
         )
+
+    def _waitQueued(self):
+        """
+        Wait until the job is no longer in the queued state.
+
+        Raises:
+            QQNotSuitableError: If at any point the job is found to be finished
+                                or killed without a working directory.
+
+        Note:
+            This is a blocking method and will continue looping until the job
+            leaves the queued state or an exception is raised.
+        """
+        while self._isQueued():
+            sleep(GOER_WAIT_TIME)
+            self._update()
+            self.ensureSuitable()
 
     def _setDestination(self) -> None:
         """
@@ -195,14 +206,14 @@ class QQGoer:
             RealState.WAITING,
         }
 
-    def isKilled(self) -> bool:
-        """Check if the job has been killed."""
+    def _isKilled(self) -> bool:
+        """Check if the job has been or is being killed."""
         return self._state == RealState.KILLED or (
             self._state == RealState.EXITING
             and self._informer.info.job_exit_code is None
         )
 
-    def isFinished(self) -> bool:
+    def _isFinished(self) -> bool:
         """Check if the job has finished succesfully."""
         return self._state == RealState.FINISHED
 
@@ -210,10 +221,6 @@ class QQGoer:
         """Check if the job has failed."""
         return self._state == RealState.FAILED
 
-    def _isRunning(self) -> bool:
-        """Check if the job is currently running or suspended."""
-        return self._state in {
-            RealState.RUNNING,
-            RealState.SUSPENDED,
-            RealState.EXITING,
-        }
+    def _isUnknownInconsistent(self) -> bool:
+        """Check if the job is in an unknown or inconsistent state."""
+        return self._state in {RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE}

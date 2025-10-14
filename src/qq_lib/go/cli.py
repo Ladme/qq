@@ -93,24 +93,15 @@ def _go_to_job(info_file: Path, job: str | None) -> None:
 
     # check thatthe info file in the goer corresponds
     # to the specified job
-    if job and not goer.isJob(job):
+    if job and not goer.matchesJob(job):
         raise QQJobMismatchError(
             f"Info file for job '{job}' does not exist or is not reachable."
         )
 
     goer.printInfo(console)
 
-    # finished jobs do not have a working directory
-    if goer.isFinished():
-        raise QQNotSuitableError(
-            "Job has finished and was synchronized: working directory does not exist."
-        )
+    # make sure that the job is not in a state without a working directory
+    goer.ensureSuitable()
 
-    # killed jobs may not have a working directory
-    if goer.isKilled() and not goer.hasDestination():
-        raise QQNotSuitableError(
-            "Job has been killed and no working directory is available."
-        )
-
-    # go to the working directory
-    goer.checkAndNavigate()
+    # navigate to the working directory
+    goer.go()

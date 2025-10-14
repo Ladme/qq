@@ -11,6 +11,7 @@ from rich.console import Console
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
     get_info_files_from_job_id_or_dir,
+    yes_or_no_prompt,
 )
 from qq_lib.core.error import (
     QQError,
@@ -120,26 +121,21 @@ def _kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
         QQNotSuitableError: If the job is not suitable for termination.
         QQError: If the job cannot be killed or the qq info file cannot be updated.
     """
-    killer = QQKiller(info_file, force)
+    killer = QQKiller(info_file)
 
     # check that the info file in the killer corresponds
     # to the specified job
-    if job and not killer.isJob(job):
+    if job and not killer.matchesJob(job):
         raise QQJobMismatchError(f"Info file for job '{job}' does not exist.")
 
     killer.printInfo(console)
 
-    # check whether the job can be killed
-    if not killer.shouldTerminate():
-        raise QQNotSuitableError("Job is not suitable for killing.")
+    # make sure that the job can actually be killed
+    if not force:
+        killer.ensureSuitable()
 
-    # perform the kill if confirmed
-    if force or yes or killer.askForConfirm():
-        # shouldUpdateInfoFile must be called before terminate
-        # since terminate can update the state of the job
-        should_update = killer.shouldUpdateInfoFile()
-        killer.terminate()
-        if should_update:
-            killer.updateInfoFile()
-
-        logger.info(f"Killed the job '{killer.getJobId()}'.")
+    if force or yes or yes_or_no_prompt("Do you want to kill the job?"):
+        job_id = killer.terminate(force)
+        logger.info(f"Killed the job '{job_id}'.")
+    else:
+        logger.info("Operation aborted.")

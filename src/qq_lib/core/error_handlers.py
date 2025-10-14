@@ -61,3 +61,13 @@ def handle_general_qq_error(
     if len(metadata.items) == len(metadata.encountered_errors):
         print()
         sys.exit(91)
+
+
+def ignore_error(
+    _exception: BaseException,
+    _metadata: QQRepeater,
+) -> None:
+    """
+    Ignore the error.
+    """
+    pass

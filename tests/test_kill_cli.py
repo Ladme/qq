@@ -9,7 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
-from qq_lib.kill.cli import _kill_job, kill
+from qq_lib.kill.cli import kill, kill_job
 
 
 def test_kill_job_raises_mismatch_error():
@@ -21,7 +21,7 @@ def test_kill_job_raises_mismatch_error():
         with pytest.raises(
             QQJobMismatchError, match="Info file for job '1234' does not exist."
         ):
-            _kill_job(Path("/fake/info.txt"), force=False, yes=False, job="1234")
+            kill_job(Path("/fake/info.txt"), force=False, yes=False, job="1234")
 
 
 def test_kill_job_force_skips_suitability_and_logs_killed():
@@ -36,7 +36,7 @@ def test_kill_job_force_skips_suitability_and_logs_killed():
         mock_killer.terminate.return_value = "1234"
         mock_killer_cls.return_value = mock_killer
 
-        _kill_job(Path("/fake/info.txt"), force=True, yes=False, job=None)
+        kill_job(Path("/fake/info.txt"), force=True, yes=False, job=None)
 
         mock_killer.ensureSuitable.assert_not_called()
         mock_killer.terminate.assert_called_once_with(True)
@@ -56,7 +56,7 @@ def test_kill_job_prompts_yes_and_kills():
         mock_killer.terminate.return_value = "5678"
         mock_killer_cls.return_value = mock_killer
 
-        _kill_job(Path("/fake/info.txt"), force=False, yes=False, job=None)
+        kill_job(Path("/fake/info.txt"), force=False, yes=False, job=None)
 
         mock_killer.ensureSuitable.assert_called_once()
         mock_killer.terminate.assert_called_once_with(False)
@@ -74,7 +74,7 @@ def test_kill_job_prompts_no_and_aborts():
         mock_killer.matchesJob.return_value = True
         mock_killer_cls.return_value = mock_killer
 
-        _kill_job(Path("/fake/info.txt"), force=False, yes=False, job=None)
+        kill_job(Path("/fake/info.txt"), force=False, yes=False, job=None)
 
         mock_killer.terminate.assert_not_called()
         mock_logger.assert_called_once_with("Operation aborted.")

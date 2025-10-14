@@ -90,7 +90,7 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = QQRepeater(info_files, _kill_job, force, yes, job)
+        repeater = QQRepeater(info_files, kill_job, force, yes, job)
         repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
@@ -106,7 +106,7 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
         sys.exit(99)
 
 
-def _kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
+def kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
     """
     Attempt to terminate a qq job associated with the specified info file.
 

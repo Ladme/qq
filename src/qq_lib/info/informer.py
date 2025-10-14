@@ -34,7 +34,8 @@ class QQInformer:
         Return the batch system class used for this job.
 
         Returns:
-            The QQBatchInterface implementation associated with the job.
+            type[QQBatchInterface]: The batch system class
+            associated with the job.
         """
         return self.info.batch_system
 
@@ -71,6 +72,19 @@ class QQInformer:
             QQError: If the file cannot be created, reached, or written to.
         """
         self.info.toFile(file, host)
+
+    def matchesJob(self, job_id: str) -> bool:
+        """
+        Determine whether this informer corresponds to the specified job ID.
+
+        Args:
+            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
+
+        Returns:
+            bool: True if both job IDs refer to the same job (same numeric/job part),
+                False otherwise.
+        """
+        return self.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
 
     def setRunning(
         self, time: datetime, main_node: str, all_nodes: list[str], work_dir: Path
@@ -123,14 +137,14 @@ class QQInformer:
         self.info.completion_time = time
         # no exit code is intentionally set
 
-    def useScratch(self) -> bool:
+    def usesScratch(self) -> bool:
         """
         Determine if the job uses a scratch directory.
 
         Returns:
             nool: True if a scratch is used, False if it is not.
         """
-        return self.info.resources.useScratch()
+        return self.info.resources.usesScratch()
 
     def getDestination(self) -> tuple[str, Path] | None:
         """
@@ -250,16 +264,3 @@ class QQInformer:
             self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
 
         return self._batch_info.getNodes()
-
-    def isJob(self, job_id: str) -> bool:
-        """
-        Determine whether this informer corresponds to the specified job ID.
-
-        Args:
-            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
-
-        Returns:
-            bool: True if both job IDs refer to the same job (same numeric/job part),
-                False otherwise.
-        """
-        return self.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]

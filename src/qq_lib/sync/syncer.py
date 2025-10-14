@@ -95,7 +95,7 @@ class QQSyncer:
             bool: True if both job IDs refer to the same job (same numeric/job part),
                 False otherwise.
         """
-        return self._informer.isJob(job_id)
+        return self._informer.matchesJob(job_id)
 
     def sync(self, files: list[str] | None = None) -> None:
         """

@@ -243,19 +243,19 @@ def test_qqgoer_update():
 def test_qqgoer_matches_job_returns_true():
     goer = QQGoer.__new__(QQGoer)
     goer._informer = MagicMock()
-    goer._informer.isJob.return_value = True
+    goer._informer.matchesJob.return_value = True
 
     assert goer.matchesJob("12345") is True
-    goer._informer.isJob.assert_called_once_with("12345")
+    goer._informer.matchesJob.assert_called_once_with("12345")
 
 
 def test_qqgoer_matches_job_returns_false():
     goer = QQGoer.__new__(QQGoer)
     goer._informer = MagicMock()
-    goer._informer.isJob.return_value = False
+    goer._informer.matchesJob.return_value = False
 
     assert goer.matchesJob("99999") is False
-    goer._informer.isJob.assert_called_once_with("99999")
+    goer._informer.matchesJob.assert_called_once_with("99999")
 
 
 def test_qqgoer_ensure_suitable_raises_finished():

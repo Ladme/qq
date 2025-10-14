@@ -274,7 +274,7 @@ def test_set_up_initializes_runner(monkeypatch, tmp_path, sample_info):
 
     assert runner._input_dir == sample_info.input_dir
     assert runner._batch_system == sample_info.batch_system
-    assert runner._use_scratch == sample_info.resources.useScratch()
+    assert runner._use_scratch == sample_info.resources.usesScratch()
 
 
 def test_set_up_initializes_runner_with_loop_info(monkeypatch, tmp_path, sample_info):
@@ -300,7 +300,7 @@ def test_set_up_initializes_runner_with_loop_info(monkeypatch, tmp_path, sample_
 
     assert runner._input_dir == sample_info.input_dir
     assert runner._batch_system == sample_info.batch_system
-    assert runner._use_scratch == sample_info.resources.useScratch()
+    assert runner._use_scratch == sample_info.resources.usesScratch()
     assert runner._archiver is not None
     assert runner._archiver._archive == tmp_path / "storage"
     assert runner._archiver._archive_format == "job%03d"

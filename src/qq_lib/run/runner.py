@@ -110,7 +110,7 @@ class QQRunner:
         logger.debug(f"Batch system: {str(self._batch_system)}.")
 
         # should the scratch directory be used?
-        self._use_scratch = self._informer.useScratch()
+        self._use_scratch = self._informer.usesScratch()
         logger.debug(f"Use scratch: {self._use_scratch}.")
 
         # initialize archiver, if this is a loop job

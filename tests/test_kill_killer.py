@@ -255,19 +255,19 @@ def test_qqkiller_terminate_does_not_update_info_file():
 def test_qqkiller_matches_job_returns_true():
     killer = QQKiller.__new__(QQKiller)
     killer._informer = MagicMock()
-    killer._informer.isJob.return_value = True
+    killer._informer.matchesJob.return_value = True
 
     assert killer.matchesJob("12345") is True
-    killer._informer.isJob.assert_called_once_with("12345")
+    killer._informer.matchesJob.assert_called_once_with("12345")
 
 
 def test_qqkiller_matches_job_returns_false():
     killer = QQKiller.__new__(QQKiller)
     killer._informer = MagicMock()
-    killer._informer.isJob.return_value = False
+    killer._informer.matchesJob.return_value = False
 
     assert killer.matchesJob("99999") is False
-    killer._informer.isJob.assert_called_once_with("99999")
+    killer._informer.matchesJob.assert_called_once_with("99999")
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
     get_info_files_from_job_id_or_dir,
 )
-from qq_lib.core.error import QQError
+from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import QQRepeater
 from qq_lib.info.informer import QQInformer
@@ -75,8 +75,10 @@ def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
 
     # if job id is provided on the command line,
     # we need to check that the info file actually corresponds to this job
-    if job and not informer.isJob(job):
-        raise QQError(f"Info file for job '{job}' does not exist or is not reachable.")
+    if job and not informer.matchesJob(job):
+        raise QQJobMismatchError(
+            f"Info file for job '{job}' does not exist or is not reachable."
+        )
 
     presenter = QQPresenter(informer)
     console = Console()

@@ -103,7 +103,7 @@ class QQResources:
         """Return all fields as a dict, excluding fields set to None."""
         return {k: v for k, v in asdict(self).items() if v is not None}
 
-    def useScratch(self) -> bool:
+    def usesScratch(self) -> bool:
         """
         Determine if the job uses a scratch directory.
 

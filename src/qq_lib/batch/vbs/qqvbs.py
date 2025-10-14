@@ -48,7 +48,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         _depend: list[Depend],
     ) -> str:
         try:
-            return QQVBS._batch_system.submitJob(script, res.useScratch())
+            return QQVBS._batch_system.submitJob(script, res.usesScratch())
         except VBSError as e:
             raise QQError(f"Failed to submit script '{str(script)}': {e}")
 

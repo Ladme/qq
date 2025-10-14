@@ -219,7 +219,7 @@ def test_qqvbs_job_kill_and_job_kill_force(tmp_path, sample_resources):
     assert job.process is None
 
     # forced kill
-    QQVBS._batch_system.submitJob(script, sample_resources.useScratch())
+    QQVBS._batch_system.submitJob(script, sample_resources.usesScratch())
     job_id2 = "1"
     QQVBS._batch_system.runJob(job_id2)
     time.sleep(0.3)
@@ -285,7 +285,7 @@ def test_vbs_job_info_get_job_state_returns_state(tmp_path, sample_resources):
     script.write_text("#!/bin/bash\necho hello")
     script.chmod(script.stat().st_mode | 0o111)
 
-    QQVBS._batch_system.submitJob(script, sample_resources.useScratch())
+    QQVBS._batch_system.submitJob(script, sample_resources.usesScratch())
     job = QQVBS._batch_system.jobs["0"]
 
     info = VBSJobInfo(job)

@@ -159,19 +159,19 @@ def test_qqsyncer_has_destination_returns_false_when_both_none():
 def test_qqsyncer_matches_job_returns_true():
     goer = QQSyncer.__new__(QQSyncer)
     goer._informer = MagicMock()
-    goer._informer.isJob.return_value = True
+    goer._informer.matchesJob.return_value = True
 
     assert goer.matchesJob("12345") is True
-    goer._informer.isJob.assert_called_once_with("12345")
+    goer._informer.matchesJob.assert_called_once_with("12345")
 
 
 def test_qqsyncer_matches_job_returns_false():
     goer = QQSyncer.__new__(QQSyncer)
     goer._informer = MagicMock()
-    goer._informer.isJob.return_value = False
+    goer._informer.matchesJob.return_value = False
 
     assert goer.matchesJob("99999") is False
-    goer._informer.isJob.assert_called_once_with("99999")
+    goer._informer.matchesJob.assert_called_once_with("99999")
 
 
 def test_qqsyncer_print_info_prints_panel():

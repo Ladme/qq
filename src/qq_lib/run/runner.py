@@ -151,7 +151,7 @@ class QQRunner:
             self._setUpSharedDir()
 
         if self._archiver:
-            self._archiver.archiveFrom(
+            self._archiver.fromArchive(
                 self._work_dir, self._informer.info.loop_info.current
             )
 
@@ -220,7 +220,7 @@ class QQRunner:
         if self._process.returncode == 0:
             # archive files
             if self._archiver:
-                self._archiver.archiveTo(self._work_dir)
+                self._archiver.toArchive(self._work_dir)
 
             if self._use_scratch:
                 # copy files back to the input (submission) directory

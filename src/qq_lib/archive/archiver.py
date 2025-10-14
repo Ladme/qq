@@ -56,7 +56,7 @@ class QQArchiver:
         )
         self._batch_system.makeRemoteDir(self._input_machine, self._archive)
 
-    def archiveFrom(self, work_dir: Path, cycle: int | None = None) -> None:
+    def fromArchive(self, dir: Path, cycle: int | None = None) -> None:
         """
         Fetch files from the archive to a local working directory.
 
@@ -67,7 +67,7 @@ class QQArchiver:
         in the archive are fetched.
 
         Args:
-            work_dir (Path): The local directory where files will be copied.
+            dir (Path): The local directory where files will be copied to.
             cycle (int | None): The cycle number to filter files for.
                 Only relevant for printf-style patterns. If `None`, all
                 matching files are fetched. Defaults to `None`.
@@ -88,7 +88,7 @@ class QQArchiver:
         QQRetryer(
             self._batch_system.syncSelected,
             self._archive,
-            work_dir,
+            dir,
             self._input_machine,
             socket.gethostname(),
             files,
@@ -96,12 +96,12 @@ class QQArchiver:
             wait_seconds=ARCHIVER_RETRY_WAIT,
         ).run()
 
-    def archiveTo(self, work_dir: Path) -> None:
+    def toArchive(self, dir: Path) -> None:
         """
         Archive all files matching the archive format in the specified working directory.
 
         Copies all files matching the archive pattern from the local
-        `work_dir` to the archive directory. After successfully transferring
+        `dir` to the archive directory. After successfully transferring
         the files, they are removed from the working directory.
 
         Args:
@@ -110,9 +110,7 @@ class QQArchiver:
         Raises:
             QQError: If file transfer or removal fails.
         """
-        if not (
-            files := self._getFiles(work_dir, None, self._archive_format, None, False)
-        ):
+        if not (files := self._getFiles(dir, None, self._archive_format, None, False)):
             logger.debug("Nothing to archive.")
             return
 
@@ -120,7 +118,7 @@ class QQArchiver:
 
         QQRetryer(
             self._batch_system.syncSelected,
-            work_dir,
+            dir,
             self._archive,
             socket.gethostname(),
             self._input_machine,

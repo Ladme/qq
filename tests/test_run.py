@@ -392,7 +392,7 @@ def test_set_up_work_dir_calls_archive(loop_runner_with_dirs, use_scratch):
     with (
         patch.object(runner, "_setUpScratchDir"),
         patch.object(runner, "_setUpSharedDir"),
-        patch("qq_lib.archive.archiver.QQArchiver.archiveFrom") as mock_archive,
+        patch("qq_lib.archive.archiver.QQArchiver.fromArchive") as mock_archive,
     ):
         runner.setUpWorkDir()
         mock_archive.assert_called_once_with(
@@ -537,7 +537,7 @@ def test_finalize_calls_archive_and_resubmit(loop_runner_with_dirs, use_scratch)
     runner._process = DummyProcess(0)
 
     with (
-        patch("qq_lib.archive.archiver.QQArchiver.archiveTo") as mock_archive,
+        patch("qq_lib.archive.archiver.QQArchiver.toArchive") as mock_archive,
         patch.object(QQRunner, "_resubmit") as mock_resubmit,
     ):
         runner.finalize()

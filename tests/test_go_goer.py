@@ -15,7 +15,7 @@ from qq_lib.properties.states import RealState
 
 
 def test_qqgoer_init_sets_info_file_and_calls_update():
-    mock_path = Path("/fake/path/info.txt")
+    mock_path = Path("/fake/path/job.qqinfo")
 
     with patch("qq_lib.go.goer.QQGoer._update") as mock_update:
         goer = QQGoer(mock_path)
@@ -96,6 +96,24 @@ def test_qqgoer_is_unknown_inconsistent(state, expected):
     goer = QQGoer.__new__(QQGoer)
     goer._state = state
     assert goer._isUnknownInconsistent() is expected
+
+
+@pytest.mark.parametrize(
+    "state,job_exit_code,expected",
+    [
+        (RealState.EXITING, 0, True),
+        (RealState.EXITING, 1, False),
+        (RealState.RUNNING, 0, False),
+        (RealState.FINISHED, 0, False),
+        (RealState.KILLED, 0, False),
+    ],
+)
+def test_qqgoer_is_exiting_successfully(state, job_exit_code, expected):
+    goer = QQGoer.__new__(QQGoer)
+    goer._state = state
+    goer._informer = MagicMock()
+    goer._informer.info.job_exit_code = job_exit_code
+    assert goer._isExitingSuccessfully() is expected
 
 
 def test_qqgoer_set_destination_exists():
@@ -246,12 +264,27 @@ def test_qqgoer_ensure_suitable_raises_finished():
 
     with pytest.raises(
         QQNotSuitableError,
-        match="Job has finished and was synchronized: working directory does not exist.",
+        match="Job has finished and was synchronized: working directory no longer exists.",
     ):
         goer.ensureSuitable()
 
 
-@pytest.mark.parametrize("destination", [(None, "host"), (Path("some/path"), None)])
+def test_qqgoer_ensure_suitable_raises_exiting_successfully():
+    goer = QQGoer.__new__(QQGoer)
+    goer._state = RealState.EXITING
+    goer._informer = MagicMock()
+    goer._informer.info.job_exit_code = 0
+
+    with pytest.raises(
+        QQNotSuitableError,
+        match="Job is finishing successfully: working directory no longer exists.",
+    ):
+        goer.ensureSuitable()
+
+
+@pytest.mark.parametrize(
+    "destination", [(None, "host"), (Path("some/path"), None), (None, None)]
+)
 def test_qqgoer_ensure_suitable_raises_killed_without_destination(destination):
     goer = QQGoer.__new__(QQGoer)
     goer._state = RealState.KILLED
@@ -259,7 +292,7 @@ def test_qqgoer_ensure_suitable_raises_killed_without_destination(destination):
 
     with pytest.raises(
         QQNotSuitableError,
-        match="Job has been killed and no working directory is available.",
+        match="Job has been killed and no working directory has been created.",
     ):
         goer.ensureSuitable()
 
@@ -455,7 +488,8 @@ def test_qqgoer_go_no_destination_raises_error():
     with (
         patch("qq_lib.go.goer.logger"),
         pytest.raises(
-            QQError, match="Nowhere to go. Working directory or main node are not set."
+            QQError,
+            match="Host \\('main_node'\\) or working directory \\('work_dir'\\) are not defined.",
         ),
     ):
         goer.go()

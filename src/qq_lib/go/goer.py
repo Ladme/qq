@@ -62,17 +62,22 @@ class QQGoer:
         Verify that the job is in a state where its working directory can be visited.
 
         Raises:
-            QQNotSuitableError: If the job has already finished successfully
+            QQNotSuitableError: If the job has already finished / is finishing successfully
                                 or has been killed without creating a working directory.
         """
         if self._isFinished():
             raise QQNotSuitableError(
-                "Job has finished and was synchronized: working directory does not exist."
+                "Job has finished and was synchronized: working directory no longer exists."
+            )
+
+        if self._isExitingSuccessfully():
+            raise QQNotSuitableError(
+                "Job is finishing successfully: working directory no longer exists."
             )
 
         if self._isKilled() and not self.hasDestination():
             raise QQNotSuitableError(
-                "Job has been killed and no working directory is available."
+                "Job has been killed and no working directory has been created."
             )
 
     def matchesJob(self, job_id: str) -> bool:
@@ -128,7 +133,9 @@ class QQGoer:
                 return
 
         if not self.hasDestination():
-            raise QQError("Nowhere to go. Working directory or main node are not set.")
+            raise QQError(
+                "Host ('main_node') or working directory ('work_dir') are not defined."
+            )
 
         logger.info(f"Navigating to '{str(self._directory)}' on '{self._host}'.")
         self._batch_system.navigateToDestination(self._host, self._directory)
@@ -224,3 +231,11 @@ class QQGoer:
     def _isUnknownInconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""
         return self._state in {RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE}
+
+    def _isExitingSuccessfully(self) -> bool:
+        """
+        Check whether the job is currently successfully exiting.
+        """
+        return (
+            self._state == RealState.EXITING and self._informer.info.job_exit_code == 0
+        )

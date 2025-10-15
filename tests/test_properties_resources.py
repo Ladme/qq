@@ -8,18 +8,20 @@ from qq_lib.properties.resources import QQResources
 from qq_lib.properties.size import Size
 
 
-def test_init_converts_mem_and_storage_strings():
-    res = QQResources(
-        mem="4gb", mem_per_cpu="2gb", work_size="10gb", work_size_per_cpu="1gb"
-    )
-    assert isinstance(res.mem, Size)
-    assert str(res.mem) == "4gb"
+def test_init_converts_mem_and_storage_per_cpu_strings():
+    res = QQResources(mem_per_cpu="2gb", work_size_per_cpu="1gb")
     assert isinstance(res.mem_per_cpu, Size)
     assert str(res.mem_per_cpu) == "2gb"
-    assert isinstance(res.work_size, Size)
-    assert str(res.work_size) == "10gb"
     assert isinstance(res.work_size_per_cpu, Size)
     assert str(res.work_size_per_cpu) == "1gb"
+
+
+def test_init_converts_mem_and_storage_strings():
+    res = QQResources(mem="4gb", work_size="10gb")
+    assert isinstance(res.mem, Size)
+    assert str(res.mem) == "4gb"
+    assert isinstance(res.work_size, Size)
+    assert str(res.work_size) == "10gb"
 
 
 def test_init_converts_walltime_seconds():
@@ -54,6 +56,24 @@ def test_init_converts_numeric_strings_to_integers():
     assert res.ngpus == 4
 
 
+def test_init_mem_overrides_mem_per_cpu():
+    res = QQResources(mem_per_cpu="1gb", mem="4gb")
+    assert res.mem_per_cpu is None
+
+    assert res.mem is not None
+    assert res.mem.value == 4
+    assert res.mem.unit == "gb"
+
+
+def test_init_worksize_overrides_work_size_per_cpu():
+    res = QQResources(work_size_per_cpu="1gb", work_size="4gb")
+    assert res.work_size_per_cpu is None
+
+    assert res.work_size is not None
+    assert res.work_size.value == 4
+    assert res.work_size.unit == "gb"
+
+
 def test_init_leaves_already_converted_types_unchanged():
     res = QQResources(
         nnodes=2,
@@ -70,9 +90,9 @@ def test_init_leaves_already_converted_types_unchanged():
     assert res.ncpus == 16
     assert res.ngpus == 4
     assert str(res.mem) == "8gb"
-    assert str(res.mem_per_cpu) == "2gb"
+    assert res.mem_per_cpu is None  # overriden by res.mem
     assert str(res.work_size) == "100gb"
-    assert str(res.work_size_per_cpu) == "10gb"
+    assert res.work_size_per_cpu is None  # override by res.work_size
     assert res.walltime == "01:00:00"
     assert res.props == {"gpu": "true"}
 
@@ -139,9 +159,7 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence():
     assert merged.mem.value == 16
     assert merged.mem.unit == "gb"
 
-    assert merged.mem_per_cpu is not None
-    assert merged.mem_per_cpu.value == 4
-    assert merged.mem_per_cpu.unit == "gb"
+    assert merged.mem_per_cpu is None
 
 
 def test_merge_resources_mem_with_mem_per_cpu_precedence2():
@@ -149,10 +167,10 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence2():
     r2 = QQResources(mem="32gb", mem_per_cpu="4gb")
     r3 = QQResources(mem="64gb")
     merged = QQResources.mergeResources(r1, r2, r3)
-    assert merged.mem is None
-    assert merged.mem_per_cpu is not None
-    assert merged.mem_per_cpu.value == 4
-    assert merged.mem_per_cpu.unit == "gb"
+    assert merged.mem is not None
+    assert merged.mem.value == 32
+    assert merged.mem.unit == "gb"
+    assert merged.mem_per_cpu is None
 
 
 def test_merge_resources_mem_with_mem_per_cpu_precedence3():
@@ -167,7 +185,7 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence3():
 
 
 def test_merge_resources_mem_skipped_if_mem_per_cpu_seen_first():
-    r1 = QQResources(mem_per_cpu="4gb", mem="16gb")
+    r1 = QQResources(mem_per_cpu="4gb")
     r2 = QQResources(mem="32gb")
     merged = QQResources.mergeResources(r1, r2)
     assert merged.mem is None
@@ -185,9 +203,7 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence():
     assert merged.work_size.value == 100
     assert merged.work_size.unit == "gb"
 
-    assert merged.work_size_per_cpu is not None
-    assert merged.work_size_per_cpu.value == 10
-    assert merged.work_size_per_cpu.unit == "gb"
+    assert merged.work_size_per_cpu is None
 
 
 def test_merge_resources_work_size_with_work_size_per_cpu_precedence2():
@@ -195,10 +211,11 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence2():
     r2 = QQResources(work_size="200gb", work_size_per_cpu="10gb")
     r3 = QQResources(work_size="300gb")
     merged = QQResources.mergeResources(r1, r2, r3)
-    assert merged.work_size is None
-    assert merged.work_size_per_cpu is not None
-    assert merged.work_size_per_cpu.value == 10
-    assert merged.work_size_per_cpu.unit == "gb"
+    assert merged.work_size is not None
+    assert merged.work_size.value == 200
+    assert merged.work_size.unit == "gb"
+
+    assert merged.work_size_per_cpu is None
 
 
 def test_merge_resources_work_size_with_work_size_per_cpu_precedence3():
@@ -213,7 +230,7 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence3():
 
 
 def test_merge_resources_work_size_skipped_if_work_size_per_cpu_seen_first():
-    r1 = QQResources(work_size_per_cpu="10gb", work_size="50gb")
+    r1 = QQResources(work_size_per_cpu="10gb")
     r2 = QQResources(work_size="200gb")
     merged = QQResources.mergeResources(r1, r2)
     assert merged.work_size is None
@@ -226,23 +243,30 @@ def test_merge_resources_all_fields_combined():
     r1 = QQResources(
         nnodes=2,
         ncpus=4,
-        mem="16gb",
-        mem_per_cpu=None,
+        mem_per_cpu="16gb",
+        work_size="24gb",
         work_dir="scratch_local",
         props="gpu",
     )
     r2 = QQResources(
-        nnodes=None, ncpus=8, mem="32gb", mem_per_cpu="8gb", work_dir=None, props="^ssd"
+        nnodes=None,
+        ncpus=8,
+        mem="32gb",
+        work_size_per_cpu="1gb",
+        work_dir=None,
+        props="^ssd",
     )
     merged = QQResources.mergeResources(r1, r2)
     assert merged.nnodes == 2
     assert merged.ncpus == 4
-    assert merged.mem is not None
-    assert merged.mem.value == 16
-    assert merged.mem.unit == "gb"
+    assert merged.mem is None
     assert merged.mem_per_cpu is not None
-    assert merged.mem_per_cpu.value == 8
+    assert merged.mem_per_cpu.value == 16
     assert merged.mem_per_cpu.unit == "gb"
+    assert merged.work_size_per_cpu is None
+    assert merged.work_size is not None
+    assert merged.work_size.value == 24
+    assert merged.work_size.unit == "gb"
     assert merged.work_dir == "scratch_local"
     assert merged.props == {"gpu": "true", "ssd": "false"}
 
@@ -255,21 +279,21 @@ def test_merge_resources_with_none_resources():
         assert getattr(merged, f) is None
 
 
-def test__parseSize_from_string():
+def test__parse_size_from_string():
     result = QQResources._parseSize("4gb")
     assert isinstance(result, Size)
     assert result.value == 4
     assert result.unit == "gb"
 
 
-def test__parseSize_from_size():
+def test__parse_size_from_size():
     result = QQResources._parseSize(Size(4, "gb"))
     assert isinstance(result, Size)
     assert result.value == 4
     assert result.unit == "gb"
 
 
-def test__parseSize_from_dict():
+def test__parse_size_from_dict():
     data = {"value": 8, "unit": "mb"}
     result = QQResources._parseSize(data)
     assert isinstance(result, Size)
@@ -277,12 +301,12 @@ def test__parseSize_from_dict():
     assert result.unit == "mb"
 
 
-def test__parseSize_invalid_type_int():
+def test__parse_size_invalid_type_int():
     result = QQResources._parseSize(123)
     assert result is None
 
 
-def test__parseSize_invalid_type_none():
+def test__parse_size_invalid_type_none():
     result = QQResources._parseSize(None)
     assert result is None
 

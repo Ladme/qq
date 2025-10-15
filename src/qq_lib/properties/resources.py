@@ -7,6 +7,7 @@ from typing import Self
 
 from qq_lib.core.common import equals_normalized, wdhms_to_hhmmss
 from qq_lib.core.error import QQError
+from qq_lib.core.field_coupling import FieldCoupling, HasCouplingMethods, coupled_fields
 from qq_lib.core.logger import get_logger
 
 from .size import Size
@@ -14,8 +15,15 @@ from .size import Size
 logger = get_logger(__name__)
 
 
+# dataclass decorator has to come before `@coupled_fields`!
 @dataclass(init=False)
-class QQResources:
+@coupled_fields(
+    # if mem is set, ignore mem_per_cpu
+    FieldCoupling(dominant="mem", recessive="mem_per_cpu"),
+    # if work_size is set, ignore work_size_per_cpu
+    FieldCoupling(dominant="work_size", recessive="work_size_per_cpu"),
+)
+class QQResources(HasCouplingMethods):
     """
     Dataclass representing computational resources requested for a qq job.
     """
@@ -97,6 +105,9 @@ class QQResources:
         self.work_size_per_cpu = work_size_per_cpu
         self.props = props
 
+        # enforce coupling rules
+        self.__post_init__()
+
         logger.debug(f"QQResources: {self}")
 
     def toDict(self) -> dict[str, object]:
@@ -121,6 +132,12 @@ class QQResources:
 
         Earlier resources take precedence over later ones. Properties are merged.
 
+        If either field in a coupling is set in an earlier resource, both fields of
+        that coupling are taken from that resource and ignore later resources.
+        (This means that if e.g. a `mem-per-cpu` is set by the user,
+        it will not be overwritten by a default absolute `mem` value set by a queue,
+        even though `mem` is a dominant attribute and `mem-per-cpu` is recessive.)
+
         Args:
             *resources (QQResources): One or more QQResources objects, in order of precedence.
 
@@ -128,7 +145,10 @@ class QQResources:
             QQResources: A new QQResources object with merged fields.
         """
         merged_data = {}
+        processed_couplings: set[FieldCoupling] = set()
+
         for f in fields(QQResources):
+            # handle props
             if f.name == "props":
                 # merge all props dictionaries; first occurence of each key wins
                 merged_props: dict[str, str] = {}
@@ -141,13 +161,28 @@ class QQResources:
                 merged_data[f.name] = merged_props or None
                 continue
 
-            # only set mem and work_size if mem_per_cpu / work_size_per_cpu has not already been set
-            if f.name in ("mem", "work_size"):
-                merged_data[f.name] = QQResources._firstNonblocked(
-                    resources,
-                    f.name,
-                    "mem_per_cpu" if f.name == "mem" else "work_size_per_cpu",
+            # check if this field is part of a coupling
+            if coupling := QQResources.getCouplingForField(f.name):
+                # skip if coupling already processed
+                if coupling in processed_couplings:
+                    continue
+                processed_couplings.add(coupling)
+
+                # find first resource where either field in the coupling is set
+                source_resource = next(
+                    (r for r in resources if coupling.hasValue(r)), None
                 )
+
+                if source_resource:
+                    merged_data[coupling.dominant] = getattr(
+                        source_resource, coupling.dominant
+                    )
+                    merged_data[coupling.recessive] = getattr(
+                        source_resource, coupling.recessive
+                    )
+                else:
+                    merged_data[coupling.dominant] = None
+                    merged_data[coupling.recessive] = None
                 continue
 
             # default: pick the first non-None value for this field

@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
+import os
 import socket
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,7 @@ from qq_lib.batch.pbs.qqpbs import QQPBS
 from qq_lib.core.constants import (
     ARCHIVE_FORMAT,
     BATCH_SYSTEM,
+    DEBUG_MODE,
     GUARD,
     INFO_FILE,
     INPUT_DIR,
@@ -205,7 +207,10 @@ def test_qqsubmitter__has_valid_shebang_returns_false_when_no_shebang_line(tmp_p
     assert result is False
 
 
-def test_qqsubmitter_set_env_vars_sets_all_required_variables(monkeypatch, tmp_path):
+@pytest.mark.parametrize("debug_mode", [True, False])
+def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
+    tmp_path, debug_mode
+):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
@@ -215,19 +220,25 @@ def test_qqsubmitter_set_env_vars_sets_all_required_variables(monkeypatch, tmp_p
     submitter._loop_info = None
     submitter._input_dir = tmp_path
 
-    env = {}
-    monkeypatch.setattr("qq_lib.submit.submitter.os.environ", env)
-
-    submitter._setEnvVars()
+    if debug_mode:
+        with patch.dict(os.environ, {DEBUG_MODE: "true"}):
+            env = submitter._createEnvVarsDict()
+    else:
+        env = submitter._createEnvVarsDict()
 
     assert env[GUARD] == "true"
     assert env[INFO_FILE] == str(submitter._info_file)
     assert env[INPUT_MACHINE] == socket.gethostname()
     assert env[BATCH_SYSTEM] == str(submitter._batch_system)
     assert env[INPUT_DIR] == str(submitter._input_dir)
+    if debug_mode:
+        assert env[DEBUG_MODE] == "true"
+    else:
+        assert DEBUG_MODE not in env
 
 
-def test_qqsubmitter_set_env_vars_sets_loop_variables(monkeypatch, tmp_path):
+@pytest.mark.parametrize("debug_mode", [True, False])
+def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
@@ -243,10 +254,11 @@ def test_qqsubmitter_set_env_vars_sets_loop_variables(monkeypatch, tmp_path):
     submitter._loop_info = DummyLoop()
     submitter._input_dir = tmp_path
 
-    env = {}
-    monkeypatch.setattr("qq_lib.submit.submitter.os.environ", env)
-
-    submitter._setEnvVars()
+    if debug_mode:
+        with patch.dict(os.environ, {DEBUG_MODE: "true"}):
+            env = submitter._createEnvVarsDict()
+    else:
+        env = submitter._createEnvVarsDict()
 
     assert env[GUARD] == "true"
     assert env[INFO_FILE] == str(submitter._info_file)
@@ -258,6 +270,10 @@ def test_qqsubmitter_set_env_vars_sets_loop_variables(monkeypatch, tmp_path):
     assert env[LOOP_START] == str(DummyLoop.start)
     assert env[LOOP_END] == str(DummyLoop.end)
     assert env[ARCHIVE_FORMAT] == DummyLoop.archive_format
+    if debug_mode:
+        assert env[DEBUG_MODE] == "true"
+    else:
+        assert DEBUG_MODE not in env
 
 
 def test_qqsubmitter_get_input_dir_returns_correct_path(tmp_path):
@@ -416,9 +432,12 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._command_line = ["-q", "default", str(submitter._script)]
     submitter._depend = []
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
+    env_vars = {GUARD: "true"}
 
     with (
-        patch.object(submitter, "_setEnvVars") as mock_set_env,
+        patch.object(
+            submitter, "_createEnvVarsDict", return_value=env_vars
+        ) as mock_set_env,
         patch.object(
             submitter._batch_system, "jobSubmit", return_value="jobid123"
         ) as mock_job_submit,
@@ -437,6 +456,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         submitter._script,
         submitter._job_name,
         submitter._depend,
+        env_vars,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
@@ -458,9 +478,12 @@ def test_qq_submitter_submit(tmp_path):
     submitter._command_line = ["-q", "default", str(submitter._script)]
     submitter._depend = []
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
+    env_vars = {GUARD: "true"}
 
     with (
-        patch.object(submitter, "_setEnvVars") as mock_set_env,
+        patch.object(
+            submitter, "_createEnvVarsDict", return_value=env_vars
+        ) as mock_set_env,
         patch.object(
             submitter._batch_system, "jobSubmit", return_value="jobid123"
         ) as mock_job_submit,
@@ -483,6 +506,7 @@ def test_qq_submitter_submit(tmp_path):
         submitter._script,
         submitter._job_name,
         submitter._depend,
+        env_vars,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)

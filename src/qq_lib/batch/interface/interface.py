@@ -79,7 +79,12 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     @staticmethod
     @abstractmethod
     def jobSubmit(
-        res: QQResources, queue: str, script: Path, job_name: str, depend: list[Depend]
+        res: QQResources,
+        queue: str,
+        script: Path,
+        job_name: str,
+        depend: list[Depend],
+        env_vars: dict[str, str],
     ) -> str:
         """
         Submit a job to the batch system.
@@ -92,6 +97,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             script (Path): Path to the script to execute.
             job_name (str): Name of the job to use.
             depend (list[Depend]): List of job dependencies.
+            env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
 
         Returns:
             str: Unique ID of the submitted job.

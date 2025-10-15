@@ -13,6 +13,7 @@ from qq_lib.core.common import get_info_file
 from qq_lib.core.constants import (
     ARCHIVE_FORMAT,
     BATCH_SYSTEM,
+    DEBUG_MODE,
     GUARD,
     INFO_FILE,
     INPUT_DIR,
@@ -119,9 +120,6 @@ class QQSubmitter:
         Raises:
             QQError: If job submission fails.
         """
-        # setting the basic environment variables for communicating with `qq run`
-        self._setEnvVars()
-
         # submit the job
         job_id = self._batch_system.jobSubmit(
             self._resources,
@@ -129,6 +127,7 @@ class QQSubmitter:
             self._script,
             self._job_name,
             self._depend,
+            self._createEnvVarsDict(),
         )
 
         # create job qq info file
@@ -204,31 +203,42 @@ class QQSubmitter:
         """
         return self._input_dir
 
-    def _setEnvVars(self) -> None:
+    def _createEnvVarsDict(self) -> dict[str, str]:
         """
-        Set environment variables required for qq runtime.
+        Create a dictionary of environment variables provided to qq runtime.
+
+        Returns
+            dict[str, str]: Dictionary of environment variables and their values.
         """
-        # this indicates that the job is running in a qq environment
-        os.environ[GUARD] = "true"
+        env_vars = {}
 
-        # this contains a path to the qq info file
-        os.environ[INFO_FILE] = str(self._info_file)
+        # propagate qq debug environment
+        if os.environ.get(DEBUG_MODE):
+            env_vars[DEBUG_MODE] = "true"
 
-        # this contains the name of the input host
-        os.environ[INPUT_MACHINE] = socket.gethostname()
+        # indicates that the job is running in a qq environment
+        env_vars[GUARD] = "true"
 
-        # this contains the name of the used batch system
-        os.environ[BATCH_SYSTEM] = str(self._batch_system)
+        # contains a path to the qq info file
+        env_vars[INFO_FILE] = str(self._info_file)
 
-        # this contains the path to the input directory
-        os.environ[INPUT_DIR] = str(self._input_dir)
+        # contains the name of the input host
+        env_vars[INPUT_MACHINE] = socket.gethostname()
+
+        # contains the name of the used batch system
+        env_vars[BATCH_SYSTEM] = str(self._batch_system)
+
+        # contains the path to the input directory
+        env_vars[INPUT_DIR] = str(self._input_dir)
 
         # loop job-specific environment variables
         if self._loop_info:
-            os.environ[LOOP_CURRENT] = str(self._loop_info.current)
-            os.environ[LOOP_START] = str(self._loop_info.start)
-            os.environ[LOOP_END] = str(self._loop_info.end)
-            os.environ[ARCHIVE_FORMAT] = self._loop_info.archive_format
+            env_vars[LOOP_CURRENT] = str(self._loop_info.current)
+            env_vars[LOOP_START] = str(self._loop_info.start)
+            env_vars[LOOP_END] = str(self._loop_info.end)
+            env_vars[ARCHIVE_FORMAT] = self._loop_info.archive_format
+
+        return env_vars
 
     def _hasValidShebang(self, script: Path) -> bool:
         """

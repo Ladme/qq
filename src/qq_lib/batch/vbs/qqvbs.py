@@ -46,6 +46,7 @@ class QQVBS(QQBatchInterface[VBSJobInfo], metaclass=QQBatchMeta):
         script: Path,
         _job_name: str,
         _depend: list[Depend],
+        _env_vars: dict[str, str],
     ) -> str:
         try:
             return QQVBS._batch_system.submitJob(script, res.usesScratch())

@@ -50,8 +50,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         script: Path,
         job_name: str,
         depend: list[Depend],
+        env_vars: dict[str, str],
     ) -> str:
-        QQPBS._sharedGuard(res)
+        QQPBS._sharedGuard(res, env_vars)
 
         # get the submission command
         command = QQPBS._translateSubmit(
@@ -61,6 +62,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             str(script),
             job_name,
             depend,
+            env_vars,
         )
         logger.debug(command)
 
@@ -307,32 +309,32 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         )
 
     @staticmethod
-    def _sharedGuard(res: QQResources) -> None:
+    def _sharedGuard(res: QQResources, env_vars: dict[str, str]) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
 
-        If the current working directory is on shared storage, sets the
-        environment variable `SHARED_SUBMIT`. This environment variable
-        is later used e.g. to select the appropriate data copying method.
+        If the current working directory is on shared storage, adds the
+        environment variable `SHARED_SUBMIT` to the list of env vars to propagate to the job.
+        This environment variable is later used e.g. to select the appropriate data copying method.
 
         If the job is configured to use the submission directory as a working directory
         (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
         Args:
             res (QQResources): The job's resource configuration.
+            env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
 
         Raises:
             QQError: If the job is set to run directly in the submission
                     directory while submission is from a non-shared filesystem.
         """
         if QQPBS.isShared(Path()):
-            os.environ[SHARED_SUBMIT] = "true"
-        else:
+            env_vars[SHARED_SUBMIT] = "true"
+        elif not res.usesScratch():
             # if job directory is used as working directory, it must always be shared
-            if not res.usesScratch():
-                raise QQError(
-                    "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem."
-                )
+            raise QQError(
+                "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem."
+            )
 
     @staticmethod
     def _translateSubmit(
@@ -342,6 +344,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         script: str,
         job_name: str,
         depend: list[Depend],
+        env_vars: dict[str, str],
     ) -> str:
         """
         Generate the PBS submission command for a job.
@@ -358,7 +361,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             str: The fully constructed qsub command string.
         """
         qq_output = str((input_dir / job_name).with_suffix(QQ_OUT_SUFFIX))
-        command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} -V "
+        command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} "
+
+        # translate environment variables
+        if env_vars:
+            command += f"-v {QQPBS._translateEnvVars(env_vars)} "
 
         # handle per-chunk resources, incl. workdir
         translated = QQPBS._translatePerChunkResources(res)
@@ -393,6 +400,14 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         command += script
 
         return command
+
+    @staticmethod
+    def _translateEnvVars(env_vars: dict[str, str]) -> str:
+        converted = []
+        for key, value in env_vars.items():
+            converted.append(f"{key}={value}")
+
+        return ",".join(converted)
 
     @staticmethod
     def _translatePerChunkResources(res: QQResources) -> list[str]:

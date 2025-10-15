@@ -79,4 +79,6 @@ class HasCouplingMethods(Protocol):
     _field_couplings: tuple[FieldCoupling, ...]
 
     @staticmethod
-    def getCouplingForField(field_name: str) -> FieldCoupling | None: ...
+    def getCouplingForField(field_name: str) -> FieldCoupling | None:
+        """Return the FieldCoupling that contains the given field name, or None."""
+        ...

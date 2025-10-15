@@ -41,7 +41,7 @@ def stat(all: bool, yaml: bool) -> NoReturn:
 
         if not jobs:
             logger.info("No jobs found.")
-            sys.exit(91)
+            sys.exit(0)
 
         presenter = QQJobsPresenter(jobs)
         if yaml:

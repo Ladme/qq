@@ -3,7 +3,6 @@
 
 import re
 from dataclasses import asdict, dataclass, fields
-from typing import Self
 
 from qq_lib.core.common import equals_normalized, wdhms_to_hhmmss
 from qq_lib.core.error import QQError
@@ -196,30 +195,6 @@ class QQResources(HasCouplingMethods):
             )
 
         return QQResources(**merged_data)
-
-    @staticmethod
-    def _firstNonblocked(
-        resources: tuple[Self, ...], field: str, block_field: str
-    ) -> object | None:
-        """
-        Return the first value of `field` from `resources` where `block_field` has not appeared yet.
-
-        Args:
-            resources (tuple[QQResources, ...]): Resources in order of precedence.
-            field (str): Name of the field to pick.
-            block_field (str): Name of the per-CPU field that blocks later values.
-
-        Returns:
-            Optional[object]: The first valid value, or None if none found.
-        """
-        blocked = False
-        for r in resources:
-            if getattr(r, block_field) is not None:
-                blocked = True
-            val = getattr(r, field)
-            if val is not None and not blocked:
-                return val
-        return None
 
     @staticmethod
     def _parseSize(value: object) -> Size | None:

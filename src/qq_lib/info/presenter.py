@@ -88,7 +88,10 @@ class QQPresenter:
             Text(""),
             Rule(title=Text("HISTORY", style="bold"), style="white"),
             Text(""),
-            Padding(self._createJobHistoryTable(), (0, 2)),
+            Padding(
+                self._createJobHistoryTable(state, self._informer.info.job_exit_code),
+                (0, 2),
+            ),
             Text(""),
             Rule(title=Text("STATE", style="bold"), style="white"),
             Text(""),
@@ -224,9 +227,12 @@ class QQPresenter:
 
         return table
 
-    def _createJobHistoryTable(self) -> Table:
+    def _createJobHistoryTable(self, state: RealState, exit_code: int | None) -> Table:
         """
         Create a table summarizing the job timeline.
+
+        Args:
+            state (RealState): State of the job.
 
         Returns:
             Table: A Rich table showing the chronological job history.
@@ -241,6 +247,7 @@ class QQPresenter:
         table.add_column(justify="left", overflow="fold")
 
         table.add_row("Submitted at:", Text(f"{submitted}", style="white"))
+        # job started
         if started:
             table.add_row(
                 "",
@@ -250,6 +257,7 @@ class QQPresenter:
                 ),
             )
             table.add_row("Started at:", Text(f"{started}", style="white"))
+        # job is completed (or was killed after start)
         if started and completed:
             table.add_row(
                 "",
@@ -259,7 +267,20 @@ class QQPresenter:
                 ),
             )
             table.add_row(
-                "Completed at:",
+                f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                Text(f"{completed}", style="white"),
+            )
+        # job is "completed" (likely killed) but never started running
+        elif completed:
+            table.add_row(
+                "",
+                Text(
+                    f"was queued for {format_duration_wdhhmmss(completed - submitted)}",
+                    style="grey50",
+                ),
+            )
+            table.add_row(
+                f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
                 Text(f"{completed}", style="white"),
             )
 
@@ -432,3 +453,26 @@ class QQPresenter:
             return comment, estimated
 
         return None, None
+
+    @staticmethod
+    def _translateStateToCompletedMsg(state: RealState, exit_code: None | int) -> str:
+        """
+        Translates a RealState and optional exit code into a human-readable completion message.
+
+        Returns:
+            str: A string representing the final status of the job/process.
+        """
+        if state == RealState.FINISHED or (
+            state == RealState.EXITING and exit_code == 0
+        ):
+            return "finished"
+
+        if state == RealState.KILLED or (
+            state == RealState.EXITING and exit_code is None
+        ):
+            return "killed"
+
+        if state == RealState.FAILED or (state == RealState.EXITING and exit_code != 0):
+            return "failed"
+
+        return "completed"  # default option; should not happen

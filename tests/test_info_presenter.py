@@ -287,13 +287,24 @@ def test_create_resources_table(sample_info):
     assert "^faulty_node" in output
 
 
-def test_create_job_history_table_with_times(sample_info):
+@pytest.mark.parametrize(
+    "state, exit_code",
+    [
+        (RealState.FINISHED, 0),
+        (RealState.FAILED, 1),
+        (RealState.KILLED, None),
+        (RealState.EXITING, 0),
+        (RealState.EXITING, 1),
+        (RealState.EXITING, None),
+    ],
+)
+def test_create_job_history_table_with_times(sample_info, state, exit_code):
     # add start and completion times
     sample_info.start_time = sample_info.submission_time + timedelta(minutes=10)
     sample_info.completion_time = sample_info.start_time + timedelta(minutes=30)
 
     presenter = QQPresenter(QQInformer(sample_info))
-    table = presenter._createJobHistoryTable()
+    table = presenter._createJobHistoryTable(state, exit_code)
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -308,7 +319,10 @@ def test_create_job_history_table_with_times(sample_info):
     assert "Started at:" in output
     assert str(sample_info.start_time) in output
     assert "was running" in output
-    assert "Completed at:" in output
+    assert (
+        f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:"
+        in output
+    )
     assert str(sample_info.completion_time) in output
 
 
@@ -318,7 +332,7 @@ def test_create_job_history_table_submitted_only(sample_info):
     sample_info.completion_time = None
 
     presenter = QQPresenter(QQInformer(sample_info))
-    table = presenter._createJobHistoryTable()
+    table = presenter._createJobHistoryTable(RealState.QUEUED, None)
 
     console = Console(record=True)
     console.print(table)
@@ -511,3 +525,20 @@ def test_get_short_info_combines_job_id_and_state_correctly():
 
     assert str(result) == "9999    running"
     assert any(span.style == RealState.RUNNING.color for span in result.spans)
+
+
+@pytest.mark.parametrize(
+    "state, exit_code, expected",
+    [
+        (RealState.FINISHED, 0, "finished"),
+        (RealState.FAILED, 1, "failed"),
+        (RealState.KILLED, None, "killed"),
+        (RealState.EXITING, 0, "finished"),
+        (RealState.EXITING, 1, "failed"),
+        (RealState.EXITING, 42, "failed"),
+        (RealState.EXITING, None, "killed"),
+        (RealState.RUNNING, None, "completed"),
+    ],
+)
+def test_translate_state_to_completed_msg(state, exit_code, expected):
+    assert QQPresenter._translateStateToCompletedMsg(state, exit_code) == expected

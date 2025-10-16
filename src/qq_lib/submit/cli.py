@@ -27,8 +27,8 @@ Submit a qq job to a batch system from the command line.
 
 {click.style("SCRIPT", fg="green")}   Path to the script to submit.
 
-The submitted script must be located in the directory from which
-`qq submit` is invoked.
+All the options can also be specified inside the submitted script itself
+using qq directives of this format: `# qq <option>=<value>`.
 """,
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
@@ -93,7 +93,7 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     "--mem",
     type=str,
     default=None,
-    help="Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides '--mem-per-cpu'.",
+    help="Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides `--mem-per-cpu`.",
 )
 @optgroup.option(
     "--ngpus", type=int, default=None, help="Number of GPUs to allocate for the job."
@@ -123,7 +123,7 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     "--worksize",
     type=str,
     default=None,
-    help="Total storage to allocate for the job. Specify as 'Ngb' (e.g., 10gb). Overrides '--work-size-per-cpu'.",
+    help="Total storage to allocate for the job. Specify as 'Ngb' (e.g., 10gb). Overrides `--work-size-per-cpu`.",
 )
 @optgroup.option(
     "--props",

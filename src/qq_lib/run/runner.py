@@ -15,15 +15,14 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import QQArchiver
 from qq_lib.core.constants import (
-    INFO_FILE,
-    INPUT_MACHINE,
     LOOP_JOB_PATTERN,
     RUNNER_RETRY_TRIES,
     RUNNER_RETRY_WAIT,
     RUNNER_SIGTERM_TO_SIGKILL,
     SCRATCH_DIR_INNER,
+    UNEXPECTED_EXCEPTION_EXIT_CODE,
 )
-from qq_lib.core.error import QQError
+from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import QQRetryer
 from qq_lib.info.informer import QQInformer
@@ -44,58 +43,43 @@ class QQRunner:
       - Cleaning up resources when execution is finished
     """
 
-    def __init__(self):
+    def __init__(self, info_file: Path, host: str):
         """
         Initialize a new QQRunner instance.
 
-        This performs only minimal setup:
-          - Installs a signal handler for SIGTERM
-          - Locates and loads the qq info file
-
-        If any of these steps fail, a fatal error is raised without updating the
-        qq info file (since it may not yet be available).
+        Args:
+            info_file (Path): Path to the qq info file that contains job metadata.
+            host (str): The hostname of the input machine from which the job was submitted.
 
         Raises:
-            QQError: If the info file cannot be found or loaded.
+            QQRunFatalError: If loading the QQ info file fails fatally during initialization.
         """
-        # process running the wrapped script
-        self._process: subprocess.Popen[str] | None = None
-
-        # object used for archiving data
-        self._archiver = None
-
         # install a signal handler
         signal.signal(signal.SIGTERM, self._handle_sigterm)
 
-        # get path to the qq info file
-        info_file_string = os.environ.get(INFO_FILE)
-        if not info_file_string:
-            raise QQError(f"'{INFO_FILE}' environment variable is not set.")
-        self._info_file = Path(info_file_string)
+        # process running the wrapped script
+        self._process: subprocess.Popen[str] | None = None
+
+        self._info_file = Path(info_file)
         logger.debug(f"Info file: '{self._info_file}'.")
 
-        # get input machine
-        if not (machine := os.environ.get(INPUT_MACHINE)):
-            raise QQError(f"'{INPUT_MACHINE}' environment variable is not set.")
-        self._input_machine = machine
+        self._input_machine = host
         logger.debug(f"Input machine: '{self._input_machine}'.")
 
-        # load the info file
-        self._informer: QQInformer = QQRetryer(
-            QQInformer.fromFile,
-            self._info_file,
-            host=self._input_machine,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
-        ).run()
+        # load the info file or raise a fatal qq error if this fails
+        try:
+            self._informer: QQInformer = QQRetryer(
+                QQInformer.fromFile,
+                self._info_file,
+                host=self._input_machine,
+                max_tries=RUNNER_RETRY_TRIES,
+                wait_seconds=RUNNER_RETRY_WAIT,
+            ).run()
+        except Exception as e:
+            raise QQRunFatalError(
+                f"Unable to load qq info file '{self._info_file}' on '{self._input_machine}': {e}"
+            ) from e
 
-    def setUp(self) -> None:
-        """
-        Perform the full setup of the QQRunner.
-
-        Raises:
-            QQError: If required environment variables are missing or invalid.
-        """
         logger.info(
             f"[{str(self._informer.batch_system)}-qq v{qq_lib.__version__}] Initializing "
             f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
@@ -105,7 +89,7 @@ class QQRunner:
         self._input_dir = Path(self._informer.info.input_dir)
         logger.debug(f"Input directory: {self._input_dir}.")
 
-        # get the batch system
+        # get the batch system (should match the environment variable)
         self._batch_system = self._informer.batch_system
         logger.debug(f"Batch system: {str(self._batch_system)}.")
 
@@ -133,14 +117,16 @@ class QQRunner:
                 f"{self._informer.info.script_name}{LOOP_JOB_PATTERN.replace('+', '\\+') % (loop_info.current - 1)}",
                 loop_info.current - 1,
             )
+        else:
+            self._archiver = None
 
-    def setUpWorkDir(self) -> None:
+    def prepare(self) -> None:
         """
         Prepare the working directory for job execution.
 
         Depending on configuration, this sets up:
           - A scratch directory (copying job files there), or
-          - The shared job directory directly.
+          - The shared input directory directly.
 
         Raises:
             QQError: If working directory setup fails.
@@ -155,7 +141,7 @@ class QQRunner:
                 self._work_dir, self._informer.info.loop_info.current
             )
 
-    def executeScript(self) -> int:
+    def execute(self) -> int:
         """
         Execute the job script in the working directory.
 
@@ -177,6 +163,7 @@ class QQRunner:
 
         logger.info(f"Executing script '{script}'.")
         with script.open() as file:
+            # skip the first line (shebang)
             lines = file.readlines()[1:]
 
         try:
@@ -248,25 +235,24 @@ class QQRunner:
             # only update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
 
-    def logFailureIntoInfoFile(self, exit_code: int) -> NoReturn:
+    def logFailureAndExit(self, exception: BaseException) -> NoReturn:
         """
         Record a failure state into the qq info file and exit the program.
 
         Args:
-            exit_code (int): The exit code to record and use when terminating the program.
+            exception (BaseException): The exception to log.
 
         Raises:
-            SystemExit: Always exits with the given exit code.
+            SystemExit: Always exits with the exit code associated with the given exception.
         """
+        exit_code = getattr(exception, "exit_code", UNEXPECTED_EXCEPTION_EXIT_CODE)
         try:
             self._updateInfoFailed(exit_code)
+            logger.error(exception)
             sys.exit(exit_code)
-        except QQError as e:
-            if exit_code == 99:
-                log_fatal_unexpected_error(e, exit_code)
-            log_fatal_qq_error(e, exit_code)
         except Exception as e:
-            log_fatal_unexpected_error(e, exit_code)
+            # unable to log the current state into the info file
+            log_fatal_error_and_exit(e)  # exits here
 
     def _setUpSharedDir(self) -> None:
         """
@@ -300,7 +286,6 @@ class QQRunner:
         # we create this directory because other processes may write files
         # into the allocated scratch directory and we do not want these files
         # to affect the job execution or be copied back to input_dir
-        # this also makes it easier to delete the working directory after completion
         self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
         QQRetryer(
@@ -354,11 +339,13 @@ class QQRunner:
         Update the qq info file to mark the job as running.
 
         Raises:
+            QQRunCommunicationError: If the job was killed without informing QQRunner.
             QQError: If the info file cannot be updated.
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
+        self._reloadInfoAndEnsureNotKilled()
+
         try:
-            self._reloadInfoAndCheckKill()
             self._informer.setRunning(
                 datetime.now(),
                 socket.gethostname(),
@@ -383,10 +370,14 @@ class QQRunner:
         Update the qq info file to mark the job as successfully finished.
 
         Logs errors as warnings if updating fails.
+
+        Raises:
+            QQRunCommunicationError: If the job was killed without informing QQRunner.
         """
         logger.debug(f"Updating '{self._info_file}' at job completion.")
+        self._reloadInfoAndEnsureNotKilled()
+
         try:
-            self._reloadInfoAndCheckKill()
             self._informer.setFinished(datetime.now())
             QQRetryer(
                 self._informer.toFile,
@@ -408,10 +399,14 @@ class QQRunner:
             return_code (int): Exit code from the failed job.
 
         Logs errors as warnings if updating fails.
+
+        Raises:
+            QQRunCommunicationError: If the job was killed without informing QQRunner.
         """
         logger.debug(f"Updating '{self._info_file}' at job failure.")
+        self._reloadInfoAndEnsureNotKilled()
+
         try:
-            self._reloadInfoAndCheckKill()
             self._informer.setFailed(datetime.now(), return_code)
             QQRetryer(
                 self._informer.toFile,
@@ -445,13 +440,12 @@ class QQRunner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
-    def _reloadInfoAndCheckKill(self) -> None:
+    def _reloadInfoAndEnsureNotKilled(self) -> None:
         """
         Reload the qq job info file and check the job's state.
 
-        If the job state is `KILLED`, the process exits immediately with code 93.
-
         Raises:
+            QQRunCommunicationError: If the job state is `KILLED`.
             QQError: If the qq info file cannot be reached or read.
         """
         self._informer = QQRetryer(
@@ -463,10 +457,9 @@ class QQRunner:
         ).run()
 
         if self._informer.info.job_state == NaiveState.KILLED:
-            logger.error(
+            raise QQRunCommunicationError(
                 "Job has been killed without informing qq run. Aborting the job!"
             )
-            sys.exit(93)
 
     def _resubmit(self) -> None:
         """
@@ -527,8 +520,8 @@ class QQRunner:
         """
         Clean up after execution is interrupted or killed.
 
-        - Marks job as killed in the info file
-        - Terminates the subprocess
+        - Marks job as killed in the info file.
+        - Terminates the subprocess.
         """
         # update the qq info file
         self._updateInfoKilled()
@@ -544,7 +537,7 @@ class QQRunner:
                 logger.info("Subprocess did not exit, killing.")
                 self._process.kill()
 
-    def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> None:
+    def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> NoReturn:
         """
         Signal handler for SIGTERM.
 
@@ -554,46 +547,28 @@ class QQRunner:
         self._cleanup()
         logger.error("Execution was terminated by SIGTERM.")
         # this may get ignored by the batch system
-        # so you should not really on this exit code
+        # so you should not rely on this specific exit code
         sys.exit(143)
 
 
-def log_fatal_qq_error(exception: QQError, exit_code: int) -> NoReturn:
+def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     """
-    Log a fatal QQError that cannot be recorded in the info file, then exit.
+    Log an error that cannot be recorded in the info file, then exit.
 
     This function is used when even the failure state cannot be persisted to
     the job info file (e.g., if the info file path is missing or corrupted).
 
     Args:
-        exception (QQError): The error to log.
+        exception (BaseException): The error to log.
 
     Raises:
-        SystemExit: Exits with the provided exit code.
+        SystemExit: Exits with an exit code associated with the exception.
     """
     logger.error(f"Fatal qq run error: {exception}")
-    logger.error(
-        "Failure state could not be logged into the job info file. Consider the job to be in an INCONSISTENT state!"
-    )
-    sys.exit(exit_code)
+    logger.error("Failure state was NOT logged into the job info file.")
 
+    if isinstance(exception, (QQRunFatalError, QQRunCommunicationError, QQError)):
+        sys.exit(exception.exit_code)
 
-def log_fatal_unexpected_error(exception: Exception, exit_code: int) -> NoReturn:
-    """
-    Log a fatal unexpected error that cannot be recorded in the info file, then exit.
-
-    This function is called when an unforeseen exception occurs and even
-    logging to the job info file fails. This indicates a bug in the program.
-
-    Args:
-        exception (Exception): The unexpected error to log.
-
-    Raises:
-        SystemExit: Exits with the provided exit code.
-    """
-    logger.error("Fatal qq run error!")
-    logger.error(
-        "Failure state could not be logged into the job info file. Consider the job to be in an INCONSISTENT state!"
-    )
     logger.critical(exception, exc_info=True, stack_info=True)
-    sys.exit(exit_code)
+    sys.exit(UNEXPECTED_EXCEPTION_EXIT_CODE)

@@ -65,6 +65,9 @@ PBS_SCRATCH_DIR = "SCRATCHDIR"
 # OTHER CONSTANTS
 # ----------------------------
 
+# Exit code used when an unexpected exception is encountered.
+UNEXPECTED_EXCEPTION_EXIT_CODE = 99
+
 # Format string for dates and times
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 

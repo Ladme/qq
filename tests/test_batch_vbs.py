@@ -52,9 +52,11 @@ def test_run_job_starts_job(tmp_path):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
-    time.sleep(0.3)
-
     job = vbs.jobs[job_id]
+    # wait for the job to finish
+    while job.state == BatchState.RUNNING:
+        time.sleep(0.1)
+
     assert job.state == BatchState.FINISHED
     assert "hello" in job.output
     assert job.node is not None
@@ -80,9 +82,11 @@ def test_run_job_frozen_starts_job(tmp_path):
 
     vbs.releaseFrozenJob(job_id)
 
-    time.sleep(0.3)
-
     job = vbs.jobs[job_id]
+    # wait for the job to finish
+    while job.state == BatchState.RUNNING:
+        time.sleep(0.1)
+
     assert job.state == BatchState.FINISHED
     assert "hello" in job.output
     assert job.node is not None
@@ -133,7 +137,10 @@ def test_kill_completed_job(tmp_path, state):
     job_id = vbs.submitJob(script, use_scratch=True)
     vbs.runJob(job_id)
 
-    time.sleep(0.3)
+    # wait for the job to finish
+    while vbs.jobs[job_id].state == BatchState.RUNNING:
+        time.sleep(0.1)
+
     assert vbs.jobs[job_id].state == state
 
     with pytest.raises(VBSError, match="is completed"):

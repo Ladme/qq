@@ -25,6 +25,8 @@ class QQJobsPresenter:
 
     # Mapping of human-readable color names to ANSI escape codes.
     ANSI_COLORS = {
+        # default
+        "default": "",
         # standard colors
         "black": "\033[30m",
         "red": "\033[31m",

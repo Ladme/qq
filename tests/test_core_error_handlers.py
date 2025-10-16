@@ -8,6 +8,7 @@ import pytest
 
 from qq_lib.core.error import QQNotSuitableError
 from qq_lib.core.error_handlers import (
+    CFG,
     handle_general_qq_error,
     handle_job_mismatch_error,
     handle_not_suitable_error,
@@ -28,7 +29,7 @@ def test_not_suitable_single_item_logs_error_and_exits():
         handle_not_suitable_error(exc, metadata)
 
     mock_logger.error.assert_called_once_with(exc)
-    mock_exit.assert_called_once_with(91)
+    mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
 def test_not_suitable_multiple_items_logs_info():
@@ -64,7 +65,7 @@ def test_not_suitable_multiple_items_multiple_errors_logs_and_exits():
 
     mock_logger.info.assert_called_once_with(exc)
     mock_logger.error.assert_called_once_with("No suitable qq job.\n")
-    mock_exit.assert_called_once_with(91)
+    mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
 @pytest.mark.parametrize(
@@ -83,7 +84,7 @@ def test_job_mismatch_logs_and_exits(jobs):
         handle_job_mismatch_error(exc, metadata)
 
     mock_logger.error.assert_called_once_with(exc)
-    mock_exit.assert_called_once_with(91)
+    mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
 def test_job_general_qq_error_single_item_logs_and_exits():
@@ -99,7 +100,7 @@ def test_job_general_qq_error_single_item_logs_and_exits():
         handle_general_qq_error(exc, metadata)
 
     mock_logger.error.assert_called_once_with(exc)
-    mock_exit.assert_called_once_with(91)
+    mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
 def test_job_general_qq_error_multiple_items_logs():
@@ -134,4 +135,4 @@ def test_job_general_qq_error_multiple_items_multiple_errors_logs_and_exits():
         handle_general_qq_error(exc, metadata)
 
     mock_logger.error.assert_called_once_with(exc)
-    mock_exit.assert_called_once_with(91)
+    mock_exit.assert_called_once_with(CFG.exit_codes.default)

@@ -7,22 +7,21 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.core.constants import GUARD, INFO_FILE, INPUT_MACHINE
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
-from qq_lib.run.cli import ensureQQEnv, run
+from qq_lib.run.cli import CFG, ensureQQEnv, run
 from qq_lib.run.runner import QQRunner
 
 
 def test_ensureQQEnv_raises_if_guard_missing(monkeypatch):
-    # remove GUARD from environment
-    monkeypatch.delenv(GUARD, raising=False)
+    # remove CFG.env_vars.guard from environment
+    monkeypatch.delenv(CFG.env_vars.guard, raising=False)
 
     with pytest.raises(QQError, match="This script must be run as a qq job"):
         ensureQQEnv()
 
 
 def test_ensureQQEnv_passes_if_guard_present(monkeypatch):
-    monkeypatch.setenv(GUARD, "1")
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
 
     # should not raise
     ensureQQEnv()
@@ -31,8 +30,8 @@ def test_ensureQQEnv_passes_if_guard_present(monkeypatch):
 def test_run_exits_90_if_not_in_qq_env(monkeypatch):
     runner = CliRunner()
 
-    # remove GUARD from environment
-    monkeypatch.delenv(GUARD, raising=False)
+    # remove CFG.env_vars.guard from environment
+    monkeypatch.delenv(CFG.env_vars.guard, raising=False)
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == 90
@@ -42,35 +41,35 @@ def test_run_exits_90_if_not_in_qq_env(monkeypatch):
 def test_run_exits_92_if_info_file_env_missing(monkeypatch):
     runner = CliRunner()
 
-    monkeypatch.setenv(GUARD, "1")
-    monkeypatch.delenv(INFO_FILE, raising=False)
-    monkeypatch.setenv(INPUT_MACHINE, "random.host.org")
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
+    monkeypatch.delenv(CFG.env_vars.info_file, raising=False)
+    monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == 92
-    assert f"'{INFO_FILE}'" in result.output
+    assert f"'{CFG.env_vars.info_file}'" in result.output
     assert "not set" in result.output
 
 
 def test_run_exits_92_if_input_machine_env_missing(monkeypatch):
     runner = CliRunner()
 
-    monkeypatch.setenv(GUARD, "1")
-    monkeypatch.setenv(INFO_FILE, "/path/to/file")
-    monkeypatch.delenv(INPUT_MACHINE, raising=False)
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
+    monkeypatch.setenv(CFG.env_vars.info_file, "/path/to/file")
+    monkeypatch.delenv(CFG.env_vars.input_machine, raising=False)
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == 92
-    assert f"'{INPUT_MACHINE}'" in result.output
+    assert f"'{CFG.env_vars.input_machine}'" in result.output
     assert "not set" in result.output
 
 
 def test_run_executes_and_exits_with_script_code(monkeypatch):
     runner = CliRunner()
 
-    monkeypatch.setenv(GUARD, "1")
-    monkeypatch.setenv(INFO_FILE, "dummy.qqinfo")
-    monkeypatch.setenv(INPUT_MACHINE, "random.host.org")
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
+    monkeypatch.setenv(CFG.env_vars.info_file, "dummy.qqinfo")
+    monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
     dummy_runner = MagicMock()
     dummy_runner.execute.return_value = 2
@@ -89,9 +88,9 @@ def test_run_executes_and_exits_with_script_code(monkeypatch):
 def test_run_exits_91_on_standard_qqerror(monkeypatch):
     runner = CliRunner()
 
-    monkeypatch.setenv(GUARD, "1")
-    monkeypatch.setenv(INFO_FILE, "dummy.qqinfo")
-    monkeypatch.setenv(INPUT_MACHINE, "random.host.org")
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
+    monkeypatch.setenv(CFG.env_vars.info_file, "dummy.qqinfo")
+    monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
     # simulate a QQError raised inside runner.execute()
     dummy_runner = MagicMock()
@@ -110,9 +109,9 @@ def test_run_exits_91_on_standard_qqerror(monkeypatch):
 def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
     runner = CliRunner()
 
-    monkeypatch.setenv(GUARD, "1")
-    monkeypatch.setenv(INFO_FILE, "dummy.qqinfo")
-    monkeypatch.setenv(INPUT_MACHINE, "random.host.org")
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
+    monkeypatch.setenv(CFG.env_vars.info_file, "dummy.qqinfo")
+    monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
     # simulate QQRunner raising QQRunFatalError during initialization
     with patch("qq_lib.run.cli.QQRunner", side_effect=QQRunFatalError("fatal error")):
@@ -125,9 +124,9 @@ def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
 def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
     runner = CliRunner()
 
-    monkeypatch.setenv(GUARD, "1")
-    monkeypatch.setenv(INFO_FILE, "dummy.qqinfo")
-    monkeypatch.setenv(INPUT_MACHINE, "random.host.org")
+    monkeypatch.setenv(CFG.env_vars.guard, "1")
+    monkeypatch.setenv(CFG.env_vars.info_file, "dummy.qqinfo")
+    monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
     # simulate QQRunner.execute raising QQRunCommunicationError
     dummy_runner = MagicMock()

@@ -7,9 +7,9 @@ import pytest
 from click.testing import CliRunner
 
 from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.interface.interface import CFG
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.cd.cli import cd
-from qq_lib.core.constants import INPUT_DIR
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +38,7 @@ def test_cd_command_success_pbs_o_workdir():
 
 def test_cd_command_success_input_dir():
     runner = CliRunner()
-    env_vars = f"{INPUT_DIR}=/qq/input/dir,OTHER_VAR=123"
+    env_vars = f"{CFG.env_vars.input_dir}=/qq/input/dir,OTHER_VAR=123"
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with patch.object(QQPBS, "getJobInfo", return_value=job_info):

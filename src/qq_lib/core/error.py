@@ -2,6 +2,8 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 
+from qq_lib.core.config import CFG
+
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -10,7 +12,7 @@ logger = get_logger(__name__)
 class QQError(Exception):
     """Common exception type for all recoverable qq errors."""
 
-    exit_code = 91
+    exit_code = CFG.exit_codes.default
 
 
 class QQJobMismatchError(QQError):
@@ -33,7 +35,7 @@ class QQRunFatalError(Exception):
     Should only be used to signal that the error state cannot be logged into a qq info file.
     """
 
-    exit_code = 92
+    exit_code = CFG.exit_codes.qq_run_fatal
 
 
 class QQRunCommunicationError(Exception):
@@ -42,4 +44,4 @@ class QQRunCommunicationError(Exception):
     it has and the information in the corresponding qq info file.
     """
 
-    exit_code = 93
+    exit_code = CFG.exit_codes.qq_run_communication

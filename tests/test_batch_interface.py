@@ -9,9 +9,9 @@ from unittest.mock import patch
 import pytest
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface.interface import CFG
 from qq_lib.batch.pbs import QQPBS
 from qq_lib.batch.vbs import QQVBS
-from qq_lib.core.constants import BATCH_SYSTEM, SSH_TIMEOUT
 from qq_lib.core.error import QQError
 
 
@@ -22,7 +22,7 @@ def test_translate_ssh_command():
     assert cmd == [
         "ssh",
         "-o PasswordAuthentication=no",
-        f"-o ConnectTimeout={SSH_TIMEOUT}",
+        f"-o ConnectTimeout={CFG.timeouts.ssh}",
         host,
         "-t",
         f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
@@ -144,7 +144,7 @@ def test_from_str_none_registered():
 def test_env_var_or_guess_from_env_var_returns_value(monkeypatch):
     QQBatchMeta._registry.clear()
     QQBatchMeta.register(QQPBS)
-    monkeypatch.setenv(BATCH_SYSTEM, "PBS")
+    monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
     assert QQBatchMeta.fromEnvVarOrGuess() is QQPBS
 
@@ -153,8 +153,8 @@ def test_env_var_or_guess_from_env_var_not_set_calls_guess():
     QQBatchMeta._registry.clear()
     QQBatchMeta.register(QQPBS)
     QQBatchMeta.register(QQVBS)
-    if BATCH_SYSTEM in os.environ:
-        del os.environ[BATCH_SYSTEM]
+    if CFG.env_vars.batch_system in os.environ:
+        del os.environ[CFG.env_vars.batch_system]
 
     with (
         patch.object(QQPBS, "isAvailable", return_value=True),
@@ -165,8 +165,8 @@ def test_env_var_or_guess_from_env_var_not_set_calls_guess():
 
 def test_from_env_var_not_set_calls_guess():
     QQBatchMeta._registry.clear()
-    if BATCH_SYSTEM in os.environ:
-        del os.environ[BATCH_SYSTEM]
+    if CFG.env_vars.batch_system in os.environ:
+        del os.environ[CFG.env_vars.batch_system]
 
     with pytest.raises(QQError, match="Could not guess a batch system"):
         QQBatchMeta.fromEnvVarOrGuess()
@@ -192,7 +192,7 @@ def test_obtain_with_name_not_registered():
 def test_obtain_without_name_env_var(monkeypatch):
     QQBatchMeta._registry.clear()
     QQBatchMeta.register(QQPBS)
-    monkeypatch.setenv(BATCH_SYSTEM, "PBS")
+    monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
     assert QQBatchMeta.obtain(None) is QQPBS
 
@@ -201,8 +201,8 @@ def test_obtain_without_name_calls_guess():
     QQBatchMeta._registry.clear()
     QQBatchMeta.register(QQPBS)
     QQBatchMeta.register(QQVBS)
-    if BATCH_SYSTEM in os.environ:
-        del os.environ[BATCH_SYSTEM]
+    if CFG.env_vars.batch_system in os.environ:
+        del os.environ[CFG.env_vars.batch_system]
 
     with (
         patch.object(QQVBS, "isAvailable", return_value=True),
@@ -213,8 +213,8 @@ def test_obtain_without_name_calls_guess():
 
 def test_obtain_without_name_and_guess_fails():
     QQBatchMeta._registry.clear()
-    if BATCH_SYSTEM in os.environ:
-        del os.environ[BATCH_SYSTEM]
+    if CFG.env_vars.batch_system in os.environ:
+        del os.environ[CFG.env_vars.batch_system]
 
     with (
         patch.object(QQVBS, "isAvailable", return_value=False),
@@ -340,7 +340,7 @@ def test_sync_with_exclusions_rsync_timeout(tmp_path):
 
     with (
         pytest.raises(QQError, match="Could not rsync files"),
-        patch("qq_lib.batch.interface.interface.RSYNC_TIMEOUT", 0.0),
+        patch("qq_lib.batch.interface.interface.CFG.timeouts.rsync", 0),
     ):
         QQBatchInterface.syncWithExclusions(src, dest, None, None)
 
@@ -486,7 +486,7 @@ def test_sync_selected_rsync_timeout(tmp_path):
 
     with (
         pytest.raises(QQError, match="Could not rsync files"),
-        patch("qq_lib.batch.interface.interface.RSYNC_TIMEOUT", 0.0),
+        patch("qq_lib.batch.interface.interface.CFG.timeouts.rsync", 0),
     ):
         QQBatchInterface.syncSelected(
             src, dest, None, None, include_files=[src / "file.txt"]

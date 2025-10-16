@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.core.common import get_info_files, get_runtime_files
-from qq_lib.core.constants import QQ_OUT_SUFFIX
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
@@ -113,7 +113,7 @@ class QQClearer:
                 )  # script stderr
                 excluded.append(
                     (self._directory / informer.info.job_name).with_suffix(
-                        QQ_OUT_SUFFIX
+                        CFG.suffixes.qq_out
                     )
                 )  # qq out file
 

@@ -11,18 +11,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.core.constants import (
-    RUNNER_RETRY_TRIES,
-    RUNNER_RETRY_WAIT,
-    RUNNER_SIGTERM_TO_SIGKILL,
-    SCRATCH_DIR_INNER,
-    UNEXPECTED_EXCEPTION_EXIT_CODE,
-)
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.states import NaiveState
-from qq_lib.run.runner import QQRunner, log_fatal_error_and_exit
+from qq_lib.run.runner import CFG, QQRunner, log_fatal_error_and_exit
 
 
 def test_qqrunner_init_without_loop_info():
@@ -134,7 +127,7 @@ def test_qqrunner_cleanup_with_running_process():
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_called_once_with("Cleaning up: terminating subprocess.")
     process_mock.terminate.assert_called_once()
-    process_mock.wait.assert_called_once_with(timeout=RUNNER_SIGTERM_TO_SIGKILL)
+    process_mock.wait.assert_called_once_with(timeout=CFG.runner.sigterm_to_sigkill)
     process_mock.kill.assert_not_called()
 
 
@@ -302,8 +295,8 @@ def test_qqrunner_resubmit_successful_resubmission():
         input_machine="random.host.org",
         input_dir="/dir",
         command_line=["cmd"],
-        max_tries=RUNNER_RETRY_TRIES,
-        wait_seconds=RUNNER_RETRY_WAIT,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
     )
     retryer_mock.run.assert_called_once()
     mock_logger.info.assert_any_call("Job successfully resubmitted.")
@@ -348,8 +341,8 @@ def test_qqrunner_reload_info_and_ensure_not_killed_success():
         QQInformer.fromFile,
         runner._info_file,
         host=runner._input_machine,
-        max_tries=RUNNER_RETRY_TRIES,
-        wait_seconds=RUNNER_RETRY_WAIT,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
     )
     retryer_mock.run.assert_called_once()
     assert runner._informer == informer_mock
@@ -454,8 +447,8 @@ def test_qqrunner_update_info_failed_success():
         informer_mock.toFile,
         runner._info_file,
         host="random.host.org",
-        max_tries=RUNNER_RETRY_TRIES,
-        wait_seconds=RUNNER_RETRY_WAIT,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
     )
     retryer_mock.run.assert_called_once()
     mock_logger.warning.assert_not_called()
@@ -506,8 +499,8 @@ def test_qqrunner_update_info_finished_success():
         informer_mock.toFile,
         runner._info_file,
         host="random.host.org",
-        max_tries=RUNNER_RETRY_TRIES,
-        wait_seconds=RUNNER_RETRY_WAIT,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
     )
     retryer_mock.run.assert_called_once()
     mock_logger.warning.assert_not_called()
@@ -564,8 +557,8 @@ def test_qqrunner_update_info_running_success():
         informer_mock.toFile,
         runner._info_file,
         host="random.host.org",
-        max_tries=RUNNER_RETRY_TRIES,
-        wait_seconds=RUNNER_RETRY_WAIT,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
     )
     retryer_mock.run.assert_called_once()
     mock_logger.debug.assert_called_once()
@@ -603,8 +596,8 @@ def test_qqrunner_delete_work_dir_invokes_shutil_rmtree_with_retryer():
     retryer_cls.assert_called_once_with(
         shutil.rmtree,
         Path("/scratch/workdir"),
-        max_tries=RUNNER_RETRY_TRIES,
-        wait_seconds=RUNNER_RETRY_WAIT,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
     )
     retryer_mock.run.assert_called_once()
     mock_logger.debug.assert_called_once_with(
@@ -633,12 +626,12 @@ def test_qqrunner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     ):
         runner._setUpScratchDir()
 
-    work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
+    work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
 
     # first QQRetryer call: Path.mkdir
     mkdir_call = retryer_cls.call_args_list[0]
-    assert mkdir_call.kwargs["max_tries"] == RUNNER_RETRY_TRIES
-    assert mkdir_call.kwargs["wait_seconds"] == RUNNER_RETRY_WAIT
+    assert mkdir_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert mkdir_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
     assert mkdir_call.args[0] == Path.mkdir
     assert mkdir_call.args[1] == work_dir
 
@@ -656,8 +649,8 @@ def test_qqrunner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     assert sync_call.args[3] == "random.host.org"
     assert sync_call.args[4] == "localhost"
     assert set(sync_call.args[5]) == set(expected_excluded)
-    assert sync_call.kwargs["max_tries"] == RUNNER_RETRY_TRIES
-    assert sync_call.kwargs["wait_seconds"] == RUNNER_RETRY_WAIT
+    assert sync_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert sync_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
 
 
 def test_qqrunner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
@@ -704,8 +697,8 @@ def test_qqrunner_set_up_shared_dir_calls_chdir_with_input_dir():
     call_args = retryer_cls.call_args
     assert call_args.args[0] == os.chdir
     assert call_args.args[1] == runner._input_dir
-    assert call_args.kwargs["max_tries"] == RUNNER_RETRY_TRIES
-    assert call_args.kwargs["wait_seconds"] == RUNNER_RETRY_WAIT
+    assert call_args.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert call_args.kwargs["wait_seconds"] == CFG.runner.retry_wait
 
     assert runner._work_dir == runner._input_dir
 
@@ -1013,4 +1006,4 @@ def test_log_fatal_error_and_exit_unknown_exception():
         "Failure state was NOT logged into the job info file."
     )
     mock_logger.critical.assert_called_once_with(exc, exc_info=True, stack_info=True)
-    assert e.value.code == UNEXPECTED_EXCEPTION_EXIT_CODE
+    assert e.value.code == CFG.exit_codes.unexpected_error

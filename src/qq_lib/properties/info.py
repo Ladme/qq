@@ -10,7 +10,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
-from qq_lib.core.constants import DATE_FORMAT
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
@@ -258,7 +258,7 @@ class QQInfo:
                 result[f.name] = [Depend.toStr(x) for x in value]
             # convert timestamp
             elif f.type == datetime or f.type == datetime | None:
-                result[f.name] = value.strftime(DATE_FORMAT)
+                result[f.name] = value.strftime(CFG.date_formats.standard)
             else:
                 result[f.name] = value
 
@@ -322,7 +322,7 @@ class QQInfo:
             elif (f.type == datetime or f.type == datetime | None) and isinstance(
                 value, str
             ):
-                init_kwargs[name] = datetime.strptime(value, DATE_FORMAT)
+                init_kwargs[name] = datetime.strptime(value, CFG.date_formats.standard)
             else:
                 init_kwargs[name] = value
 

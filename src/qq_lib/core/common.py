@@ -9,7 +9,7 @@ import readchar
 from rich.live import Live
 from rich.text import Text
 
-from .constants import QQ_INFO_SUFFIX, QQ_SUFFIXES
+from .config import CFG
 from .error import QQError
 from .logger import get_logger
 
@@ -46,7 +46,7 @@ def get_runtime_files(directory: Path) -> list[Path]:
         list[Path]: A list of Path objects representing qq runtime files.
     """
     files = []
-    for suffix in QQ_SUFFIXES:
+    for suffix in CFG.suffixes.all_suffixes:
         files.extend(get_files_with_suffix(directory, suffix))
 
     return files
@@ -91,7 +91,7 @@ def get_info_files(directory: Path) -> list[Path]:
     Returns:
         list[Path]: A list of Path objects representing the detected qq job info files.
     """
-    info_files = get_files_with_suffix(directory, QQ_INFO_SUFFIX)
+    info_files = get_files_with_suffix(directory, CFG.suffixes.qq_info)
     logger.debug(f"Detected the following qq info files: {info_files}.")
 
     return sorted(info_files, key=lambda f: f.stat().st_mtime)

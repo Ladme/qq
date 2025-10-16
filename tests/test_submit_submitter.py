@@ -11,22 +11,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.batch.pbs.qqpbs import QQPBS
-from qq_lib.core.constants import (
-    ARCHIVE_FORMAT,
-    BATCH_SYSTEM,
-    DEBUG_MODE,
-    GUARD,
-    INFO_FILE,
-    INPUT_DIR,
-    INPUT_MACHINE,
-    LOOP_CURRENT,
-    LOOP_END,
-    LOOP_JOB_PATTERN,
-    LOOP_START,
-    QQ_INFO_SUFFIX,
-    STDERR_SUFFIX,
-    STDOUT_SUFFIX,
-)
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.depend import Depend, DependType
@@ -34,7 +18,7 @@ from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
-from qq_lib.submit.submitter import QQSubmitter
+from qq_lib.submit.submitter import CFG, QQSubmitter
 
 
 def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
@@ -61,7 +45,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._script == script
         assert submitter._input_dir == tmp_path
         assert submitter._job_name == "job1"
-        assert submitter._info_file == tmp_path / f"job1{QQ_INFO_SUFFIX}"
+        assert submitter._info_file == tmp_path / f"job1{CFG.suffixes.qq_info}"
         assert submitter._resources == QQResources()
         assert submitter._exclude == []
         assert submitter._command_line == ["-q", "default", str(script)]
@@ -136,7 +120,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._input_dir == tmp_path
         assert submitter._script_name == script.name
         assert submitter._job_name == "job"
-        assert submitter._info_file == tmp_path / f"job{QQ_INFO_SUFFIX}"
+        assert submitter._info_file == tmp_path / f"job{CFG.suffixes.qq_info}"
         assert submitter._resources == QQResources()
         assert submitter._exclude == exclude_files
         assert submitter._command_line == ["-q", "long", str(script)]
@@ -172,7 +156,7 @@ def test_qqsubmitter_construct_job_name_returns_name_with_cycle_number_for_loop_
 
     result = submitter._constructJobName()
 
-    assert result == f"job.sh{LOOP_JOB_PATTERN % 3}"
+    assert result == f"job.sh{CFG.loop_jobs.pattern % 3}"
 
 
 def test_qqsubmitter_has_valid_shebang_returns_true_for_valid_shebang(tmp_path):
@@ -221,20 +205,20 @@ def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
     submitter._input_dir = tmp_path
 
     if debug_mode:
-        with patch.dict(os.environ, {DEBUG_MODE: "true"}):
+        with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
             env = submitter._createEnvVarsDict()
     else:
         env = submitter._createEnvVarsDict()
 
-    assert env[GUARD] == "true"
-    assert env[INFO_FILE] == str(submitter._info_file)
-    assert env[INPUT_MACHINE] == socket.gethostname()
-    assert env[BATCH_SYSTEM] == str(submitter._batch_system)
-    assert env[INPUT_DIR] == str(submitter._input_dir)
+    assert env[CFG.env_vars.guard] == "true"
+    assert env[CFG.env_vars.info_file] == str(submitter._info_file)
+    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
+    assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     if debug_mode:
-        assert env[DEBUG_MODE] == "true"
+        assert env[CFG.env_vars.debug_mode] == "true"
     else:
-        assert DEBUG_MODE not in env
+        assert CFG.env_vars.debug_mode not in env
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
@@ -255,25 +239,25 @@ def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mo
     submitter._input_dir = tmp_path
 
     if debug_mode:
-        with patch.dict(os.environ, {DEBUG_MODE: "true"}):
+        with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
             env = submitter._createEnvVarsDict()
     else:
         env = submitter._createEnvVarsDict()
 
-    assert env[GUARD] == "true"
-    assert env[INFO_FILE] == str(submitter._info_file)
-    assert env[INPUT_MACHINE] == socket.gethostname()
-    assert env[BATCH_SYSTEM] == str(submitter._batch_system)
-    assert env[INPUT_DIR] == str(submitter._input_dir)
+    assert env[CFG.env_vars.guard] == "true"
+    assert env[CFG.env_vars.info_file] == str(submitter._info_file)
+    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
+    assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
 
-    assert env[LOOP_CURRENT] == str(DummyLoop.current)
-    assert env[LOOP_START] == str(DummyLoop.start)
-    assert env[LOOP_END] == str(DummyLoop.end)
-    assert env[ARCHIVE_FORMAT] == DummyLoop.archive_format
+    assert env[CFG.env_vars.loop_current] == str(DummyLoop.current)
+    assert env[CFG.env_vars.loop_start] == str(DummyLoop.start)
+    assert env[CFG.env_vars.loop_end] == str(DummyLoop.end)
+    assert env[CFG.env_vars.archive_format] == DummyLoop.archive_format
     if debug_mode:
-        assert env[DEBUG_MODE] == "true"
+        assert env[CFG.env_vars.debug_mode] == "true"
     else:
-        assert DEBUG_MODE not in env
+        assert CFG.env_vars.debug_mode not in env
 
 
 def test_qqsubmitter_get_input_dir_returns_correct_path(tmp_path):
@@ -432,7 +416,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._command_line = ["-q", "default", str(submitter._script)]
     submitter._depend = []
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
-    env_vars = {GUARD: "true"}
+    env_vars = {CFG.env_vars.guard: "true"}
 
     with (
         patch.object(
@@ -478,7 +462,7 @@ def test_qq_submitter_submit(tmp_path):
     submitter._command_line = ["-q", "default", str(submitter._script)]
     submitter._depend = []
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
-    env_vars = {GUARD: "true"}
+    env_vars = {CFG.env_vars.guard: "true"}
 
     with (
         patch.object(
@@ -528,10 +512,10 @@ def test_qq_submitter_submit(tmp_path):
     assert qqinfo_arg.job_state == NaiveState.QUEUED
     assert qqinfo_arg.submission_time == datetime(2025, 10, 14, 12, 0, 0)
     assert qqinfo_arg.stdout_file == str(
-        Path(submitter._job_name).with_suffix(STDOUT_SUFFIX)
+        Path(submitter._job_name).with_suffix(CFG.suffixes.stdout)
     )
     assert qqinfo_arg.stderr_file == str(
-        Path(submitter._job_name).with_suffix(STDERR_SUFFIX)
+        Path(submitter._job_name).with_suffix(CFG.suffixes.stderr)
     )
     assert qqinfo_arg.resources == submitter._resources
     assert qqinfo_arg.loop_info == submitter._loop_info

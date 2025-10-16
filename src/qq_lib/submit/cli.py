@@ -11,7 +11,7 @@ from click_option_group import optgroup
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import get_runtime_files
-from qq_lib.core.constants import BATCH_SYSTEM
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.submit.factory import QQSubmitterFactory
@@ -68,7 +68,7 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     "--batch-system",
     type=str,
     default=None,
-    help=f"Name of the batch system to submit the job to. If not specified, the system will use the environment variable '{BATCH_SYSTEM}' or attempt to auto-detect it.",
+    help=f"Name of the batch system to submit the job to. If not specified, the system will use the environment variable '{CFG.env_vars.batch_system}' or attempt to auto-detect it.",
 )
 @optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
 @optgroup.option(

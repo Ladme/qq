@@ -4,6 +4,7 @@
 from enum import Enum
 from typing import Self
 
+from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -253,16 +254,16 @@ class RealState(Enum):
             str: A string representing the color for presentation purposes.
         """
         return {
-            self.QUEUED: "bright_magenta",
-            self.HELD: "bright_magenta",
-            self.SUSPENDED: "bright_black",
-            self.WAITING: "bright_magenta",
-            self.RUNNING: "bright_blue",
-            self.BOOTING: "bright_cyan",
-            self.KILLED: "bright_red",
-            self.FAILED: "bright_red",
-            self.FINISHED: "bright_green",
-            self.EXITING: "bright_yellow",
-            self.IN_AN_INCONSISTENT_STATE: "grey70",
-            self.UNKNOWN: "grey70",
+            self.QUEUED: CFG.state_colors.queued,
+            self.HELD: CFG.state_colors.held,
+            self.SUSPENDED: CFG.state_colors.suspended,
+            self.WAITING: CFG.state_colors.waiting,
+            self.RUNNING: CFG.state_colors.running,
+            self.BOOTING: CFG.state_colors.booting,
+            self.KILLED: CFG.state_colors.killed,
+            self.FAILED: CFG.state_colors.failed,
+            self.FINISHED: CFG.state_colors.finished,
+            self.EXITING: CFG.state_colors.exiting,
+            self.IN_AN_INCONSISTENT_STATE: CFG.state_colors.in_an_inconsistent_state,
+            self.UNKNOWN: CFG.state_colors.unknown,
         }[self]

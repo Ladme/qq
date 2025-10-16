@@ -12,7 +12,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.core.common import equals_normalized
-from qq_lib.core.constants import PBS_SCRATCH_DIR, QQ_OUT_SUFFIX, SHARED_SUBMIT
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
@@ -38,7 +38,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return shutil.which("qsub") is not None
 
     def getScratchDir(job_id: str) -> Path:
-        scratch_dir = os.environ.get(PBS_SCRATCH_DIR)
+        scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
         if not scratch_dir:
             raise QQError(f"Scratch directory for job '{job_id}' is undefined")
 
@@ -129,7 +129,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         return QQPBS._getJobsInfoUsingCommand(command)
 
     def readRemoteFile(host: str, file: Path) -> str:
-        if os.environ.get(SHARED_SUBMIT):
+        if os.environ.get(CFG.env_vars.shared_submit):
             # file is on shared storage, we can read it directly
             # this assumes that this method is only used to read files in input_dir
             logger.debug(f"Reading a file '{file}' from shared storage.")
@@ -143,7 +143,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             return QQBatchInterface.readRemoteFile(host, file)
 
     def writeRemoteFile(host: str, file: Path, content: str) -> None:
-        if os.environ.get(SHARED_SUBMIT):
+        if os.environ.get(CFG.env_vars.shared_submit):
             # file should be written to shared storage
             # this assumes that the method is only used to write files into input_dir
             logger.debug(f"Writing a file '{file}' to shared storage.")
@@ -157,7 +157,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             QQBatchInterface.writeRemoteFile(host, file, content)
 
     def makeRemoteDir(host: str, directory: Path) -> None:
-        if os.environ.get(SHARED_SUBMIT):
+        if os.environ.get(CFG.env_vars.shared_submit):
             # assuming the directory is created in input_dir
             logger.debug(f"Creating a directory '{directory}' on shared storage.")
             try:
@@ -172,7 +172,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             QQBatchInterface.makeRemoteDir(host, directory)
 
     def listRemoteDir(host: str, directory: Path) -> list[Path]:
-        if os.environ.get(SHARED_SUBMIT):
+        if os.environ.get(CFG.env_vars.shared_submit):
             # assuming we are listing input_dir or another directory on shared storage
             logger.debug(f"Listing a directory '{directory}' on shared storage.")
             try:
@@ -190,7 +190,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                 "The provided 'files' and 'moved_files' must have the same length."
             )
 
-        if os.environ.get(SHARED_SUBMIT):
+        if os.environ.get(CFG.env_vars.shared_submit):
             # assuming we are moving files inside input_dir or another directory on shared storage
             logger.debug(
                 f"Moving files '{files}' -> '{moved_files}' on a shared storage."
@@ -329,7 +329,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
                     directory while submission is from a non-shared filesystem.
         """
         if QQPBS.isShared(Path()):
-            env_vars[SHARED_SUBMIT] = "true"
+            env_vars[CFG.env_vars.shared_submit] = "true"
         elif not res.usesScratch():
             # if job directory is used as working directory, it must always be shared
             raise QQError(
@@ -360,7 +360,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         Returns:
             str: The fully constructed qsub command string.
         """
-        qq_output = str((input_dir / job_name).with_suffix(QQ_OUT_SUFFIX))
+        qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
         command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} "
 
         # translate environment variables
@@ -642,7 +642,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             QQError: If both source and destination hosts are remote and cannot be
                 accessed simultaneously, or if syncing fails internally.
         """
-        if os.environ.get(SHARED_SUBMIT):
+        if os.environ.get(CFG.env_vars.shared_submit):
             # input_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
             logger.debug("Syncing directories on local and shared filesystem.")
             sync_function(src_dir, dest_dir, None, None, files)

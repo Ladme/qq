@@ -12,7 +12,7 @@ from rich.table import Table
 from rich.text import Text
 
 from qq_lib.core.common import format_duration_wdhhmmss
-from qq_lib.core.constants import DATE_FORMAT
+from qq_lib.core.config import CFG
 from qq_lib.properties.states import RealState
 
 from .informer import QQInformer
@@ -360,17 +360,17 @@ class QQPresenter:
             case RealState.KILLED:
                 return (
                     "Job has been killed",
-                    f"Killed at {end_time.strftime(DATE_FORMAT)}",
+                    f"Killed at {end_time.strftime(CFG.date_formats.standard)}",
                 )
             case RealState.FAILED:
                 return (
                     "Job has failed",
-                    f"Failed at {end_time.strftime(DATE_FORMAT)} [exit code: {self._informer.info.job_exit_code}]",
+                    f"Failed at {end_time.strftime(CFG.date_formats.standard)} [exit code: {self._informer.info.job_exit_code}]",
                 )
             case RealState.FINISHED:
                 return (
                     "Job has finished",
-                    f"Completed at {end_time.strftime(DATE_FORMAT)}",
+                    f"Completed at {end_time.strftime(CFG.date_formats.standard)}",
                 )
             case RealState.EXITING:
                 exit_code = self._informer.info.job_exit_code

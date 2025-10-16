@@ -14,14 +14,7 @@ from typing import NoReturn
 
 import qq_lib
 from qq_lib.archive.archiver import QQArchiver
-from qq_lib.core.constants import (
-    LOOP_JOB_PATTERN,
-    RUNNER_RETRY_TRIES,
-    RUNNER_RETRY_WAIT,
-    RUNNER_SIGTERM_TO_SIGKILL,
-    SCRATCH_DIR_INNER,
-    UNEXPECTED_EXCEPTION_EXIT_CODE,
-)
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import QQRetryer
@@ -72,8 +65,8 @@ class QQRunner:
                 QQInformer.fromFile,
                 self._info_file,
                 host=self._input_machine,
-                max_tries=RUNNER_RETRY_TRIES,
-                wait_seconds=RUNNER_RETRY_WAIT,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
             ).run()
         except Exception as e:
             raise QQRunFatalError(
@@ -114,7 +107,7 @@ class QQRunner:
             )
             self._archiver.archiveRunTimeFiles(
                 # we need to escape the '+' character
-                f"{self._informer.info.script_name}{LOOP_JOB_PATTERN.replace('+', '\\+') % (loop_info.current - 1)}",
+                f"{self._informer.info.script_name}{CFG.loop_jobs.pattern.replace('+', '\\+') % (loop_info.current - 1)}",
                 loop_info.current - 1,
             )
         else:
@@ -217,8 +210,8 @@ class QQRunner:
                     self._input_dir,
                     socket.gethostname(),
                     self._informer.info.input_machine,
-                    max_tries=RUNNER_RETRY_TRIES,
-                    wait_seconds=RUNNER_RETRY_WAIT,
+                    max_tries=CFG.runner.retry_tries,
+                    wait_seconds=CFG.runner.retry_wait,
                 ).run()
 
                 # remove the working directory from scratch
@@ -245,7 +238,7 @@ class QQRunner:
         Raises:
             SystemExit: Always exits with the exit code associated with the given exception.
         """
-        exit_code = getattr(exception, "exit_code", UNEXPECTED_EXCEPTION_EXIT_CODE)
+        exit_code = getattr(exception, "exit_code", CFG.exit_codes.unexpected_error)
         try:
             self._updateInfoFailed(exit_code)
             logger.error(exception)
@@ -265,8 +258,8 @@ class QQRunner:
         QQRetryer(
             os.chdir,
             self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
     def _setUpScratchDir(self) -> None:
@@ -286,21 +279,21 @@ class QQRunner:
         # we create this directory because other processes may write files
         # into the allocated scratch directory and we do not want these files
         # to affect the job execution or be copied back to input_dir
-        self._work_dir = (scratch_dir / SCRATCH_DIR_INNER).resolve()
+        self._work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
         QQRetryer(
             Path.mkdir,
             self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
         # move to the working directory
         QQRetryer(
             os.chdir,
             self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
         # files excluded from copying to the working directory
@@ -316,8 +309,8 @@ class QQRunner:
             self._informer.info.input_machine,
             socket.gethostname(),
             excluded,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
     def _deleteWorkDir(self) -> None:
@@ -330,8 +323,8 @@ class QQRunner:
         QQRetryer(
             shutil.rmtree,
             self._work_dir,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
     def _updateInfoRunning(self) -> None:
@@ -357,8 +350,8 @@ class QQRunner:
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
-                max_tries=RUNNER_RETRY_TRIES,
-                wait_seconds=RUNNER_RETRY_WAIT,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
             ).run()
         except Exception as e:
             raise QQError(
@@ -383,8 +376,8 @@ class QQRunner:
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
-                max_tries=RUNNER_RETRY_TRIES,
-                wait_seconds=RUNNER_RETRY_WAIT,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
             ).run()
         except Exception as e:
             logger.warning(
@@ -412,8 +405,8 @@ class QQRunner:
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
-                max_tries=RUNNER_RETRY_TRIES,
-                wait_seconds=RUNNER_RETRY_WAIT,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
             ).run()
         except Exception as e:
             logger.warning(
@@ -452,8 +445,8 @@ class QQRunner:
             QQInformer.fromFile,
             self._info_file,
             host=self._input_machine,
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
         if self._informer.info.job_state == NaiveState.KILLED:
@@ -480,8 +473,8 @@ class QQRunner:
             input_machine=self._informer.info.input_machine,
             input_dir=self._informer.info.input_dir,
             command_line=self._prepareCommandLineForResubmit(),
-            max_tries=RUNNER_RETRY_TRIES,
-            wait_seconds=RUNNER_RETRY_WAIT,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
         ).run()
 
         logger.info("Job successfully resubmitted.")
@@ -531,7 +524,7 @@ class QQRunner:
             logger.info("Cleaning up: terminating subprocess.")
             self._process.terminate()
             try:
-                self._process.wait(timeout=RUNNER_SIGTERM_TO_SIGKILL)
+                self._process.wait(timeout=CFG.runner.sigterm_to_sigkill)
             # kill the running process if this takes too long
             except subprocess.TimeoutExpired:
                 logger.info("Subprocess did not exit, killing.")
@@ -571,4 +564,4 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
         sys.exit(exception.exit_code)
 
     logger.critical(exception, exc_info=True, stack_info=True)
-    sys.exit(UNEXPECTED_EXCEPTION_EXIT_CODE)
+    sys.exit(CFG.exit_codes.unexpected_error)

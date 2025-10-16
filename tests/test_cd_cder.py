@@ -6,9 +6,9 @@ from unittest.mock import patch
 
 import pytest
 
+from qq_lib.batch.interface.interface import CFG
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.cd.cder import QQCder
-from qq_lib.core.constants import INPUT_DIR
 from qq_lib.core.error import QQError
 
 
@@ -29,7 +29,7 @@ def test_cder_cd_success_pbs_o_workdir():
 
 
 def test_cder_cd_success_input_dir():
-    env_vars = f"{INPUT_DIR}=/qq/input/dir,OTHER_VAR=123"
+    env_vars = f"{CFG.env_vars.input_dir}=/qq/input/dir,OTHER_VAR=123"
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with patch.object(QQPBS, "getJobInfo", return_value=job_info):

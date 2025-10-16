@@ -11,7 +11,7 @@ import yaml
 
 from qq_lib.batch.interface import BatchJobInfoInterface
 from qq_lib.core.common import hhmmss_to_duration
-from qq_lib.core.constants import INFO_FILE, INPUT_DIR, PBS_DATE_FORMAT
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.size import Size
@@ -83,7 +83,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             return None
 
         try:
-            time = datetime.strptime(raw_time, PBS_DATE_FORMAT)
+            time = datetime.strptime(raw_time, CFG.date_formats.pbs)
             # if the estimated start time is in the past, use the current time
             if (current_time := datetime.now()) > time:
                 time = current_time
@@ -259,7 +259,7 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         if not (
             input_dir := env_vars.get("PBS_O_WORKDIR")  # try PBS first
-            or env_vars.get(INPUT_DIR)  # if this fails, try qq
+            or env_vars.get(CFG.env_vars.input_dir)  # if this fails, try qq
             or env_vars.get("INF_INPUT_DIR")  # if this fails, try Infinity
         ):
             logger.warning(f"Could not obtain input directory for '{self._job_id}'.")
@@ -274,7 +274,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             )
             return None
 
-        if not (info_file := env_vars.get(INFO_FILE)):
+        if not (info_file := env_vars.get(CFG.env_vars.info_file)):
             logger.debug(
                 f"Job '{self._job_id}' does not have an assigned qq info file."
             )
@@ -338,7 +338,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             return None
 
         try:
-            return datetime.strptime(raw_datetime, PBS_DATE_FORMAT)
+            return datetime.strptime(raw_datetime, CFG.date_formats.pbs)
         except Exception:
             logger.warning(
                 f"Could not parse information about {property_name} for '{self._job_id}'."

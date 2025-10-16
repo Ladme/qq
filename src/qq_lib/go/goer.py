@@ -7,7 +7,7 @@ from time import sleep
 
 from rich.console import Console
 
-from qq_lib.core.constants import GOER_WAIT_TIME
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
@@ -123,7 +123,7 @@ class QQGoer:
 
         elif self._isQueued():
             logger.warning(
-                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {GOER_WAIT_TIME} seconds."
+                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {CFG.goer.wait_time} seconds."
             )
 
             # keep retrying until the job stops being queued
@@ -183,7 +183,7 @@ class QQGoer:
             leaves the queued state or an exception is raised.
         """
         while self._isQueued():
-            sleep(GOER_WAIT_TIME)
+            sleep(CFG.goer.wait_time)
             self._update()
             self.ensureSuitable()
 

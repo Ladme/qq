@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from qq_lib.batch.pbs.job import PBSJobInfo
-from qq_lib.core.constants import INFO_FILE, INPUT_DIR
+from qq_lib.batch.pbs.job import CFG, PBSJobInfo
 from qq_lib.core.error import QQError
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
@@ -613,7 +612,7 @@ def test_pbs_job_info_get_input_dir_pbs():
 def test_pbs_job_info_get_input_dir_qq():
     job = _make_jobinfo_with_info(
         {
-            "Variable_List": f"PBS_O_LOGNAME=user,{INPUT_DIR}=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+            "Variable_List": f"PBS_O_LOGNAME=user,{CFG.env_vars.input_dir}=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
     assert job.getInputDir() == Path("/path/to/input_dir")
@@ -640,7 +639,7 @@ def test_pbs_job_info_get_input_dir_nonexistent():
 def test_pbs_job_info_get_info_file():
     job = _make_jobinfo_with_info(
         {
-            "Variable_List": f"{INFO_FILE}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+            "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
     assert job.getInfoFile() == Path("/path/to/info_file.qqinfo")

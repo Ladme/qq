@@ -14,14 +14,7 @@ from qq_lib.batch.interface import BatchJobInfoInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
 )
-from qq_lib.core.constants import (
-    DATE_FORMAT,
-    JOBS_PRESENTER_MAIN_COLOR,
-    JOBS_PRESENTER_MAX_JOB_NAME_LENGTH,
-    JOBS_PRESENTER_MILD_WARNING_COLOR,
-    JOBS_PRESENTER_SECONDARY_COLOR,
-    JOBS_PRESENTER_STRONG_WARNING_COLOR,
-)
+from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
 
 
@@ -216,7 +209,7 @@ class QQJobsPresenter:
                 return ""
             case BatchState.FAILED | BatchState.FINISHED:
                 return QQJobsPresenter._color(
-                    end_time.strftime(DATE_FORMAT), color=state.color
+                    end_time.strftime(CFG.date_formats.standard), color=state.color
                 )
             case (
                 BatchState.HELD
@@ -232,7 +225,7 @@ class QQJobsPresenter:
                 run_time = end_time - start_time
                 return QQJobsPresenter._color(
                     format_duration_wdhhmmss(run_time),
-                    color=JOBS_PRESENTER_STRONG_WARNING_COLOR
+                    color=CFG.jobs_presenter.colors.strong_warning
                     if run_time > walltime
                     else state.color,
                 ) + QQJobsPresenter._mainColor(
@@ -257,13 +250,13 @@ class QQJobsPresenter:
             return ""
 
         if util > 100:
-            color = JOBS_PRESENTER_STRONG_WARNING_COLOR
+            color = CFG.jobs_presenter.colors.strong_warning
         elif util >= 80:
-            color = JOBS_PRESENTER_MAIN_COLOR
+            color = CFG.jobs_presenter.colors.main
         elif util >= 60:
-            color = JOBS_PRESENTER_MILD_WARNING_COLOR
+            color = CFG.jobs_presenter.colors.mild_warning
         else:
-            color = JOBS_PRESENTER_STRONG_WARNING_COLOR
+            color = CFG.jobs_presenter.colors.strong_warning
 
         return QQJobsPresenter._color(str(util), color=color)
 
@@ -283,11 +276,11 @@ class QQJobsPresenter:
             return ""
 
         if util < 90:
-            color = JOBS_PRESENTER_MAIN_COLOR
+            color = CFG.jobs_presenter.colors.main
         elif util < 100:
-            color = JOBS_PRESENTER_MILD_WARNING_COLOR
+            color = CFG.jobs_presenter.colors.mild_warning
         else:
-            color = JOBS_PRESENTER_STRONG_WARNING_COLOR
+            color = CFG.jobs_presenter.colors.strong_warning
 
         return QQJobsPresenter._color(str(util), color=color)
 
@@ -309,7 +302,7 @@ class QQJobsPresenter:
             return QQJobsPresenter._mainColor(str(exit_code))
 
         return QQJobsPresenter._color(
-            str(exit_code), color=JOBS_PRESENTER_STRONG_WARNING_COLOR
+            str(exit_code), color=CFG.jobs_presenter.colors.strong_warning
         )
 
     @staticmethod
@@ -366,8 +359,8 @@ class QQJobsPresenter:
             str: The possibly shortened job name. If the original name length is
                 less than or equal to the configured limit, it is returned unchanged.
         """
-        if len(job_name) > JOBS_PRESENTER_MAX_JOB_NAME_LENGTH:
-            return f"{job_name[:JOBS_PRESENTER_MAX_JOB_NAME_LENGTH]}…"
+        if len(job_name) > CFG.jobs_presenter.max_job_name_length:
+            return f"{job_name[: CFG.jobs_presenter.max_job_name_length]}…"
 
         return job_name
 
@@ -398,7 +391,7 @@ class QQJobsPresenter:
         Returns:
             str: ANSI-colored string in the main presenter color.
         """
-        return QQJobsPresenter._color(string, JOBS_PRESENTER_MAIN_COLOR, bold)
+        return QQJobsPresenter._color(string, CFG.jobs_presenter.colors.main, bold)
 
     @staticmethod
     def _secondaryColor(string: str, bold: bool = False) -> str:
@@ -412,7 +405,7 @@ class QQJobsPresenter:
         Returns:
             Text: ANSI-colored Rich Text object in secondary color.
         """
-        return QQJobsPresenter._color(string, JOBS_PRESENTER_SECONDARY_COLOR, bold)
+        return QQJobsPresenter._color(string, CFG.jobs_presenter.colors.secondary, bold)
 
 
 @dataclass
@@ -610,5 +603,5 @@ class QQJobsStatistics:
             str: Rich Text in main color.
         """
         return QQJobsStatistics._colorText(
-            string, color=JOBS_PRESENTER_SECONDARY_COLOR, bold=bold
+            string, color=CFG.jobs_presenter.colors.secondary, bold=bold
         )

@@ -10,15 +10,7 @@ import pytest
 
 from qq_lib.batch.interface import QQBatchInterface
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
-from qq_lib.core.constants import (
-    BATCH_SYSTEM,
-    GUARD,
-    INFO_FILE,
-    INPUT_DIR,
-    QQ_OUT_SUFFIX,
-    SHARED_SUBMIT,
-    SSH_TIMEOUT,
-)
+from qq_lib.batch.pbs.qqpbs import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import QQResources
@@ -53,7 +45,7 @@ def test_navigate_success(tmp_path):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "fake.host.org",
                 "-t",
                 f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
@@ -64,25 +56,25 @@ def test_navigate_success(tmp_path):
 
 
 def test_shared_guard_sets_env_var():
-    env_vars = {GUARD: "true"}
+    env_vars = {CFG.env_vars.guard: "true"}
 
     # patch isShared to return True
     with patch.object(QQPBS, "isShared", return_value=True):
         QQPBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
-        assert env_vars[SHARED_SUBMIT] == "true"
+        assert env_vars[CFG.env_vars.shared_submit] == "true"
         # previous env vars not removed
-        assert env_vars[GUARD] == "true"
+        assert env_vars[CFG.env_vars.guard] == "true"
 
 
 def test_shared_guard_does_not_set_env_var():
-    env_vars = {GUARD: "true"}
+    env_vars = {CFG.env_vars.guard: "true"}
 
     # patch isShared to return False
     with patch.object(QQPBS, "isShared", return_value=False):
         QQPBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
-        assert SHARED_SUBMIT not in env_vars
+        assert CFG.env_vars.shared_submit not in env_vars
         # previous env vars not removed
-        assert env_vars[GUARD] == "true"
+        assert env_vars[CFG.env_vars.guard] == "true"
 
 
 @pytest.mark.parametrize("dir", ["input_dir", "job_dir"])
@@ -92,7 +84,7 @@ def test_shared_guard_input_dir_does_not_raise(dir):
     # patch isShared to return True
     with patch.object(QQPBS, "isShared", return_value=True):
         QQPBS._sharedGuard(QQResources(work_dir=dir), env_vars)
-        assert env_vars[SHARED_SUBMIT] == "true"
+        assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
 @pytest.mark.parametrize("dir", ["input_dir", "job_dir"])
@@ -108,7 +100,7 @@ def test_shared_guard_input_dir_raises(dir):
         ),
     ):
         QQPBS._sharedGuard(QQResources(work_dir=dir), env_vars)
-        assert SHARED_SUBMIT not in env_vars
+        assert CFG.env_vars.shared_submit not in env_vars
 
 
 def test_sync_with_exclusions_shared_storage_sets_local(monkeypatch):
@@ -116,13 +108,13 @@ def test_sync_with_exclusions_shared_storage_sets_local(monkeypatch):
     dest_dir = Path("/dest")
     exclude_files = [Path("file1"), Path("file2")]
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync:
         QQPBS.syncWithExclusions(src_dir, dest_dir, "host1", "host2", exclude_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
 
-    monkeypatch.delenv(SHARED_SUBMIT)
+    monkeypatch.delenv(CFG.env_vars.shared_submit)
 
 
 def test_sync_with_exclusions_local_src(monkeypatch):
@@ -131,7 +123,7 @@ def test_sync_with_exclusions_local_src(monkeypatch):
     exclude_files = [Path("file1")]
     local_host = "myhost"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
@@ -152,7 +144,7 @@ def test_sync_with_exclusions_local_dest(monkeypatch):
     exclude_files = []
     local_host = "myhost"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
@@ -173,7 +165,7 @@ def test_sync_with_exclusions_one_remote(monkeypatch):
     exclude_files = None
     local_host = "myhost"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
@@ -189,7 +181,7 @@ def test_sync_with_exclusions_both_remote_raises(monkeypatch):
     dest_dir = Path("/dest")
     exclude_files = None
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch("socket.gethostname", return_value="localhost"),
@@ -204,13 +196,13 @@ def test_sync_selected_shared_storage_sets_local(monkeypatch):
     dest_dir = Path("/dest")
     include_files = [Path("file1"), Path("file2")]
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with patch.object(QQBatchInterface, "syncSelected") as mock_sync:
         QQPBS.syncSelected(src_dir, dest_dir, "host1", "host2", include_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, include_files)
 
-    monkeypatch.delenv(SHARED_SUBMIT)
+    monkeypatch.delenv(CFG.env_vars.shared_submit)
 
 
 def test_sync_selected_local_src(monkeypatch):
@@ -219,7 +211,7 @@ def test_sync_selected_local_src(monkeypatch):
     include_files = [Path("file1")]
     local_host = "myhost"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch.object(QQBatchInterface, "syncSelected") as mock_sync,
@@ -237,7 +229,7 @@ def test_sync_selected_local_dest(monkeypatch):
     include_files = []
     local_host = "myhost"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch.object(QQBatchInterface, "syncSelected") as mock_sync,
@@ -255,7 +247,7 @@ def test_sync_selected_one_remote(monkeypatch):
     include_files = None
     local_host = "myhost"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch.object(QQBatchInterface, "syncSelected") as mock_sync,
@@ -270,7 +262,7 @@ def test_sync_selected_both_remote_raises(monkeypatch):
     dest_dir = Path("/dest")
     include_files = None
 
-    monkeypatch.setenv(SHARED_SUBMIT, "")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
         patch("socket.gethostname", return_value="localhost"),
@@ -284,23 +276,23 @@ def test_read_remote_file_shared_storage(tmp_path, monkeypatch):
     content = "Hello, QQ!"
     file_path.write_text(content)
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     result = QQPBS.readRemoteFile("remotehost", file_path)
     assert result == content
 
-    monkeypatch.delenv(SHARED_SUBMIT)
+    monkeypatch.delenv(CFG.env_vars.shared_submit)
 
 
 def test_read_remote_file_shared_storage_file_missing(tmp_path, monkeypatch):
     file_path = tmp_path / "nonexistent.txt"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not read file"):
         QQPBS.readRemoteFile("remotehost", file_path)
 
-    monkeypatch.delenv(SHARED_SUBMIT)
+    monkeypatch.delenv(CFG.env_vars.shared_submit)
 
 
 def test_read_remote_file_remote():
@@ -317,7 +309,7 @@ def test_write_remote_file_shared_storage(tmp_path, monkeypatch):
     file_path = tmp_path / "output.txt"
     content = "Test content"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     QQPBS.writeRemoteFile("remotehost", file_path, content)
     assert file_path.read_text() == content
@@ -328,7 +320,7 @@ def test_write_remote_file_shared_storage_exception(tmp_path, monkeypatch):
     dir_path = tmp_path / "dir"
     dir_path.mkdir()
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not write file"):
         QQPBS.writeRemoteFile("remotehost", dir_path, "content")
@@ -346,7 +338,7 @@ def test_write_remote_file_remote():
 def test_make_remote_dir_shared_storage(tmp_path, monkeypatch):
     dir_path = tmp_path / "newdir"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     QQPBS.makeRemoteDir("remotehost", dir_path)
 
@@ -357,7 +349,7 @@ def test_make_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
     file_path = tmp_path / "conflict"
     file_path.write_text("dummy")
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not create a directory"):
         QQPBS.makeRemoteDir("remotehost", file_path)
@@ -367,7 +359,7 @@ def test_make_remote_dir_shared_storage_already_exists_ok(tmp_path, monkeypatch)
     dir_path = tmp_path / "newdir"
     dir_path.mkdir()
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     # ignore that the directory already exists
     QQPBS.makeRemoteDir("remotehost", dir_path)
@@ -388,7 +380,7 @@ def test_list_remote_dir_shared_storage(tmp_path, monkeypatch):
     (tmp_path / "file2.txt").write_text("two")
     (tmp_path / "subdir").mkdir()
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     result = QQPBS.listRemoteDir("remotehost", tmp_path)
 
@@ -401,7 +393,7 @@ def test_list_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
     bad_path = tmp_path / "notadir"
     bad_path.write_text("oops")
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not list a directory"):
         QQPBS.listRemoteDir("remotehost", bad_path)
@@ -426,7 +418,7 @@ def test_move_remote_files_shared_storage(tmp_path, monkeypatch):
     dst1 = tmp_path / "dest1.txt"
     dst2 = dst_dir / "dest2.txt"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     QQPBS.moveRemoteFiles("remotehost", [src1, src2], [dst1, dst2])
 
@@ -442,7 +434,7 @@ def test_move_remote_files_shared_storage_exception(tmp_path, monkeypatch):
     bad_src.mkdir()
     dst = tmp_path / "dest"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     # normally shutil.move would move a directory,
     # so we force an error by making the destination a file
@@ -458,7 +450,7 @@ def test_move_remote_files_length_mismatch(tmp_path, monkeypatch):
     dst1 = tmp_path / "dest1.txt"
     dst2 = tmp_path / "dest2.txt"
 
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="must have the same length"):
         QQPBS.moveRemoteFiles("remotehost", [src], [dst1, dst2])
@@ -707,7 +699,7 @@ def test_translate_submit_minimal_fields():
     res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=1,mem=1gb script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1gb script.sh"
     )
 
 
@@ -721,9 +713,9 @@ def test_translate_submit_with_env_vars():
             "script.sh",
             "job",
             [],
-            {GUARD: "true", BATCH_SYSTEM: "PBS"},
+            {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -v {GUARD}=true,{BATCH_SYSTEM}=PBS -l ncpus=1,mem=1gb script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l ncpus=1,mem=1gb script.sh"
     )
 
 
@@ -731,7 +723,7 @@ def test_translate_submit_multiple_nodes():
     res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
     )
 
 
@@ -745,9 +737,9 @@ def test_translate_submit_multiple_nodes_with_env_vars():
             "script.sh",
             "job",
             [],
-            {GUARD: "true", BATCH_SYSTEM: "PBS"},
+            {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -v {GUARD}=true,{BATCH_SYSTEM}=PBS -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
     )
 
 
@@ -757,7 +749,7 @@ def test_translate_submit_with_walltime():
     )
     assert (
         QQPBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
     )
 
 
@@ -767,7 +759,7 @@ def test_translate_submit_with_walltime2():
     )
     assert (
         QQPBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=2,mem=2gb -l walltime=12:30:15 script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=2,mem=2gb -l walltime=12:30:15 script.sh"
     )
 
 
@@ -783,9 +775,9 @@ def test_translate_submit_with_walltime_and_env_vars():
             "script.sh",
             "job",
             [],
-            {GUARD: "true", BATCH_SYSTEM: "PBS"},
+            {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -v {GUARD}=true,{BATCH_SYSTEM}=PBS -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
     )
 
 
@@ -793,7 +785,7 @@ def test_translate_submit_work_dir_scratch_shm():
     res = QQResources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=1,mem=8gb,scratch_shm=true script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=8gb,scratch_shm=true script.sh"
     )
 
 
@@ -803,7 +795,7 @@ def test_translate_submit_scratch_local_work_size():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=2:ncpus=1:mem=2gb:scratch_local=8gb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mem=2gb:scratch_local=8gb -l place=vscatter script.sh"
     )
 
 
@@ -813,7 +805,7 @@ def test_translate_submit_scratch_ssd_work_size():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=2:ncpus=1:mem=2gb:scratch_ssd=8gb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mem=2gb:scratch_ssd=8gb -l place=vscatter script.sh"
     )
 
 
@@ -823,7 +815,7 @@ def test_translate_submit_scratch_shared_work_size():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=2:ncpus=1:mem=2gb:scratch_shared=8gb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mem=2gb:scratch_shared=8gb -l place=vscatter script.sh"
     )
 
 
@@ -833,7 +825,7 @@ def test_translate_submit_work_size_per_cpu():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=8,mem=4gb,scratch_local=16gb script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=8,mem=4gb,scratch_local=16gb script.sh"
     )
 
 
@@ -843,7 +835,7 @@ def test_translate_submit_work_size_per_cpu_multiple_nodes():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=3:ncpus=1:mem=2gb:scratch_local=2gb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=3:ncpus=1:mem=2gb:scratch_local=2gb -l place=vscatter script.sh"
     )
 
 
@@ -853,7 +845,7 @@ def test_translate_submit_mem_per_cpu():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=4,mem=8gb,scratch_local=10gb script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mem=8gb,scratch_local=10gb script.sh"
     )
 
 
@@ -863,7 +855,7 @@ def test_translate_submit_mem_per_cpu_multiple_nodes():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
     )
 
 
@@ -877,7 +869,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=4,mem=8gb,scratch_local=20gb script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mem=8gb,scratch_local=20gb script.sh"
     )
 
 
@@ -891,7 +883,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
     )
     assert (
         QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mem=4gb:scratch_local=10gb -l place=vscatter script.sh"
     )
 
 
@@ -905,7 +897,7 @@ def test_translate_submit_with_props():
     )
     assert (
         QQPBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
-        == f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
     )
 
 
@@ -925,9 +917,9 @@ def test_translate_submit_with_props_and_env_vars():
             "script.sh",
             "job",
             [],
-            {GUARD: "true", BATCH_SYSTEM: "PBS"},
+            {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -v {GUARD}=true,{BATCH_SYSTEM}=PBS -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
     )
 
 
@@ -950,13 +942,13 @@ def test_translate_submit_complex_case():
         "job",
         [],
         {
-            INFO_FILE: "/path/to/job/job.qqinfo",
-            INPUT_DIR: "/path/to/job/",
-            GUARD: "true",
+            CFG.env_vars.info_file: "/path/to/job/job.qqinfo",
+            CFG.env_vars.input_dir: "/path/to/job/",
+            CFG.env_vars.guard: "true",
         },
     ) == (
-        f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} "
-        f"-v {INFO_FILE}=/path/to/job/job.qqinfo,{INPUT_DIR}=/path/to/job/,{GUARD}=true "
+        f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} "
+        f"-v {CFG.env_vars.info_file}=/path/to/job/job.qqinfo,{CFG.env_vars.input_dir}=/path/to/job/,{CFG.env_vars.guard}=true "
         f"-l select=3:ncpus=2:mem=2gb:ngpus=1:scratch_local=4gb:cl_cluster=true "
         f"-l walltime=1:30:00 -l place=vscatter myscript.sh"
     )
@@ -968,7 +960,7 @@ def test_translate_submit_single_depend():
     cmd = QQPBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
     )
-    expected = f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=1,mem=1gb -W depend=after:123 script.sh"
+    expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1gb -W depend=after:123 script.sh"
     assert cmd == expected
 
 
@@ -978,7 +970,7 @@ def test_translate_submit_multiple_jobs_depend():
     cmd = QQPBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
     )
-    expected = f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=1,mem=1gb -W depend=afterok:1:2 script.sh"
+    expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1gb -W depend=afterok:1:2 script.sh"
     assert cmd == expected
 
 
@@ -991,7 +983,7 @@ def test_translate_submit_multiple_dependencies():
     cmd = QQPBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
     )
-    expected = f"qsub -N job -q queue -j eo -e tmp/job{QQ_OUT_SUFFIX} -l ncpus=1,mem=1gb -W depend=afterok:1,afternotok:2 script.sh"
+    expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1gb -W depend=afterok:1,afternotok:2 script.sh"
     assert cmd == expected
 
 
@@ -1014,15 +1006,15 @@ def test_translate_submit_complex_with_depend():
         "job",
         depend,
         {
-            INFO_FILE: "/path/to/job/job.qqinfo",
-            INPUT_DIR: "/path/to/job/",
-            GUARD: "true",
+            CFG.env_vars.info_file: "/path/to/job/job.qqinfo",
+            CFG.env_vars.input_dir: "/path/to/job/",
+            CFG.env_vars.guard: "true",
         },
     )
 
     expected = (
-        f"qsub -N job -q gpu -j eo -e tmp/job{QQ_OUT_SUFFIX} "
-        f"-v {INFO_FILE}=/path/to/job/job.qqinfo,{INPUT_DIR}=/path/to/job/,{GUARD}=true "
+        f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} "
+        f"-v {CFG.env_vars.info_file}=/path/to/job/job.qqinfo,{CFG.env_vars.input_dir}=/path/to/job/,{CFG.env_vars.guard}=true "
         "-l select=2:ncpus=2:mem=2gb:scratch_local=4gb:cl_cluster=true "
         "-l walltime=01:00:00 -l place=vscatter -W depend=afterany:42:43 myscript.sh"
     )

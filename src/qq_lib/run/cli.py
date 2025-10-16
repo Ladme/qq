@@ -9,7 +9,7 @@ from typing import NoReturn
 
 import click
 
-from qq_lib.core.constants import GUARD, INFO_FILE, INPUT_MACHINE
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
 from qq_lib.core.logger import get_logger
 
@@ -62,15 +62,19 @@ def run(script_path: str) -> NoReturn:
         ensureQQEnv()
     except Exception as e:
         logger.error(e)
-        sys.exit(90)
+        sys.exit(CFG.exit_codes.not_qq_env)
 
     try:
         # get the destination of the info file from env vars
-        if not (info_file := os.environ.get(INFO_FILE)):
-            raise QQRunFatalError(f"'{INFO_FILE}' environment variable is not set.")
+        if not (info_file := os.environ.get(CFG.env_vars.info_file)):
+            raise QQRunFatalError(
+                f"'{CFG.env_vars.info_file}' environment variable is not set."
+            )
 
-        if not (input_machine := os.environ.get(INPUT_MACHINE)):
-            raise QQRunFatalError(f"'{INPUT_MACHINE}' environment variable is not set.")
+        if not (input_machine := os.environ.get(CFG.env_vars.input_machine)):
+            raise QQRunFatalError(
+                f"'{CFG.env_vars.input_machine}' environment variable is not set."
+            )
 
         # initialize the runner
         runner = QQRunner(Path(info_file), input_machine)
@@ -102,7 +106,7 @@ def ensureQQEnv() -> None:
     """
     Raises an exception if the script is not running inside qq environment.
     """
-    if not os.environ.get(GUARD):
+    if not os.environ.get(CFG.env_vars.guard):
         raise QQError(
             "This script must be run as a qq job within the batch system. "
             "To submit it properly, use: 'qq submit'."

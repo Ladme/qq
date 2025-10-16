@@ -8,13 +8,8 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from click.testing import CliRunner
 
+from qq_lib.clear.clearer import CFG
 from qq_lib.clear.cli import QQClearer, clear
-from qq_lib.core.constants import (
-    QQ_INFO_SUFFIX,
-    QQ_OUT_SUFFIX,
-    STDERR_SUFFIX,
-    STDOUT_SUFFIX,
-)
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.states import RealState
@@ -38,7 +33,10 @@ def test_qqclearer_delete_files_deletes_all_files():
 
 def test_qq_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
     clearer = QQClearer(tmp_path)
-    expected_files = [tmp_path / f"a{QQ_INFO_SUFFIX}", tmp_path / f"b{QQ_OUT_SUFFIX}"]
+    expected_files = [
+        tmp_path / f"a{CFG.suffixes.qq_info}",
+        tmp_path / f"b{CFG.suffixes.qq_out}",
+    ]
 
     with patch(
         "qq_lib.clear.clearer.get_runtime_files", return_value=expected_files
@@ -52,11 +50,11 @@ def test_qq_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
 @pytest.mark.parametrize("state", list(RealState))
 def test_qq_clearer_collect_excluded_files(tmp_path, state):
     clearer = QQClearer(tmp_path)
-    dummy_info_file = tmp_path / f"job{QQ_INFO_SUFFIX}"
+    dummy_info_file = tmp_path / f"job{CFG.suffixes.qq_info}"
     dummy_info_file.touch()
 
-    dummy_stdout = f"stdout{STDOUT_SUFFIX}"
-    dummy_stderr = f"stderr{STDERR_SUFFIX}"
+    dummy_stdout = f"stdout{CFG.suffixes.stdout}"
+    dummy_stderr = f"stderr{CFG.suffixes.stderr}"
     dummy_job_name = "job"
 
     mock_informer = MagicMock()
@@ -78,20 +76,20 @@ def test_qq_clearer_collect_excluded_files(tmp_path, state):
     ]:
         assert dummy_info_file not in result
         assert tmp_path / dummy_stdout
-        assert (tmp_path / dummy_job_name).with_suffix(QQ_OUT_SUFFIX)
+        assert (tmp_path / dummy_job_name).with_suffix(CFG.suffixes.qq_out)
     else:
         expected_files = {
             dummy_info_file,
             tmp_path / dummy_stdout,
             tmp_path / dummy_stderr,
-            (tmp_path / dummy_job_name).with_suffix(QQ_OUT_SUFFIX),
+            (tmp_path / dummy_job_name).with_suffix(CFG.suffixes.qq_out),
         }
         assert result == expected_files
 
 
 def test_qq_clearer_collect_excluded_files_ignores_files_that_raise_qqerror(tmp_path):
     clearer = QQClearer(tmp_path)
-    dummy_info_file = tmp_path / f"bad{QQ_INFO_SUFFIX}"
+    dummy_info_file = tmp_path / f"bad{CFG.suffixes.qq_info}"
     dummy_info_file.touch()
 
     with (
@@ -106,8 +104,8 @@ def test_qq_clearer_collect_excluded_files_ignores_files_that_raise_qqerror(tmp_
 def test_qq_clearer_clear_deletes_only_safe_files(tmp_path):
     clearer = QQClearer(tmp_path)
 
-    safe_file = tmp_path / f"safe{QQ_OUT_SUFFIX}"
-    excluded_file = tmp_path / f"excluded{QQ_OUT_SUFFIX}"
+    safe_file = tmp_path / f"safe{CFG.suffixes.qq_out}"
+    excluded_file = tmp_path / f"excluded{CFG.suffixes.qq_out}"
 
     with (
         patch.object(
@@ -129,8 +127,8 @@ def test_qq_clearer_clear_deletes_only_safe_files(tmp_path):
 def test_qq_clearer_clear_deletes_no_files_are_safe(tmp_path):
     clearer = QQClearer(tmp_path)
 
-    excluded1 = tmp_path / f"excluded1{QQ_OUT_SUFFIX}"
-    excluded2 = tmp_path / f"excluded2{QQ_OUT_SUFFIX}"
+    excluded1 = tmp_path / f"excluded1{CFG.suffixes.qq_out}"
+    excluded2 = tmp_path / f"excluded2{CFG.suffixes.qq_out}"
 
     with (
         patch.object(
@@ -153,8 +151,8 @@ def test_qq_clearer_clear_deletes_no_files_are_safe(tmp_path):
 def test_qq_clearer_clear_force_deletes_all_files(tmp_path):
     clearer = QQClearer(tmp_path)
 
-    file1 = tmp_path / f"file1{QQ_OUT_SUFFIX}"
-    file2 = tmp_path / f"file2{QQ_OUT_SUFFIX}"
+    file1 = tmp_path / f"file1{CFG.suffixes.qq_out}"
+    file2 = tmp_path / f"file2{CFG.suffixes.qq_out}"
 
     with (
         patch.object(QQClearer, "_collectRunTimeFiles", return_value={file1, file2}),

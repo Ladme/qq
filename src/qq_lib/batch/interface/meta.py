@@ -5,7 +5,7 @@
 import os
 from abc import ABCMeta
 
-from qq_lib.core.constants import BATCH_SYSTEM
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
@@ -93,7 +93,7 @@ class QQBatchMeta(ABCMeta):
             QQError: If the environment variable is set to an unknown batch system name,
                     or if no available batch system can be guessed.
         """
-        name = os.environ.get(BATCH_SYSTEM)
+        name = os.environ.get(CFG.env_vars.batch_system)
         if name:
             logger.debug(
                 f"Using batch system name from an environment variable: {name}."

@@ -10,6 +10,5 @@ from .common import (
     get_info_files_from_job_id_or_dir,
 )
 from .error import QQError
-from .guard import guard, guard_command
 from .repeater import QQRepeater
 from .retryer import QQRetryer

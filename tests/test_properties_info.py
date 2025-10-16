@@ -11,9 +11,8 @@ import yaml
 
 from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.batch.pbs import QQPBS
-from qq_lib.core.constants import DATE_FORMAT
 from qq_lib.core.error import QQError
-from qq_lib.properties.info import QQInfo
+from qq_lib.properties.info import CFG, QQInfo
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
@@ -43,7 +42,9 @@ def sample_info(sample_resources):
         input_machine="fake.machine.com",
         input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
-        submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
+        submission_time=datetime.strptime(
+            "2025-09-21 12:00:00", CFG.date_formats.standard
+        ),
         stdout_file="stdout.log",
         stderr_file="stderr.log",
         resources=sample_resources,

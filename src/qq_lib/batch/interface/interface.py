@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from qq_lib.core.common import convert_absolute_to_relative
-from qq_lib.core.constants import RSYNC_TIMEOUT, SSH_TIMEOUT
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
@@ -276,7 +276,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 host,
                 f"cat {file}",
@@ -317,7 +317,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"cat > {file}",
             ],
@@ -355,7 +355,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 # ignore an error if the directory already exists
                 f"mkdir {directory} 2>/dev/null || [ -d {directory} ]",
@@ -397,7 +397,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"ls -A {directory}",
             ],
@@ -446,7 +446,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 mv_command,
             ],
@@ -618,7 +618,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         input_dir = kwargs["input_dir"]
         command_line = kwargs["command_line"]
 
-        qq_submit_command = "qq submit " + " ".join(command_line)
+        qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
 
         logger.debug(
             f"Navigating to '{input_machine}:{input_dir}' to execute '{qq_submit_command}'."
@@ -627,7 +627,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
-                f"-o ConnectTimeout={SSH_TIMEOUT}",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 input_machine,
                 f"cd {input_dir} && {qq_submit_command}",
@@ -658,7 +658,7 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         return [
             "ssh",
             "-o PasswordAuthentication=no",  # never ask for password
-            f"-o ConnectTimeout={SSH_TIMEOUT}",
+            f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
             f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
@@ -834,11 +834,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
 
         try:
             result = subprocess.run(
-                command, capture_output=True, text=True, timeout=RSYNC_TIMEOUT
+                command, capture_output=True, text=True, timeout=CFG.timeouts.rsync
             )
         except subprocess.TimeoutExpired as e:
             raise QQError(
-                f"Could not rsync files between '{src}' and '{dest}': Connection timed out after {RSYNC_TIMEOUT} seconds."
+                f"Could not rsync files between '{src}' and '{dest}': Connection timed out after {CFG.timeouts.rsync} seconds."
             ) from e
 
         if result.returncode != 0:

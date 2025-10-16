@@ -7,11 +7,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface
 from qq_lib.core.common import is_printf_pattern, printf_to_regex
-from qq_lib.core.constants import (
-    ARCHIVER_RETRY_TRIES,
-    ARCHIVER_RETRY_WAIT,
-    QQ_SUFFIXES,
-)
+from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import QQRetryer
 
@@ -92,8 +88,8 @@ class QQArchiver:
             self._input_machine,
             socket.gethostname(),
             files,
-            max_tries=ARCHIVER_RETRY_TRIES,
-            wait_seconds=ARCHIVER_RETRY_WAIT,
+            max_tries=CFG.archiver.retry_tries,
+            wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
     def toArchive(self, dir: Path) -> None:
@@ -123,16 +119,16 @@ class QQArchiver:
             socket.gethostname(),
             self._input_machine,
             files,
-            max_tries=ARCHIVER_RETRY_TRIES,
-            wait_seconds=ARCHIVER_RETRY_WAIT,
+            max_tries=CFG.archiver.retry_tries,
+            wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
         # remove the archived files
         QQRetryer(
             self._removeFiles,
             files,
-            max_tries=ARCHIVER_RETRY_TRIES,
-            wait_seconds=ARCHIVER_RETRY_WAIT,
+            max_tries=CFG.archiver.retry_tries,
+            wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
     def archiveRunTimeFiles(self, job_name: str, cycle: int) -> None:
@@ -179,8 +175,8 @@ class QQArchiver:
             self._input_machine,
             files,
             moved_files,
-            max_tries=ARCHIVER_RETRY_TRIES,
-            wait_seconds=ARCHIVER_RETRY_WAIT,
+            max_tries=CFG.archiver.retry_tries,
+            wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
     def _getFiles(
@@ -230,8 +226,8 @@ class QQArchiver:
                 self._batch_system.listRemoteDir,
                 host,
                 directory,
-                max_tries=ARCHIVER_RETRY_TRIES,
-                wait_seconds=ARCHIVER_RETRY_WAIT,
+                max_tries=CFG.archiver.retry_tries,
+                wait_seconds=CFG.archiver.retry_wait,
             ).run()
         else:
             # local directory
@@ -243,7 +239,7 @@ class QQArchiver:
         return [
             f.resolve()
             for f in available_files
-            if regex.fullmatch(f.stem) and f.suffix not in QQ_SUFFIXES
+            if regex.fullmatch(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
         ]
 
     @staticmethod

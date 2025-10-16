@@ -12,6 +12,7 @@ import pytest
 
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.core.common import (
+    CFG,
     convert_absolute_to_relative,
     equals_normalized,
     format_duration,
@@ -30,14 +31,6 @@ from qq_lib.core.common import (
     to_snake_case,
     wdhms_to_hhmmss,
     yes_or_no_prompt,
-)
-from qq_lib.core.constants import (
-    INFO_FILE,
-    QQ_INFO_SUFFIX,
-    QQ_OUT_SUFFIX,
-    QQ_SUFFIXES,
-    STDERR_SUFFIX,
-    STDOUT_SUFFIX,
 )
 from qq_lib.core.error import QQError
 
@@ -688,7 +681,7 @@ def test_get_info_file_from_job_id_success():
         "getJobInfo",
         return_value=_make_jobinfo_with_info(
             {
-                "Variable_List": f"{INFO_FILE}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+                "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
             }
         ),
     ):
@@ -776,15 +769,15 @@ def test_raises_if_no_info_files_found(mock_get_info_files):
 
 def test_get_runtime_files(tmp_path):
     expected_files = [
-        tmp_path / f"f1{QQ_INFO_SUFFIX}",
-        tmp_path / f"f2{QQ_OUT_SUFFIX}",
-        tmp_path / f"f3{STDOUT_SUFFIX}",
-        tmp_path / f"f4{STDERR_SUFFIX}",
+        tmp_path / f"f1{CFG.suffixes.qq_info}",
+        tmp_path / f"f2{CFG.suffixes.qq_out}",
+        tmp_path / f"f3{CFG.suffixes.stdout}",
+        tmp_path / f"f4{CFG.suffixes.stderr}",
     ]
 
     def mock_get_files_with_suffix(directory, suffix):
         _ = directory
-        return [tmp_path / f"f{QQ_SUFFIXES.index(suffix) + 1}{suffix}"]
+        return [tmp_path / f"f{CFG.suffixes.all_suffixes.index(suffix) + 1}{suffix}"]
 
     with patch(
         "qq_lib.core.common.get_files_with_suffix",
@@ -794,5 +787,5 @@ def test_get_runtime_files(tmp_path):
 
         assert result == expected_files
 
-        for suffix in QQ_SUFFIXES:
+        for suffix in CFG.suffixes.all_suffixes:
             mock_func.assert_any_call(tmp_path, suffix)

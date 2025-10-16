@@ -12,9 +12,8 @@ from rich.table import Table
 from rich.text import Text
 
 from qq_lib.batch.pbs import QQPBS
-from qq_lib.core.constants import DATE_FORMAT
 from qq_lib.info.informer import QQInformer
-from qq_lib.info.presenter import QQPresenter
+from qq_lib.info.presenter import CFG, QQPresenter
 from qq_lib.properties.info import QQInfo
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.resources import QQResources
@@ -46,7 +45,9 @@ def sample_info(sample_resources):
         input_machine="fake.machine.com",
         input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
-        submission_time=datetime.strptime("2025-09-21 12:00:00", DATE_FORMAT),
+        submission_time=datetime.strptime(
+            "2025-09-21 12:00:00", CFG.date_formats.standard
+        ),
         stdout_file="stdout.log",
         stderr_file="stderr.log",
         resources=sample_resources,

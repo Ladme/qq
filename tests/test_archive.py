@@ -7,9 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from qq_lib.archive.archiver import QQArchiver
+from qq_lib.archive.archiver import CFG, QQArchiver
 from qq_lib.batch.pbs import QQPBS
-from qq_lib.core.constants import QQ_SUFFIXES, SHARED_SUBMIT
 
 
 def test_remove_files(tmp_path):
@@ -91,7 +90,7 @@ def work_dir(tmp_path):
 
 
 def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     archiver = QQArchiver(
         archive=archive_dir,
@@ -107,7 +106,7 @@ def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir)
 
 
 def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     # pre-create the archive directory
     archive_dir.mkdir(parents=True)
@@ -146,7 +145,7 @@ HOSTS = [None, "fake_host", socket.gethostname()]
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_get_files_printf_pattern_with_cycle(monkeypatch, archiver, input_dir, host):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001.dat", "job0002.dat", "job0001.qqout", "job0001.err"]
     touch_files(input_dir, filenames)
 
@@ -157,8 +156,8 @@ def test_get_files_printf_pattern_with_cycle(monkeypatch, archiver, input_dir, h
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_get_files_include_qq_files(monkeypatch, archiver, input_dir, host):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
-    filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in QQ_SUFFIXES]
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in CFG.suffixes.all_suffixes]
     touch_files(input_dir, filenames)
 
     # include_qq_files=False: QQ_SUFFIXES filtered out
@@ -178,7 +177,7 @@ def test_get_files_include_qq_files(monkeypatch, archiver, input_dir, host):
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_get_files_cycle_not_matching(monkeypatch, archiver, input_dir, host):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001.dat", "job0002.dat"]
     touch_files(input_dir, filenames)
 
@@ -188,7 +187,7 @@ def test_get_files_cycle_not_matching(monkeypatch, archiver, input_dir, host):
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_get_files_regex_pattern(monkeypatch, archiver, input_dir, host):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["data_01.txt", "data_02.txt", "job0001.dat"]
     touch_files(input_dir, filenames)
 
@@ -199,7 +198,7 @@ def test_get_files_regex_pattern(monkeypatch, archiver, input_dir, host):
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_get_files_regex_pattern_with_cycle(monkeypatch, archiver, input_dir, host):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["data_01.txt", "data_02.txt", "job0001.dat"]
     touch_files(input_dir, filenames)
 
@@ -210,7 +209,7 @@ def test_get_files_regex_pattern_with_cycle(monkeypatch, archiver, input_dir, ho
 
 @pytest.mark.parametrize("host", HOSTS)
 def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir, host):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     filenames = ["job0001.dat", "job0002.dat", "job0003.qqout", "job4.dat"]
     for f in filenames:
@@ -233,7 +232,7 @@ def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir
 
 @pytest.mark.parametrize("cycle", [None, 1])
 def test_archive_from_copies_files(monkeypatch, archiver, archive_dir, work_dir, cycle):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
     filenames = ["job0001.dat", "job0002.dat", "other.txt", "job0001.qqinfo"]
@@ -260,7 +259,7 @@ def test_archive_from_copies_files(monkeypatch, archiver, archive_dir, work_dir,
 
 
 def test_archive_from_nothing_to_fetch(monkeypatch, archiver, work_dir):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
     # archive directory is empty
@@ -273,7 +272,7 @@ def test_archive_from_nothing_to_fetch(monkeypatch, archiver, work_dir):
 def test_archive_to_copies_and_removes_files(
     monkeypatch, archiver, archive_dir, work_dir
 ):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
     filenames = [
@@ -304,7 +303,7 @@ def test_archive_to_copies_and_removes_files(
 
 
 def test_archive_to_nothing_to_archive(monkeypatch, archiver, archive_dir, work_dir):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
     # work dir is empty
@@ -318,10 +317,10 @@ def test_archive_to_nothing_to_archive(monkeypatch, archiver, archive_dir, work_
 
 
 def test_archive_to_qq_suffix_files(monkeypatch, archiver, archive_dir, work_dir):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
-    filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in QQ_SUFFIXES]
+    filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in CFG.suffixes.all_suffixes]
     touch_files(work_dir, filenames)
 
     archiver.toArchive(work_dir)
@@ -335,28 +334,32 @@ def test_archive_to_qq_suffix_files(monkeypatch, archiver, archive_dir, work_dir
     assert not (work_dir / "job0001.dat").exists()
 
     # QQ_SUFFIXES remain in work_dir
-    for ext in QQ_SUFFIXES:
+    for ext in CFG.suffixes.all_suffixes:
         assert (work_dir / f"job0001{ext}").exists()
 
 
 def test_archive_runtime_files_moves_and_renames(
     monkeypatch, archiver, input_dir, archive_dir
 ):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
-    filenames = [f"script+0005{ext}" for ext in QQ_SUFFIXES] + ["other.txt"]
+    filenames = [f"script+0005{ext}" for ext in CFG.suffixes.all_suffixes] + [
+        "other.txt"
+    ]
     touch_files(input_dir, filenames)
 
     archiver.archiveRunTimeFiles("script\\+0005", 5)
 
     # check moved files exist in archive with renamed pattern
-    expected_files = [archive_dir / f"job0005{ext}" for ext in QQ_SUFFIXES]
+    expected_files = [
+        archive_dir / f"job0005{ext}" for ext in CFG.suffixes.all_suffixes
+    ]
     for f in expected_files:
         assert f.exists() and f.is_file()
 
     # original runtime files removed from input_dir
-    for f in [input_dir / f"script+0005{ext}" for ext in QQ_SUFFIXES]:
+    for f in [input_dir / f"script+0005{ext}" for ext in CFG.suffixes.all_suffixes]:
         assert not f.exists()
 
     # non-matching files remain
@@ -369,7 +372,7 @@ def test_archive_runtime_files_moves_and_renames(
 def test_archive_runtime_files_nothing_to_archive(
     monkeypatch, archiver, input_dir, archive_dir
 ):
-    monkeypatch.setenv(SHARED_SUBMIT, "true")
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.makeArchiveDir()
 
     # no relevant runtime files in input_dir

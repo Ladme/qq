@@ -10,22 +10,7 @@ from pathlib import Path
 import qq_lib
 from qq_lib.batch.interface import QQBatchInterface
 from qq_lib.core.common import get_info_file
-from qq_lib.core.constants import (
-    ARCHIVE_FORMAT,
-    BATCH_SYSTEM,
-    DEBUG_MODE,
-    GUARD,
-    INFO_FILE,
-    INPUT_DIR,
-    INPUT_MACHINE,
-    LOOP_CURRENT,
-    LOOP_END,
-    LOOP_JOB_PATTERN,
-    LOOP_START,
-    QQ_INFO_SUFFIX,
-    STDERR_SUFFIX,
-    STDOUT_SUFFIX,
-)
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import QQInformer
@@ -90,7 +75,9 @@ class QQSubmitter:
         self._script_name = script.name
         self._job_name = self._constructJobName()
         self._info_file = (
-            (self._input_dir / self._job_name).with_suffix(QQ_INFO_SUFFIX).resolve()
+            (self._input_dir / self._job_name)
+            .with_suffix(CFG.suffixes.qq_info)
+            .resolve()
         )
         self._resources = resources
         self._exclude = exclude or []
@@ -145,8 +132,8 @@ class QQSubmitter:
                 input_dir=self._input_dir,
                 job_state=NaiveState.QUEUED,
                 submission_time=datetime.now(),
-                stdout_file=str(Path(self._job_name).with_suffix(STDOUT_SUFFIX)),
-                stderr_file=str(Path(self._job_name).with_suffix(STDERR_SUFFIX)),
+                stdout_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stdout)),
+                stderr_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stderr)),
                 resources=self._resources,
                 loop_info=self._loop_info,
                 excluded_files=self._exclude,
@@ -213,30 +200,30 @@ class QQSubmitter:
         env_vars = {}
 
         # propagate qq debug environment
-        if os.environ.get(DEBUG_MODE):
-            env_vars[DEBUG_MODE] = "true"
+        if os.environ.get(CFG.env_vars.debug_mode):
+            env_vars[CFG.env_vars.debug_mode] = "true"
 
         # indicates that the job is running in a qq environment
-        env_vars[GUARD] = "true"
+        env_vars[CFG.env_vars.guard] = "true"
 
         # contains a path to the qq info file
-        env_vars[INFO_FILE] = str(self._info_file)
+        env_vars[CFG.env_vars.info_file] = str(self._info_file)
 
         # contains the name of the input host
-        env_vars[INPUT_MACHINE] = socket.gethostname()
+        env_vars[CFG.env_vars.input_machine] = socket.gethostname()
 
         # contains the name of the used batch system
-        env_vars[BATCH_SYSTEM] = str(self._batch_system)
+        env_vars[CFG.env_vars.batch_system] = str(self._batch_system)
 
         # contains the path to the input directory
-        env_vars[INPUT_DIR] = str(self._input_dir)
+        env_vars[CFG.env_vars.input_dir] = str(self._input_dir)
 
         # loop job-specific environment variables
         if self._loop_info:
-            env_vars[LOOP_CURRENT] = str(self._loop_info.current)
-            env_vars[LOOP_START] = str(self._loop_info.start)
-            env_vars[LOOP_END] = str(self._loop_info.end)
-            env_vars[ARCHIVE_FORMAT] = self._loop_info.archive_format
+            env_vars[CFG.env_vars.loop_current] = str(self._loop_info.current)
+            env_vars[CFG.env_vars.loop_start] = str(self._loop_info.start)
+            env_vars[CFG.env_vars.loop_end] = str(self._loop_info.end)
+            env_vars[CFG.env_vars.archive_format] = self._loop_info.archive_format
 
         return env_vars
 
@@ -266,4 +253,4 @@ class QQSubmitter:
             return self._script_name
 
         # for loop jobs, use script_name with cycle number
-        return f"{self._script_name}{LOOP_JOB_PATTERN % self._loop_info.current}"
+        return f"{self._script_name}{CFG.loop_jobs.pattern % self._loop_info.current}"

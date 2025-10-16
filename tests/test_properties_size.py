@@ -4,7 +4,7 @@
 import pytest
 
 from qq_lib.core.error import QQError
-from qq_lib.properties.size import Size  # assuming Size is defined in size.py
+from qq_lib.properties.size import Size
 
 
 def test_init_and_str_repr():
@@ -38,17 +38,17 @@ def test_from_string_invalid():
 @pytest.mark.parametrize(
     "value, unit, expected_value, expected_unit",
     [
-        (2048, "kb", 2, "mb"),  # converts KB -> MB
-        (1025, "kb", 2, "mb"),  # rounds up after conversion
-        (1536, "kb", 2, "mb"),  # KB -> MB, rounding
-        (1, "mb", 1, "mb"),  # stays MB, value >= 1
-        (1024, "mb", 1, "gb"),  # MB -> GB
-        (1536, "mb", 2, "gb"),  # MB -> GB, rounding
-        (1, "kb", 1, "kb"),  # stays KB
-        (0, "kb", 1, "kb"),  # below 1 KB defaults to 1 kb
-        (2048, "mb", 2, "gb"),  # MB -> GB
-        (1048576, "kb", 1, "gb"),  # KB -> GB
-        (1048577, "kb", 2, "gb"),  # KB -> GB, rounding
+        (2048, "kb", 2, "mb"),
+        (1025, "kb", 2, "mb"),
+        (1536, "kb", 2, "mb"),
+        (1, "mb", 1, "mb"),
+        (1024, "mb", 1, "gb"),
+        (1536, "mb", 2, "gb"),
+        (1, "kb", 1, "kb"),
+        (0, "kb", 1, "kb"),
+        (2048, "mb", 2, "gb"),
+        (1048576, "kb", 1, "gb"),
+        (1048577, "kb", 2, "gb"),
     ],
 )
 def test_post_init_conversions(value, unit, expected_value, expected_unit):

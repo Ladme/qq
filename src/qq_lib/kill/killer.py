@@ -150,7 +150,10 @@ class QQKiller:
 
     def _isKilled(self) -> bool:
         """Check if the job has already been killed."""
-        return self._state == RealState.KILLED
+        return self._state == RealState.KILLED or (
+            self._state == RealState.EXITING
+            and self._informer.info.job_exit_code is None
+        )
 
     def _isCompleted(self) -> bool:
         """Check if the job has finished or failed."""

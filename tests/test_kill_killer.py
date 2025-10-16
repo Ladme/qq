@@ -91,15 +91,20 @@ def test_qqkiller_is_queued_returns_correctly(state, expected):
 
 
 @pytest.mark.parametrize(
-    "state,expected",
+    "state,exit,expected",
     [
-        (RealState.KILLED, True),
-        (RealState.FAILED, False),
+        (RealState.KILLED, None, True),
+        (RealState.EXITING, None, True),
+        (RealState.EXITING, 0, False),
+        (RealState.EXITING, 1, False),
+        (RealState.FAILED, 1, False),
     ],
 )
-def test_qqkiller_is_killed_returns_correctly(state, expected):
+def test_qqkiller_is_killed_returns_correctly(state, exit, expected):
     killer = QQKiller.__new__(QQKiller)
     killer._state = state
+    killer._informer = MagicMock()
+    killer._informer.info.job_exit_code = exit
     assert killer._isKilled() is expected
 
 
@@ -166,39 +171,45 @@ def test_qqkiller_update_info_file_calls_informer_and_locks_file():
 
 
 @pytest.mark.parametrize(
-    "state,force,expected",
+    "state,exit,force,expected",
     [
-        (RealState.QUEUED, False, True),
-        (RealState.QUEUED, True, True),
-        (RealState.HELD, False, True),
-        (RealState.HELD, True, True),
-        (RealState.WAITING, False, True),
-        (RealState.WAITING, True, True),
-        (RealState.BOOTING, False, True),
-        (RealState.BOOTING, True, True),
-        (RealState.SUSPENDED, False, True),
-        (RealState.SUSPENDED, True, True),
-        (RealState.RUNNING, False, False),
-        (RealState.RUNNING, True, True),
-        (RealState.FINISHED, False, False),
-        (RealState.FINISHED, True, False),
-        (RealState.FAILED, False, False),
-        (RealState.FAILED, True, False),
-        (RealState.KILLED, False, False),
-        (RealState.KILLED, True, False),
-        (RealState.UNKNOWN, False, False),
-        (RealState.UNKNOWN, True, False),
-        (RealState.EXITING, False, False),
-        (RealState.EXITING, True, True),
-        (RealState.IN_AN_INCONSISTENT_STATE, False, False),
-        (RealState.IN_AN_INCONSISTENT_STATE, True, False),
+        (RealState.QUEUED, None, False, True),
+        (RealState.QUEUED, None, True, True),
+        (RealState.HELD, None, False, True),
+        (RealState.HELD, None, True, True),
+        (RealState.WAITING, None, False, True),
+        (RealState.WAITING, None, True, True),
+        (RealState.BOOTING, None, False, True),
+        (RealState.BOOTING, None, True, True),
+        (RealState.SUSPENDED, None, False, True),
+        (RealState.SUSPENDED, None, True, True),
+        (RealState.RUNNING, None, False, False),
+        (RealState.RUNNING, None, True, True),
+        (RealState.FINISHED, 0, False, False),
+        (RealState.FINISHED, 0, True, False),
+        (RealState.FAILED, 1, False, False),
+        (RealState.FAILED, 1, True, False),
+        (RealState.KILLED, None, False, False),
+        (RealState.KILLED, None, True, False),
+        (RealState.UNKNOWN, None, False, False),
+        (RealState.UNKNOWN, None, True, False),
+        (RealState.EXITING, 0, False, False),
+        (RealState.EXITING, 0, True, True),
+        (RealState.EXITING, 1, False, False),
+        (RealState.EXITING, 1, True, True),
+        (RealState.EXITING, None, False, False),
+        (RealState.EXITING, None, True, False),
+        (RealState.IN_AN_INCONSISTENT_STATE, None, False, False),
+        (RealState.IN_AN_INCONSISTENT_STATE, None, True, False),
     ],
 )
 def test_qqkiller_should_update_info_file_all_combinations_manual(
-    state, force, expected
+    state, exit, force, expected
 ):
     killer = QQKiller.__new__(QQKiller)
     killer._state = state
+    killer._informer = MagicMock()
+    killer._informer.info.job_exit_code = exit
     assert killer._shouldUpdateInfoFile(force) is expected
 
 
@@ -271,17 +282,29 @@ def test_qqkiller_matches_job_returns_false():
 
 
 @pytest.mark.parametrize(
-    "state,expected_message",
+    "state,exit,expected_message",
     [
-        (RealState.FINISHED, "Job cannot be terminated. Job is already completed."),
-        (RealState.FAILED, "Job cannot be terminated. Job is already completed."),
-        (RealState.KILLED, "Job cannot be terminated. Job has already been killed."),
-        (RealState.EXITING, "Job cannot be terminated. Job is in an exiting state."),
+        (RealState.FINISHED, 0, "Job cannot be terminated. Job is already completed."),
+        (RealState.FAILED, 1, "Job cannot be terminated. Job is already completed."),
+        (
+            RealState.KILLED,
+            None,
+            "Job cannot be terminated. Job has already been killed.",
+        ),
+        (
+            RealState.EXITING,
+            None,
+            "Job cannot be terminated. Job has already been killed.",
+        ),
+        (RealState.EXITING, 0, "Job cannot be terminated. Job is in an exiting state."),
+        (RealState.EXITING, 1, "Job cannot be terminated. Job is in an exiting state."),
     ],
 )
-def test_qqkiller_ensure_suitable_raises(state, expected_message):
+def test_qqkiller_ensure_suitable_raises(state, exit, expected_message):
     killer = QQKiller.__new__(QQKiller)
     killer._state = state
+    killer._informer = MagicMock()
+    killer._informer.info.job_exit_code = exit
     with pytest.raises(QQNotSuitableError, match=expected_message):
         killer.ensureSuitable()
 

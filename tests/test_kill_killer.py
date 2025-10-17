@@ -9,28 +9,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.pbs.qqpbs import QQPBS
 from qq_lib.core.error import QQNotSuitableError
 from qq_lib.kill.killer import QQKiller
 from qq_lib.properties.states import RealState
-
-
-def test_qqkiller_init():
-    mock_path = Path("/fake/path/info.txt")
-
-    with patch("qq_lib.kill.killer.QQInformer.fromFile") as mock_from_file:
-        mock_informer_instance = MagicMock()
-        mock_informer_instance.batch_system = QQPBS
-        mock_informer_instance.getRealState.return_value = RealState.RUNNING
-        mock_from_file.return_value = mock_informer_instance
-
-        killer = QQKiller(mock_path)
-
-        assert killer._info_file == mock_path
-        assert killer._informer == mock_informer_instance
-        assert killer._batch_system == QQPBS
-        assert killer._state == RealState.RUNNING
-        mock_from_file.assert_called_once_with(mock_path)
 
 
 def test_qqkiller_lock_file_removes_write_permissions():
@@ -263,24 +244,6 @@ def test_qqkiller_terminate_does_not_update_info_file():
     killer._updateInfoFile.assert_not_called()
 
 
-def test_qqkiller_matches_job_returns_true():
-    killer = QQKiller.__new__(QQKiller)
-    killer._informer = MagicMock()
-    killer._informer.matchesJob.return_value = True
-
-    assert killer.matchesJob("12345") is True
-    killer._informer.matchesJob.assert_called_once_with("12345")
-
-
-def test_qqkiller_matches_job_returns_false():
-    killer = QQKiller.__new__(QQKiller)
-    killer._informer = MagicMock()
-    killer._informer.matchesJob.return_value = False
-
-    assert killer.matchesJob("99999") is False
-    killer._informer.matchesJob.assert_called_once_with("99999")
-
-
 @pytest.mark.parametrize(
     "state,exit,expected_message",
     [
@@ -326,23 +289,3 @@ def test_qqkiller_ensure_suitable_passes(state):
     killer = QQKiller.__new__(QQKiller)
     killer._state = state
     killer.ensureSuitable()
-
-
-def test_qqkiller_print_info_prints_panel():
-    killer = QQKiller.__new__(QQKiller)
-    killer._informer = MagicMock()
-    mock_console = MagicMock()
-    mock_panel = MagicMock()
-
-    with patch("qq_lib.kill.killer.QQPresenter") as mock_presenter_cls:
-        mock_presenter_instance = MagicMock()
-        mock_presenter_cls.return_value = mock_presenter_instance
-        mock_presenter_instance.createJobStatusPanel.return_value = mock_panel
-
-        killer.printInfo(mock_console)
-
-        mock_presenter_cls.assert_called_once_with(killer._informer)
-        mock_presenter_instance.createJobStatusPanel.assert_called_once_with(
-            mock_console
-        )
-        mock_console.print.assert_called_once_with(mock_panel)

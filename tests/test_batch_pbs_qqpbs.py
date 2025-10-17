@@ -3,6 +3,7 @@
 
 # ruff: noqa: W291
 
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -715,7 +716,7 @@ def test_translate_submit_with_env_vars():
             [],
             {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l ncpus=1,mem=1gb script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -v \"{CFG.env_vars.guard}='true'\",\"{CFG.env_vars.batch_system}='PBS'\" -l ncpus=1,mem=1gb script.sh"
     )
 
 
@@ -739,7 +740,7 @@ def test_translate_submit_multiple_nodes_with_env_vars():
             [],
             {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -v \"{CFG.env_vars.guard}='true'\",\"{CFG.env_vars.batch_system}='PBS'\" -l select=4:ncpus=2:mem=256mb -l place=vscatter script.sh"
     )
 
 
@@ -777,7 +778,7 @@ def test_translate_submit_with_walltime_and_env_vars():
             [],
             {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -v \"{CFG.env_vars.guard}='true'\",\"{CFG.env_vars.batch_system}='PBS'\" -l ncpus=2,mem=2gb -l walltime=24:26:01 script.sh"
     )
 
 
@@ -919,7 +920,7 @@ def test_translate_submit_with_props_and_env_vars():
             [],
             {CFG.env_vars.guard: "true", CFG.env_vars.batch_system: "PBS"},
         )
-        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -v {CFG.env_vars.guard}=true,{CFG.env_vars.batch_system}=PBS -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
+        == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -v \"{CFG.env_vars.guard}='true'\",\"{CFG.env_vars.batch_system}='PBS'\" -l ncpus=1,mem=1gb,vnode=my_node,infiniband=true script.sh"
     )
 
 
@@ -948,7 +949,7 @@ def test_translate_submit_complex_case():
         },
     ) == (
         f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} "
-        f"-v {CFG.env_vars.info_file}=/path/to/job/job.qqinfo,{CFG.env_vars.input_dir}=/path/to/job/,{CFG.env_vars.guard}=true "
+        f"-v \"{CFG.env_vars.info_file}='/path/to/job/job.qqinfo'\",\"{CFG.env_vars.input_dir}='/path/to/job/'\",\"{CFG.env_vars.guard}='true'\" "
         f"-l select=3:ncpus=2:mem=2gb:ngpus=1:scratch_local=4gb:cl_cluster=true "
         f"-l walltime=1:30:00 -l place=vscatter myscript.sh"
     )
@@ -1014,7 +1015,7 @@ def test_translate_submit_complex_with_depend():
 
     expected = (
         f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} "
-        f"-v {CFG.env_vars.info_file}=/path/to/job/job.qqinfo,{CFG.env_vars.input_dir}=/path/to/job/,{CFG.env_vars.guard}=true "
+        f"-v \"{CFG.env_vars.info_file}='/path/to/job/job.qqinfo'\",\"{CFG.env_vars.input_dir}='/path/to/job/'\",\"{CFG.env_vars.guard}='true'\" "
         "-l select=2:ncpus=2:mem=2gb:scratch_local=4gb:cl_cluster=true "
         "-l walltime=01:00:00 -l place=vscatter -W depend=afterany:42:43 myscript.sh"
     )
@@ -1242,4 +1243,28 @@ def test_get_jobs_info_using_command_nonzero_returncode():
 )
 def test_translate_dependencies_various_cases(depend_list, expected):
     result = QQPBS._translateDependencies(depend_list)
+    assert result == expected
+
+
+def test_collect_ams_env_vars(monkeypatch):
+    from qq_lib.batch.pbs.qqpbs import QQPBS
+
+    # mock environment with a mix of AMS and non-AMS vars
+    env_vars = {
+        "AMS_ACTIVE_MODULES": "mod1,mod2",
+        "AMS_ROOT": "/opt/ams",
+        "OTHER_VAR": "ignore_me",
+        "AMS_BUNDLE_PATH": "/ams/bundle",
+        "PATH": "/usr/bin",
+    }
+    monkeypatch.setattr(os, "environ", env_vars)
+
+    result = QQPBS._collectAMSEnvVars()
+
+    # assert that only AMS variables were collected
+    expected = {
+        "AMS_ACTIVE_MODULES": "mod1,mod2",
+        "AMS_ROOT": "/opt/ams",
+        "AMS_BUNDLE_PATH": "/ams/bundle",
+    }
     assert result == expected

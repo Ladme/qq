@@ -54,6 +54,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     ) -> str:
         QQPBS._sharedGuard(res, env_vars)
 
+        # set env vars required for Infinity modules
+        env_vars.update(QQPBS._collectAMSEnvVars())
+
         # get the submission command
         command = QQPBS._translateSubmit(
             res,
@@ -405,7 +408,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     def _translateEnvVars(env_vars: dict[str, str]) -> str:
         converted = []
         for key, value in env_vars.items():
-            converted.append(f"{key}={value}")
+            converted.append(f"\"{key}='{value}'\"")
 
         return ",".join(converted)
 
@@ -516,6 +519,37 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             return None
 
         return ",".join(Depend.toStr(x).replace("=", ":") for x in depend)
+
+    @staticmethod
+    def _collectAMSEnvVars() -> dict[str, str]:
+        """
+        Collect environment variables for Infinity AMS.
+        This allows importing Infinity AMS modules in qq jobs.
+
+        Returns:
+            dict[str, str]: Dictionary of AMS environment variables and their values.
+        """
+        ams_vars = {
+            key: value
+            for key, value in os.environ.items()
+            if key
+            in {
+                "AMS_ACTIVE_MODULES",
+                "AMS_SITE",
+                "AMS_SITE_SUPPORT",
+                "AMS_EXIT_CODE",
+                "AMS_USER_CONFIG_DIR",
+                "AMS_GROUPNS",
+                "AMS_BUNDLE_NAME",
+                "AMS_HOST_GROUP",
+                "AMS_ROOT",
+                "AMS_ROOT_V9",
+                "AMS_BUNDLE_PATH",
+            }
+        }
+        logger.debug(f"AMS vars: {ams_vars}")
+
+        return ams_vars
 
     @staticmethod
     def _getDefaultServerResources() -> QQResources:

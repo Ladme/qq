@@ -13,6 +13,7 @@ from qq_lib.core.common import (
     get_info_files_from_job_id_or_dir,
     yes_or_no_prompt,
 )
+from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
@@ -37,14 +38,14 @@ console = Console()
 
 {click.style("JOB_ID", fg="green")}   The identifier of the job to terminate. Optional.
 
-If JOB_ID is not specified, `qq kill` searches for qq jobs in the current directory.
+If JOB_ID is not specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
 
-By default, `qq kill` prompts for confirmation before terminating a job.
+By default, `{CFG.binary_name} kill` prompts for confirmation before terminating a job.
 Without the `--force` flag, it will only attempt to terminate jobs that
 are queued, held, booting, or running, but not yet finished or already killed.
 
-When the `--force` flag is used, `qq kill` attempts to terminate any job regardless of its state,
-including jobs that are already finished or killed.
+When the `--force` flag is used, `{CFG.binary_name} kill` attempts to terminate any job regardless of its state,
+including jobs that are, according to qq, already finished or killed.
 This can be useful for removing lingering or stuck jobs.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",

@@ -55,7 +55,7 @@ class QQClearer:
         logger.debug(f"Files to delete: {to_delete}.")
         if not to_delete:
             logger.info(
-                "No qq files could be safely cleared. Rerun as 'qq clear --force' to clear them forcibly."
+                f"No qq files could be safely cleared. Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
             )
             return
 
@@ -66,7 +66,7 @@ class QQClearer:
         )
         if excluded:
             logger.info(
-                f"{len(excluded)} qq files were not safe to clear. Rerun as 'qq clear --force' to clear them forcibly."
+                f"{len(excluded)} qq files were not safe to clear. Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
             )
 
     def _collectRunTimeFiles(self) -> set[Path]:

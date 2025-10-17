@@ -91,7 +91,7 @@ class QQSubmitter:
         # script must have a valid qq shebang
         if not self._hasValidShebang(self._script):
             raise QQError(
-                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S qq run'."
+                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'."
             )
 
     def submit(self) -> str:
@@ -239,7 +239,9 @@ class QQSubmitter:
         """
         with Path.open(script) as file:
             first_line = file.readline()
-            return first_line.startswith("#!") and first_line.strip().endswith("qq run")
+            return first_line.startswith("#!") and first_line.strip().endswith(
+                f"{CFG.binary_name} run"
+            )
 
     def _constructJobName(self) -> str:
         """

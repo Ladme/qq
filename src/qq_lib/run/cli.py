@@ -109,5 +109,5 @@ def ensureQQEnv() -> None:
     if not os.environ.get(CFG.env_vars.guard):
         raise QQError(
             "This script must be run as a qq job within the batch system. "
-            "To submit it properly, use: 'qq submit'."
+            f"To submit it properly, use: '{CFG.binary_name} submit'."
         )

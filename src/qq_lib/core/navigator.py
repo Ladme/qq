@@ -5,9 +5,12 @@
 import socket
 from pathlib import Path
 
+from qq_lib.core.logger import get_logger
 from qq_lib.properties.states import RealState
 
 from .operator import QQOperator
+
+logger = get_logger(__name__)
 
 
 class QQNavigator(QQOperator):
@@ -54,6 +57,7 @@ class QQNavigator(QQOperator):
             QQError: If main_node or work_dir are not defined in the informer.
         """
         destination = self._informer.getDestination()
+        logger.debug(f"Destination: {destination}")
 
         if destination:
             (self._main_node, self._work_dir) = destination

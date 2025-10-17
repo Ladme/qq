@@ -12,6 +12,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
     get_info_files_from_job_id_or_dir,
 )
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import QQRepeater
@@ -28,7 +29,7 @@ or of qq jobs found in the current directory.
 
 {click.style("JOB_ID", fg="green")}   The identifier of the job to display information for. Optional.
 
-If JOB_ID is not specified, `qq info` searches for qq jobs in the current directory.""",
+If JOB_ID is not specified, `{CFG.binary_name} info` searches for qq jobs in the current directory.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )

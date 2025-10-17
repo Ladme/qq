@@ -159,8 +159,6 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
 def submit(script: str, **kwargs) -> NoReturn:
     """
     Submit a qq job to a batch system from the command line.
-
-    Note that the submitted script must be located in the same directory from which 'qq submit' is invoked.
     """
     try:
         if not (script_path := Path(script)).is_file():

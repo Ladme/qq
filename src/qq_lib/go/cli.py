@@ -12,6 +12,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
     get_info_files_from_job_id_or_dir,
 )
+from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
@@ -37,8 +38,8 @@ working directory of the job submitted from the current directory.
 
 {click.style("JOB_ID", fg="green")}   The identifier of the job whose working directory should be entered. Optional.
 
-If JOB_ID is not specified, `qq go` searches for qq jobs in the current directory.
-If multiple suitable jobs are found, `qq go` opens a shell for each job in turn.
+If JOB_ID is not specified, `{CFG.binary_name} go` searches for qq jobs in the current directory.
+If multiple suitable jobs are found, `{CFG.binary_name} go` opens a shell for each job in turn.
 
 Uses `cd` for local directories or `ssh` if the working directory is on a remote host.
 Note that this command does not change the working directory of the current shell;

@@ -11,6 +11,7 @@ from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import get_info_files_from_job_id_or_dir
+from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
@@ -37,8 +38,8 @@ working directory of the job submitted from the current directory.
 
 {click.style("JOB_ID", fg="green")}   The identifier of the job whose working directory files should be fetched. Optional.
 
-If JOB_ID is not specified, `qq sync` searches for qq jobs in the current directory.
-If multiple suitable jobs are found, `qq sync` fetches files from each job in turn.
+If JOB_ID is not specified, `{CFG.binary_name} sync` searches for qq jobs in the current directory.
+If multiple suitable jobs are found, `{CFG.binary_name} sync` fetches files from each job in turn.
 Files fetched from later jobs may overwrite files from earlier jobs in the input directory.
 
 Files are copied from the job's working directory to its input directory, not to the current directory.

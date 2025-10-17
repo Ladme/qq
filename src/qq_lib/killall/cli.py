@@ -33,6 +33,11 @@ This command is only able to terminate qq jobs, all other jobs are not affected 
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the jobs without confirmation."
 )
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Terminate the jobs forcibly, ignoring their current state and without confirmation.",
+)
 def killall(yes: bool = False, force: bool = False) -> NoReturn:
     try:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
@@ -58,7 +63,7 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
             repeater = QQRepeater(
                 files,
                 kill_job,
-                force=False,  # never force kill
+                force=force,
                 yes=True,  # assume yes
                 job=None,  # assume that all qq info files correspond to the currently running jobs
             )

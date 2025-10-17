@@ -12,7 +12,16 @@ from .operator import QQOperator
 
 class QQNavigator(QQOperator):
     """
-    Base class for classes performing operations with job's working directory.
+    Base class for performing operations with job's working directory.
+
+    Attributes:
+        _informer (QQInformer): The underlying informer object that provides job details.
+        _info_file (Path): The path to the qq info file associated with this job.
+        _input_machine (str | None): Hostname of the machine on which the qq info file is stored.
+        _batch_system (str): The batch system type as reported by the informer.
+        _state (RealState): The current real state of the qq job.
+        _work_dir (Path | None): Path to the job's working directory. None if it does not exist.
+        _main_node (str | None): Main node on which the job is running. None if main node is not known.
     """
 
     def __init__(self, info_file: Path, host: str | None = None):

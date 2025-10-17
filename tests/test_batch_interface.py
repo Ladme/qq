@@ -11,7 +11,6 @@ import pytest
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.batch.interface.interface import CFG
 from qq_lib.batch.pbs import QQPBS
-from qq_lib.batch.vbs import QQVBS
 from qq_lib.core.error import QQError
 
 
@@ -54,57 +53,14 @@ def test_navigate_same_host_error():
         mock_run.assert_not_called()
 
 
-def test_guess_only_vbs_in_registry():
-    QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQVBS)
-    with patch.object(QQVBS, "isAvailable", return_value=True):
-        assert QQBatchMeta.guess() is QQVBS
-
-    with (
-        patch.object(QQVBS, "isAvailable", return_value=False),
-        pytest.raises(QQError, match="Could not guess a batch system"),
-    ):
-        QQBatchMeta.guess()
-
-
-def test_guess_pbs_first_then_vbs():
+def test_guess_pbs():
     QQBatchMeta._registry.clear()
     QQBatchMeta.register(QQPBS)
-    QQBatchMeta.register(QQVBS)
 
     with patch.object(QQPBS, "isAvailable", return_value=True):
         assert QQBatchMeta.guess() is QQPBS
 
     with (
-        patch.object(QQPBS, "isAvailable", return_value=False),
-        patch.object(QQVBS, "isAvailable", return_value=True),
-    ):
-        assert QQBatchMeta.guess() is QQVBS
-
-    with (
-        patch.object(QQPBS, "isAvailable", return_value=False),
-        patch.object(QQVBS, "isAvailable", return_value=False),
-        pytest.raises(QQError, match="Could not guess a batch system"),
-    ):
-        QQBatchMeta.guess()
-
-
-def test_guess_vbs_first_then_pbs():
-    QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQVBS)
-    QQBatchMeta.register(QQPBS)
-
-    with patch.object(QQVBS, "isAvailable", return_value=True):
-        assert QQBatchMeta.guess() is QQVBS
-
-    with (
-        patch.object(QQVBS, "isAvailable", return_value=False),
-        patch.object(QQPBS, "isAvailable", return_value=True),
-    ):
-        assert QQBatchMeta.guess() is QQPBS
-
-    with (
-        patch.object(QQVBS, "isAvailable", return_value=False),
         patch.object(QQPBS, "isAvailable", return_value=False),
         pytest.raises(QQError, match="Could not guess a batch system"),
     ):
@@ -119,16 +75,13 @@ def test_guess_empty_registry():
 
 def test_from_str_success():
     QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQVBS)
     QQBatchMeta.register(QQPBS)
 
     assert QQBatchMeta.fromStr("PBS") is QQPBS
-    assert QQBatchMeta.fromStr("VBS") is QQVBS
 
 
 def test_from_str_pbs_not_registered():
     QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQVBS)
 
     with pytest.raises(QQError, match="No batch system registered"):
         QQBatchMeta.fromStr("PBS")
@@ -152,13 +105,11 @@ def test_env_var_or_guess_from_env_var_returns_value(monkeypatch):
 def test_env_var_or_guess_from_env_var_not_set_calls_guess():
     QQBatchMeta._registry.clear()
     QQBatchMeta.register(QQPBS)
-    QQBatchMeta.register(QQVBS)
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
     with (
         patch.object(QQPBS, "isAvailable", return_value=True),
-        patch.object(QQVBS, "isAvailable", return_value=True),
     ):
         assert QQBatchMeta.fromEnvVarOrGuess() is QQPBS
 
@@ -174,16 +125,13 @@ def test_from_env_var_not_set_calls_guess():
 
 def test_obtain_with_name_registered():
     QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQVBS)
     QQBatchMeta.register(QQPBS)
 
     assert QQBatchMeta.obtain("PBS") is QQPBS
-    assert QQBatchMeta.obtain("VBS") is QQVBS
 
 
 def test_obtain_with_name_not_registered():
     QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQVBS)
 
     with pytest.raises(QQError, match="No batch system registered"):
         QQBatchMeta.obtain("PBS")
@@ -197,27 +145,12 @@ def test_obtain_without_name_env_var(monkeypatch):
     assert QQBatchMeta.obtain(None) is QQPBS
 
 
-def test_obtain_without_name_calls_guess():
-    QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQPBS)
-    QQBatchMeta.register(QQVBS)
-    if CFG.env_vars.batch_system in os.environ:
-        del os.environ[CFG.env_vars.batch_system]
-
-    with (
-        patch.object(QQVBS, "isAvailable", return_value=True),
-        patch.object(QQPBS, "isAvailable", return_value=False),
-    ):
-        assert QQBatchMeta.obtain(None) is QQVBS
-
-
 def test_obtain_without_name_and_guess_fails():
     QQBatchMeta._registry.clear()
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
     with (
-        patch.object(QQVBS, "isAvailable", return_value=False),
         patch.object(QQPBS, "isAvailable", return_value=False),
         pytest.raises(QQError, match="Could not guess a batch system"),
     ):

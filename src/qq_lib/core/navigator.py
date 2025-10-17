@@ -29,7 +29,7 @@ class QQNavigator(QQOperator):
         self._setDestination()
 
     def update(self):
-        super().__init__()
+        super().update()
         self._setDestination()
 
     def hasDestination(self) -> bool:

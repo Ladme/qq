@@ -30,12 +30,12 @@ def test_qqnavigator_update_calls_super_and_set_destination():
     navigator = QQNavigator.__new__(QQNavigator)
 
     with (
-        patch("qq_lib.core.operator.QQOperator.__init__") as super_init,
+        patch("qq_lib.core.operator.QQOperator.update") as super_update,
         patch.object(navigator, "_setDestination") as set_destination,
     ):
         navigator.update()
 
-    super_init.assert_called_once_with()
+    super_update.assert_called_once_with()
     set_destination.assert_called_once()
 
 

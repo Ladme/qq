@@ -11,6 +11,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface.meta import batch_system
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -23,6 +24,7 @@ from .job import PBSJobInfo
 logger = get_logger(__name__)
 
 
+@batch_system
 class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
     """
     Implementation of QQBatchInterface for PBS Pro batch system.

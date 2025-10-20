@@ -4,7 +4,7 @@
 
 import socket
 import subprocess
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
 
 from qq_lib.core.common import convert_absolute_to_relative
@@ -35,7 +35,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
     SSH_FAIL = 255
 
     @staticmethod
-    @abstractmethod
     def envName() -> str:
         """
         Return the name of the batch system environment.
@@ -43,10 +42,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             str: The batch system name.
         """
-        pass
+        raise NotImplementedError(
+            "envName method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def isAvailable() -> bool:
         """
         Determine whether the batch system is available on the current host.
@@ -57,10 +57,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             bool: True if the batch system is available, False otherwise.
         """
-        pass
+        raise NotImplementedError(
+            "isAvailable method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def getScratchDir(job_id: str) -> Path:
         """
         Retrieve the scratch directory for a given job.
@@ -74,10 +75,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If there is no scratch directory available for this job.
         """
-        pass
+        raise NotImplementedError(
+            "getScratchDir method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def jobSubmit(
         res: QQResources,
         queue: str,
@@ -105,10 +107,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If the job submission fails.
         """
-        pass
+        raise NotImplementedError(
+            "jobSubmit method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def jobKill(job_id: str) -> None:
         """
         Terminate a job gracefully. This assumes that job has time for cleanup.
@@ -119,10 +122,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If the job could not be killed.
         """
-        pass
+        raise NotImplementedError(
+            "jobKill method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def jobKillForce(job_id: str) -> None:
         """
         Forcefully terminate a job. This assumes that the job has no time for cleanup.
@@ -133,10 +137,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If the job could not be killed.
         """
-        pass
+        raise NotImplementedError(
+            "jobKillForce method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def getJobInfo(job_id: str) -> TBatchInfo:
         """
         Retrieve comprehensive information about a job.
@@ -150,10 +155,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             TBatchInfo: Object containing the job's metadata and state.
         """
-        pass
+        raise NotImplementedError(
+            "getJobInfo method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def getUnfinishedJobsInfo(user: str) -> list[TBatchInfo]:
         """
         Retrieve information about all unfinished jobs submitted by `user`.
@@ -164,10 +170,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             list[TBatchInfo]: A list of job info objects representing the user's unfinished jobs.
         """
-        pass
+        raise NotImplementedError(
+            "getUnfinishedJobsInfo method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def getJobsInfo(user: str) -> list[TBatchInfo]:
         """
         Retrieve information about all jobs submitted by a specific user (including finished jobs).
@@ -178,10 +185,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             list[TBatchInfo]: A list of job info objects representing all jobs of the user.
         """
-        pass
+        raise NotImplementedError(
+            "getJobsInfo method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def getAllUnfinishedJobsInfo() -> list[TBatchInfo]:
         """
         Retrieve information about unfinished jobs of all users.
@@ -189,10 +197,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             list[TBatchInfo]: A list of job info objects representing unfinished jobs of all users.
         """
-        pass
+        raise NotImplementedError(
+            "getAllUnfinishedJobsInfo method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def getAllJobsInfo() -> list[TBatchInfo]:
         """
         Retrieve information about all jobs of all users.
@@ -200,10 +209,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Returns:
             list[TBatchInfo]: A list of job info objects representing all jobs of all users.
         """
-        pass
+        raise NotImplementedError(
+            "getAllJobsInfo method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def navigateToDestination(host: str, directory: Path) -> None:
         """
         Open a new terminal on the specified host and change the working directory
@@ -250,7 +260,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             )
 
     @staticmethod
-    @abstractmethod
     def readRemoteFile(host: str, file: Path) -> str:
         """
         Read the contents of a file on a remote host and return it as a string.
@@ -292,7 +301,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         return result.stdout
 
     @staticmethod
-    @abstractmethod
     def writeRemoteFile(host: str, file: Path, content: str) -> None:
         """
         Write the given content to a file on a remote host, overwriting it if it exists.
@@ -332,7 +340,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             )
 
     @staticmethod
-    @abstractmethod
     def makeRemoteDir(host: str, directory: Path) -> None:
         """
         Create a directory at the specified path on a remote host.
@@ -370,7 +377,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             )
 
     @staticmethod
-    @abstractmethod
     def listRemoteDir(host: str, directory: Path) -> list[Path]:
         """
         List all files and directories (absolute paths) in the specified directory on a remote host.
@@ -418,7 +424,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         ]
 
     @staticmethod
-    @abstractmethod
     def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
         """
         Move files on a remote host from their current paths to new paths.
@@ -460,7 +465,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
             )
 
     @staticmethod
-    @abstractmethod
     def syncWithExclusions(
         src_dir: Path,
         dest_dir: Path,
@@ -503,7 +507,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         QQBatchInterface._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @staticmethod
-    @abstractmethod
     def syncSelected(
         src_dir: Path,
         dest_dir: Path,
@@ -547,7 +550,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         QQBatchInterface._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @staticmethod
-    @abstractmethod
     def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
         """
         Transform user-provided QQResources into a batch system-specific QQResources instance.
@@ -567,10 +569,11 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         Raises:
             QQError: If any of the provided parameters are invalid or inconsistent.
         """
-        pass
+        raise NotImplementedError(
+            "transformResources method is not implemented for this batch system interface"
+        )
 
     @staticmethod
-    @abstractmethod
     def isShared(directory: Path) -> bool:
         """
         Determine whether a given directory resides on a shared filesystem.
@@ -591,7 +594,6 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         return result.returncode != 0
 
     @staticmethod
-    @abstractmethod
     def resubmit(**kwargs) -> None:
         """
         Resubmit a job to the batch system.

@@ -124,3 +124,14 @@ class QQBatchMeta(ABCMeta):
             return QQBatchMeta.fromStr(name)
 
         return QQBatchMeta.fromEnvVarOrGuess()
+
+
+def batch_system(cls):
+    """
+    Class decorator to register a batch system class
+    with the QQBatchMeta registry.
+
+    Has to be added to every implementation of `BatchSystemInterface`.
+    """
+    QQBatchMeta.register(cls)
+    return cls

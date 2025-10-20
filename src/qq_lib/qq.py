@@ -4,8 +4,6 @@
 import click
 from click_help_colors import HelpColorsGroup
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
 from qq_lib.cd import cd
 from qq_lib.clear import clear
 from qq_lib.go import go
@@ -38,6 +36,3 @@ cli.add_command(stat)
 cli.add_command(cd)
 cli.add_command(sync)
 cli.add_command(killall)
-
-# register the PBS Pro batch system
-QQBatchMeta.register(QQPBS)

@@ -47,6 +47,7 @@ class QQJobsPresenter:
         "bright_white": "\033[97m",
         # other colors
         "grey70": "\033[38;5;245m",
+        "grey50": "\033[38;5;244m",
         # bold:
         "bold": "\033[1m",
         # reset
@@ -102,8 +103,10 @@ class QQJobsPresenter:
 
         panel = Panel(
             content,
-            title=Text("COLLECTED JOBS", style="bold", justify="center"),
-            border_style="white",
+            title=Text(
+                "COLLECTED JOBS", style=CFG.jobs_presenter.title_style, justify="center"
+            ),
+            border_style=CFG.jobs_presenter.border_style,
             padding=(1, 1),
             width=panel_width,
             expand=False,
@@ -184,7 +187,12 @@ class QQJobsPresenter:
 
         return tabulate(
             rows,
-            headers=[QQJobsPresenter._color(header, bold=True) for header in headers],
+            headers=[
+                QQJobsPresenter._color(
+                    header, color=CFG.jobs_presenter.headers_style, bold=True
+                )
+                for header in headers
+            ],
             tablefmt=QQJobsPresenter.COMPACT_TABLE,
             stralign="center",
             numalign="center",
@@ -227,7 +235,7 @@ class QQJobsPresenter:
                 run_time = end_time - start_time
                 return QQJobsPresenter._color(
                     format_duration_wdhhmmss(run_time),
-                    color=CFG.jobs_presenter.colors.strong_warning
+                    color=CFG.jobs_presenter.strong_warning_style
                     if run_time > walltime
                     else state.color,
                 ) + QQJobsPresenter._mainColor(
@@ -252,13 +260,13 @@ class QQJobsPresenter:
             return ""
 
         if util > 100:
-            color = CFG.jobs_presenter.colors.strong_warning
+            color = CFG.jobs_presenter.strong_warning_style
         elif util >= 80:
-            color = CFG.jobs_presenter.colors.main
+            color = CFG.jobs_presenter.main_style
         elif util >= 60:
-            color = CFG.jobs_presenter.colors.mild_warning
+            color = CFG.jobs_presenter.mild_warning_style
         else:
-            color = CFG.jobs_presenter.colors.strong_warning
+            color = CFG.jobs_presenter.strong_warning_style
 
         return QQJobsPresenter._color(str(util), color=color)
 
@@ -278,11 +286,11 @@ class QQJobsPresenter:
             return ""
 
         if util < 90:
-            color = CFG.jobs_presenter.colors.main
+            color = CFG.jobs_presenter.main_style
         elif util < 100:
-            color = CFG.jobs_presenter.colors.mild_warning
+            color = CFG.jobs_presenter.mild_warning_style
         else:
-            color = CFG.jobs_presenter.colors.strong_warning
+            color = CFG.jobs_presenter.strong_warning_style
 
         return QQJobsPresenter._color(str(util), color=color)
 
@@ -304,7 +312,7 @@ class QQJobsPresenter:
             return QQJobsPresenter._mainColor(str(exit_code))
 
         return QQJobsPresenter._color(
-            str(exit_code), color=CFG.jobs_presenter.colors.strong_warning
+            str(exit_code), color=CFG.jobs_presenter.strong_warning_style
         )
 
     @staticmethod
@@ -393,7 +401,7 @@ class QQJobsPresenter:
         Returns:
             str: ANSI-colored string in the main presenter color.
         """
-        return QQJobsPresenter._color(string, CFG.jobs_presenter.colors.main, bold)
+        return QQJobsPresenter._color(string, CFG.jobs_presenter.main_style, bold)
 
     @staticmethod
     def _secondaryColor(string: str, bold: bool = False) -> str:
@@ -407,7 +415,7 @@ class QQJobsPresenter:
         Returns:
             Text: ANSI-colored Rich Text object in secondary color.
         """
-        return QQJobsPresenter._color(string, CFG.jobs_presenter.colors.secondary, bold)
+        return QQJobsPresenter._color(string, CFG.jobs_presenter.secondary_style, bold)
 
 
 @dataclass
@@ -528,7 +536,9 @@ class QQJobsStatistics:
                 line.append(spacing)
 
         # sum of all jobs
-        line.append(QQJobsStatistics._colorText("Σ ", color="white", bold=True))
+        line.append(
+            QQJobsStatistics._colorText("Σ ", color=CFG.state_colors.sum, bold=True)
+        )
         line.append(QQJobsStatistics._secondaryColorText(str(total)))
         line.append(spacing)
 
@@ -541,7 +551,11 @@ class QQJobsStatistics:
         Returns:
             Table: Rich Table showing CPU, GPU, and node usage for jobs.
         """
-        table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
+        table = Table(
+            show_header=True,
+            box=None,
+            padding=(0, 1),
+        )
 
         table.add_column("", justify="left")
         table.add_column(QQJobsStatistics._secondaryColorText("CPUs"), justify="center")
@@ -605,5 +619,5 @@ class QQJobsStatistics:
             str: Rich Text in main color.
         """
         return QQJobsStatistics._colorText(
-            string, color=CFG.jobs_presenter.colors.secondary, bold=bold
+            string, color=CFG.jobs_presenter.secondary_style, bold=bold
         )

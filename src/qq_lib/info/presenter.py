@@ -46,14 +46,25 @@ class QQPresenter:
         """
         console = console or Console()
         term_width = console.size.width
-        panel_width = max(60, term_width // 3)
+        panel_width = term_width // 3
+        min_w, max_w = (
+            CFG.presenter.job_status_panel.min_width,
+            CFG.presenter.job_status_panel.max_width,
+        )
+
+        if min_w is not None:
+            panel_width = max(panel_width, min_w)
+        if max_w is not None:
+            panel_width = min(panel_width, max_w)
 
         panel = Panel(
             self._createJobStatusTable(self._informer.getRealState()),
             title=Text(
-                f"JOB: {self._informer.info.job_id}", style="bold", justify="center"
+                f"JOB: {self._informer.info.job_id}",
+                style=CFG.presenter.job_status_panel.title_style,
+                justify="center",
             ),
-            border_style="white",
+            border_style=CFG.presenter.job_status_panel.border_style,
             padding=(1, 2),
             width=panel_width,
         )
@@ -74,7 +85,16 @@ class QQPresenter:
 
         console = console or Console()
         term_width = console.size.width
-        panel_width = max(80, term_width // 3)
+        panel_width = term_width // 3
+        min_w, max_w = (
+            CFG.presenter.full_info_panel.min_width,
+            CFG.presenter.full_info_panel.max_width,
+        )
+
+        if min_w is not None:
+            panel_width = max(panel_width, min_w)
+        if max_w is not None:
+            panel_width = min(panel_width, max_w)
 
         state = self._informer.getRealState()
         comment, estimated = self._getCommentAndEstimated(state)
@@ -82,18 +102,29 @@ class QQPresenter:
         content = Group(
             Padding(self._createBasicInfoTable(), (0, 2)),
             Text(""),
-            Rule(title=Text("RESOURCES", style="bold"), style="white"),
+            Rule(
+                title=Text(
+                    "RESOURCES", style=CFG.presenter.full_info_panel.title_style
+                ),
+                style=CFG.presenter.full_info_panel.rule_style,
+            ),
             Text(""),
             Padding(Align.center(self._createResourcesTable(term_width)), (0, 2)),
             Text(""),
-            Rule(title=Text("HISTORY", style="bold"), style="white"),
+            Rule(
+                title=Text("HISTORY", style=CFG.presenter.full_info_panel.title_style),
+                style=CFG.presenter.full_info_panel.rule_style,
+            ),
             Text(""),
             Padding(
                 self._createJobHistoryTable(state, self._informer.info.job_exit_code),
                 (0, 2),
             ),
             Text(""),
-            Rule(title=Text("STATE", style="bold"), style="white"),
+            Rule(
+                title=Text("STATE", style=CFG.presenter.full_info_panel.title_style),
+                style=CFG.presenter.full_info_panel.rule_style,
+            ),
             Text(""),
             Padding(self._createJobStatusTable(state, comment, estimated), (0, 2)),
         )
@@ -102,9 +133,11 @@ class QQPresenter:
         full_panel = Panel(
             content,
             title=Text(
-                f"JOB: {self._informer.info.job_id}", style="bold", justify="center"
+                f"JOB: {self._informer.info.job_id}",
+                style=CFG.presenter.full_info_panel.title_style,
+                justify="center",
             ),
-            border_style="white",
+            border_style=CFG.presenter.full_info_panel.border_style,
             # no horizontal padding so Rule reaches borders
             padding=(1, 0),
             width=panel_width,
@@ -135,10 +168,12 @@ class QQPresenter:
             Table: A Rich table with key-value pairs of basic job details.
         """
         table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_column(justify="right", style="bold")
-        table.add_column(justify="left", overflow="fold")
+        table.add_column(justify="right", style=CFG.presenter.key_style)
+        table.add_column(
+            justify="left", overflow="fold", style=CFG.presenter.value_style
+        )
 
-        table.add_row("Job name:", Text(self._informer.info.job_name, style="white"))
+        table.add_row("Job name:", Text(self._informer.info.job_name))
 
         loop_info = self._informer.info.loop_info
         job_type_str = str(self._informer.info.job_type)
@@ -148,30 +183,22 @@ class QQPresenter:
         else:
             content = job_type_str
 
-        table.add_row("Job type:", Text(content, style="white"))
-        table.add_row(
-            "Submission queue:", Text(self._informer.info.queue, style="white")
-        )
-        table.add_row(
-            "Input machine:", Text(self._informer.info.input_machine, style="white")
-        )
-        table.add_row(
-            "Input directory:", Text(str(self._informer.info.input_dir), style="white")
-        )
+        table.add_row("Job type:", Text(content))
+        table.add_row("Submission queue:", Text(self._informer.info.queue))
+        table.add_row("Input machine:", Text(self._informer.info.input_machine))
+        table.add_row("Input directory:", Text(str(self._informer.info.input_dir)))
         if self._informer.info.main_node:
             if len(self._informer.info.all_nodes) == 1:
-                table.add_row(
-                    "Working node:", Text(self._informer.info.main_node, style="white")
-                )
+                table.add_row("Working node:", Text(self._informer.info.main_node))
             else:
                 table.add_row(
                     "Working nodes:",
-                    Text(" + ".join(self._informer.info.all_nodes), style="white"),
+                    Text(" + ".join(self._informer.info.all_nodes)),
                 )
         if self._informer.info.work_dir:
             table.add_row(
                 "Working directory:",
-                Text(str(self._informer.info.work_dir), style="white"),
+                Text(str(self._informer.info.work_dir)),
             )
 
         return table
@@ -190,12 +217,22 @@ class QQPresenter:
         resources = self._informer.info.resources
         table = Table(show_header=False, box=None, padding=(0, 1))
 
-        table.add_column(justify="right", style="bold", no_wrap=True)
-        table.add_column(justify="left", no_wrap=False, overflow="fold")
+        table.add_column(justify="right", style=CFG.presenter.key_style, no_wrap=True)
+        table.add_column(
+            justify="left",
+            style=CFG.presenter.value_style,
+            no_wrap=False,
+            overflow="fold",
+        )
         # spacer column
         table.add_column(justify="center", width=term_width // 30)
-        table.add_column(justify="right", style="bold", no_wrap=True)
-        table.add_column(justify="left", no_wrap=False, overflow="fold")
+        table.add_column(justify="right", style=CFG.presenter.key_style, no_wrap=True)
+        table.add_column(
+            justify="left",
+            style=CFG.presenter.value_style,
+            no_wrap=False,
+            overflow="fold",
+        )
 
         fields = vars(resources)
 
@@ -216,14 +253,14 @@ class QQPresenter:
                 row2 = items[i + 1]
                 table.add_row(
                     row[0] + ":",
-                    Text(row[1], style="white"),
+                    Text(row[1]),
                     "",
                     row2[0] + ":",
-                    Text(row2[1], style="white"),
+                    Text(row2[1]),
                 )
             else:
                 # only one item left
-                table.add_row(row[0] + ":", Text(row[1], style="white"), "", "", "")
+                table.add_row(row[0] + ":", Text(row[1]), "", "", "")
 
         return table
 
@@ -243,32 +280,34 @@ class QQPresenter:
 
         table = Table(show_header=False, box=None, padding=(0, 1))
 
-        table.add_column(justify="right", style="bold")
-        table.add_column(justify="left", overflow="fold")
+        table.add_column(justify="right", style=CFG.presenter.key_style)
+        table.add_column(
+            justify="left", style=CFG.presenter.value_style, overflow="fold"
+        )
 
-        table.add_row("Submitted at:", Text(f"{submitted}", style="white"))
+        table.add_row("Submitted at:", Text(f"{submitted}"))
         # job started
         if started:
             table.add_row(
                 "",
                 Text(
                     f"was queued for {format_duration_wdhhmmss(started - submitted)}",
-                    style="grey50",
+                    style=CFG.presenter.notes_style,
                 ),
             )
-            table.add_row("Started at:", Text(f"{started}", style="white"))
+            table.add_row("Started at:", Text(f"{started}"))
         # job is completed (or was killed after start)
         if started and completed:
             table.add_row(
                 "",
                 Text(
                     f"was running for {format_duration_wdhhmmss(completed - started)}",
-                    style="grey50",
+                    style=CFG.presenter.notes_style,
                 ),
             )
             table.add_row(
                 f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
-                Text(f"{completed}", style="white"),
+                Text(f"{completed}"),
             )
         # job is "completed" (likely killed) but never started running
         elif completed:
@@ -276,12 +315,12 @@ class QQPresenter:
                 "",
                 Text(
                     f"was queued for {format_duration_wdhhmmss(completed - submitted)}",
-                    style="grey50",
+                    style=CFG.presenter.notes_style,
                 ),
             )
             table.add_row(
                 f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
-                Text(f"{completed}", style="white"),
+                Text(f"{completed}"),
             )
 
         return table
@@ -308,25 +347,25 @@ class QQPresenter:
         )
 
         table = Table(show_header=False, box=None, padding=(0, 1))
-        table.add_column(justify="right", style="bold")
-        table.add_column(justify="left")
+        table.add_column(justify="right", style=CFG.presenter.key_style)
+        table.add_column(justify="left", style=CFG.presenter.value_style)
 
         table.add_row("Job state:", Text(message, style=f"{state.color} bold"))
         if details.strip():
-            table.add_row("", Text(details, style="white"))
+            table.add_row("", Text(details))
 
         if estimated:
             table.add_row(
                 "",
                 Text(
                     f"Planned start within {format_duration_wdhhmmss(estimated[0] - datetime.now())} on '{estimated[1]}'",
-                    style="grey50",
+                    style=CFG.presenter.notes_style,
                 ),
             )
 
         # comment is typically only useful if the estimated start time is not defined
         if not estimated and comment:
-            table.add_row("", Text(comment, style="grey50"))
+            table.add_row("", Text(comment, style=CFG.presenter.notes_style))
 
         return table
 

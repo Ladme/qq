@@ -166,21 +166,21 @@ default = 100
 def test_load_nested_dataclass(tmp_path):
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
-[jobs_presenter]
-max_job_name_length = 50
+[presenter]
+key_style = "bright_green"
 
-[jobs_presenter.colors]
-main = "cyan"
-strong_warning = "red"
+[presenter.job_status_panel]
+border_style = "default"
+max_width = 80
 """)
 
     config = QQConfig.load(config_file)
 
-    assert config.jobs_presenter.max_job_name_length == 50
-    assert config.jobs_presenter.colors.main == "cyan"
-    assert config.jobs_presenter.colors.strong_warning == "red"
+    assert config.presenter.key_style == "bright_green"
+    assert config.presenter.job_status_panel.border_style == "default"
+    assert config.presenter.job_status_panel.max_width == 80
 
-    assert config.jobs_presenter.colors.secondary == "grey70"
+    assert config.presenter.job_status_panel.min_width == 60
 
 
 def test_load_returns_defaults_when_file_missing(tmp_path):
@@ -271,12 +271,12 @@ pbs = "%Y-%m-%d %H:%M:%S"
 
 [jobs_presenter]
 max_job_name_length = 40
+main_style = "blue"
+secondary_style = "gray"
 
-[jobs_presenter.colors]
-main = "blue"
-secondary = "gray"
-strong_warning = "magenta"
-mild_warning = "yellow"
+[presenter.job_status_panel]
+title_style = "green"
+border_style = "black"
 
 [exit_codes]
 unexpected_error = 150
@@ -293,7 +293,11 @@ unexpected_error = 150
     assert config.loop_jobs.pattern == "+%05d"
     assert config.date_formats.standard == "%d/%m/%Y %H:%M"
     assert config.jobs_presenter.max_job_name_length == 40
-    assert config.jobs_presenter.colors.main == "blue"
+    assert config.jobs_presenter.main_style == "blue"
+    assert config.jobs_presenter.secondary_style == "gray"
+
+    assert config.presenter.job_status_panel.title_style == "green"
+    assert config.presenter.job_status_panel.border_style == "black"
     assert config.exit_codes.unexpected_error == 150
 
 

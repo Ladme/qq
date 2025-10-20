@@ -42,28 +42,28 @@ def test_color_applies_correct_ansi(string, color, bold, expected_prefix):
 def test_main_color_applies_main_color():
     text = "text"
     result = QQJobsPresenter._mainColor(text)
-    expected = f"{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.main]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
     assert result == expected
 
 
 def test_main_color_applies_main_color_and_bold():
     text = "text"
     result = QQJobsPresenter._mainColor(text, bold=True)
-    expected = f"{QQJobsPresenter.ANSI_COLORS['bold']}{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.main]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{QQJobsPresenter.ANSI_COLORS['bold']}{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
     assert result == expected
 
 
 def test_secondary_color_applies_secondary_color():
     text = "text"
     result = QQJobsPresenter._secondaryColor(text)
-    expected = f"{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.secondary]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.secondary_style]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
     assert result == expected
 
 
 def test_secondary_color_applies_secondary_color_and_bold():
     text = "text"
     result = QQJobsPresenter._secondaryColor(text, bold=True)
-    expected = f"{QQJobsPresenter.ANSI_COLORS['bold']}{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.secondary]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{QQJobsPresenter.ANSI_COLORS['bold']}{QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.secondary_style]}text{QQJobsPresenter.ANSI_COLORS['reset']}"
     assert result == expected
 
 
@@ -166,7 +166,7 @@ def test_format_exit_code_none_returns_empty():
 def test_format_exit_code_zero_returns_main_color():
     result = QQJobsPresenter._formatExitCode(0)
     expected_color = QQJobsPresenter.ANSI_COLORS[
-        CFG.jobs_presenter.colors.strong_warning
+        CFG.jobs_presenter.strong_warning_style
     ]
     main_colored = QQJobsPresenter._mainColor("0")
 
@@ -180,7 +180,7 @@ def test_format_exit_code_zero_returns_main_color():
 @pytest.mark.parametrize("exit_code", [1, 42, 255, -1])
 def test_format_exit_code_nonzero_returns_warning_color(exit_code):
     result = QQJobsPresenter._formatExitCode(exit_code)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.strong_warning]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
 
     assert str(exit_code) in result
     assert color_code in result
@@ -194,7 +194,7 @@ def test_format_util_cpu_none_returns_empty():
 @pytest.mark.parametrize("util", [101, 150, 300])
 def test_format_util_cpu_above_100_uses_strong_warning(util):
     result = QQJobsPresenter._formatUtilCPU(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.strong_warning]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -203,7 +203,7 @@ def test_format_util_cpu_above_100_uses_strong_warning(util):
 @pytest.mark.parametrize("util", [80, 85, 99, 100])
 def test_format_util_cpu_80_to_100_uses_main_color(util):
     result = QQJobsPresenter._formatUtilCPU(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.main]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -212,7 +212,7 @@ def test_format_util_cpu_80_to_100_uses_main_color(util):
 @pytest.mark.parametrize("util", [60, 61, 79])
 def test_format_util_cpu_60_to_79_uses_mild_warning(util):
     result = QQJobsPresenter._formatUtilCPU(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.mild_warning]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.mild_warning_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -221,7 +221,7 @@ def test_format_util_cpu_60_to_79_uses_mild_warning(util):
 @pytest.mark.parametrize("util", [0, 10, 59])
 def test_format_util_cpu_below_60_uses_strong_warning(util):
     result = QQJobsPresenter._formatUtilCPU(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.strong_warning]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -234,7 +234,7 @@ def test_format_util_mem_none_returns_empty():
 @pytest.mark.parametrize("util", [0, 50, 89])
 def test_format_util_mem_below_90_uses_main_color(util):
     result = QQJobsPresenter._formatUtilMem(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.main]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -243,7 +243,7 @@ def test_format_util_mem_below_90_uses_main_color(util):
 @pytest.mark.parametrize("util", [90, 95, 99])
 def test_format_util_mem_90_to_99_uses_mild_warning(util):
     result = QQJobsPresenter._formatUtilMem(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.mild_warning]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.mild_warning_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -252,7 +252,7 @@ def test_format_util_mem_90_to_99_uses_mild_warning(util):
 @pytest.mark.parametrize("util", [100, 110, 150])
 def test_format_util_mem_100_or_more_uses_strong_warning(util):
     result = QQJobsPresenter._formatUtilMem(util)
-    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.colors.strong_warning]
+    color_code = QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
     assert str(util) in result
     assert color_code in result
     assert result.endswith(QQJobsPresenter.ANSI_COLORS["reset"])
@@ -329,7 +329,7 @@ def test_format_time_running_or_exiting_exceeding_walltime_uses_strong_warning(
 
     # should use strong warning color for run time
     warning_color_code = QQJobsPresenter.ANSI_COLORS[
-        CFG.jobs_presenter.colors.strong_warning
+        CFG.jobs_presenter.strong_warning_style
     ]
     assert run_duration_str in result
     assert warning_color_code in result
@@ -569,7 +569,7 @@ def test_jobs_statistics_secondary_color_text_applies_correct_color_and_bold(bol
     text_obj = QQJobsStatistics._secondaryColorText("example", bold=bold)
     assert isinstance(text_obj, Text)
     assert text_obj.plain == "example"
-    expected_style = f"{CFG.jobs_presenter.colors.secondary}{' bold' if bold else ' '}"
+    expected_style = f"{CFG.jobs_presenter.secondary_style}{' bold' if bold else ' '}"
     assert text_obj.style == expected_style
 
 

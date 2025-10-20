@@ -84,21 +84,56 @@ class LoopJobSettings:
 
 
 @dataclass
-class JobsPresenterColors:
-    """Color scheme for QQJobsPresenter."""
-
-    main: str = "white"
-    secondary: str = "grey70"
-    strong_warning: str = "bright_red"
-    mild_warning: str = "bright_yellow"
-
-
-@dataclass
 class JobsPresenterSettings:
     """Settings for QQJobsPresenter."""
 
     max_job_name_length: int = 20
-    colors: JobsPresenterColors = field(default_factory=JobsPresenterColors)
+    border_style: str = "white"
+    title_style: str = "white bold"
+    headers_style: str = "default"
+    main_style: str = "white"
+    secondary_style: str = "grey70"
+    strong_warning_style: str = "bright_red"
+    mild_warning_style: str = "bright_yellow"
+
+
+@dataclass
+class JobStatusPanelSettings:
+    """Settings for creating a job status panel."""
+
+    max_width: int | None = None
+    min_width: int | None = 60
+    border_style: str = "white"
+    title_style: str = "white bold"
+
+
+@dataclass
+class FullInfoPanelSettings:
+    """Settings for creating a full info panel."""
+
+    max_width: int | None = None
+    min_width: int | None = 80
+    border_style: str = "white"
+    title_style: str = "white bold"
+    rule_style: str = "white"
+
+
+@dataclass
+class PresenterSettings:
+    """Settings for QQPresenter."""
+
+    job_status_panel: JobStatusPanelSettings = field(
+        default_factory=JobStatusPanelSettings
+    )
+
+    full_info_panel: FullInfoPanelSettings = field(
+        default_factory=FullInfoPanelSettings
+    )
+
+    # used for both job status panel and full info panel
+    key_style: str = "default bold"
+    value_style: str = "white"
+    notes_style: str = "grey50"
 
 
 @dataclass
@@ -136,6 +171,7 @@ class StateColors:
     exiting: str = "bright_yellow"
     in_an_inconsistent_state: str = "grey70"
     unknown: str = "grey70"
+    sum: str = "white"
 
 
 @dataclass
@@ -148,6 +184,7 @@ class QQConfig:
     runner: RunnerSettings = field(default_factory=RunnerSettings)
     archiver: ArchiverSettings = field(default_factory=ArchiverSettings)
     goer: GoerSettings = field(default_factory=GoerSettings)
+    presenter: PresenterSettings = field(default_factory=PresenterSettings)
     loop_jobs: LoopJobSettings = field(default_factory=LoopJobSettings)
     jobs_presenter: JobsPresenterSettings = field(default_factory=JobsPresenterSettings)
     date_formats: DateFormats = field(default_factory=DateFormats)

@@ -58,6 +58,7 @@ class RunnerSettings:
     retry_wait: int = 300
     scratch_dir_inner: str = "main"
     sigterm_to_sigkill: int = 5
+    subprocess_checks_wait_time: int = 2
 
 
 @dataclass

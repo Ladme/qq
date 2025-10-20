@@ -9,6 +9,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from time import sleep
 from types import FrameType
 from typing import NoReturn
 
@@ -155,20 +156,19 @@ class QQRunner:
         stderr_log = self._informer.info.stderr_file
 
         logger.info(f"Executing script '{script}'.")
-        with script.open() as file:
-            # skip the first line (shebang)
-            lines = file.readlines()[1:]
 
         try:
             with Path.open(stdout_log, "w") as out, Path.open(stderr_log, "w") as err:
                 self._process = subprocess.Popen(
-                    ["bash"],
-                    stdin=subprocess.PIPE,
+                    ["bash", str(script)],
                     stdout=out,
                     stderr=err,
                     text=True,
                 )
-                self._process.communicate(input="".join(lines))
+
+                # wait for the process to finish in a non-blocking manner
+                while self._process.poll() is None:
+                    sleep(CFG.runner.subprocess_checks_wait_time)
 
         except Exception as e:
             raise QQError(f"Failed to execute script '{script}': {e}") from e
@@ -520,14 +520,14 @@ class QQRunner:
         self._updateInfoKilled()
 
         # send SIGTERM to the running process, if there is any
+        # this may potentially not even be called -- the subprocess might be already terminated
         if self._process and self._process.poll() is None:
             logger.info("Cleaning up: terminating subprocess.")
             self._process.terminate()
-            try:
-                self._process.wait(timeout=CFG.runner.sigterm_to_sigkill)
-            # kill the running process if this takes too long
-            except subprocess.TimeoutExpired:
-                logger.info("Subprocess did not exit, killing.")
+
+            # wait for the subprocess to exit, then SIGKILL it
+            sleep(CFG.runner.sigterm_to_sigkill)
+            if self._process and self._process.poll() is None:
                 self._process.kill()
 
     def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> NoReturn:

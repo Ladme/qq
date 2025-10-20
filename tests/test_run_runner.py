@@ -4,7 +4,6 @@
 import os
 import shutil
 import signal
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -119,15 +118,25 @@ def test_qqrunner_cleanup_with_running_process():
     runner._updateInfoKilled = MagicMock()
     process_mock = MagicMock()
     process_mock.poll.return_value = None
+
+    def terminate_and_stop():
+        process_mock.poll.return_value = 0
+
+    process_mock.terminate.side_effect = terminate_and_stop
     runner._process = process_mock
 
-    with patch("qq_lib.run.runner.logger") as mock_logger:
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.sleep") as mock_sleep,
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
+    ):
+        cfg_mock.runner.sigterm_to_sigkill = 3
         runner._cleanup()
 
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_called_once_with("Cleaning up: terminating subprocess.")
     process_mock.terminate.assert_called_once()
-    process_mock.wait.assert_called_once_with(timeout=CFG.runner.sigterm_to_sigkill)
+    mock_sleep.assert_called_once_with(3)
     process_mock.kill.assert_not_called()
 
 
@@ -136,16 +145,18 @@ def test_qqrunner_cleanup_with_timeout():
     runner._updateInfoKilled = MagicMock()
     process_mock = MagicMock()
     process_mock.poll.return_value = None
-    process_mock.wait.side_effect = subprocess.TimeoutExpired(cmd="cmd", timeout=1)
     runner._process = process_mock
 
-    with patch("qq_lib.run.runner.logger") as mock_logger:
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.sleep") as mock_sleep,
+    ):
         runner._cleanup()
 
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_any_call("Cleaning up: terminating subprocess.")
-    mock_logger.info.assert_any_call("Subprocess did not exit, killing.")
     process_mock.terminate.assert_called_once()
+    mock_sleep.assert_called_once_with(CFG.runner.sigterm_to_sigkill)
     process_mock.kill.assert_called_once()
 
 
@@ -887,18 +898,22 @@ def test_qqrunner_execute_updates_info_and_runs_script(tmp_path):
     runner._informer.info.script_name = str(script_file)
     runner._informer.info.stdout_file = stdout_file
     runner._informer.info.stderr_file = stderr_file
-    runner._process = None
 
-    mock_popen = MagicMock()
-    mock_popen.returncode = 0
+    mock_process = MagicMock()
+    # poll() returns None twice, then 0 (finished)
+    mock_process.poll.side_effect = [None, None, 0]
+    mock_process.returncode = 0
 
     with (
         patch(
-            "qq_lib.run.runner.subprocess.Popen", return_value=mock_popen
+            "qq_lib.run.runner.subprocess.Popen", return_value=mock_process
         ) as popen_mock,
-        patch("pathlib.Path.open", create=True) as open_mock,
+        patch("qq_lib.run.runner.Path.open", create=True) as open_mock,
+        patch("qq_lib.run.runner.sleep") as sleep_mock,
+        patch("qq_lib.run.runner.logger"),
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
     ):
-        # mock context manager for stdout/stderr files
+        cfg_mock.runner.subprocess_checks_wait_time = 0.1
         mock_file = MagicMock()
         open_mock.return_value.__enter__.return_value = mock_file
 
@@ -906,13 +921,12 @@ def test_qqrunner_execute_updates_info_and_runs_script(tmp_path):
 
     runner._updateInfoRunning.assert_called_once()
     popen_mock.assert_called_once_with(
-        ["bash"],
-        stdin=subprocess.PIPE,
+        ["bash", str(script_file.resolve())],
         stdout=mock_file,
         stderr=mock_file,
         text=True,
     )
-    assert runner._process == mock_popen
+    sleep_mock.assert_called()
     assert retcode == 0
 
 

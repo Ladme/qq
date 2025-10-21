@@ -4,6 +4,7 @@
 import math
 
 import pytest
+import yaml
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.size import Size
@@ -12,7 +13,9 @@ from qq_lib.properties.size import Size
 def test_init_and_str_repr():
     s = Size(10, "mb")
     assert str(s) == "10mb"
-    assert repr(s) == "Size(value=10, unit='mb', round_func='<built-in function ceil>')"
+    assert (
+        repr(s) == "Size(value=10, unit='mb', _round_func='<built-in function ceil>')"
+    )
 
 
 def test_invalid_unit_raises():
@@ -246,3 +249,19 @@ def test_size_from_kb_valid_conversions_floor(kb, unit, expected_value):
 def test_size_from_kb_invalid_unit(invalid_unit):
     with pytest.raises((KeyError, TypeError)):
         Size._fromKB(1024, invalid_unit)
+
+
+@pytest.mark.parametrize(
+    "size",
+    [
+        Size(1, "gb"),
+        Size(1, "gb", round),
+        Size(1, "gb", math.ceil),
+        Size(1, "gb", math.floor),
+    ],
+)
+def test_size_yaml_dump(size):
+    assert (
+        yaml.dump(size)
+        == "!!python/object:qq_lib.properties.size.Size\nunit: gb\nvalue: 1\n"
+    )

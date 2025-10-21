@@ -5,13 +5,13 @@
 import math
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Self
 
 from qq_lib.core.error import QQError
 
 
-@dataclass
+@dataclass(init=False)
 class Size:
     """
     Represents a memory or disk size with an associated unit (kb, mb, gb, tb).
@@ -31,9 +31,15 @@ class Size:
 
     value: int
     unit: str  # "kb", "mb", "gb", "tb"
-    round_func: Callable = field(default=math.ceil)  # rounding function
 
     _unit_map = {"kb": 1, "mb": 1024, "gb": 1024 * 1024, "tb": 1024 * 1024 * 1024}
+
+    def __init__(self, value: int, unit: str, round_func: Callable = math.ceil):
+        self.value = value
+        self.unit = unit
+        self._round_func = round_func
+
+        self.__post_init__()
 
     def __post_init__(self):
         """
@@ -51,13 +57,16 @@ class Size:
         total_kb = self.toKB()
         for unit, factor in reversed(list(self._unit_map.items())):
             if total_kb >= factor:
-                self.value = self.round_func(total_kb / factor)
+                self.value = self._round_func(total_kb / factor)
                 self.unit = unit
                 break
         else:
             # if total_kb < 1 kb, fallback to 1 kb
             self.value = 1
             self.unit = "kb"
+
+    def __getstate__(self):
+        return {"value": self.value, "unit": self.unit}
 
     @classmethod
     def fromString(cls, s: str, round_func: Callable = math.ceil) -> Self:
@@ -133,7 +142,7 @@ class Size:
         return f"{self.value}{self.unit}"
 
     def __repr__(self) -> str:
-        return f"Size(value={self.value}, unit='{self.unit}', round_func='{self.round_func}')"
+        return f"Size(value={self.value}, unit='{self.unit}', _round_func='{self._round_func}')"
 
     def __floordiv__(self, n: int) -> "Size":
         """
@@ -154,7 +163,7 @@ class Size:
         if n == 0:
             raise ZeroDivisionError("division by zero")
 
-        return Size(self.round_func(self.toKB() / n), "kb")
+        return Size(self._round_func(self.toKB() / n), "kb")
 
     def __truediv__(self, other: "Size") -> float:
         """

@@ -1,18 +1,20 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import re
 import socket
 import subprocess
+from dataclasses import fields
 from datetime import timedelta
 from typing import Self
 
 import yaml
 
 from qq_lib.batch.interface.queue import BatchQueueInterface
+from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
 from qq_lib.core.common import hhmmss_to_duration
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.resources import QQResources
 
 logger = get_logger(__name__)
 
@@ -114,7 +116,7 @@ class PBSQueue(BatchQueueInterface):
         if result.returncode != 0:
             raise QQError(f"Queue '{self._name}' does not exist.")
 
-        self._info = PBSQueue._parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+        self._info = parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
         self._setAttributes()
 
     def getName(self) -> str:
@@ -196,6 +198,18 @@ class PBSQueue(BatchQueueInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
+    def getDefaultResources(self) -> dict[str, str]:
+        default_resources = {}
+
+        for key, value in self._info.items():
+            if "resources_default" in key:
+                resource = key.split(".")[-1]
+                default_resources[resource.strip()] = value.strip()
+
+        # only return resources that are part of QQResources
+        field_names = {f.name for f in fields(QQResources)}
+        return {k: v for k, v in default_resources.items() if k in field_names}
+
     def _setAttributes(self) -> None:
         """
         Initialize derived queue attributes to avoid redundant parsing.
@@ -227,67 +241,6 @@ class PBSQueue(BatchQueueInterface):
         job_info._setAttributes()
 
         return job_info
-
-    @staticmethod
-    def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:
-        """
-        Parse a PBS queue info dump into a dictionary.
-
-        Returns:
-            dict[str, str]: Dictionary mapping keys to values.
-        """
-        result: dict[str, str] = {}
-
-        for raw_line in text.splitlines():
-            line = raw_line.rstrip()
-
-            if " = " not in line:
-                continue
-
-            key, value = line.split(" = ", 1)
-            result[key.strip()] = value.strip()
-
-        return result
-
-    @staticmethod
-    def _parseMultiPBSDumpToDictionaries(text: str) -> list[tuple[dict[str, str], str]]:
-        """
-        Parse a PBS queue dump containing metadata for multiple queues into structured dictionaries.
-
-        Args:
-            text (str): The raw PBS queue dump containing information about one or more queues.
-
-        Returns:
-            list[tuple[dict[str, str], str]]: A list of tuples, each containing:
-                - dict[str, str]: Parsed queue metadata for a single queue.
-                - str: The queue name extracted from queue information.
-
-        Raises:
-            QQError: If the queue name cannot be extracted.
-        """
-        if text.strip() == "":
-            return []
-
-        data = []
-
-        job_id_pattern = re.compile(r"^\s*Queue:\s*(.*)$")
-        for chunk in text.rstrip().split("\n\n"):
-            try:
-                first_line = chunk.splitlines()[0]
-                match = job_id_pattern.match(first_line)
-                if not match:
-                    raise
-
-                job_id = match.group(1)
-            except Exception as e:
-                raise QQError(
-                    f"Invalid PBS dump format. Could not extract queue name from:\n{chunk}"
-                ) from e
-
-            data.append((PBSQueue._parsePBSDumpToDictionary(chunk), job_id))  # ty: ignore[possibly-unbound-attribute]
-
-        logger.debug(f"Detected and parsed metadata for {len(data)} PBS queues.")
-        return data
 
     def _setJobNumbers(self) -> None:
         """

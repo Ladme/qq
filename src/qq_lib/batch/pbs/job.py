@@ -1,7 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface import BatchJobInfoInterface
+from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
 from qq_lib.core.common import hhmmss_to_duration
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -65,7 +65,7 @@ class PBSJobInfo(BatchJobInfoInterface):
             # if qstat fails, information is empty
             self._info: dict[str, str] = {}
         else:
-            self._info = PBSJobInfo._parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+            self._info = parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
 
     def getState(self) -> BatchState:
         if not (state := self._info.get("job_state")):
@@ -350,68 +350,6 @@ class PBSJobInfo(BatchJobInfoInterface):
                 f"Could not parse information about {property_name} for '{self._job_id}'."
             )
             return None
-
-    @staticmethod
-    def _parsePBSDumpToDictionary(text: str) -> dict[str, str]:
-        """
-        Parse a PBS job status dump into a dictionary.
-
-        Returns:
-            dict[str, str]: Dictionary mapping keys to values.
-        """
-        result: dict[str, str] = {}
-
-        for raw_line in text.splitlines():
-            line = raw_line.rstrip()
-
-            if " = " not in line:
-                continue
-
-            key, value = line.split(" = ", 1)
-            result[key.strip()] = value.strip()
-
-        # logger.debug(f"PBS qstat dump: {result}")
-        return result
-
-    @staticmethod
-    def _parseMultiPBSDumpToDictionaries(text: str) -> list[tuple[dict[str, str], str]]:
-        """
-        Parse a PBS job dump containing metadata for multiple jobs into structured dictionaries.
-
-        Args:
-            text (str): The raw PBS job dump containing information about one or more jobs.
-
-        Returns:
-            list[tuple[dict[str, str], str]]: A list of tuples, each containing:
-                - dict[str, str]: Parsed job metadata for a single job.
-                - str: The job ID extracted from job information.
-
-        Raises:
-            QQError: If the job ID cannot be extracted.
-        """
-        if text.strip() == "":
-            return []
-
-        data = []
-
-        job_id_pattern = re.compile(r"^\s*Job Id:\s*(.*)$")
-        for chunk in text.rstrip().split("\n\n"):
-            try:
-                first_line = chunk.splitlines()[0]
-                match = job_id_pattern.match(first_line)
-                if not match:
-                    raise
-
-                job_id = match.group(1)
-            except Exception as e:
-                raise QQError(
-                    f"Invalid PBS dump format. Could not extract job id from:\n{chunk}"
-                ) from e
-
-            data.append((PBSJobInfo._parsePBSDumpToDictionary(chunk), job_id))  # ty: ignore[possibly-unbound-attribute]
-
-        logger.debug(f"Detected and parsed metadata for {len(data)} PBS jobs.")
-        return data
 
     @staticmethod
     def _cleanNodeName(raw: str) -> str:

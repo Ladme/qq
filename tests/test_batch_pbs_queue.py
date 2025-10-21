@@ -93,7 +93,7 @@ def test_pbsqueue_update_success():
             "qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result
         ) as run_mock,
         patch(
-            "qq_lib.batch.pbs.queue.PBSQueue._parsePBSDumpToDictionary",
+            "qq_lib.batch.pbs.queue.parsePBSDumpToDictionary",
             return_value={"k": "v"},
         ) as parse_mock,
         patch.object(queue, "_setAttributes") as set_attrs_mock,
@@ -461,136 +461,34 @@ def test_pbsqueue_to_yaml():
     assert parsed_result == expected_dict
 
 
-def test_pbsqueue_parse_pbs_dump_to_dictionary():
-    pbs_dump = """Queue: gpu
-    queue_type = Execution
-    Priority = 75
-    total_jobs = 367
-    state_count = Transit:0 Queued:235 Held:0 Waiting:0 Running:132 Exiting:0 Begun:0
-    max_queued = [u:PBS_GENERIC=2000]
-    resources_max.ngpus = 99
-    resources_max.walltime = 24:00:00
-    resources_min.mem = 50mb
-    resources_min.ngpus = 1
-    resources_default.ngpus = 1
-    comment = Queue for jobs computed on GPU
-    default_chunk.queue_list = q_gpu
-    resources_assigned.mem = 1056gb
-    resources_assigned.mpiprocs = 1056
-    resources_assigned.ncpus = 1056
-    resources_assigned.nodect = 132
-    kill_delay = 120
-    max_run_res.ncpus = [u:PBS_GENERIC=500]
-    backfill_depth = 10
-    enabled = True
-    started = True
-    """
-
-    expected = {
-        "queue_type": "Execution",
-        "Priority": "75",
-        "total_jobs": "367",
-        "state_count": "Transit:0 Queued:235 Held:0 Waiting:0 Running:132 Exiting:0 Begun:0",
-        "max_queued": "[u:PBS_GENERIC=2000]",
-        "resources_max.ngpus": "99",
-        "resources_max.walltime": "24:00:00",
-        "resources_min.mem": "50mb",
-        "resources_min.ngpus": "1",
+def test_pbsqueue_get_default_resources_filters_correct_fields():
+    queue = PBSQueue.__new__(PBSQueue)
+    queue._name = "gpu"
+    queue._info = {
+        "resources_default.mem": "8gb",
+        "resources_default.ncpus": "4",
         "resources_default.ngpus": "1",
-        "comment": "Queue for jobs computed on GPU",
-        "default_chunk.queue_list": "q_gpu",
-        "resources_assigned.mem": "1056gb",
-        "resources_assigned.mpiprocs": "1056",
-        "resources_assigned.ncpus": "1056",
-        "resources_assigned.nodect": "132",
-        "kill_delay": "120",
-        "max_run_res.ncpus": "[u:PBS_GENERIC=500]",
-        "backfill_depth": "10",
-        "enabled": "True",
-        "started": "True",
+        "resources_default.invalid_field": "should_be_filtered",
+        "resources_max.walltime": "24:00:00",
     }
 
-    result = PBSQueue._parsePBSDumpToDictionary(pbs_dump)
+    expected = {
+        "mem": "8gb",
+        "ncpus": "4",
+        "ngpus": "1",
+    }
+
+    result = queue.getDefaultResources()
+
     assert result == expected
 
 
-def test_pbsqueue_parse_multi_pbs_dump_to_dictionaries():
-    pbs_dump = """Queue: test4h
-    queue_type = Execution
-    Priority = 20
-    total_jobs = 0
-    state_count = Transit:0 Queued:0 Held:0 Waiting:0 Running:0 Exiting:0 Begun:0
-    max_queued = [u:PBS_GENERIC=4000]
-    from_route_only = True
-    resources_max.walltime = 04:00:00
-    comment = desktop computers; only dedicated users can submit on their desktops
-    default_chunk.queue_list = q_test4h
-    kill_delay = 120
-    max_run = [u:PBS_GENERIC=2000]
-    max_run_res.ncpus = [u:PBS_GENERIC=1000]
-    backfill_depth = 10
-    enabled = True
-    started = True
+def test_pbsqueue_get_default_resources_returns_empty_when_no_defaults():
+    queue = PBSQueue.__new__(PBSQueue)
+    queue._name = "gpu"
+    queue._info = {
+        "resources_max.mem": "16gb",
+        "comment": "No default resources here",
+    }
 
-Queue: maintenance
-    queue_type = Execution
-    Priority = 200
-    total_jobs = 0
-    state_count = Transit:0 Queued:0 Held:0 Waiting:0 Running:0 Exiting:0 Begun:0
-    acl_user_enable = True
-    acl_users = user1,user2
-    resources_default.walltime = 720:00:00
-    comment = Special queue marking machines in maintenance
-    kill_delay = 120
-    hasnodes = True
-    enabled = True
-    started = True
-
-Queue: gpu
-    queue_type = Execution
-    Priority = 75
-    total_jobs = 367
-    state_count = Transit:0 Queued:235 Held:0 Waiting:0 Running:132 Exiting:0 Begun:0
-    max_queued = [u:PBS_GENERIC=2000]
-    resources_max.ngpus = 99
-    resources_max.walltime = 24:00:00
-    resources_min.mem = 50mb
-    resources_min.ngpus = 1
-    resources_default.ngpus = 1
-    comment = Queue for jobs computed on GPU
-    default_chunk.queue_list = q_gpu
-    resources_assigned.mem = 1056gb
-    resources_assigned.mpiprocs = 1056
-    resources_assigned.ncpus = 1056
-    resources_assigned.nodect = 132
-    kill_delay = 120
-    max_run_res.ncpus = [u:PBS_GENERIC=500]
-    backfill_depth = 10
-    enabled = True
-    started = True
-    """
-
-    result = PBSQueue._parseMultiPBSDumpToDictionaries(pbs_dump)
-
-    assert len(result) == 3
-    queue_names = [name for _, name in result]
-    assert queue_names == ["test4h", "maintenance", "gpu"]
-
-    for data_dict, name in result:
-        assert isinstance(data_dict, dict)
-        assert "queue_type" in data_dict
-        assert data_dict["enabled"] == "True"
-        assert data_dict["started"] == "True"
-        assert isinstance(name, str)
-
-
-def test_pbsqueue_parse_multi_pbs_dump_to_dictionaries_empty():
-    assert PBSQueue._parseMultiPBSDumpToDictionaries("") == []
-
-
-def test_pbsqueue_parse_multi_pbs_dump_to_dictionaries_invalid_format_raises_error():
-    invalid_dump = "Invalid text without queue name line"
-    try:
-        PBSQueue._parseMultiPBSDumpToDictionaries(invalid_dump)
-    except QQError as e:
-        assert "Invalid PBS dump format" in str(e)
+    assert queue.getDefaultResources() == {}

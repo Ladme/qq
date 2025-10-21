@@ -15,6 +15,7 @@ from qq_lib.batch.pbs.qqpbs import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import QQResources
+from qq_lib.properties.size import Size
 
 
 @pytest.fixture
@@ -559,141 +560,6 @@ def test_translate_per_chunk_resources_missing_memory_raises():
     res = QQResources(nnodes=2, ncpus=4)
     with pytest.raises(QQError, match="mem"):
         QQPBS._translatePerChunkResources(res)
-
-
-def test_parse_queue_info_empty_text_returns_empty_dict():
-    text = ""
-    result = QQPBS._parseQueueInfoToDictionary(text)
-    assert result == {}
-
-
-def test_parse_queue_info_only_non_default_lines_ignored():
-    text = """
-queue_type = Execution
-Priority = 75
-total_jobs = 308
-"""
-    result = QQPBS._parseQueueInfoToDictionary(text)
-    assert result == {}
-
-
-def test_parse_queue_info_extracts_default_resources():
-    text = """
-resources_max.ngpus = 99
-resources_max.walltime = 24:00:00
-resources_min.mem = 50mb
-resources_default.ngpus = 1
-resources_default.walltime = 12:00:00
-resources_default.mem = 5gb
-"""
-    result = QQPBS._parseQueueInfoToDictionary(text)
-    expected = {
-        "ngpus": "1",
-        "walltime": "12:00:00",
-        "mem": "5gb",
-    }
-    assert result == expected
-
-
-def test_parse_queue_info_ignores_extra_spaces():
-    text = """
-resources_default.ngpus =    2
-resources_default.mem   = 10gb
-"""
-    result = QQPBS._parseQueueInfoToDictionary(text)
-    expected = {
-        "ngpus": "2",
-        "mem": "10gb",
-    }
-    assert result == expected
-
-
-def test_parse_queue_info_multiple_default_resources():
-    text = """
-resources_default.mem = 8gb
-resources_default.ncpus = 16
-resources_default.ngpus = 4
-"""
-    result = QQPBS._parseQueueInfoToDictionary(text)
-    expected = {
-        "mem": "8gb",
-        "ncpus": "16",
-        "ngpus": "4",
-    }
-    assert result == expected
-
-
-def test_parse_queue_info_ignores_non_resource_default_lines():
-    text = """
-comment = Example queue
-resources_default.mem = 2gb
-enabled = True
-"""
-    result = QQPBS._parseQueueInfoToDictionary(text)
-    expected = {"mem": "2gb"}
-    assert result == expected
-
-
-@pytest.mark.parametrize("queue_name", ["gpu", "cpu"])
-def test_get_default_queue_resources_success(queue_name):
-    mock_output = """
-resources_default.mem = 4gb
-resources_default.ncpus = 16
-resources_default.ngpus = 2
-resources_default.walltime = 12:00:00
-resources_default.unknown_field = ignored
-"""
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = mock_output
-
-    with patch(
-        "qq_lib.batch.pbs.qqpbs.subprocess.run", return_value=mock_result
-    ) as mock_run:
-        res = QQPBS._getDefaultQueueResources(queue_name)
-
-    mock_run.assert_called_once()
-    assert isinstance(res, QQResources)
-    assert str(res.mem) == "4gb"
-    assert res.ncpus == 16
-    assert res.ngpus == 2
-    assert res.walltime == "12:00:00"
-    assert not hasattr(res, "unknown_field")
-
-
-def test_get_default_queue_resources_failure_returns_empty():
-    mock_result = MagicMock()
-    mock_result.returncode = 1
-    mock_result.stdout = ""
-
-    with patch(
-        "qq_lib.batch.pbs.qqpbs.subprocess.run", return_value=mock_result
-    ) as mock_run:
-        res = QQPBS._getDefaultQueueResources("nonexistent_queue")
-
-    mock_run.assert_called_once()
-
-    assert isinstance(res, QQResources)
-    for f in res.__dataclass_fields__:
-        assert getattr(res, f) is None
-
-
-def test_get_default_queue_resources_calls_parse_queue_info():
-    mock_output = "resources_default.ncpus = 8\nresources_default.mem = 2gb\n"
-    mock_result = MagicMock(returncode=0, stdout=mock_output)
-
-    with (
-        patch("qq_lib.batch.pbs.qqpbs.subprocess.run", return_value=mock_result),
-        patch.object(
-            QQPBS,
-            "_parseQueueInfoToDictionary",
-            wraps=QQPBS._parseQueueInfoToDictionary,
-        ) as mock_parse,
-    ):
-        res = QQPBS._getDefaultQueueResources("gpu")
-        mock_parse.assert_called_once_with(mock_output)
-        assert res.ncpus == 8
-        assert str(res.mem) == "2gb"
 
 
 def test_translate_submit_minimal_fields():
@@ -1277,7 +1143,7 @@ def test_qqpbs_get_queues_returns_list(mock_run):
 
     with (
         patch(
-            "qq_lib.batch.pbs.qqpbs.PBSQueue._parseMultiPBSDumpToDictionaries",
+            "qq_lib.batch.pbs.qqpbs.parseMultiPBSDumpToDictionaries",
             return_value=[({"key": "value"}, "queue1")],
         ) as mock_parse,
         patch(
@@ -1295,7 +1161,7 @@ def test_qqpbs_get_queues_returns_list(mock_run):
         errors="replace",
     )
 
-    mock_parse.assert_called_once_with("mock_stdout")
+    mock_parse.assert_called_once_with("mock_stdout", "Queue")
     mock_from_dict.assert_called_once_with("queue1", {"key": "value"})
 
     assert result == ["mock_queue"]
@@ -1315,7 +1181,7 @@ def test_qqpbs_get_queues_multiple_queues(mock_run):
 
     with (
         patch(
-            "qq_lib.batch.pbs.qqpbs.PBSQueue._parseMultiPBSDumpToDictionaries",
+            "qq_lib.batch.pbs.qqpbs.parseMultiPBSDumpToDictionaries",
             return_value=[
                 ({"data1": "value1"}, "queue1"),
                 ({"data2": "value2"}, "queue2"),
@@ -1328,7 +1194,22 @@ def test_qqpbs_get_queues_multiple_queues(mock_run):
     ):
         result = QQPBS.getQueues()
 
-    mock_parse.assert_called_once_with("mock_stdout")
+    mock_parse.assert_called_once_with("mock_stdout", "Queue")
     assert mock_from_dict.call_count == 2
 
     assert result == ["queue_obj1", "queue_obj2"]
+
+
+@patch("qq_lib.batch.pbs.qqpbs.PBSQueue")
+def test_qqpbs_get_default_queue_resources_returns_resources(mock_pbsqueue):
+    mock_instance = MagicMock()
+    mock_instance.getDefaultResources.return_value = {"mem": "8gb", "ncpus": 4}
+    mock_pbsqueue.return_value = mock_instance
+
+    result = QQPBS._getDefaultQueueResources("gpu")
+    mock_pbsqueue.assert_called_once_with("gpu")
+    mock_instance.getDefaultResources.assert_called_once()
+
+    assert isinstance(result, QQResources)
+    assert result.mem == Size(8, "gb")
+    assert result.ncpus == 4

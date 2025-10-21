@@ -149,3 +149,16 @@ class BatchQueueInterface(ABC):
             str: YAML-formatted string of queue metadata.
         """
         pass
+
+    @abstractmethod
+    def getDefaultResources(self) -> dict[str, str]:
+        """
+        Return the default resource definitions for this queue.
+
+        The returned dictionary specifies default resource values
+        that can be used to construct a `QQResources` object.
+
+        Returns:
+            dict[str, str]: A mapping of resource names to their default values.
+        """
+        pass

@@ -14,6 +14,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from qq_lib.batch.pbs import PBSJobInfo
+from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
 from qq_lib.core.common import format_duration_wdhhmmss
 from qq_lib.jobs.presenter import CFG, QQJobsPresenter, QQJobsStatistics
 from qq_lib.properties.states import BatchState
@@ -392,7 +393,7 @@ Job Id: 654321.fake-cluster.example.com
 @pytest.fixture
 def parsed_jobs(sample_pbs_dump):
     jobs = []
-    for data, job_id in PBSJobInfo._parseMultiPBSDumpToDictionaries(sample_pbs_dump):
+    for data, job_id in parseMultiPBSDumpToDictionaries(sample_pbs_dump, "Job Id"):
         jobs.append(PBSJobInfo.fromDict(job_id, data))
     return jobs
 

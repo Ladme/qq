@@ -7,11 +7,11 @@ import shutil
 import socket
 import subprocess
 from collections.abc import Callable
-from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.batch.interface.meta import batch_system
+from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
@@ -168,8 +168,8 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
             )
 
         queues = []
-        for data, name in PBSQueue._parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
-            result.stdout.strip()
+        for data, name in parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+            result.stdout.strip(), "Queue"
         ):
             queues.append(PBSQueue.fromDict(name, data))  # ty: ignore[possibly-unbound-attribute]
 
@@ -624,54 +624,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
             QQResources: A QQResources object populated with the queue's default resources.
                         If the queue cannot be queried or an error occurs, returns an empty QQResources object.
         """
-        command = f"qstat -Qfw {queue}"
-
-        result = subprocess.run(
-            ["bash"],
-            input=command,
-            text=True,
-            check=False,
-            capture_output=True,
-            errors="replace",
-        )
-
-        if result.returncode != 0:
-            # no default resources for a queue
-            logger.warning(f"Could not get information about the queue {queue}.")
-            return QQResources()
-        info = QQPBS._parseQueueInfoToDictionary(result.stdout)
-        # ignore fields not defined in the dataclass
-        field_names = {f.name for f in fields(QQResources)}
-        filtered = {k: v for k, v in info.items() if k in field_names}
-        return QQResources(**filtered)
-
-    @staticmethod
-    def _parseQueueInfoToDictionary(text: str) -> dict[str, str]:
-        """
-        Parse the output of a PBS queue query and extract default resource values.
-
-        Args:
-            text (str): Raw string output from a PBS qstat command.
-
-        Returns:
-            dict[str, str]: A dictionary mapping resource names to their default values
-                            extracted from the queue info.
-        """
-        result: dict[str, str] = {}
-
-        for raw_line in text.splitlines():
-            line = raw_line.rstrip()
-
-            if " = " not in line:
-                continue
-
-            key, value = line.split(" = ", 1)
-            if "resources_default" in key:
-                resource = key.split(".")[-1]
-                result[resource.strip()] = value.strip()
-
-        logger.debug(f"PBS queue info: {result}")
-        return result
+        return QQResources(**PBSQueue(queue).getDefaultResources())
 
     @staticmethod
     def _translateKillForce(job_id: str) -> str:
@@ -777,8 +730,8 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
             )
 
         jobs = []
-        for data, job_id in PBSJobInfo._parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
-            result.stdout.strip()
+        for data, job_id in parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+            result.stdout.strip(), "Job Id"
         ):
             jobs.append(PBSJobInfo.fromDict(job_id, data))  # ty: ignore[possibly-unbound-attribute]
 

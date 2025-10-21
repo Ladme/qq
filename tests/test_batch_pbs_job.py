@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
+from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
 from qq_lib.batch.pbs.job import CFG, PBSJobInfo
-from qq_lib.core.error import QQError
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
@@ -70,50 +70,9 @@ Job Id: 123456.fake-cluster.example.com
 """
 
 
-def test_parse_pbs_dump_empty_string():
-    text = ""
-    result = PBSJobInfo._parsePBSDumpToDictionary(text)
-    assert result == {}
-
-
-def test_parse_pbs_dump_real_file(sample_dump_file):
-    result = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
-
-    assert isinstance(result, dict)
-    assert result["Job_Name"].strip() == "example_job"
-    assert result["job_state"].strip() == "R"
-    assert (
-        result["Resource_List.select"].strip()
-        == "1:ncpus=8:ngpus=1:mpiprocs=8:mem=8gb:scratch_local=8gb:cl_two=true:ompthreads=1:node_owner=everybody"
-    )
-    assert result["jobdir"].strip() == "/fake/home/user"
-    assert result["resources_used.cpupercent"].strip() == "100"
-    assert "QQ_DEBUG=true,QQ_ENV_SET=true," in result["Variable_List"]
-    assert "SINGULARITY_CACHEDIR=/scratch/user/job_123456" in result["Variable_List"]
-
-
-def test_parse_pbs_dump_nonsense_input():
-    text = """
-This is not a key-value
-Just some random text
-= = =
-Another line without equal
-KEY = 
-=VALUE
-NORMAL = OK
-NOTCONTINUATION
-"""
-    result = PBSJobInfo._parsePBSDumpToDictionary(text)
-
-    assert result.get("NORMAL") == "OK"
-
-    assert "This is not a key-value" not in result
-    assert "KEY" not in result
-
-
 def test_get_state(sample_dump_file):
     pbs_job_info = object.__new__(PBSJobInfo)
-    pbs_job_info._info = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
+    pbs_job_info._info = parsePBSDumpToDictionary(sample_dump_file)
 
     assert pbs_job_info.getState() == BatchState.RUNNING
 
@@ -679,7 +638,7 @@ def test_pbs_job_info_get_env_vars_empty():
 
 
 def test_pbs_job_info_to_yaml(sample_dump_file):
-    info = PBSJobInfo._parsePBSDumpToDictionary(sample_dump_file)
+    info = parsePBSDumpToDictionary(sample_dump_file)
     job = _make_jobinfo_with_info(info)
 
     assert (
@@ -750,109 +709,3 @@ def test_pbs_job_info_is_empty():
 def test_pbs_job_info_is_empty_false():
     job = _make_jobinfo_with_info({})
     assert job.isEmpty()
-
-
-@pytest.fixture
-def sample_multi_dump_file():
-    return """Job Id: 123456.fake-cluster.example.com
-    Job_Name = example_job_1
-    Job_Owner = user@EXAMPLE
-    resources_used.cpupercent = 50
-    resources_used.ncpus = 4
-    job_state = R
-    queue = gpu
-
-Job Id: 123457.fake-cluster.example.com
-    Job_Name = example_job_2
-    Job_Owner = user@EXAMPLE
-    resources_used.cpupercent = 75
-    resources_used.ncpus = 8
-    job_state = Q
-    queue = cpu
-
-Job Id: 123458.fake-cluster.example.com
-    Job_Name = example_job_3
-    Job_Owner = user@EXAMPLE
-    resources_used.cpupercent = 100
-    resources_used.ncpus = 16
-    job_state = H
-    queue = gpu
-"""
-
-
-@pytest.mark.parametrize(
-    "text,expected_ids,expected_names",
-    [
-        (
-            """Job Id: 1
-            Job_Name = job1
-            job_state = R
-
-            Job Id: 2
-            Job_Name = job2
-            job_state = Q
-            """,
-            ["1", "2"],
-            ["job1", "job2"],
-        ),
-        (
-            """Job Id: single_job
-            Job_Name = only_job
-            job_state = R
-            """,
-            ["single_job"],
-            ["only_job"],
-        ),
-    ],
-)
-def test_parse_multi_pbs_dump_to_dictionaries_success(
-    text, expected_ids, expected_names
-):
-    jobs = PBSJobInfo._parseMultiPBSDumpToDictionaries(text)
-    assert len(jobs) == len(expected_ids)
-    for (info, job_id), exp_id, exp_name in zip(jobs, expected_ids, expected_names):
-        assert job_id == exp_id
-        assert info["Job_Name"] == exp_name
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        "No Job Id here\nJob_Name = broken",
-    ],
-)
-def test_parse_multi_pbs_dump_to_dictionaries_invalid_input(text):
-    with pytest.raises(
-        QQError, match="Invalid PBS dump format. Could not extract job id from"
-    ):
-        PBSJobInfo._parseMultiPBSDumpToDictionaries(text)
-
-
-@pytest.mark.parametrize(
-    "text",
-    ["", "\t   ", "\n\n"],
-)
-def test_parse_multi_pbs_dump_to_dictionaries_empty(text):
-    assert PBSJobInfo._parseMultiPBSDumpToDictionaries(text) == []
-
-
-def test_parse_multi_pbs_dump_to_dictionaries_preserves_multiple_jobs(
-    sample_multi_dump_file,
-):
-    jobs = PBSJobInfo._parseMultiPBSDumpToDictionaries(sample_multi_dump_file)
-    assert len(jobs) == 3
-
-    expected_ids = [
-        "123456.fake-cluster.example.com",
-        "123457.fake-cluster.example.com",
-        "123458.fake-cluster.example.com",
-    ]
-    expected_names = ["example_job_1", "example_job_2", "example_job_3"]
-    expected_states = ["R", "Q", "H"]
-
-    for (info, job_id), exp_id, exp_name, exp_state in zip(
-        jobs, expected_ids, expected_names, expected_states
-    ):
-        assert job_id == exp_id
-        assert info["Job_Name"] == exp_name
-        assert info["job_state"] == exp_state

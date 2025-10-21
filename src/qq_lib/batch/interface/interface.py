@@ -7,6 +7,7 @@ import subprocess
 from abc import ABC
 from pathlib import Path
 
+from qq_lib.batch.interface.queue import BatchQueueInterface
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -19,7 +20,10 @@ from .job import BatchJobInfoInterface
 logger = get_logger(__name__)
 
 
-class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
+class QQBatchInterface[
+    TBatchInfo: BatchJobInfoInterface,
+    TBatchQueue: BatchQueueInterface,
+](ABC):
     """
     Abstract base class for batch system integrations.
 
@@ -211,6 +215,18 @@ class QQBatchInterface[TBatchInfo: BatchJobInfoInterface](ABC):
         """
         raise NotImplementedError(
             "getAllJobsInfo method is not implemented for this batch system interface"
+        )
+
+    @staticmethod
+    def getQueues() -> list[TBatchQueue]:
+        """
+        Retrieve all queues managed by the batch system.
+
+        Returns:
+            list[TBatchQueue]: A list of queue objects available in the batch system.
+        """
+        raise NotImplementedError(
+            "getQueues method is not implemented for this batch system interface"
         )
 
     @staticmethod

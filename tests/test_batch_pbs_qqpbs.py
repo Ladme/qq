@@ -1210,6 +1210,7 @@ def test_get_jobs_info_using_command_success(sample_multi_dump_file):
             text=True,
             check=False,
             capture_output=True,
+            errors="replace",
         )
 
 
@@ -1268,3 +1269,66 @@ def test_collect_ams_env_vars(monkeypatch):
         "AMS_BUNDLE_PATH": "/ams/bundle",
     }
     assert result == expected
+
+
+@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
+def test_qqpbs_get_queues_returns_list(mock_run):
+    mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
+
+    with (
+        patch(
+            "qq_lib.batch.pbs.qqpbs.PBSQueue._parseMultiPBSDumpToDictionaries",
+            return_value=[({"key": "value"}, "queue1")],
+        ) as mock_parse,
+        patch(
+            "qq_lib.batch.pbs.qqpbs.PBSQueue.fromDict", return_value="mock_queue"
+        ) as mock_from_dict,
+    ):
+        result = QQPBS.getQueues()
+
+    mock_run.assert_called_once_with(
+        ["bash"],
+        input="qstat -Qfw",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+
+    mock_parse.assert_called_once_with("mock_stdout")
+    mock_from_dict.assert_called_once_with("queue1", {"key": "value"})
+
+    assert result == ["mock_queue"]
+
+
+@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
+def test_qqpbs_get_queues_raises_on_failure(mock_run):
+    mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error_message")
+
+    with pytest.raises(QQError, match="error_message"):
+        QQPBS.getQueues()
+
+
+@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
+def test_qqpbs_get_queues_multiple_queues(mock_run):
+    mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
+
+    with (
+        patch(
+            "qq_lib.batch.pbs.qqpbs.PBSQueue._parseMultiPBSDumpToDictionaries",
+            return_value=[
+                ({"data1": "value1"}, "queue1"),
+                ({"data2": "value2"}, "queue2"),
+            ],
+        ) as mock_parse,
+        patch(
+            "qq_lib.batch.pbs.qqpbs.PBSQueue.fromDict",
+            side_effect=["queue_obj1", "queue_obj2"],
+        ) as mock_from_dict,
+    ):
+        result = QQPBS.getQueues()
+
+    mock_parse.assert_called_once_with("mock_stdout")
+    assert mock_from_dict.call_count == 2
+
+    assert result == ["queue_obj1", "queue_obj2"]

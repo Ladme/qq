@@ -525,18 +525,48 @@ def test_create_jobs_info_panel_structure(parsed_jobs):
         (" " * 5, " " * 5, False),
     ],
 )
-def test_jobs_presenter_shorten_job_name_behavior(job_name, expected, should_truncate):
+def test_jobs_presenter_shorten_job_name(job_name, expected, should_truncate):
     result = QQJobsPresenter._shortenJobName(job_name)
 
     if should_truncate:
-        # must end with ellipsis
         assert result.endswith("…")
-        # should have correct total length (limit + ellipsis)
         assert len(result) == CFG.jobs_presenter.max_job_name_length + 1
-        # prefix should match the original start
         assert result.startswith(job_name[: CFG.jobs_presenter.max_job_name_length])
     else:
         # must not be truncated
+        assert result == expected
+        assert "…" not in result
+
+
+@pytest.mark.parametrize(
+    "nodes,expected,should_truncate",
+    [
+        # 1. shorter than limit
+        ("nodeA + nodeB + nodeC", "nodeA + nodeB + nodeC", False),
+        # 2. exactly at limit
+        (
+            "n" * CFG.jobs_presenter.max_nodes_length,
+            "n" * CFG.jobs_presenter.max_nodes_length,
+            False,
+        ),
+        # 3. exceeds limit by one
+        ("n" * (CFG.jobs_presenter.max_nodes_length + 1), None, True),
+        # 4. exceeds limit by a lot
+        ("x" * (CFG.jobs_presenter.max_nodes_length + 20), None, True),
+        # 5. empty string
+        ("", "", False),
+        # 6. whitespace only
+        (" " * 4, " " * 4, False),
+    ],
+)
+def test_jobs_presenter_shorten_nodes(nodes, expected, should_truncate):
+    result = QQJobsPresenter._shortenNodes(nodes)
+
+    if should_truncate:
+        assert result.endswith("…")
+        assert len(result) == CFG.jobs_presenter.max_nodes_length + 1
+        assert result.startswith(nodes[: CFG.jobs_presenter.max_nodes_length])
+    else:
         assert result == expected
         assert "…" not in result
 

@@ -46,8 +46,11 @@ class QQJobsPresenter:
         "bright_cyan": "\033[96m",
         "bright_white": "\033[97m",
         # other colors
-        "grey70": "\033[38;5;245m",
+        "grey90": "\033[38;5;254m",
+        "grey70": "\033[38;5;249m",
         "grey50": "\033[38;5;244m",
+        "grey30": "\033[38;5;239m",
+        "grey10": "\033[38;5;233m",
         # bold:
         "bold": "\033[1m",
         # reset
@@ -330,7 +333,7 @@ class QQJobsPresenter:
         """
         if nodes := job.getShortNodes():
             return QQJobsPresenter._mainColor(
-                " + ".join(nodes),
+                QQJobsPresenter._shortenNodes(" + ".join(nodes)),
             )
 
         if state in {BatchState.FINISHED, BatchState.FAILED}:
@@ -338,7 +341,9 @@ class QQJobsPresenter:
 
         if estimated := job.getEstimated():
             return QQJobsPresenter._color(
-                f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
+                QQJobsPresenter._shortenNodes(
+                    f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}"
+                ),
                 color=state.color,
             )
 
@@ -373,6 +378,23 @@ class QQJobsPresenter:
             return f"{job_name[: CFG.jobs_presenter.max_job_name_length]}…"
 
         return job_name
+
+    @staticmethod
+    def _shortenNodes(nodes: str) -> str:
+        """
+        Truncate a list of nodes if it exceeds the maximum allowed display length.
+
+        Args:
+            nodes (str): The original nodes string.
+
+        Returns:
+            str: The possibly shortened list of nodes. If the original string length
+                is less than or equal to the configured limit, it is returned unchanged.
+        """
+        if len(nodes) > CFG.jobs_presenter.max_nodes_length:
+            return f"{nodes[: CFG.jobs_presenter.max_nodes_length]}…"
+
+        return nodes
 
     @staticmethod
     def _color(string: str, color: str | None = None, bold: bool = False) -> str:

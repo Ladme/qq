@@ -12,6 +12,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.batch.interface.meta import batch_system
+from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -25,7 +26,7 @@ logger = get_logger(__name__)
 
 
 @batch_system
-class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
+class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
     """
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
@@ -132,6 +133,32 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         command = "qstat -fxw"
         logger.debug(command)
         return QQPBS._getJobsInfoUsingCommand(command)
+
+    def getQueues() -> list[PBSQueue]:
+        command = "qstat -Qfw"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not retrieve information about queues: {result.stderr.strip()}."
+            )
+
+        queues = []
+        for data, name in PBSQueue._parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+            result.stdout.strip()
+        ):
+            queues.append(PBSQueue.fromDict(name, data))  # ty: ignore[possibly-unbound-attribute]
+
+        return queues
 
     def readRemoteFile(host: str, file: Path) -> str:
         if os.environ.get(CFG.env_vars.shared_submit):
@@ -262,7 +289,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
             if provided_resources.work_size:
                 logger.warning(
                     "Setting work-size is not supported for work-dir='job_dir' or 'input_dir'.\n"
-                    'Job will run in the submission directory with "unlimited" capacity.\n'
+                    "Job will run in the submission directory with unlimited capacity.\n"
                     "The work-size attribute will be ignored."
                 )
 
@@ -716,7 +743,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo], metaclass=QQBatchMeta):
         """
         ...
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:

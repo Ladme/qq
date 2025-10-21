@@ -3,6 +3,4 @@
 
 # ruff: noqa: F401
 
-from .qq import cli
-
-__version__ = "0.1.0-dev.9"
+from .cli import queues

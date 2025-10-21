@@ -84,20 +84,6 @@ class LoopJobSettings:
 
 
 @dataclass
-class JobsPresenterSettings:
-    """Settings for QQJobsPresenter."""
-
-    max_job_name_length: int = 20
-    border_style: str = "white"
-    title_style: str = "white bold"
-    headers_style: str = "default"
-    main_style: str = "white"
-    secondary_style: str = "grey70"
-    strong_warning_style: str = "bright_red"
-    mild_warning_style: str = "bright_yellow"
-
-
-@dataclass
 class JobStatusPanelSettings:
     """Settings for creating a job status panel."""
 
@@ -137,6 +123,42 @@ class PresenterSettings:
 
 
 @dataclass
+class JobsPresenterSettings:
+    """Settings for QQJobsPresenter."""
+
+    max_job_name_length: int = 20
+    max_nodes_length: int = 40
+    border_style: str = "white"
+    title_style: str = "white bold"
+    headers_style: str = "default"
+    main_style: str = "white"
+    secondary_style: str = "grey70"
+    strong_warning_style: str = "bright_red"
+    mild_warning_style: str = "bright_yellow"
+
+
+@dataclass
+class QueuesPresenterSettings:
+    """Settings for QQQueuesPresenter."""
+
+    max_width: int | None = None
+    min_width: int | None = 80
+    border_style: str = "white"
+    title_style: str = "white bold"
+    headers_style: str = "default"
+
+    main_mark = "●"
+    rerouted_mark = " ··>"
+
+    available_mark_style: str = "bright_green"
+    unavailable_mark_style: str = "bright_red"
+    dangling_mark_style: str = "bright_yellow"
+
+    main_text_style: str = "white"
+    rerouted_text_style: str = "grey50"
+
+
+@dataclass
 class DateFormats:
     """Date and time format strings."""
 
@@ -172,6 +194,7 @@ class StateColors:
     in_an_inconsistent_state: str = "grey70"
     unknown: str = "grey70"
     sum: str = "white"
+    other: str = "grey70"
 
 
 @dataclass
@@ -187,6 +210,9 @@ class QQConfig:
     presenter: PresenterSettings = field(default_factory=PresenterSettings)
     loop_jobs: LoopJobSettings = field(default_factory=LoopJobSettings)
     jobs_presenter: JobsPresenterSettings = field(default_factory=JobsPresenterSettings)
+    queues_presenter: QueuesPresenterSettings = field(
+        default_factory=QueuesPresenterSettings
+    )
     date_formats: DateFormats = field(default_factory=DateFormats)
     exit_codes: ExitCodes = field(default_factory=ExitCodes)
     state_colors: StateColors = field(default_factory=StateColors)

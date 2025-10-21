@@ -33,6 +33,7 @@ except ImportError:
 class PBSJobInfo(BatchJobInfoInterface):
     """
     Implementation of BatchJobInterface for PBS.
+    Stores metadata for a single PBS job.
     """
 
     def __init__(self, job_id: str):

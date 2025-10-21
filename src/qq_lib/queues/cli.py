@@ -10,6 +10,7 @@ import click
 from rich.console import Console
 
 from qq_lib.batch.interface.meta import QQBatchMeta
+from qq_lib.core.config import CFG
 
 if TYPE_CHECKING:
     from qq_lib.batch.interface.queue import BatchQueueInterface
@@ -57,8 +58,8 @@ def queues(all: bool, yaml: bool) -> NoReturn:
     except QQError as e:
         logger.error(e)
         print()
-        sys.exit(91)
+        sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
         print()
-        sys.exit(99)
+        sys.exit(CFG.exit_codes.unexpected_error)

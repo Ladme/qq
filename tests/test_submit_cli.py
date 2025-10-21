@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
+from qq_lib.core.config import CFG
 from qq_lib.submit import submit
 
 
@@ -48,7 +49,7 @@ def test_submit_script_does_not_exist(tmp_path):
     with patch("qq_lib.submit.cli.logger") as mock_logger:
         result = runner.invoke(submit, [str(missing_script)])
 
-        assert result.exit_code == 91
+        assert result.exit_code == CFG.exit_codes.default
         error_messages = [call.args[0] for call in mock_logger.error.call_args_list]
         assert any("does not exist" in str(msg) for msg in error_messages)
 
@@ -76,7 +77,7 @@ def test_submit_detects_runtime_files_and_aborts(tmp_path):
     ):
         result = runner.invoke(submit, [str(script)])
 
-        assert result.exit_code == 91
+        assert result.exit_code == CFG.exit_codes.default
         error_messages = [call.args[0] for call in mock_logger.error.call_args_list]
         assert any("Submission aborted" in str(msg) for msg in error_messages)
         factory_mock.makeSubmitter.assert_called_once()
@@ -131,7 +132,7 @@ def test_submit_generic_exception_results_in_critical_log(tmp_path):
     ):
         result = runner.invoke(submit, [str(script)])
 
-        assert result.exit_code == 99
+        assert result.exit_code == CFG.exit_codes.unexpected_error
         critical_messages = [
             call.args[0] for call in mock_logger.critical.call_args_list
         ]

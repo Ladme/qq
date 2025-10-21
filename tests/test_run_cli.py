@@ -34,7 +34,7 @@ def test_run_exits_90_if_not_in_qq_env(monkeypatch):
     monkeypatch.delenv(CFG.env_vars.guard, raising=False)
 
     result = runner.invoke(run, ["script.sh"])
-    assert result.exit_code == 90
+    assert result.exit_code == CFG.exit_codes.not_qq_env
     assert "This script must be run as a qq job" in result.output
 
 
@@ -46,7 +46,7 @@ def test_run_exits_92_if_info_file_env_missing(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
     result = runner.invoke(run, ["script.sh"])
-    assert result.exit_code == 92
+    assert result.exit_code == CFG.exit_codes.qq_run_fatal
     assert f"'{CFG.env_vars.info_file}'" in result.output
     assert "not set" in result.output
 
@@ -59,7 +59,7 @@ def test_run_exits_92_if_input_machine_env_missing(monkeypatch):
     monkeypatch.delenv(CFG.env_vars.input_machine, raising=False)
 
     result = runner.invoke(run, ["script.sh"])
-    assert result.exit_code == 92
+    assert result.exit_code == CFG.exit_codes.qq_run_fatal
     assert f"'{CFG.env_vars.input_machine}'" in result.output
     assert "not set" in result.output
 
@@ -102,7 +102,7 @@ def test_run_exits_91_on_standard_qqerror(monkeypatch):
     with patch("qq_lib.run.cli.QQRunner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
-    assert result.exit_code == 91
+    assert result.exit_code == CFG.exit_codes.default
     assert "standard qq error" in result.output
 
 
@@ -117,7 +117,7 @@ def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
     with patch("qq_lib.run.cli.QQRunner", side_effect=QQRunFatalError("fatal error")):
         result = runner.invoke(run, ["script.sh"])
 
-    assert result.exit_code == 92
+    assert result.exit_code == CFG.exit_codes.qq_run_fatal
     assert "fatal error" in result.output
 
 
@@ -138,6 +138,5 @@ def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
     with patch("qq_lib.run.cli.QQRunner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
-    # QQRunCommunicationError triggers log_fatal_error_and_exit exit_code = 93
-    assert result.exit_code == 93
+    assert result.exit_code == CFG.exit_codes.qq_run_communication
     assert "comm error" in result.output

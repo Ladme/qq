@@ -10,6 +10,7 @@ from rich.console import Console
 
 from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.jobs.presenter import QQJobsPresenter
@@ -55,8 +56,8 @@ def stat(all: bool, yaml: bool) -> NoReturn:
     except QQError as e:
         logger.error(e)
         print()
-        sys.exit(91)
+        sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
         print()
-        sys.exit(99)
+        sys.exit(CFG.exit_codes.unexpected_error)

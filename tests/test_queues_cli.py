@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.queues import queues
 
@@ -95,7 +96,7 @@ def test_queues_command_handles_qqerror_and_exits_91():
     ):
         result = runner.invoke(queues, [])
 
-    assert result.exit_code == 91
+    assert result.exit_code == CFG.exit_codes.default
     mock_logger.error.assert_called_once()
 
 
@@ -111,5 +112,5 @@ def test_queues_command_handles_unexpected_exception_and_exits_99():
     ):
         result = runner.invoke(queues, [])
 
-    assert result.exit_code == 99
+    assert result.exit_code == CFG.exit_codes.unexpected_error
     mock_logger.critical.assert_called_once()

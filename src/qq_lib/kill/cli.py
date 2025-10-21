@@ -101,10 +101,10 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     # QQErrors should be caught by QQRepeater
     except QQError as e:
         logger.error(e)
-        sys.exit(91)
+        sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(99)
+        sys.exit(CFG.exit_codes.unexpected_error)
 
 
 def kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:

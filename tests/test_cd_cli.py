@@ -53,4 +53,4 @@ def test_cd_command_job_does_not_exist():
 
     with patch.object(QQPBS, "getJobInfo", return_value=job_info_empty):
         result = runner.invoke(cd, ["1234"])
-        assert result.exit_code == 91
+        assert result.exit_code == CFG.exit_codes.default

@@ -42,7 +42,7 @@ def clear(force: bool) -> NoReturn:
         sys.exit(0)
     except QQError as e:
         logger.error(e)
-        sys.exit(91)
+        sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(99)
+        sys.exit(CFG.exit_codes.unexpected_error)

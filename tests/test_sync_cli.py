@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.sync.cli import _split_files, _sync_job, sync
 
@@ -120,7 +121,7 @@ def test_sync_catches_qqerror_and_exits_91(tmp_path):
     ):
         result = runner.invoke(sync, [])
 
-        assert result.exit_code == 91
+        assert result.exit_code == CFG.exit_codes.default
         mock_logger.error.assert_called_once_with(repeater_mock.run.side_effect)
 
 
@@ -142,5 +143,5 @@ def test_sync_catches_generic_exception_and_exits_99(tmp_path):
     ):
         result = runner.invoke(sync, [])
 
-        assert result.exit_code == 99
+        assert result.exit_code == CFG.exit_codes.unexpected_error
         mock_logger.critical.assert_called_once()

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from qq_lib.batch.interface.job import BatchJobInfoInterface
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.kill.cli import kill_job
 from qq_lib.killall.cli import _jobs_to_paths, _log_error_and_continue, killall
@@ -230,7 +231,7 @@ def test_killall_qqerror_in_main_loop_exits_91(tmp_path):
 
         result = runner.invoke(killall, ["--yes"])
 
-        assert result.exit_code == 91
+        assert result.exit_code == CFG.exit_codes.default
 
 
 def test_killall_generic_exception_exits_99(tmp_path):
@@ -255,4 +256,4 @@ def test_killall_generic_exception_exits_99(tmp_path):
 
         result = runner.invoke(killall, ["--yes"])
 
-        assert result.exit_code == 99
+        assert result.exit_code == CFG.exit_codes.unexpected_error

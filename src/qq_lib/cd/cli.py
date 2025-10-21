@@ -10,6 +10,7 @@ import click
 from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.cd.cder import QQCder
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
@@ -44,7 +45,7 @@ def cd(job: str) -> NoReturn:
         sys.exit(0)
     except QQError as e:
         logger.error(e)
-        sys.exit(91)
+        sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(99)
+        sys.exit(CFG.exit_codes.unexpected_error)

@@ -14,6 +14,7 @@ from qq_lib.batch.interface.job import BatchJobInfoInterface
 from qq_lib.batch.interface.meta import QQBatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import yes_or_no_prompt
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import QQRepeater
@@ -78,10 +79,10 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
     # QQErrors should be caught by QQRepeater
     except QQError as e:
         logger.error(e)
-        sys.exit(91)
+        sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(99)
+        sys.exit(CFG.exit_codes.unexpected_error)
 
 
 def _jobs_to_paths(jobs: Iterable[BatchJobInfoInterface]) -> list[Path]:

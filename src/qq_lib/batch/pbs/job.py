@@ -53,7 +53,12 @@ class PBSJobInfo(BatchJobInfoInterface):
         command = f"qstat -fxw {self._job_id}"
 
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:

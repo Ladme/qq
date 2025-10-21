@@ -57,6 +57,7 @@ class ACLData:
             text=True,
             check=False,
             capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:
@@ -102,7 +103,12 @@ class PBSQueue(BatchQueueInterface):
         command = f"qstat -Qfw {self._name}"
 
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:

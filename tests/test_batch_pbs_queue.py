@@ -36,6 +36,7 @@ def test_acldata_get_groups_or_init_success():
         text=True,
         check=False,
         capture_output=True,
+        errors="replace",
     )
     assert result == ["dev", "admin"]
     assert ACLData._groups["user"] == ["dev", "admin"]
@@ -105,6 +106,7 @@ def test_pbsqueue_update_success():
         text=True,
         check=False,
         capture_output=True,
+        errors="replace",
     )
     parse_mock.assert_called_once_with("queue_data")
     set_attrs_mock.assert_called_once()

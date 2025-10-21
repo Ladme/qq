@@ -74,7 +74,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
 
         # submit the script
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:
@@ -90,7 +95,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
 
         # run the kill command
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:
@@ -102,7 +112,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
 
         # run the kill command
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:
@@ -612,7 +627,12 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
         command = f"qstat -Qfw {queue}"
 
         result = subprocess.run(
-            ["bash"], input=command, text=True, check=False, capture_output=True
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
 
         if result.returncode != 0:

@@ -4,7 +4,8 @@
 
 import math
 import re
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Self
 
 from qq_lib.core.error import QQError
@@ -13,15 +14,26 @@ from qq_lib.core.error import QQError
 @dataclass
 class Size:
     """
-    A class representing a memory/disk size with a unit (kb, mb, gb).
+    Represents a memory or disk size with an associated unit (kb, mb, gb, tb).
 
-    Units are normalized to lowercase and based on powers of 1024.
+    Units are normalized to lowercase and use binary multiples (powers of 1024).
+
+    The numeric value is automatically converted to the largest unit
+    where the value remains >= 1. The rounding behavior depends on the
+    provided `round_func`:
+
+    - By default, values are rounded **up**. This is appropriate when
+      specifying resource requirements, since the actual allocation
+      must be at least as large as the user's request.
+    - Rounding **down** should be used when reporting available or allocated
+      storage or memory on a node.
     """
 
     value: int
-    unit: str  # "kb", "mb", "gb"
+    unit: str  # "kb", "mb", "gb", "tb"
+    round_func: Callable = field(default=math.ceil)  # rounding function
 
-    _unit_map = {"kb": 1, "mb": 1024, "gb": 1024 * 1024}
+    _unit_map = {"kb": 1, "mb": 1024, "gb": 1024 * 1024, "tb": 1024 * 1024 * 1024}
 
     def __post_init__(self):
         """
@@ -39,7 +51,7 @@ class Size:
         total_kb = self.toKB()
         for unit, factor in reversed(list(self._unit_map.items())):
             if total_kb >= factor:
-                self.value = math.ceil(total_kb / factor)
+                self.value = self.round_func(total_kb / factor)
                 self.unit = unit
                 break
         else:
@@ -48,7 +60,7 @@ class Size:
             self.unit = "kb"
 
     @classmethod
-    def fromString(cls, s: str) -> Self:
+    def fromString(cls, s: str, round_func: Callable = math.ceil) -> Self:
         """
         Create a Size object from a string.
 
@@ -65,7 +77,7 @@ class Size:
         if not match:
             raise QQError(f"Invalid size string: '{s}'.")
         value, unit = match.groups()
-        return cls(int(value), unit.lower())
+        return cls(int(value), unit.lower(), round_func)
 
     def toKB(self) -> int:
         """
@@ -77,20 +89,22 @@ class Size:
         return self.value * self._unit_map[self.unit]
 
     @classmethod
-    def _fromKB(cls, kb: int, unit: str) -> Self:
+    def _fromKB(cls, kb: int, unit: str, round_func: Callable = math.ceil) -> Self:
         """
         Create a Size object from a value in kilobytes.
 
         Args:
             kb (int): The size in kilobytes.
-            unit (str): The target unit ("kb", "mb", or "gb").
+            unit (str): The target unit ("kb", "mb", "gb", "tb").
+            round_func (Callable): The function to use for rounding.
+                Defaults to math.ceil, if not specified.
 
         Returns:
             Size: A new Size instance converted into the given unit.
         """
         factor = cls._unit_map[unit]
-        value = math.ceil(kb / factor)
-        return cls(value, unit)
+        value = round_func(kb / factor)
+        return cls(value, unit, round_func)
 
     def __mul__(self, n: int) -> "Size":
         """
@@ -119,7 +133,7 @@ class Size:
         return f"{self.value}{self.unit}"
 
     def __repr__(self) -> str:
-        return f"Size(value={self.value}, unit='{self.unit}')"
+        return f"Size(value={self.value}, unit='{self.unit}', round_func='{self.round_func}')"
 
     def __floordiv__(self, n: int) -> "Size":
         """
@@ -140,7 +154,7 @@ class Size:
         if n == 0:
             raise ZeroDivisionError("division by zero")
 
-        return Size(math.ceil(self.toKB() / n), "kb")
+        return Size(self.round_func(self.toKB() / n), "kb")
 
     def __truediv__(self, other: "Size") -> float:
         """

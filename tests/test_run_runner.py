@@ -21,82 +21,178 @@ from qq_lib.properties.states import NaiveState
 from qq_lib.run.runner import CFG, QQRunner, log_fatal_error_and_exit
 
 
-def test_qqrunner_init_without_loop_info():
-    informer_mock = MagicMock()
-    informer_mock.info.job_id = "123"
-    informer_mock.info.input_dir = "/input"
-    informer_mock.batch_system = MagicMock()
-    informer_mock.usesScratch.return_value = True
-    informer_mock.info.loop_info = None
-
-    retryer_mock = MagicMock()
-    retryer_mock.run.return_value = informer_mock
-
+def test_qq_runner_init_success():
     with (
-        patch("qq_lib.run.runner.signal.signal") as signal_mock,
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock),
-        patch("qq_lib.run.runner.QQInformer.fromFile"),
-        patch("qq_lib.run.runner.logger"),
-        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.signal.signal") as mock_signal,
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch(
+            "qq_lib.run.runner.socket.gethostname", return_value="mockhost"
+        ) as mock_socket,
+        patch("qq_lib.run.runner.qq_lib.__version__", "1.0.0"),
+        patch("qq_lib.run.runner.QQBatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
+        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
     ):
-        runner = QQRunner(Path("job.qqinfo"), "host")
+        batch = MagicMock()
+        batch.getJobId.return_value = "12345"
+        mock_batchmeta.return_value = batch
 
-    signal_mock.assert_called_once_with(signal.SIGTERM, runner._handle_sigterm)
-    assert isinstance(runner._process, type(None))
-    assert runner._info_file == Path("job.qqinfo")
-    assert runner._input_machine == "host"
-    assert runner._informer == informer_mock
-    assert runner._input_dir == Path("/input")
-    assert runner._batch_system == informer_mock.batch_system
-    assert runner._use_scratch is True
-    assert runner._archiver is None
+        informer = MagicMock()
+        informer.matchesJob.return_value = True
+        informer.batch_system = batch
+        informer.info.job_id = "12345"
+        informer.info.input_dir = "/tmp/input"
+        informer.info.input_machine = "input_host"
+        informer.info.loop_info = None
+        informer.usesScratch.return_value = False
+
+        retryer = MagicMock()
+        retryer.run.return_value = informer
+        mock_retryer.return_value = retryer
+
+        runner = QQRunner(Path("job.qqinfo"), "input_host")
+
+        mock_signal.assert_called_once()
+        mock_batchmeta.assert_called_once()
+        mock_retryer.assert_called_once()
+        retryer.run.assert_called_once()
+        mock_logger.info.assert_called_once()
+        mock_socket.assert_called_once()
+
+        assert runner._batch_system == batch
+        assert runner._informer == informer
+        assert runner._info_file == Path("job.qqinfo")
+        assert runner._input_machine == "input_host"
+        assert str(runner._input_dir) == "/tmp/input"
+        assert runner._use_scratch is False
+        assert runner._archiver is None
+        assert runner._process is None
 
 
-def test_qqrunner_init_with_loop_info():
-    loop_info_mock = MagicMock()
-    loop_info_mock.archive = "storage"
-    loop_info_mock.archive_format = "job%03d"
-    loop_info_mock.current = 3
-
-    informer_mock = MagicMock()
-    informer_mock.info.job_id = "123"
-    informer_mock.info.input_dir = "/input"
-    informer_mock.info.input_machine = "host"
-    informer_mock.info.script_name = "job.sh"
-    informer_mock.info.loop_info = loop_info_mock
-    informer_mock.batch_system = MagicMock()
-    informer_mock.usesScratch.return_value = False
-
-    archiver_mock = MagicMock()
-    retryer_mock = MagicMock()
-    retryer_mock.run.return_value = informer_mock
-
+def test_qqrunner_init_raises_when_get_job_id_missing():
     with (
         patch("qq_lib.run.runner.signal.signal"),
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock),
-        patch("qq_lib.run.runner.QQInformer.fromFile"),
-        patch("qq_lib.run.runner.QQArchiver", return_value=archiver_mock),
-        patch("qq_lib.run.runner.logger"),
-        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.QQBatchMeta.fromEnvVarOrGuess") as mock_meta,
     ):
-        runner = QQRunner(Path("job.qqinfo"), "host")
+        batch = MagicMock()
+        batch.getJobId.return_value = None
+        mock_meta.return_value = batch
 
-    assert runner._archiver == archiver_mock
-    archiver_mock.makeArchiveDir.assert_called_once()
-    archiver_mock.archiveRunTimeFiles.assert_called_once_with("job.sh\\+0002", 2)
+        with pytest.raises(QQRunFatalError, match="Job has no associated job id"):
+            QQRunner(Path("job.qqinfo"), "host")
+
+        mock_meta.assert_called_once()
+        batch.getJobId.assert_called_once()
 
 
-def test_qqrunner_init_raises_on_load_failure():
-    retryer_mock = MagicMock()
-    retryer_mock.run.side_effect = Exception("fatal")
-
+def test_qq_runner_init_raises_on_batchmeta_failure():
     with (
         patch("qq_lib.run.runner.signal.signal"),
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock),
-        patch("qq_lib.run.runner.QQInformer.fromFile"),
-        pytest.raises(QQRunFatalError, match="Unable to load qq info file"),
+        patch(
+            "qq_lib.run.runner.QQBatchMeta.fromEnvVarOrGuess",
+            side_effect=Exception("boom"),
+        ),
+        pytest.raises(QQRunFatalError, match="Unable to load valid qq info file"),
     ):
         QQRunner(Path("job.qqinfo"), "host")
+
+
+def test_qq_runner_init_raises_on_job_mismatch():
+    with (
+        patch("qq_lib.run.runner.signal.signal"),
+        patch("qq_lib.run.runner.QQBatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
+        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+    ):
+        batch = MagicMock()
+        batch.getJobId.return_value = "12345"
+        mock_batchmeta.return_value = batch
+
+        informer = MagicMock()
+        informer.matchesJob.return_value = False
+        informer.batch_system = batch
+        informer.info.job_id = "99999"
+
+        retryer = MagicMock()
+        retryer.run.return_value = informer
+        mock_retryer.return_value = retryer
+
+        with pytest.raises(QQRunFatalError, match="Info file does not correspond"):
+            QQRunner(Path("job.qqinfo"), "host")
+
+        mock_batchmeta.assert_called_once()
+        mock_retryer.assert_called_once()
+        retryer.run.assert_called_once()
+
+
+def test_qq_runner_init_raises_on_batch_system_mismatch():
+    with (
+        patch("qq_lib.run.runner.signal.signal"),
+        patch("qq_lib.run.runner.QQBatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
+        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+    ):
+        batch = MagicMock()
+        batch.getJobId.return_value = "12345"
+        mock_batchmeta.return_value = batch
+
+        informer = MagicMock()
+        informer.matchesJob.return_value = True
+        informer.batch_system = MagicMock()
+        informer.info.job_id = "12345"
+
+        retryer = MagicMock()
+        retryer.run.return_value = informer
+        mock_retryer.return_value = retryer
+
+        with pytest.raises(QQRunFatalError, match="Batch system mismatch"):
+            QQRunner(Path("job.qqinfo"), "host")
+
+        mock_batchmeta.assert_called_once()
+        mock_retryer.assert_called_once()
+        retryer.run.assert_called_once()
+
+
+def test_qq_runner_init_creates_archiver_when_loop_info_present():
+    with (
+        patch("qq_lib.run.runner.signal.signal"),
+        patch("qq_lib.run.runner.QQBatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
+        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+        patch("qq_lib.run.runner.QQArchiver") as mock_archiver,
+    ):
+        batch = MagicMock()
+        batch.getJobId.return_value = "12345"
+        mock_batchmeta.return_value = batch
+
+        loop_info = MagicMock()
+        informer = MagicMock()
+        informer.matchesJob.return_value = True
+        informer.batch_system = batch
+        informer.info.job_id = "12345"
+        informer.info.input_dir = "/tmp/input"
+        informer.info.input_machine = "input_host"
+        informer.info.loop_info = loop_info
+        informer.usesScratch.return_value = True
+
+        retryer = MagicMock()
+        retryer.run.return_value = informer
+        mock_retryer.return_value = retryer
+
+        runner = QQRunner(Path("job.qqinfo"), "host")
+
+        mock_archiver.assert_called_once_with(
+            loop_info.archive,
+            loop_info.archive_format,
+            informer.info.input_machine,
+            informer.info.input_dir,
+            batch,
+        )
+        mock_batchmeta.assert_called_once()
+        mock_retryer.assert_called_once()
+        retryer.run.assert_called_once()
+
+        assert runner._archiver is not None
+        assert runner._use_scratch is True
+        assert str(runner._input_dir) == "/tmp/input"
+        assert runner._batch_system == batch
+        assert runner._informer == informer
 
 
 def test_qqrunner_handle_sigterm_performs_cleanup_and_exits():
@@ -906,13 +1002,22 @@ def test_qqrunner_prepare_with_scratch_and_archiver():
     runner._setUpSharedDir = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.loop_info.current = 2
+    runner._informer.info.script_name = "run_job"
     runner._work_dir = "/tmp/work"
 
-    runner.prepare()
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.CFG") as mock_cfg,
+    ):
+        mock_cfg.loop_jobs.pattern = "_loop_%d+"
+        runner.prepare()
 
+    runner._archiver.makeArchiveDir.assert_called_once()
+    runner._archiver.archiveRunTimeFiles.assert_called_once_with("run_job_loop_1\\+", 1)
     runner._setUpScratchDir.assert_called_once()
     runner._setUpSharedDir.assert_not_called()
     runner._archiver.fromArchive.assert_called_once_with("/tmp/work", 2)
+    mock_logger.debug.assert_any_call("Archiving run time files from cycle 1.")
 
 
 def test_qqrunner_prepare_with_scratch_and_without_archiver():
@@ -936,13 +1041,20 @@ def test_qqrunner_prepare_without_scratch_and_with_archiver():
     runner._setUpSharedDir = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.loop_info.current = 5
+    runner._informer.info.script_name = "task"
     runner._work_dir = "/tmp/work_shared"
 
-    runner.prepare()
+    with (
+        patch("qq_lib.run.runner.logger"),
+        patch("qq_lib.run.runner.CFG") as mock_cfg,
+    ):
+        mock_cfg.loop_jobs.pattern = "_loop_%d+"
+        runner.prepare()
 
+    runner._archiver.makeArchiveDir.assert_called_once()
+    runner._archiver.archiveRunTimeFiles.assert_called_once_with("task_loop_4\\+", 4)
     runner._setUpSharedDir.assert_called_once()
     runner._setUpScratchDir.assert_not_called()
-    runner._archiver.fromArchive.assert_called_once_with("/tmp/work_shared", 5)
 
 
 def test_qqrunner_prepare_without_scratch_and_without_archiver():

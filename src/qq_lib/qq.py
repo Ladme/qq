@@ -20,7 +20,7 @@ from qq_lib.stat import stat
 from qq_lib.submit import submit
 from qq_lib.sync import sync
 
-__version__ = "0.1.0-dev.12"
+__version__ = "0.1.0-dev.13"
 
 
 @click.group(

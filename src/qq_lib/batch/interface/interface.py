@@ -68,6 +68,18 @@ class QQBatchInterface[
         )
 
     @staticmethod
+    def getJobId() -> str | None:
+        """
+        Get the id of the current job from the corresponding batch system's environment variable.
+
+        Returns:
+            str | None: Index of the job or None if the collective variable is not set.
+        """
+        raise NotImplementedError(
+            "getJobId method is not implemented for this batch system implementation"
+        )
+
+    @staticmethod
     def getScratchDir(job_id: str) -> Path:
         """
         Retrieve the scratch directory for a given job.

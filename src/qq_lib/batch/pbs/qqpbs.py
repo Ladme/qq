@@ -41,6 +41,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMe
     def isAvailable() -> bool:
         return shutil.which("qsub") is not None
 
+    def getJobId() -> str | None:
+        return os.environ.get("PBS_JOBID")
+
     def getScratchDir(job_id: str) -> Path:
         scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
         if not scratch_dir:

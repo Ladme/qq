@@ -1264,3 +1264,15 @@ def test_qqpbs_get_nodes_multiple_nodes(mock_run):
     assert len(result) == 2
     assert all(isinstance(n, PBSNode) for n in result)
     assert {n._name for n in result} == {"node1", "node2"}
+
+
+def test_qqpbs_get_job_id_returns_value():
+    with patch.dict(os.environ, {"PBS_JOBID": "12345.random.server.org"}):
+        result = QQPBS.getJobId()
+    assert result == "12345.random.server.org"
+
+
+def test_qqpbs_get_job_id_returns_none_when_missing():
+    with patch.dict(os.environ, {}, clear=True):
+        result = QQPBS.getJobId()
+    assert result is None

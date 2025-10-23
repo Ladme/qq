@@ -15,6 +15,7 @@ from typing import NoReturn
 
 import qq_lib
 from qq_lib.archive.archiver import QQArchiver
+from qq_lib.batch.interface.meta import QQBatchMeta
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -67,6 +68,15 @@ class QQRunner:
 
         # load the info file or raise a fatal qq error if this fails
         try:
+            # get the batch system from the environment variable (or guess it)
+            self._batch_system = QQBatchMeta.fromEnvVarOrGuess()
+            logger.debug(f"Batch system: {str(self._batch_system)}.")
+
+            # get the id of the job from the batch system
+            if not (job_id := self._batch_system.getJobId()):
+                raise QQError("Job has no associated job id")
+
+            # load the info file
             self._informer: QQInformer = QQRetryer(
                 QQInformer.fromFile,
                 self._info_file,
@@ -74,23 +84,32 @@ class QQRunner:
                 max_tries=CFG.runner.retry_tries,
                 wait_seconds=CFG.runner.retry_wait,
             ).run()
+
+            # check that the id of this job matches the job id in the info file
+            if not self._informer.matchesJob(job_id):
+                raise QQJobMismatchError(
+                    "Info file does not correspond to the current job"
+                )
+
+            # check that the batch system in info file matches the one loaded from the environment variable
+            if self._batch_system != self._informer.batch_system:
+                raise QQError(
+                    f"Batch system mismatch - env var: '{str(self._batch_system)}', info file: '{self._informer.batch_system}'"
+                )
+
         except Exception as e:
             raise QQRunFatalError(
-                f"Unable to load qq info file '{self._info_file}' on '{self._input_machine}': {e}"
+                f"Unable to load valid qq info file '{self._info_file}' on '{self._input_machine}': {e}"
             ) from e
 
         logger.info(
-            f"[{str(self._informer.batch_system)}-qq v{qq_lib.__version__}] Initializing "
+            f"[qq-{str(self._batch_system)} v{qq_lib.__version__}] Initializing "
             f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
         )
 
         # get input directory
         self._input_dir = Path(self._informer.info.input_dir)
         logger.debug(f"Input directory: {self._input_dir}.")
-
-        # get the batch system (should match the environment variable)
-        self._batch_system = self._informer.batch_system
-        logger.debug(f"Batch system: {str(self._batch_system)}.")
 
         # should the scratch directory be used?
         self._use_scratch = self._informer.usesScratch()
@@ -105,37 +124,41 @@ class QQRunner:
                 self._informer.info.input_dir,
                 self._batch_system,
             )
-
-            self._archiver.makeArchiveDir()
-            # archive run time files from the previous cycle
-            logger.debug(
-                f"Archiving run time files from cycle {loop_info.current - 1}."
-            )
-            self._archiver.archiveRunTimeFiles(
-                # we need to escape the '+' character
-                f"{self._informer.info.script_name}{CFG.loop_jobs.pattern.replace('+', '\\+') % (loop_info.current - 1)}",
-                loop_info.current - 1,
-            )
         else:
             self._archiver = None
 
     def prepare(self) -> None:
         """
-        Prepare the working directory for job execution.
-
-        Depending on configuration, this sets up:
-          - A scratch directory (copying job files there), or
-          - The shared input directory directly.
+        Prepare the script for execution, setting up the archive
+        and archiving run time files (if this is a loop job) and
+        preparing working directory.
 
         Raises:
             QQError: If working directory setup fails.
         """
+        if self._archiver:
+            # prepare the directory for archiving
+            self._archiver.makeArchiveDir()
+
+            # archive runtime files from the previous cycle
+            # this has to be done before the working directory is prepared,
+            # otherwise the runtime files would get copied to the working directory
+            logger.debug(
+                f"Archiving run time files from cycle {self._informer.info.loop_info.current - 1}."
+            )
+            self._archiver.archiveRunTimeFiles(
+                # we need to escape the '+' character
+                f"{self._informer.info.script_name}{CFG.loop_jobs.pattern.replace('+', '\\+') % (self._informer.info.loop_info.current - 1)}",
+                self._informer.info.loop_info.current - 1,
+            )
+
         if self._use_scratch:
             self._setUpScratchDir()
         else:
             self._setUpSharedDir()
 
         if self._archiver:
+            # fetch files for the current cycle of the loop job from the archive
             self._archiver.fromArchive(
                 self._work_dir, self._informer.info.loop_info.current
             )

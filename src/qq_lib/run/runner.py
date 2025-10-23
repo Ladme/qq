@@ -16,7 +16,12 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import QQArchiver
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
+from qq_lib.core.error import (
+    QQError,
+    QQJobMismatchError,
+    QQRunCommunicationError,
+    QQRunFatalError,
+)
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import QQRetryer
 from qq_lib.info.informer import QQInformer
@@ -336,7 +341,7 @@ class QQRunner:
             QQError: If the info file cannot be updated.
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
-        self._reloadInfoAndEnsureNotKilled()
+        self._reloadInfoAndEnsureValid()
 
         try:
             nodes = self._informer.getNodes()
@@ -374,7 +379,7 @@ class QQRunner:
             QQRunCommunicationError: If the job was killed without informing QQRunner.
         """
         logger.debug(f"Updating '{self._info_file}' at job completion.")
-        self._reloadInfoAndEnsureNotKilled()
+        self._reloadInfoAndEnsureValid()
 
         try:
             self._informer.setFinished(datetime.now())
@@ -403,7 +408,7 @@ class QQRunner:
             QQRunCommunicationError: If the job was killed without informing QQRunner.
         """
         logger.debug(f"Updating '{self._info_file}' at job failure.")
-        self._reloadInfoAndEnsureNotKilled()
+        self._reloadInfoAndEnsureValid()
 
         try:
             self._informer.setFailed(datetime.now(), return_code)
@@ -430,6 +435,8 @@ class QQRunner:
         No retrying since there is no time for that.
         """
         logger.debug(f"Updating '{self._info_file}' at job kill.")
+        self._reloadInfoAndEnsureValid(retry=False)
+
         try:
             self._informer.setKilled(datetime.now())
             # no retrying here since we cannot affort multiple attempts here
@@ -439,26 +446,70 @@ class QQRunner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
-    def _reloadInfoAndEnsureNotKilled(self) -> None:
+    def _reloadInfo(self, retry: bool = True) -> None:
         """
-        Reload the qq job info file and check the job's state.
+        Reload the qq job info file for this job.
+
+        Args:
+            retry (bool): Retry the loading operation if it fails.
+
+        Raises:
+            QQError: If the qq info file cannot be reach or read after retrying.
+        """
+        if retry:
+            self._informer = QQRetryer(
+                QQInformer.fromFile,
+                self._info_file,
+                host=self._input_machine,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
+            ).run()
+        else:
+            self._informer = QQInformer.fromFile(self._info_file, self._input_machine)
+
+    def _ensureMatchesJob(self, job_id: str) -> None:
+        """
+        Ensure that the provided job_id matches the job id in the wrapped informer.
+
+        Raises:
+            QQJobMismatchError: If the info file corresponds to a different job.
+        """
+        if not self._informer.matchesJob(job_id):
+            raise QQJobMismatchError(
+                f"Info file '{self._info_file}' does not correspond to job '{job_id}'."
+            )
+
+    def _ensureNotKilled(self) -> None:
+        """
+        Ensure that the job has not been killed.
 
         Raises:
             QQRunCommunicationError: If the job state is `KILLED`.
-            QQError: If the qq info file cannot be reached or read.
         """
-        self._informer = QQRetryer(
-            QQInformer.fromFile,
-            self._info_file,
-            host=self._input_machine,
-            max_tries=CFG.runner.retry_tries,
-            wait_seconds=CFG.runner.retry_wait,
-        ).run()
-
         if self._informer.info.job_state == NaiveState.KILLED:
             raise QQRunCommunicationError(
                 "Job has been killed without informing qq run. Aborting the job!"
             )
+
+    def _reloadInfoAndEnsureValid(self, retry: bool = False) -> None:
+        """
+        Reload the qq job info file and check that it corresponds to the current job
+        by comparing job ids.
+
+        Then check the job's state and ensure it is not killed.
+
+        Args:
+            retry (bool): Retry the loading operation if it fails.
+
+        Raises:
+            QQJobMismatchError: If the info file corresponds to a different job.
+            QQRunCommunicationError: If the job state is `KILLED`.
+            QQError: If the qq info file cannot be reached or read.
+        """
+        job_id = self._informer.info.job_id
+        self._reloadInfo(retry)
+        self._ensureMatchesJob(job_id)
+        self._ensureNotKilled()
 
     def _resubmit(self) -> None:
         """

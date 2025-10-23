@@ -10,8 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
-from qq_lib.info.informer import QQInformer
+from qq_lib.core.error import (
+    QQError,
+    QQJobMismatchError,
+    QQRunCommunicationError,
+    QQRunFatalError,
+)
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.run.runner import CFG, QQRunner, log_fatal_error_and_exit
@@ -332,72 +336,13 @@ def test_qqrunner_resubmit_raises_qqerror():
         runner._resubmit()
 
 
-def test_qqrunner_reload_info_and_ensure_not_killed_success():
-    informer_mock = MagicMock()
-    informer_mock.info.job_state = NaiveState.RUNNING
-
-    retryer_mock = MagicMock()
-    retryer_mock.run.return_value = informer_mock
-
-    runner = QQRunner.__new__(QQRunner)
-    runner._info_file = Path("job.qqinfo")
-    runner._input_machine = "random.host.org"
-
-    with patch(
-        "qq_lib.run.runner.QQRetryer", return_value=retryer_mock
-    ) as retryer_class:
-        runner._reloadInfoAndEnsureNotKilled()
-
-    retryer_class.assert_called_once_with(
-        QQInformer.fromFile,
-        runner._info_file,
-        host=runner._input_machine,
-        max_tries=CFG.runner.retry_tries,
-        wait_seconds=CFG.runner.retry_wait,
-    )
-    retryer_mock.run.assert_called_once()
-    assert runner._informer == informer_mock
-
-
-def test_qqrunner_reload_info_and_ensure_not_killed_raises_if_killed():
-    informer_mock = MagicMock()
-    informer_mock.info.job_state = NaiveState.KILLED
-
-    retryer_mock = MagicMock()
-    retryer_mock.run.return_value = informer_mock
-
-    runner = QQRunner.__new__(QQRunner)
-    runner._info_file = Path("job.qqinfo")
-    runner._input_machine = "random.host.org"
-
-    with (
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock),
-        pytest.raises(QQRunCommunicationError, match="Job has been killed"),
-    ):
-        runner._reloadInfoAndEnsureNotKilled()
-
-
-def test_qqrunner_reload_info_and_ensure_not_killed_raises_if_retryer_fails():
-    retryer_mock = MagicMock()
-    retryer_mock.run.side_effect = QQError("file read failed")
-
-    runner = QQRunner.__new__(QQRunner)
-    runner._info_file = Path("job.qqinfo")
-    runner._input_machine = "random.host.org"
-
-    with (
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock),
-        pytest.raises(QQError, match="file read failed"),
-    ):
-        runner._reloadInfoAndEnsureNotKilled()
-
-
 def test_qqrunner_update_info_killed_success():
     informer_mock = MagicMock()
     runner = QQRunner.__new__(QQRunner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -408,6 +353,7 @@ def test_qqrunner_update_info_killed_success():
 
         runner._updateInfoKilled()
 
+    runner._reloadInfoAndEnsureValid.assert_called_with(retry=False)
     informer_mock.setKilled.assert_called_once_with(now)
     informer_mock.toFile.assert_called_once_with(
         runner._info_file, host="random.host.org"
@@ -423,10 +369,12 @@ def test_qqrunner_update_info_killed_logs_warning_on_failure():
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with patch("qq_lib.run.runner.logger") as mock_logger:
         runner._updateInfoKilled()
 
+    runner._reloadInfoAndEnsureValid.assert_called_with(retry=False)
     informer_mock.setKilled.assert_called_once()
     mock_logger.warning.assert_called_once()
 
@@ -440,7 +388,7 @@ def test_qqrunner_update_info_failed_success():
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
-    runner._reloadInfoAndEnsureNotKilled = MagicMock()
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -452,7 +400,7 @@ def test_qqrunner_update_info_failed_success():
 
         runner._updateInfoFailed(42)
 
-    runner._reloadInfoAndEnsureNotKilled.assert_called_once()
+    runner._reloadInfoAndEnsureValid.assert_called_once()
     informer_mock.setFailed.assert_called_once_with(now, 42)
     retryer_cls.assert_called_once_with(
         informer_mock.toFile,
@@ -473,12 +421,12 @@ def test_qqrunner_update_info_failed_logs_warning_on_failure():
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
-    runner._reloadInfoAndEnsureNotKilled = MagicMock()
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with patch("qq_lib.run.runner.logger") as mock_logger:
         runner._updateInfoFailed(99)
 
-    runner._reloadInfoAndEnsureNotKilled.assert_called_once()
+    runner._reloadInfoAndEnsureValid.assert_called_once()
     informer_mock.setFailed.assert_called_once()
     mock_logger.warning.assert_called_once()
 
@@ -492,7 +440,7 @@ def test_qqrunner_update_info_finished_success():
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
-    runner._reloadInfoAndEnsureNotKilled = MagicMock()
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -504,7 +452,7 @@ def test_qqrunner_update_info_finished_success():
 
         runner._updateInfoFinished()
 
-    runner._reloadInfoAndEnsureNotKilled.assert_called_once()
+    runner._reloadInfoAndEnsureValid.assert_called_once()
     informer_mock.setFinished.assert_called_once_with(now)
     retryer_cls.assert_called_once_with(
         informer_mock.toFile,
@@ -525,12 +473,12 @@ def test_qqrunner_update_info_finished_logs_warning_on_failure():
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
-    runner._reloadInfoAndEnsureNotKilled = MagicMock()
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with patch("qq_lib.run.runner.logger") as mock_logger:
         runner._updateInfoFinished()
 
-    runner._reloadInfoAndEnsureNotKilled.assert_called_once()
+    runner._reloadInfoAndEnsureValid.assert_called_once()
     informer_mock.setFinished.assert_called_once()
     mock_logger.warning.assert_called_once()
 
@@ -547,7 +495,7 @@ def test_qqrunner_update_info_running_success():
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
     runner._work_dir = Path("/workdir")
-    runner._reloadInfoAndEnsureNotKilled = MagicMock()
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -560,7 +508,7 @@ def test_qqrunner_update_info_running_success():
 
         runner._updateInfoRunning()
 
-    runner._reloadInfoAndEnsureNotKilled.assert_called_once()
+    runner._reloadInfoAndEnsureValid.assert_called_once()
     informer_mock.setRunning.assert_called_once_with(
         now, "host", nodes, Path("/workdir")
     )
@@ -584,11 +532,31 @@ def test_qqrunner_update_info_running_raises_qqerror_on_failure():
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
     runner._work_dir = Path("/workdir")
-    runner._reloadInfoAndEnsureNotKilled = MagicMock()
+    runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
         pytest.raises(QQError, match="Could not update qqinfo file"),
+    ):
+        runner._updateInfoRunning()
+
+
+def test_qqrunner_update_info_running_raises_on_empty_node_list():
+    informer_mock = MagicMock()
+    informer_mock.getNodes.return_value = []
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer_mock
+    runner._info_file = Path("job.qqinfo")
+    runner._input_machine = "random.host.org"
+    runner._work_dir = Path("/workdir")
+    runner._reloadInfoAndEnsureValid = MagicMock()
+
+    with (
+        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        pytest.raises(
+            QQError, match="Could not get the list of used nodes from the batch server"
+        ),
     ):
         runner._updateInfoRunning()
 
@@ -1021,3 +989,159 @@ def test_log_fatal_error_and_exit_unknown_exception():
     )
     mock_logger.critical.assert_called_once_with(exc, exc_info=True, stack_info=True)
     assert e.value.code == CFG.exit_codes.unexpected_error
+
+
+@patch("qq_lib.run.runner.QQRetryer")
+@patch("qq_lib.run.runner.QQInformer")
+def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
+    mock_retryer = MagicMock()
+    mock_informer = MagicMock()
+    mock_retryer.run.return_value = mock_informer
+    mock_retryer_cls.return_value = mock_retryer
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._info_file = "job.qqinfo"
+    runner._input_machine = "host"
+
+    runner._reloadInfo(retry=True)
+
+    mock_retryer_cls.assert_called_once_with(
+        mock_informer_cls.fromFile,
+        "job.qqinfo",
+        host="host",
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
+    )
+    mock_retryer.run.assert_called_once()
+    assert runner._informer == mock_informer
+
+
+@patch("qq_lib.run.runner.QQRetryer")
+@patch("qq_lib.run.runner.QQInformer")
+def test_qq_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
+    mock_informer = MagicMock()
+    mock_informer_cls.fromFile.return_value = mock_informer
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._info_file = "job.qqinfo"
+    runner._input_machine = "host"
+
+    runner._reloadInfo(retry=False)
+
+    mock_informer_cls.fromFile.assert_called_once_with("job.qqinfo", "host")
+    mock_retryer_cls.assert_not_called()
+    assert runner._informer == mock_informer
+
+
+def test_qq_runner_ensure_matches_job_with_matching_numeric_id():
+    informer = MagicMock()
+    informer.info.job_id = "12345.cluster.domain"
+    informer.matchesJob = (
+        lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
+    )
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer
+    runner._info_file = "job.qqinfo"
+
+    runner._ensureMatchesJob("12345")
+
+
+def test_qq_runner_ensure_matches_job_with_different_numeric_id_raises():
+    informer = MagicMock()
+    informer.info.job_id = "99999.cluster.domain"
+    informer.matchesJob = (
+        lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
+    )
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer
+    runner._info_file = "job.qqinfo"
+
+    with pytest.raises(QQJobMismatchError, match="job.qqinfo"):
+        runner._ensureMatchesJob("12345")
+
+
+def test_qq_runner_ensure_matches_job_with_partial_suffix_matching():
+    informer = MagicMock()
+    informer.info.job_id = "5678.random.server.org"
+    informer.matchesJob = (
+        lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
+    )
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer
+    runner._info_file = "job.qqinfo"
+
+    runner._ensureMatchesJob("5678")
+
+
+def test_qq_runner_ensure_not_killed_passes_when_not_killed():
+    informer = MagicMock()
+    informer.info.job_state = NaiveState.RUNNING
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer
+
+    runner._ensureNotKilled()
+
+    assert informer.info.job_state == NaiveState.RUNNING
+
+
+def test_qq_runner_ensure_not_killed_raises_when_killed():
+    informer = MagicMock()
+    informer.info.job_state = NaiveState.KILLED
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer
+
+    with pytest.raises(QQRunCommunicationError, match="Job has been killed"):
+        runner._ensureNotKilled()
+
+
+def test_qq_runner_reload_info_and_ensure_valid_calls_all_methods():
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = MagicMock()
+    runner._informer.info.job_id = "12345"
+
+    runner._reloadInfo = MagicMock()
+    runner._ensureMatchesJob = MagicMock()
+    runner._ensureNotKilled = MagicMock()
+
+    runner._reloadInfoAndEnsureValid(retry=True)
+
+    runner._reloadInfo.assert_called_once_with(True)
+    runner._ensureMatchesJob.assert_called_once_with("12345")
+    runner._ensureNotKilled.assert_called_once()
+
+
+def test_qq_runner_reload_info_and_ensure_valid_raises_on_job_mismatch():
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = MagicMock()
+    runner._informer.info.job_id = "12345"
+
+    runner._reloadInfo = MagicMock()
+    runner._ensureMatchesJob = MagicMock(side_effect=QQJobMismatchError("Mismatch"))
+    runner._ensureNotKilled = MagicMock()
+
+    with pytest.raises(QQJobMismatchError, match="Mismatch"):
+        runner._reloadInfoAndEnsureValid(retry=False)
+
+    runner._reloadInfo.assert_called_once_with(False)
+    runner._ensureNotKilled.assert_not_called()
+
+
+def test_qq_runner_reload_info_and_ensure_valid_raises_on_killed_state():
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = MagicMock()
+    runner._informer.info.job_id = "12345"
+
+    runner._reloadInfo = MagicMock()
+    runner._ensureMatchesJob = MagicMock()
+    runner._ensureNotKilled = MagicMock(side_effect=QQRunCommunicationError("Killed"))
+
+    with pytest.raises(QQRunCommunicationError, match="Killed"):
+        runner._reloadInfoAndEnsureValid()
+
+    runner._reloadInfo.assert_called_once_with(False)
+    runner._ensureMatchesJob.assert_called_once_with("12345")

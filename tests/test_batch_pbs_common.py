@@ -298,6 +298,121 @@ Job Id: 103.fake-cluster.example.com
         assert isinstance(name, str)
 
 
+def test_parse_pbs_dump_to_dictionary_node():
+    pbs_dump = """zero21
+        Mom = zero21.cluster.local
+        ntype = PBS
+        state = job-busy
+        state_aux = free
+        pcpus = 32
+        Priority = 80
+        resources_available.arch = linux
+        resources_available.cluster = zero
+        resources_available.cpu_vendor = amd
+        resources_available.cuda_version = 13.0
+        resources_available.gpu_mem = 10240mb
+        resources_available.mem = 128673mb
+        resources_available.ncpus = 32
+        resources_available.ngpus = 4
+        resources_available.os = debian12
+        resources_available.osfamily = debian
+        resources_available.queue_list = q_gpu
+        resources_available.scratch_local = 870000000kb
+        resources_available.scratch_ssd = 836000000kb
+        resources_available.scratch_shared = 0kb
+        resources_available.singularity = True
+        resources_assigned.mem = 33554432kb
+        resources_assigned.ncpus = 32
+        resources_assigned.ngpus = 4
+        resv_enable = True
+        sharing = default_shared
+        license = l
+    """
+
+    expected = {
+        "Mom": "zero21.cluster.local",
+        "ntype": "PBS",
+        "state": "job-busy",
+        "state_aux": "free",
+        "pcpus": "32",
+        "Priority": "80",
+        "resources_available.arch": "linux",
+        "resources_available.cluster": "zero",
+        "resources_available.cpu_vendor": "amd",
+        "resources_available.cuda_version": "13.0",
+        "resources_available.gpu_mem": "10240mb",
+        "resources_available.mem": "128673mb",
+        "resources_available.ncpus": "32",
+        "resources_available.ngpus": "4",
+        "resources_available.os": "debian12",
+        "resources_available.osfamily": "debian",
+        "resources_available.queue_list": "q_gpu",
+        "resources_available.scratch_local": "870000000kb",
+        "resources_available.scratch_ssd": "836000000kb",
+        "resources_available.scratch_shared": "0kb",
+        "resources_available.singularity": "True",
+        "resources_assigned.mem": "33554432kb",
+        "resources_assigned.ncpus": "32",
+        "resources_assigned.ngpus": "4",
+        "resv_enable": "True",
+        "sharing": "default_shared",
+        "license": "l",
+    }
+
+    result = parsePBSDumpToDictionary(pbs_dump)
+    assert result == expected
+
+
+def test_parse_multi_pbs_dump_to_dictionaries_nodes():
+    pbs_dump = """zero1
+     Mom = zero1.cluster.local
+     ntype = PBS
+     state = free
+     pcpus = 32
+     resources_available.arch = linux
+     resources_available.os = debian12
+     resources_available.ncpus = 32
+     resources_available.ngpus = 2
+     resources_available.mem = 128000mb
+
+zero2
+     Mom = zero2.cluster.local
+     ntype = PBS
+     state = job-busy
+     pcpus = 64
+     resources_available.arch = linux
+     resources_available.os = debian12
+     resources_available.ncpus = 64
+     resources_available.ngpus = 4
+     resources_available.mem = 256000mb
+
+zero3
+     Mom = zero3.cluster.local
+     ntype = PBS
+     state = down
+     pcpus = 16
+     resources_available.arch = linux
+     resources_available.os = debian12
+     resources_available.ncpus = 16
+     resources_available.ngpus = 0
+     resources_available.mem = 64000mb
+    """
+
+    result = parseMultiPBSDumpToDictionaries(pbs_dump, None)
+
+    assert len(result) == 3
+
+    node_names = [name for _, name in result]
+    assert node_names == ["zero1", "zero2", "zero3"]
+
+    for data_dict, name in result:
+        assert isinstance(data_dict, dict)
+        assert "state" in data_dict
+        assert "resources_available.os" in data_dict
+        assert "resources_available.ncpus" in data_dict
+        assert isinstance(name, str)
+
+
 @pytest.mark.parametrize("content", ["", "    ", "\t", "\n\n\n"])
 def test_parse_multi_pbs_dump_to_dictionaries_empty(content):
     assert parseMultiPBSDumpToDictionaries(content, "Queue") == []

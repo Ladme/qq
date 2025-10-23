@@ -87,38 +87,56 @@ class QQQueuesPresenter:
 
         table.add_column(justify="left")
         table.add_column(
-            header="Name",
+            header=Text(
+                "Name", justify="center", style=CFG.queues_presenter.headers_style
+            ),
             justify="left",
-            header_style=CFG.queues_presenter.headers_style,
         )
         table.add_column(
-            header="Priority",
+            header=Text(
+                "Priority", justify="center", style=CFG.queues_presenter.headers_style
+            ),
             justify="center",
-            header_style=CFG.queues_presenter.headers_style,
         )
         table.add_column(
-            header=BatchState.RUNNING.toCode(),
+            header=Text(
+                BatchState.RUNNING.toCode(),
+                justify="right",
+                style=CFG.state_colors.running,
+            ),
             justify="right",
-            header_style=CFG.state_colors.running,
         )
         table.add_column(
-            header=BatchState.QUEUED.toCode(),
+            header=Text(
+                BatchState.QUEUED.toCode(),
+                justify="right",
+                style=CFG.state_colors.queued,
+            ),
             justify="right",
-            header_style=CFG.state_colors.queued,
         )
         table.add_column(
-            header="O", justify="right", header_style=CFG.state_colors.other
-        )
-        table.add_column(header="Σ", justify="right", header_style=CFG.state_colors.sum)
-        table.add_column(
-            header="Max Walltime",
+            header=Text("O", justify="right", style=CFG.state_colors.other),
             justify="right",
-            header_style=CFG.queues_presenter.headers_style,
         )
         table.add_column(
-            header="Comment",
+            header=Text("Σ", justify="right", style=CFG.state_colors.sum),
+            justify="right",
+        )
+        table.add_column(
+            header=Text(
+                "Max Walltime",
+                justify="center",
+                style=CFG.queues_presenter.headers_style,
+            ),
+            justify="right",
+        )
+        table.add_column(
+            header=Text(
+                "Comment",
+                justify="center",
+                style=CFG.queues_presenter.headers_style,
+            ),
             justify="center",
-            header_style=CFG.queues_presenter.headers_style,
         )
 
         visited_queues = set()

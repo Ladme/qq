@@ -7,7 +7,7 @@ from rich.table import Table
 from rich.text import Text
 
 from qq_lib.batch.interface.queue import BatchQueueInterface
-from qq_lib.core.common import format_duration_wdhhmmss
+from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
 
@@ -50,18 +50,6 @@ class QQQueuesPresenter:
             Group: Rich Group containing the queues table.
         """
         console = console or Console()
-        term_width = console.size.width
-        panel_width = term_width
-        min_w, max_w = (
-            CFG.queues_presenter.min_width,
-            CFG.queues_presenter.max_width,
-        )
-
-        if min_w is not None:
-            panel_width = max(panel_width, min_w)
-        if max_w is not None:
-            panel_width = min(panel_width, max_w)
-
         queues_table = self._createQueuesTable()
 
         panel = Panel(
@@ -73,7 +61,12 @@ class QQQueuesPresenter:
             ),
             border_style=CFG.queues_presenter.border_style,
             padding=(1, 1),
-            width=panel_width,
+            width=get_panel_width(
+                console,
+                1,
+                CFG.queues_presenter.min_width,
+                CFG.queues_presenter.max_width,
+            ),
             expand=False,
         )
 

@@ -4,72 +4,47 @@
 
 import math
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Self
 
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 
 
 @dataclass(init=False)
 class Size:
     """
-    Represents a memory or disk size with an associated unit (kb, mb, gb, tb).
+    Represents a memory or storage size.
 
-    Units are normalized to lowercase and use binary multiples (powers of 1024).
-
-    The numeric value is automatically converted to the largest unit
-    where the value remains >= 1. The rounding behavior depends on the
-    provided `round_func`:
-
-    - By default, values are rounded **up**. This is appropriate when
-      specifying resource requirements, since the actual allocation
-      must be at least as large as the user's request.
-    - Rounding **down** should be used when reporting available or allocated
-      storage or memory on a node.
+    The value is stored internally in kilobytes (kB). When converted to a string,
+    it is displayed in the largest human-readable unit such that the relative
+    rounding error does not exceed `CFG.size.max_rounding_error`.
     """
 
     value: int
-    unit: str  # "kb", "mb", "gb", "tb"
 
-    _unit_map = {"kb": 1, "mb": 1024, "gb": 1024 * 1024, "tb": 1024 * 1024 * 1024}
+    _unit_map = {
+        "kb": 1,
+        "mb": 1024,
+        "gb": 1024 * 1024,
+        "tb": 1024 * 1024 * 1024,
+        "pb": 1024 * 1024 * 1024 * 1024,
+    }
 
-    def __init__(self, value: int, unit: str, round_func: Callable = math.ceil):
-        self.value = value
-        self.unit = unit
-        self._round_func = round_func
+    def __init__(self, value: int, unit: str = "kb"):
+        unit = unit.lower()
+        if unit not in self._unit_map:
+            # special handling of bytes
+            if unit == "b":
+                self.value = 0 if value == 0 else 1
+                return
 
-        self.__post_init__()
+            raise QQError(f"Unsupported unit for size '{unit}'.")
 
-    def __post_init__(self):
-        """
-        Normalize the unit, validate it, and convert the value to the largest possible
-        unit where it is >= 1. Defaults to 1 kb if smaller.
-
-        Raises:
-            QQError: If the unit is not supported.
-        """
-        self.unit = self.unit.lower()
-        if self.unit not in self._unit_map:
-            raise QQError(f"Unsupported unit for size: '{self.unit}'.")
-
-        # convert total KB to the largest unit possible where value >= 1
-        total_kb = self.toKB()
-        for unit, factor in reversed(list(self._unit_map.items())):
-            if total_kb >= factor:
-                self.value = self._round_func(total_kb / factor)
-                self.unit = unit
-                break
-        else:
-            # if total_kb < 1 kb, fallback to 1 kb
-            self.value = 1
-            self.unit = "kb"
-
-    def __getstate__(self):
-        return {"value": self.value, "unit": self.unit}
+        self.value = value * self._unit_map[unit]
 
     @classmethod
-    def fromString(cls, s: str, round_func: Callable = math.ceil) -> Self:
+    def fromString(cls, s: str) -> Self:
         """
         Create a Size object from a string.
 
@@ -86,34 +61,8 @@ class Size:
         if not match:
             raise QQError(f"Invalid size string: '{s}'.")
         value, unit = match.groups()
-        return cls(int(value), unit.lower(), round_func)
 
-    def toKB(self) -> int:
-        """
-        Convert the Size to kilobytes.
-
-        Returns:
-            int: The size expressed in kilobytes.
-        """
-        return self.value * self._unit_map[self.unit]
-
-    @classmethod
-    def _fromKB(cls, kb: int, unit: str, round_func: Callable = math.ceil) -> Self:
-        """
-        Create a Size object from a value in kilobytes.
-
-        Args:
-            kb (int): The size in kilobytes.
-            unit (str): The target unit ("kb", "mb", "gb", "tb").
-            round_func (Callable): The function to use for rounding.
-                Defaults to math.ceil, if not specified.
-
-        Returns:
-            Size: A new Size instance converted into the given unit.
-        """
-        factor = cls._unit_map[unit]
-        value = round_func(kb / factor)
-        return cls(value, unit, round_func)
+        return cls(int(value), unit)
 
     def __mul__(self, n: int) -> "Size":
         """
@@ -131,18 +80,32 @@ class Size:
         if not isinstance(n, int):
             return NotImplemented
         if n == 0:
-            return Size(0, self.unit)
+            return Size(0, "kb")
 
-        return Size(self.toKB() * n, "kb")
+        return Size(self.value * n, "kb")
 
     # allow 3 * Size
     __rmul__ = __mul__
 
     def __str__(self) -> str:
-        return f"{self.value}{self.unit}"
+        for unit, factor in reversed(list(self._unit_map.items())):
+            value = self.value / factor
 
-    def __repr__(self) -> str:
-        return f"Size(value={self.value}, unit='{self.unit}', _round_func='{self._round_func}')"
+            if value >= 1:
+                rounded = round(value)
+                # compute relative error from rounding
+                approx_kb = rounded * factor
+                error = abs(approx_kb - self.value) / self.value
+                if error <= CFG.size.max_rounding_error or unit == "kb":
+                    return f"{rounded}{unit}"
+                # otherwise, try smaller unit
+
+        # should not get here
+        return f"{self.value}kb"
+
+    def toStrExact(self) -> str:
+        """Convert the Size to string while keeping it in kilobytes."""
+        return f"{self.value}kb"
 
     def __floordiv__(self, n: int) -> "Size":
         """
@@ -161,9 +124,9 @@ class Size:
         if not isinstance(n, int):
             return NotImplemented
         if n == 0:
-            raise ZeroDivisionError("division by zero")
+            raise ZeroDivisionError("Division by zero.")
 
-        return Size(self._round_func(self.toKB() / n), "kb")
+        return Size(math.ceil(self.value / n), "kb")
 
     def __truediv__(self, other: "Size") -> float:
         """
@@ -181,16 +144,39 @@ class Size:
             TypeError:
                 If `other` is not a Size instance.
             ZeroDivisionError:
-                If `other` has a zero total size.
+                If `other` is a zero Size.
         """
         if not isinstance(other, Size):
             raise TypeError(
                 f"Unsupported operand type(s) for /: 'Size' and '{type(other).__name__}'"
             )
 
-        other_kb = other.toKB()
-        # the smallest Size is 1 kB, so this should never happen, but we keep it to be safe
-        if other_kb == 0:
-            raise ZeroDivisionError("division by zero size")
+        if other.value == 0:
+            raise ZeroDivisionError("Division by zero size.")
 
-        return self.toKB() / other_kb
+        return self.value / other.value
+
+    def __sub__(self, other: "Size") -> "Size":
+        """
+        Subtract one Size from another.
+
+        Args:
+            other (Size): The Size instance to subtract.
+
+        Returns:
+            Size: A new Size instance representing the difference.
+
+        Raises:
+            TypeError: If `other` is not a Size instance.
+            ValueError: If the result would be negative.
+        """
+        if not isinstance(other, Size):
+            raise TypeError(
+                f"Unsupported operand type(s) for -: 'Size' and '{type(other).__name__}'"
+            )
+
+        result_kb = self.value - other.value
+        if result_kb < 0:
+            raise ValueError("Resulting Size cannot be negative.")
+
+        return Size(result_kb, "kb")

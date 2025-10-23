@@ -67,7 +67,7 @@ def parseMultiPBSDumpToDictionaries(
         if not block:
             # extract the identifier
             if keyword:
-                m = pattern.match(line)
+                m = pattern.match(line)  # ty: ignore[possibly-unbound-attribute]
                 if not m:
                     raise QQError(
                         f"Invalid PBS dump format. Could not extract identifier from:\n{line}"

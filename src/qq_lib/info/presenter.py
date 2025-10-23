@@ -11,7 +11,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.core.common import format_duration_wdhhmmss
+from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import RealState
 
@@ -45,17 +45,6 @@ class QQPresenter:
             Group: A Rich Group containing the status panel.
         """
         console = console or Console()
-        term_width = console.size.width
-        panel_width = term_width // 3
-        min_w, max_w = (
-            CFG.presenter.job_status_panel.min_width,
-            CFG.presenter.job_status_panel.max_width,
-        )
-
-        if min_w is not None:
-            panel_width = max(panel_width, min_w)
-        if max_w is not None:
-            panel_width = min(panel_width, max_w)
 
         panel = Panel(
             self._createJobStatusTable(self._informer.getRealState()),
@@ -66,7 +55,12 @@ class QQPresenter:
             ),
             border_style=CFG.presenter.job_status_panel.border_style,
             padding=(1, 2),
-            width=panel_width,
+            width=get_panel_width(
+                console,
+                3,
+                CFG.presenter.job_status_panel.min_width,
+                CFG.presenter.job_status_panel.max_width,
+            ),
         )
 
         return Group(Text(""), panel, Text(""))
@@ -84,17 +78,6 @@ class QQPresenter:
         """
 
         console = console or Console()
-        term_width = console.size.width
-        panel_width = term_width // 3
-        min_w, max_w = (
-            CFG.presenter.full_info_panel.min_width,
-            CFG.presenter.full_info_panel.max_width,
-        )
-
-        if min_w is not None:
-            panel_width = max(panel_width, min_w)
-        if max_w is not None:
-            panel_width = min(panel_width, max_w)
 
         state = self._informer.getRealState()
         comment, estimated = self._getCommentAndEstimated(state)
@@ -109,7 +92,10 @@ class QQPresenter:
                 style=CFG.presenter.full_info_panel.rule_style,
             ),
             Text(""),
-            Padding(Align.center(self._createResourcesTable(term_width)), (0, 2)),
+            Padding(
+                Align.center(self._createResourcesTable(console.size.width)),
+                (0, 2),
+            ),
             Text(""),
             Rule(
                 title=Text("HISTORY", style=CFG.presenter.full_info_panel.title_style),
@@ -140,7 +126,12 @@ class QQPresenter:
             border_style=CFG.presenter.full_info_panel.border_style,
             # no horizontal padding so Rule reaches borders
             padding=(1, 0),
-            width=panel_width,
+            width=get_panel_width(
+                console,
+                3,
+                CFG.presenter.full_info_panel.min_width,
+                CFG.presenter.full_info_panel.max_width,
+            ),
         )
 
         return Group(Text(""), full_panel, Text(""))

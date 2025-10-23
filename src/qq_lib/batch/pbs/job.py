@@ -63,6 +63,9 @@ class PBSJobInfo(BatchJobInfoInterface):
 
         if result.returncode != 0:
             # if qstat fails, information is empty
+            logger.debug(
+                f"qstat failed: no information about job '{self._job_id}' is available: {result.stderr.strip()}"
+            )
             self._info: dict[str, str] = {}
         else:
             self._info = parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
@@ -154,13 +157,13 @@ class PBSJobInfo(BatchJobInfoInterface):
             logger.debug(
                 f"Could not get information about the amount of memory from the batch system for '{self._job_id}'."
             )
-            return Size(1, "kb")
+            return Size(0, "kb")
 
         try:
             return Size.fromString(mem)
         except Exception as e:
             logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
-            return Size(1, "kb")
+            return Size(0, "kb")
 
     def getStartTime(self) -> datetime | None:
         return self._getDatetimeProperty("stime", "the job starting time")
@@ -230,9 +233,8 @@ class PBSJobInfo(BatchJobInfoInterface):
             return None
 
         try:
-            # we assume that resources_used.mem is always in kb (or in b if 0)
-            util_mem_kb = int(util_mem.replace("kb", "").replace("b", ""))
-            return int(util_mem_kb / self.getMem().toKB() * 100.0)
+            util_mem_kb = Size.fromString(util_mem).value
+            return int(util_mem_kb / self.getMem().value * 100.0)
         except Exception as e:
             logger.warning(
                 f"Could not parse information about memory utilization for '{self._job_id}': {e}."

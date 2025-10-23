@@ -19,7 +19,7 @@ from qq_lib.core.config import CFG
 from qq_lib.queues.presenter import QQQueuesPresenter
 
 
-def test_qqqueuespresenter_init_sets_fields_correctly():
+def test_qqqueues_presenter_init_sets_fields_correctly():
     queues = [MagicMock(), MagicMock()]
     user = "user"
     display_all = True
@@ -31,7 +31,7 @@ def test_qqqueuespresenter_init_sets_fields_correctly():
     assert presenter._display_all is True
 
 
-def test_qqqueuespresenter_format_walltime_returns_formatted_text():
+def test_qqqueues_presenter_format_walltime_returns_formatted_text():
     queue = MagicMock()
     queue.getMaxWalltime.return_value = timedelta(days=1, hours=2, minutes=3, seconds=4)
 
@@ -43,7 +43,7 @@ def test_qqqueuespresenter_format_walltime_returns_formatted_text():
     queue.getMaxWalltime.assert_called_once()
 
 
-def test_qqqueuespresenter_format_walltime_returns_empty_text_when_no_walltime():
+def test_qqqueues_presenter_format_walltime_returns_empty_text_when_no_walltime():
     queue = MagicMock()
     queue.getMaxWalltime.return_value = None
 
@@ -54,7 +54,7 @@ def test_qqqueuespresenter_format_walltime_returns_empty_text_when_no_walltime()
     queue.getMaxWalltime.assert_called_once()
 
 
-def test_qqqueuespresenter_add_queue_row_main_available():
+def test_qqqueues_presenter_add_queue_row_main_available():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = True
     queue.getName.return_value = "mainq"
@@ -84,7 +84,7 @@ def test_qqqueuespresenter_add_queue_row_main_available():
     queue.isAvailableToUser.assert_called_once_with("user")
 
 
-def test_qqqueuespresenter_add_queue_row_main_unavailable():
+def test_qqqueues_presenter_add_queue_row_main_unavailable():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = False
     queue.getName.return_value = "main_unavail"
@@ -111,7 +111,7 @@ def test_qqqueuespresenter_add_queue_row_main_unavailable():
     queue.isAvailableToUser.assert_called_once_with("user")
 
 
-def test_qqqueuespresenter_add_queue_row_rerouted_available():
+def test_qqqueues_presenter_add_queue_row_rerouted_available():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = True
     queue.getName.return_value = "reroutedq"
@@ -141,7 +141,7 @@ def test_qqqueuespresenter_add_queue_row_rerouted_available():
     queue.isAvailableToUser.assert_called_once_with("user")
 
 
-def test_qqqueuespresenter_add_queue_row_rerouted_unavailable():
+def test_qqqueues_presenter_add_queue_row_rerouted_unavailable():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = False
     queue.getName.return_value = "rerouted_blocked"
@@ -168,7 +168,7 @@ def test_qqqueuespresenter_add_queue_row_rerouted_unavailable():
     queue.isAvailableToUser.assert_called_once_with("user")
 
 
-def test_qqqueuespresenter_add_queue_row_dangling():
+def test_qqqueues_presenter_add_queue_row_dangling():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = True
     queue.getName.return_value = "danglingq"
@@ -232,7 +232,7 @@ def _render_table(table: Table) -> str:
     return buf.getvalue()
 
 
-def test_qqqueuespresenter_create_queues_table_basic_main_only():
+def test_qqqueues_presenter_create_queues_table_basic_main_only():
     main = _make_queue("mainq", destinations=[])
     presenter = QQQueuesPresenter([main], user="user", all=False)
 
@@ -246,7 +246,7 @@ def test_qqqueuespresenter_create_queues_table_basic_main_only():
     main.isAvailableToUser.assert_called_once_with("user")
 
 
-def test_qqqueuespresenter_create_queues_table_with_rerouted_parent_available():
+def test_qqqueues_presenter_create_queues_table_with_rerouted_parent_available():
     main = _make_queue(
         "mainq", destinations=["destq"], available_to=True, comment="main"
     )
@@ -262,7 +262,7 @@ def test_qqqueuespresenter_create_queues_table_with_rerouted_parent_available():
     assert "destq" in output
 
 
-def test_qqqueuespresenter_create_queues_table_with_rerouted_parent_unavailable():
+def test_qqqueues_presenter_create_queues_table_with_rerouted_parent_unavailable():
     main = _make_queue("mainq", destinations=["destq"], available_to=False)
     dest = _make_queue("destq")
     presenter = QQQueuesPresenter([main, dest], user="user", all=False)
@@ -276,7 +276,7 @@ def test_qqqueuespresenter_create_queues_table_with_rerouted_parent_unavailable(
     assert CFG.queues_presenter.rerouted_mark in output
 
 
-def test_qqqueuespresenter_create_queues_table_unbound_when_all_true():
+def test_qqqueues_presenter_create_queues_table_unbound_when_all_true():
     route_only_unbound = _make_queue(
         "lonely_dest", from_route_only=True, comment="dangling"
     )
@@ -292,7 +292,7 @@ def test_qqqueuespresenter_create_queues_table_unbound_when_all_true():
 
 
 @pytest.mark.parametrize("all", [False, True])
-def test_qqqueuespresenter_create_queues_info_panel_structure(all):
+def test_qqqueues_presenter_create_queues_info_panel_structure(all):
     queue_mock = MagicMock()
     presenter = QQQueuesPresenter([queue_mock], user="user", all=all)
 
@@ -320,7 +320,7 @@ def test_qqqueuespresenter_create_queues_info_panel_structure(all):
     assert main_panel.renderable is fake_table
 
 
-def test_qqqueuespresenter_dump_yaml_roundtrip():
+def test_qqqueues_presenter_dump_yaml_roundtrip():
     # Create queues using PBSQueue.fromDict
     info_gpu = {
         "queue_type": "Execution",

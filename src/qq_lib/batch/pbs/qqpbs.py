@@ -12,6 +12,7 @@ from pathlib import Path
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.batch.interface.meta import batch_system
 from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
+from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
@@ -26,7 +27,7 @@ logger = get_logger(__name__)
 
 
 @batch_system
-class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
+class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMeta):
     """
     Implementation of QQBatchInterface for PBS Pro batch system.
     """
@@ -172,6 +173,32 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
             result.stdout.strip(), "Queue"
         ):
             queues.append(PBSQueue.fromDict(name, data))  # ty: ignore[possibly-unbound-attribute]
+
+        return queues
+
+    def getNodes() -> list[PBSNode]:
+        command = "pbsnodes -a"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not retrieve information about nodes: {result.stderr.strip()}."
+            )
+
+        queues = []
+        for data, name in parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+            result.stdout.strip(), None
+        ):
+            queues.append(PBSNode.fromDict(name, data))  # ty: ignore[possibly-unbound-attribute]
 
         return queues
 
@@ -499,9 +526,11 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
             trans_res.append(f"ncpus={res.ncpus // res.nnodes}")
 
         if res.mem:
-            trans_res.append(f"mem={str(res.mem // res.nnodes)}")
+            trans_res.append(f"mem={(res.mem // res.nnodes).toStrExact()}")
         elif res.mem_per_cpu and res.ncpus:
-            trans_res.append(f"mem={str(res.mem_per_cpu * res.ncpus // res.nnodes)}")
+            trans_res.append(
+                f"mem={(res.mem_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+            )
         else:
             # memory not set in any way
             raise QQError(
@@ -536,12 +565,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue], metaclass=QQBatchMeta):
             return f"{res.work_dir}=true"
 
         if res.work_size:
-            return f"{res.work_dir}={str(res.work_size // res.nnodes)}"
+            return f"{res.work_dir}={(res.work_size // res.nnodes).toStrExact()}"
 
         if res.work_size_per_cpu and res.ncpus:
-            return (
-                f"{res.work_dir}={str(res.work_size_per_cpu * res.ncpus // res.nnodes)}"
-            )
+            return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
 
         raise QQError(
             "Attribute 'work-size' or attributes 'work-size-per-cpu' and 'ncpus' are not defined."

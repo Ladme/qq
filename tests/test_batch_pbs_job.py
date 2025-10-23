@@ -324,22 +324,19 @@ def test_pbs_job_info_get_mem_present():
     job = _make_jobinfo_with_info({"Resource_List.mem": "8gb"})
     mem = job.getMem()
     assert isinstance(mem, Size)
-    assert mem.value == 8
-    assert mem.unit == "gb"
+    assert mem.value == 8 * 1024 * 1024
 
 
 def test_pbs_job_info_get_mem_missing():
     job = _make_jobinfo_with_info({})
     mem = job.getMem()
-    # smallest size is 1 kb
-    assert mem.value == 1 and mem.unit == "kb"
+    assert mem.value == 0
 
 
 def test_pbs_job_info_get_mem_invalid_value():
     job = _make_jobinfo_with_info({"Resource_List.mem": "invalid123"})
     mem = job.getMem()
-    # smallest size is 1kb
-    assert mem.value == 1 and mem.unit == "kb"
+    assert mem.value == 0
 
 
 def test_pbs_job_info_get_start_time_present():

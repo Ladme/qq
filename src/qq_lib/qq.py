@@ -11,6 +11,7 @@ from qq_lib.info import info
 from qq_lib.jobs import jobs
 from qq_lib.kill import kill
 from qq_lib.killall import killall
+from qq_lib.nodes import nodes
 from qq_lib.queues import queues
 from qq_lib.run import run
 from qq_lib.stat import stat
@@ -38,3 +39,4 @@ cli.add_command(cd)
 cli.add_command(sync)
 cli.add_command(killall)
 cli.add_command(queues)
+cli.add_command(nodes)

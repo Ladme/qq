@@ -339,10 +339,16 @@ class QQRunner:
         self._reloadInfoAndEnsureNotKilled()
 
         try:
+            nodes = self._informer.getNodes()
+            if not nodes:
+                raise QQError(
+                    "Could not get the list of used nodes from the batch server"
+                )
+
             self._informer.setRunning(
                 datetime.now(),
                 socket.gethostname(),
-                self._informer.getNodes(),
+                nodes,
                 self._work_dir,
             )
 

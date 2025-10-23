@@ -6,6 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import readchar
+from rich.console import Console
 from rich.live import Live
 from rich.text import Text
 
@@ -565,3 +566,30 @@ def to_snake_case(s: str) -> str:
 
     # convert PascalCase to snake_case
     return re.sub(r"(?<!^)(?=[A-Z])", "_", s).lower()
+
+
+def get_panel_width(
+    console: Console, factor: int, min_width: int | None, max_width: int | None
+):
+    """
+    Calculate the width of a panel relative to the console width, constrained by
+    optional minimum and maximum width values.
+
+    Args:
+        console (Console): A rich Console-like object that provides terminal size.
+        factor (int): A divisor used to scale down the terminal width.
+        min_width (int): The minimum allowable panel width. If None, no lower bound is applied.
+        max_width (int): The maximum allowable panel width. If None, no upper bound is applied.
+
+    Returns:
+        int: The computed panel width after applying scaling and bounds.
+    """
+
+    term_width = console.size.width
+    panel_width = term_width // factor
+    if min_width is not None:
+        panel_width = max(panel_width, min_width)
+    if max_width is not None:
+        panel_width = min(panel_width, max_width)
+
+    return panel_width

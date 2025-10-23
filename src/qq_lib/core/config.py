@@ -159,6 +159,30 @@ class QueuesPresenterSettings:
 
 
 @dataclass
+class NodesPresenterSettings:
+    """Settings for QQNodesPresenter."""
+
+    max_width: int | None = None
+    min_width: int | None = 80
+    max_props_panel_width: int = 40
+    border_style: str = "white"
+    title_style: str = "white bold"
+    headers_style: str = "default"
+    rule_style: str = "white"
+    others_group_name: str = "other"
+    all_nodes_group_name: str = "all nodes"
+
+    state_mark = "●"
+
+    main_text_style: str = "white"
+    secondary_text_style: str = "grey70"
+    free_node_style: str = "bright_green bold"
+    part_free_node_style: str = "green"
+    busy_node_style: str = "blue"
+    unavailable_node_style = "bright_red"
+
+
+@dataclass
 class DateFormats:
     """Date and time format strings."""
 
@@ -198,6 +222,13 @@ class StateColors:
 
 
 @dataclass
+class SizeOptions:
+    """Options associated with the Size dataclass."""
+
+    max_rounding_error: float = 0.1
+
+
+@dataclass
 class QQConfig:
     """Main configuration for qq."""
 
@@ -213,9 +244,13 @@ class QQConfig:
     queues_presenter: QueuesPresenterSettings = field(
         default_factory=QueuesPresenterSettings
     )
+    nodes_presenter: NodesPresenterSettings = field(
+        default_factory=NodesPresenterSettings
+    )
     date_formats: DateFormats = field(default_factory=DateFormats)
     exit_codes: ExitCodes = field(default_factory=ExitCodes)
     state_colors: StateColors = field(default_factory=StateColors)
+    size: SizeOptions = field(default_factory=SizeOptions)
     binary_name: str = "qq"
 
     @classmethod

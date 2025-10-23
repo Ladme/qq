@@ -90,7 +90,7 @@ class ACLData:
 
 class PBSQueue(BatchQueueInterface):
     """
-    Implementation of BatchQueueInterface for PBSQueue.
+    Implementation of BatchQueueInterface for PBS.
     Stores metadata for a single PBS queue.
     """
 
@@ -235,12 +235,12 @@ class PBSQueue(BatchQueueInterface):
         Note:
             This method does not perform any validation or processing of the provided dictionary.
         """
-        job_info = cls.__new__(cls)
-        job_info._name = name
-        job_info._info = info
-        job_info._setAttributes()
+        queue = cls.__new__(cls)
+        queue._name = name
+        queue._info = info
+        queue._setAttributes()
 
-        return job_info
+        return queue
 
     def _setJobNumbers(self) -> None:
         """

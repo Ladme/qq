@@ -1,26 +1,16 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-import math
 
 import pytest
-import yaml
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.size import Size
 
 
-def test_init_and_str_repr():
-    s = Size(10, "mb")
-    assert str(s) == "10mb"
-    assert (
-        repr(s) == "Size(value=10, unit='mb', _round_func='<built-in function ceil>')"
-    )
-
-
 def test_invalid_unit_raises():
     with pytest.raises(QQError):
-        Size(5, "pb")
+        Size(5, "xb")
 
 
 @pytest.mark.parametrize(
@@ -30,23 +20,13 @@ def test_invalid_unit_raises():
         ("10 mb", Size(10, "mb")),
         ("2048KB", Size(2, "mb")),
         ("5tb", Size(5, "tb")),
+        ("1pb", Size(1, "pb")),
+        ("0b", Size(0, "kb")),
+        ("3b", Size(1, "kb")),
     ],
 )
 def test_from_string_valid(text, expected):
     assert Size.fromString(text) == expected
-
-
-@pytest.mark.parametrize(
-    "text, expected",
-    [
-        ("10mb", Size(10, "mb", math.floor)),
-        ("10 mb", Size(10, "mb", math.floor)),
-        ("2048KB", Size(2, "mb", math.floor)),
-        ("5tb", Size(5, "tb", math.floor)),
-    ],
-)
-def test_from_string_valid_floor(text, expected):
-    assert Size.fromString(text, round_func=math.floor) == expected
 
 
 def test_from_string_invalid():
@@ -54,59 +34,82 @@ def test_from_string_invalid():
         Size.fromString("nonsense")
 
 
+def test_init_without_unit():
+    assert Size(512) == Size(512, "kb")
+
+
 @pytest.mark.parametrize(
-    "value, unit, expected_value, expected_unit",
+    "value, unit, expected_value",
     [
-        (2048, "kb", 2, "mb"),
-        (1025, "kb", 2, "mb"),
-        (1536, "kb", 2, "mb"),
-        (1, "mb", 1, "mb"),
-        (1024, "mb", 1, "gb"),
-        (1536, "mb", 2, "gb"),
-        (1, "kb", 1, "kb"),
-        (0, "kb", 1, "kb"),
-        (2048, "mb", 2, "gb"),
-        (1048576, "kb", 1, "gb"),
-        (1048577, "kb", 2, "gb"),
-        (1073741824, "kb", 1, "tb"),
-        (1073741825, "kb", 2, "tb"),
+        (2048, "kb", 2048),
+        (1025, "kb", 1025),
+        (1536, "kb", 1536),
+        (1, "mb", 1024),
+        (1024, "mb", 1048576),
+        (1536, "mb", 1572864),
+        (1, "kb", 1),
+        (0, "kb", 0),
+        (6, "gb", 6291456),
+        (2, "tb", 2147483648),
+        (1048576, "kb", 1048576),
+        (1048577, "kb", 1048577),
+        (5, "pb", 5497558138880),
+        (0, "b", 0),
+        (5, "b", 1),
     ],
 )
-def test_post_init_conversions(value, unit, expected_value, expected_unit):
+def test_init_conversions(value, unit, expected_value):
     s = Size(value, unit)
     assert s.value == expected_value
-    assert s.unit == expected_unit
 
 
 @pytest.mark.parametrize(
-    "value, unit, expected_value, expected_unit",
+    "value, expected_string",
     [
-        (2048, "kb", 2, "mb"),
-        (1025, "kb", 1, "mb"),
-        (2047, "kb", 1, "mb"),
-        (1, "mb", 1, "mb"),
-        (1024, "mb", 1, "gb"),
-        (1536, "mb", 1, "gb"),
-        (1, "kb", 1, "kb"),
-        (0, "kb", 1, "kb"),
-        (2048, "mb", 2, "gb"),
-        (1048576, "kb", 1, "gb"),
-        (2097151, "kb", 1, "gb"),
-        (1073741824, "kb", 1, "tb"),
-        (2147483647, "kb", 1, "tb"),
+        (0, "0kb"),
+        (128, "128kb"),
+        (1024, "1mb"),
+        (1025, "1mb"),
+        (1126, "1mb"),
+        (1139, "1139kb"),
+        (337920, "330mb"),
+        (338420, "330mb"),
+        (337420, "330mb"),
+        (338470, "331mb"),
+        (1048576, "1gb"),
+        (1050000, "1gb"),
+        (1200000, "1172mb"),
+        (1990000, "2gb"),
+        (1073741824, "1tb"),
+        (1573741824, "1501gb"),
+        (5491558138880, "5pb"),
     ],
 )
-def test_post_init_conversions_floor(value, unit, expected_value, expected_unit):
-    s = Size(value, unit, round_func=math.floor)
-    assert s.value == expected_value
-    assert s.unit == expected_unit
+def test_str_conversions(value, expected_string):
+    s = Size(value, "kb")
+    assert str(s) == expected_string
 
 
-def test_to_kb():
-    assert Size(1, "kb").toKB() == 1
-    assert Size(1, "mb").toKB() == 1024
-    assert Size(1, "gb").toKB() == 1024 * 1024
-    assert Size(1, "tb").toKB() == 1024 * 1024 * 1024
+@pytest.mark.parametrize(
+    "value, expected_string",
+    [
+        (0, "0kb"),
+        (128, "128kb"),
+        (1024, "1024kb"),
+        (1025, "1025kb"),
+        (1126, "1126kb"),
+        (1139, "1139kb"),
+        (337920, "337920kb"),
+        (338420, "338420kb"),
+        (1048576, "1048576kb"),
+        (1990000, "1990000kb"),
+        (1073741824, "1073741824kb"),
+        (1573741824, "1573741824kb"),
+    ],
+)
+def test_to_str_exact(value, expected_string):
+    s = Size(value, "kb")
+    assert s.toStrExact() == expected_string
 
 
 def test_multiplication():
@@ -148,7 +151,7 @@ def test_floordiv_by_integer_unit_conversion_rounding_up():
 def test_floordiv_by_integer_rounding_up():
     s = Size(10, "mb")
     result = s // 3
-    assert result == Size(4, "mb")
+    assert result == Size(3414, "kb")
 
 
 def test_floordiv_by_integer_one_returns_same():
@@ -198,6 +201,11 @@ def test_truediv_type_error(a, other):
         _ = a / other
 
 
+def test_truediv_division_by_zero_error():
+    with pytest.raises(ZeroDivisionError):
+        _ = Size(10, "mb") / Size(0, "kb")
+
+
 @pytest.mark.parametrize(
     "a,b,expected",
     [
@@ -210,58 +218,32 @@ def test_truediv_case_insensitive_units(a, b, expected):
 
 
 @pytest.mark.parametrize(
-    "kb,unit,expected_value",
+    "a,b,expected_value",
     [
-        (1024, "mb", 1),  # exact 1 MB
-        (1025, "mb", 2),  # rounding up
-        (1048576, "gb", 1),  # exact 1 GB
-        (1048577, "gb", 2),  # rounding up
-        (1536, "mb", 2),  # 1.5 MB - 2 MB (ceil)
-        (1073741826, "tb", 2),  # rounding up tb
+        (Size(200, "kb"), Size(100, "kb"), 100),
+        (Size(10, "mb"), Size(5, "mb"), 5120),
+        (Size(3, "gb"), Size(2, "gb"), 1048576),
+        (Size(1, "gb"), Size(512, "mb"), 524288),
+        (Size(1, "tb"), Size(512, "gb"), 536870912),
+        (Size(512, "mb"), Size(512, "mb"), 0),
+        (Size(2048, "mb"), Size(1, "gb"), 1048576),
+        (Size(1025, "kb"), Size(1, "kb"), 1024),
     ],
 )
-def test_size_from_kb_valid_conversions(kb, unit, expected_value):
-    size = Size._fromKB(kb, unit)
-    assert isinstance(size, Size)
-    assert size.value == expected_value
-    assert size.unit == unit
+def test_subtraction_valid(a, b, expected_value):
+    result = a - b
+    assert isinstance(result, Size)
+    assert result.value == expected_value
 
 
-@pytest.mark.parametrize(
-    "kb,unit,expected_value",
-    [
-        (1024, "mb", 1),  # exact 1 MB
-        (1025, "mb", 1),  # rounding down
-        (1048576, "gb", 1),  # exact 1 GB
-        (2097151, "gb", 1),
-        (1536, "mb", 1),  # 1.5 MB - 2 MB (floor)
-        (1073741826, "tb", 1),  # rounding down tb
-    ],
-)
-def test_size_from_kb_valid_conversions_floor(kb, unit, expected_value):
-    size = Size._fromKB(kb, unit, round_func=math.floor)
-    assert isinstance(size, Size)
-    assert size.value == expected_value
-    assert size.unit == unit
+def test_subtraction_negative_result_raises():
+    a = Size(1, "gb")
+    b = Size(2, "gb")
+    with pytest.raises(ValueError, match="Resulting Size cannot be negative"):
+        _ = a - b
 
 
-@pytest.mark.parametrize("invalid_unit", ["pb", "b", "", None])
-def test_size_from_kb_invalid_unit(invalid_unit):
-    with pytest.raises((KeyError, TypeError)):
-        Size._fromKB(1024, invalid_unit)
-
-
-@pytest.mark.parametrize(
-    "size",
-    [
-        Size(1, "gb"),
-        Size(1, "gb", round),
-        Size(1, "gb", math.ceil),
-        Size(1, "gb", math.floor),
-    ],
-)
-def test_size_yaml_dump(size):
-    assert (
-        yaml.dump(size)
-        == "!!python/object:qq_lib.properties.size.Size\nunit: gb\nvalue: 1\n"
-    )
+def test_subtraction_invalid_type():
+    a = Size(1, "gb")
+    with pytest.raises(TypeError):
+        _ = a - 100  # ty: ignore[unsupported-operator]

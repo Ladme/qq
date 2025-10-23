@@ -564,8 +564,7 @@ exit 0
     assert resources.ncpus == 8
     assert resources.work_dir == "scratch_local"
     assert resources.work_size is not None
-    assert resources.work_size.value == 4
-    assert resources.work_size.unit == "gb"
+    assert resources.work_size.value == 4194304
     assert resources.ngpus is None
     assert resources.mem is None
     assert resources.props == {"vnode": "node"}

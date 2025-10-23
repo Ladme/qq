@@ -188,6 +188,8 @@ def test_load_returns_defaults_when_file_missing(tmp_path):
 
     config = QQConfig.load(non_existent)
     default_config = QQConfig()
+    print(config)
+    print(default_config)
 
     assert config == default_config
 

@@ -6,9 +6,10 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 from time import sleep
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from rich.console import Console
 
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.core.common import (
@@ -22,6 +23,7 @@ from qq_lib.core.common import (
     get_info_file_from_job_id,
     get_info_files,
     get_info_files_from_job_id_or_dir,
+    get_panel_width,
     get_runtime_files,
     hhmmss_to_duration,
     hhmmss_to_wdhms,
@@ -789,3 +791,65 @@ def test_get_runtime_files(tmp_path):
 
         for suffix in CFG.suffixes.all_suffixes:
             mock_func.assert_any_call(tmp_path, suffix)
+
+
+@pytest.mark.parametrize(
+    "term_width,factor,expected",
+    [(100, 2, 50), (90, 3, 30), (81, 4, 20), (200, 5, 40), (100, 1, 100)],
+)
+def test_get_panel_width_basic_division(term_width, factor, expected):
+    console = MagicMock(spec=Console)
+    console.size.width = term_width
+
+    result = get_panel_width(console, factor, None, None)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "term_width,factor,min_width,expected",
+    [
+        (100, 4, 30, 30),
+        (120, 6, 10, 20),
+        (80, 10, 15, 15),
+    ],
+)
+def test_get_panel_width_respects_min_width(term_width, factor, min_width, expected):
+    console = MagicMock(spec=Console)
+    console.size.width = term_width
+
+    result = get_panel_width(console, factor, min_width, None)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "term_width,factor,max_width,expected",
+    [
+        (100, 2, 40, 40),
+        (80, 4, 30, 20),
+        (200, 3, 60, 60),
+    ],
+)
+def test_get_panel_width_respects_max_width(term_width, factor, max_width, expected):
+    console = MagicMock(spec=Console)
+    console.size.width = term_width
+
+    result = get_panel_width(console, factor, None, max_width)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "term_width,factor,min_width,max_width,expected",
+    [
+        (100, 4, 10, 40, 25),  # within range
+        (100, 10, 20, 40, 20),  # below min
+        (100, 2, 10, 30, 30),  # above max
+    ],
+)
+def test_get_panel_width_with_min_and_max(
+    term_width, factor, min_width, max_width, expected
+):
+    console = MagicMock(spec=Console)
+    console.size.width = term_width
+
+    result = get_panel_width(console, factor, min_width, max_width)
+    assert result == expected

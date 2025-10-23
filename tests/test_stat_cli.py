@@ -79,11 +79,11 @@ def test_stat_command_unfinished_shows_jobs(parsed_jobs):
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getAllUnfinishedJobsInfo", return_value=parsed_jobs),
+        patch.object(QQPBS, "getAllUnfinishedBatchJobs", return_value=parsed_jobs),
         patch.object(
             QQPBS,
-            "getAllJobsInfo",
-            side_effect=Exception("getAllJobsInfo should not be called"),
+            "getAllBatchJobs",
+            side_effect=Exception("getAllBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(stat, [], catch_exceptions=False)
@@ -102,11 +102,11 @@ def test_stat_command_all_flag_shows_all_jobs(parsed_jobs):
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getAllJobsInfo", return_value=parsed_jobs),
+        patch.object(QQPBS, "getAllBatchJobs", return_value=parsed_jobs),
         patch.object(
             QQPBS,
-            "getAllUnfinishedJobsInfo",
-            side_effect=Exception("getAllUnfinishedJobsInfo should not be called"),
+            "getAllUnfinishedBatchJobs",
+            side_effect=Exception("getAllUnfinishedBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(stat, ["--all"], catch_exceptions=False)
@@ -125,11 +125,11 @@ def test_stat_command_yaml_flag_outputs_yaml(parsed_jobs):
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getAllUnfinishedJobsInfo", return_value=parsed_jobs),
+        patch.object(QQPBS, "getAllUnfinishedBatchJobs", return_value=parsed_jobs),
         patch.object(
             QQPBS,
-            "getAllJobsInfo",
-            side_effect=Exception("getAllJobsInfo should not be called"),
+            "getAllBatchJobs",
+            side_effect=Exception("getAllBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(stat, ["--yaml"], catch_exceptions=False)
@@ -147,11 +147,11 @@ def test_stat_command_no_jobs():
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getAllUnfinishedJobsInfo", return_value=[]),
+        patch.object(QQPBS, "getAllUnfinishedBatchJobs", return_value=[]),
         patch.object(
             QQPBS,
-            "getAllJobsInfo",
-            side_effect=Exception("getAllJobsInfo should not be called"),
+            "getAllBatchJobs",
+            side_effect=Exception("getAllBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(stat, [], catch_exceptions=False)

@@ -115,12 +115,12 @@ def get_info_file_from_job_id(job_id: str) -> Path:
     """
 
     from qq_lib.batch.interface import (
-        BatchJobInfoInterface,
+        BatchJobInterface,
         QQBatchMeta,
     )
 
     BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
-    job_info: BatchJobInfoInterface = BatchSystem.getJobInfo(job_id)
+    job_info: BatchJobInterface = BatchSystem.getBatchJob(job_id)
 
     if job_info.isEmpty():
         raise QQError(f"Job '{job_id}' does not exist.")

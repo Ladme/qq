@@ -10,7 +10,7 @@ from typing import NoReturn
 
 import click
 
-from qq_lib.batch.interface.job import BatchJobInfoInterface
+from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.batch.interface.meta import QQBatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import yes_or_no_prompt
@@ -42,7 +42,7 @@ This command is only able to terminate qq jobs, all other jobs are not affected 
 def killall(yes: bool = False, force: bool = False) -> NoReturn:
     try:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
-        jobs = BatchSystem.getUnfinishedJobsInfo(getpass.getuser())
+        jobs = BatchSystem.getUnfinishedBatchJobs(getpass.getuser())
         if not jobs:
             logger.info("You have no active jobs. Nothing to kill.")
             sys.exit(0)
@@ -85,7 +85,7 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def _jobs_to_paths(jobs: Iterable[BatchJobInfoInterface]) -> list[Path]:
+def _jobs_to_paths(jobs: Iterable[BatchJobInterface]) -> list[Path]:
     return [info_file for job in jobs if (info_file := job.getInfoFile())]
 
 

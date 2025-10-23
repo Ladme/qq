@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Self
 
-from qq_lib.batch.interface import BatchJobInfoInterface, QQBatchInterface
+from qq_lib.batch.interface import BatchJobInterface, QQBatchInterface
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.info import QQInfo
 from qq_lib.properties.states import BatchState, NaiveState, RealState
@@ -26,7 +26,7 @@ class QQInformer:
             info: A QQInfo object containing raw job data.
         """
         self.info = info
-        self._batch_info: BatchJobInfoInterface | None = None
+        self._batch_info: BatchJobInterface | None = None
 
     @property
     def batch_system(self) -> type[QQBatchInterface]:
@@ -163,13 +163,13 @@ class QQInformer:
         Return the job's state as reported by the batch system.
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
 
         Returns:
             BatchState: The job's state according to the batch system.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getState()
 
@@ -179,7 +179,7 @@ class QQInformer:
         with the state reported by the batch system (`BatchState`).
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
 
         Returns:
             RealState: The job's real state obtained by combining information
@@ -201,13 +201,13 @@ class QQInformer:
         Return the job's comment as reported by the batch system.
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
 
         Returns:
             str | None: The job comment if available, otherwise None.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getComment()
 
@@ -216,7 +216,7 @@ class QQInformer:
         Return the estimated start time and execution node for the job.
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
 
         Returns:
             tuple[datetime, str] | None: A tuple containing the estimated start time
@@ -224,7 +224,7 @@ class QQInformer:
             information is not available.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getEstimated()
 
@@ -235,14 +235,14 @@ class QQInformer:
         Note that this obtains the node information from the batch system itself!
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
 
         Returns:
             str | None: The hostname of the main execution node, or None if the
             information is not available.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getMainNode()
 
@@ -253,7 +253,7 @@ class QQInformer:
         Note that this obtains the node information from the batch system itself!
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getJobInfo`. This avoids unnecessary remote calls.
+        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
 
         Returns:
             list[str] | None:
@@ -261,6 +261,6 @@ class QQInformer:
                 or `None` if the job has not started or node information is unavailable.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getJobInfo(self.info.job_id)
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getNodes()

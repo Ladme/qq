@@ -1047,7 +1047,7 @@ def test_get_jobs_info_using_command_success(sample_multi_dump_file):
             returncode=0, stdout=sample_multi_dump_file, stderr=""
         )
 
-        jobs = QQPBS._getJobsInfoUsingCommand("fake command - unused")
+        jobs = QQPBS._getBatchJobsUsingCommand("fake command - unused")
 
         assert len(jobs) == 3
         assert all(isinstance(job, PBSJobInfo) for job in jobs)
@@ -1089,7 +1089,7 @@ def test_get_jobs_info_using_command_nonzero_returncode():
             QQError,
             match="Could not retrieve information about jobs: Some error occurred",
         ):
-            QQPBS._getJobsInfoUsingCommand("will not be used")
+            QQPBS._getBatchJobsUsingCommand("will not be used")
 
 
 @pytest.mark.parametrize(

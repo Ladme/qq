@@ -79,11 +79,11 @@ def test_jobs_command_unfinished_shows_jobs(parsed_jobs):
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getUnfinishedJobsInfo", return_value=parsed_jobs),
+        patch.object(QQPBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
         patch.object(
             QQPBS,
-            "getJobsInfo",
-            side_effect=Exception("getJobsInfo should not be called"),
+            "getBatchJobs",
+            side_effect=Exception("getBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)
@@ -103,11 +103,11 @@ def test_jobs_command_all_flag_shows_all_jobs(parsed_jobs):
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getJobsInfo", return_value=parsed_jobs),
+        patch.object(QQPBS, "getBatchJobs", return_value=parsed_jobs),
         patch.object(
             QQPBS,
-            "getUnfinishedJobsInfo",
-            side_effect=Exception("getUnfinishedJobsInfo should not be called"),
+            "getUnfinishedBatchJobs",
+            side_effect=Exception("getUnfinishedBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(jobs, ["--all"], catch_exceptions=False)
@@ -126,11 +126,11 @@ def test_jobs_command_yaml_flag_outputs_yaml(parsed_jobs):
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getUnfinishedJobsInfo", return_value=parsed_jobs),
+        patch.object(QQPBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
         patch.object(
             QQPBS,
-            "getJobsInfo",
-            side_effect=Exception("getJobsInfo should not be called"),
+            "getBatchJobs",
+            side_effect=Exception("getBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(jobs, ["--yaml"], catch_exceptions=False)
@@ -151,11 +151,11 @@ def test_jobs_command_no_jobs():
 
     with (
         patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getUnfinishedJobsInfo", return_value=[]),
+        patch.object(QQPBS, "getUnfinishedBatchJobs", return_value=[]),
         patch.object(
             QQPBS,
-            "getJobsInfo",
-            side_effect=Exception("getJobsInfo should not be called"),
+            "getBatchJobs",
+            side_effect=Exception("getBatchJobs should not be called"),
         ),
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)

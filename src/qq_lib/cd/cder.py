@@ -4,7 +4,7 @@
 
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchJobInfoInterface, QQBatchInterface
+from qq_lib.batch.interface import BatchJobInterface, QQBatchInterface
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
@@ -57,7 +57,7 @@ class QQCder:
         Raises:
             QQError: If the specified job does not exist.
         """
-        job_info: BatchJobInfoInterface = BatchSystem.getJobInfo(job_id)
+        job_info: BatchJobInterface = BatchSystem.getBatchJob(job_id)
 
         if job_info.isEmpty():
             raise QQError(f"Job '{job_id}' does not exist.")

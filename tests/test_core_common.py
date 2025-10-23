@@ -680,7 +680,7 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
 def test_get_info_file_from_job_id_success():
     with patch.object(
         QQPBS,
-        "getJobInfo",
+        "getBatchJob",
         return_value=_make_jobinfo_with_info(
             {
                 "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
@@ -694,7 +694,7 @@ def test_get_info_file_from_job_id_no_info():
     with (
         patch.object(
             QQPBS,
-            "getJobInfo",
+            "getBatchJob",
             return_value=_make_jobinfo_with_info(
                 {
                     "Variable_List": "SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
@@ -710,7 +710,7 @@ def test_get_info_file_from_job_id_nonexistent_job():
     with (
         patch.object(
             QQPBS,
-            "getJobInfo",
+            "getBatchJob",
             return_value=_make_jobinfo_with_info({}),
         ),
         pytest.raises(QQError, match="does not exist"),

@@ -207,7 +207,7 @@ def test_qqinformer_get_batch_state_no_cache():
     batch_job_info_mock.getState.return_value = BatchState.RUNNING
 
     batch_system_mock = MagicMock()
-    batch_system_mock.getJobInfo.return_value = batch_job_info_mock
+    batch_system_mock.getBatchJob.return_value = batch_job_info_mock
 
     info_mock = MagicMock()
     info_mock.job_id = "12345"
@@ -217,7 +217,7 @@ def test_qqinformer_get_batch_state_no_cache():
 
     state = informer.getBatchState()
 
-    batch_system_mock.getJobInfo.assert_called_once_with("12345")
+    batch_system_mock.getBatchJob.assert_called_once_with("12345")
     batch_job_info_mock.getState.assert_called_once()
     assert state == BatchState.RUNNING
 
@@ -227,7 +227,7 @@ def test_qqinformer_get_batch_state_with_cache():
     batch_job_info_mock.getState.return_value = BatchState.FINISHED
 
     batch_system_mock = MagicMock()
-    batch_system_mock.getJobInfo.return_value = batch_job_info_mock
+    batch_system_mock.getBatchJob.return_value = batch_job_info_mock
 
     info_mock = MagicMock()
     info_mock.job_id = "12345"
@@ -239,7 +239,7 @@ def test_qqinformer_get_batch_state_with_cache():
 
     state = informer.getBatchState()
 
-    batch_system_mock.getJobInfo.assert_not_called()
+    batch_system_mock.getBatchJob.assert_not_called()
     batch_job_info_mock.getState.assert_called_once()
     assert state == BatchState.FINISHED
 
@@ -272,7 +272,7 @@ def test_qqinformer_get_comment_no_cache():
     batch_job_info_mock.getComment.return_value = "Job comment"
 
     batch_system_mock = MagicMock()
-    batch_system_mock.getJobInfo.return_value = batch_job_info_mock
+    batch_system_mock.getBatchJob.return_value = batch_job_info_mock
 
     info_mock = MagicMock()
     info_mock.job_id = "12345"
@@ -282,7 +282,7 @@ def test_qqinformer_get_comment_no_cache():
 
     comment = informer.getComment()
 
-    batch_system_mock.getJobInfo.assert_called_once_with("12345")
+    batch_system_mock.getBatchJob.assert_called_once_with("12345")
     batch_job_info_mock.getComment.assert_called_once()
     assert comment == "Job comment"
 
@@ -311,7 +311,7 @@ def test_qqinformer_get_estimated_no_cache():
     batch_job_info_mock.getEstimated.return_value = estimated_mock
 
     batch_system_mock = MagicMock()
-    batch_system_mock.getJobInfo.return_value = batch_job_info_mock
+    batch_system_mock.getBatchJob.return_value = batch_job_info_mock
 
     info_mock = MagicMock()
     info_mock.job_id = "12345"
@@ -321,7 +321,7 @@ def test_qqinformer_get_estimated_no_cache():
 
     result = informer.getEstimated()
 
-    batch_system_mock.getJobInfo.assert_called_once_with("12345")
+    batch_system_mock.getBatchJob.assert_called_once_with("12345")
     batch_job_info_mock.getEstimated.assert_called_once()
     assert result == estimated_mock
 
@@ -350,7 +350,7 @@ def test_qqinformer_get_main_node_no_cache():
     batch_job_info_mock.getMainNode.return_value = "node1"
 
     batch_system_mock = MagicMock()
-    batch_system_mock.getJobInfo.return_value = batch_job_info_mock
+    batch_system_mock.getBatchJob.return_value = batch_job_info_mock
 
     info_mock = MagicMock()
     info_mock.job_id = "12345"
@@ -360,7 +360,7 @@ def test_qqinformer_get_main_node_no_cache():
 
     result = informer.getMainNode()
 
-    batch_system_mock.getJobInfo.assert_called_once_with("12345")
+    batch_system_mock.getBatchJob.assert_called_once_with("12345")
     batch_job_info_mock.getMainNode.assert_called_once()
     assert result == "node1"
 
@@ -388,7 +388,7 @@ def test_qqinformer_get_nodes_no_cache():
     batch_job_info_mock.getNodes.return_value = ["node1", "node2"]
 
     batch_system_mock = MagicMock()
-    batch_system_mock.getJobInfo.return_value = batch_job_info_mock
+    batch_system_mock.getBatchJob.return_value = batch_job_info_mock
 
     info_mock = MagicMock()
     info_mock.job_id = "12345"
@@ -398,7 +398,7 @@ def test_qqinformer_get_nodes_no_cache():
 
     result = informer.getNodes()
 
-    batch_system_mock.getJobInfo.assert_called_once_with("12345")
+    batch_system_mock.getBatchJob.assert_called_once_with("12345")
     batch_job_info_mock.getNodes.assert_called_once()
     assert result == ["node1", "node2"]
 

@@ -36,9 +36,9 @@ def stat(all: bool, yaml: bool) -> NoReturn:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
 
         if all:
-            jobs = BatchSystem.getAllJobsInfo()
+            jobs = BatchSystem.getAllBatchJobs()
         else:
-            jobs = BatchSystem.getAllUnfinishedJobsInfo()
+            jobs = BatchSystem.getAllUnfinishedBatchJobs()
 
         if not jobs:
             logger.info("No jobs found.")

@@ -127,28 +127,28 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMe
     def navigateToDestination(host: str, directory: Path) -> None:
         QQBatchInterface.navigateToDestination(host, directory)
 
-    def getJobInfo(job_id: str) -> PBSJobInfo:
+    def getBatchJob(job_id: str) -> PBSJobInfo:
         return PBSJobInfo(job_id)  # ty: ignore[invalid-return-type]
 
-    def getUnfinishedJobsInfo(user: str) -> list[PBSJobInfo]:
+    def getUnfinishedBatchJobs(user: str) -> list[PBSJobInfo]:
         command = f"qstat -fwu {user}"
         logger.debug(command)
-        return QQPBS._getJobsInfoUsingCommand(command)
+        return QQPBS._getBatchJobsUsingCommand(command)
 
-    def getJobsInfo(user: str) -> list[PBSJobInfo]:
+    def getBatchJobs(user: str) -> list[PBSJobInfo]:
         command = f"qstat -fwxu {user}"
         logger.debug(command)
-        return QQPBS._getJobsInfoUsingCommand(command)
+        return QQPBS._getBatchJobsUsingCommand(command)
 
-    def getAllUnfinishedJobsInfo() -> list[PBSJobInfo]:
+    def getAllUnfinishedBatchJobs() -> list[PBSJobInfo]:
         command = "qstat -fw"
         logger.debug(command)
-        return QQPBS._getJobsInfoUsingCommand(command)
+        return QQPBS._getBatchJobsUsingCommand(command)
 
-    def getAllJobsInfo() -> list[PBSJobInfo]:
+    def getAllBatchJobs() -> list[PBSJobInfo]:
         command = "qstat -fxw"
         logger.debug(command)
-        return QQPBS._getJobsInfoUsingCommand(command)
+        return QQPBS._getBatchJobsUsingCommand(command)
 
     def getQueues() -> list[PBSQueue]:
         command = "qstat -Qfw"
@@ -726,7 +726,7 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMe
                 )
 
     @staticmethod
-    def _getJobsInfoUsingCommand(command: str) -> list[PBSJobInfo]:
+    def _getBatchJobsUsingCommand(command: str) -> list[PBSJobInfo]:
         """
         Execute a shell command to retrieve information about PBS jobs and parse it.
 

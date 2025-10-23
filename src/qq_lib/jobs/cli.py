@@ -47,9 +47,9 @@ def jobs(user: str, all: bool, yaml: bool) -> NoReturn:
             user = getpass.getuser()
 
         if all:
-            jobs = BatchSystem.getJobsInfo(user)
+            jobs = BatchSystem.getBatchJobs(user)
         else:
-            jobs = BatchSystem.getUnfinishedJobsInfo(user)
+            jobs = BatchSystem.getUnfinishedBatchJobs(user)
 
         if not jobs:
             logger.info("No jobs found.")

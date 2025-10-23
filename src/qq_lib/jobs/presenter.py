@@ -10,7 +10,7 @@ from rich.table import Table
 from rich.text import Text
 from tabulate import Line, TableFormat, tabulate
 
-from qq_lib.batch.interface import BatchJobInfoInterface
+from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
 )
@@ -69,12 +69,12 @@ class QQJobsPresenter:
         with_header_hide=["lineabove", "linebelow"],
     )
 
-    def __init__(self, jobs: list[BatchJobInfoInterface]):
+    def __init__(self, jobs: list[BatchJobInterface]):
         """
         Initialize the presenter with a list of jobs.
 
         Args:
-            jobs (list[BatchJobInfoInterface]): List of job information objects
+            jobs (list[BatchJobInterface]): List of job information objects
                 to be presented.
         """
         self._jobs = jobs
@@ -319,13 +319,13 @@ class QQJobsPresenter:
         )
 
     @staticmethod
-    def _formatNodesOrComment(state: BatchState, job: BatchJobInfoInterface) -> str:
+    def _formatNodesOrComment(state: BatchState, job: BatchJobInterface) -> str:
         """
         Format node information or an estimated runtime comment.
 
         Args:
             state (BatchState): Current job state.
-            job (BatchJobInfoInterface): Job information object.
+            job (BatchJobInterface): Job information object.
 
         Returns:
             str: ANSI-colored string for working node(s) or estimated start,

@@ -4,5 +4,5 @@
 # ruff: noqa: F401
 
 from .interface import QQBatchInterface
-from .job import BatchJobInfoInterface
+from .job import BatchJobInterface
 from .meta import QQBatchMeta

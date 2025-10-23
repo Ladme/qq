@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from qq_lib.batch.interface.job import BatchJobInfoInterface
+from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.kill.cli import kill_job
@@ -48,11 +48,11 @@ def test_killall_no_jobs_exits_zero():
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = []
+        batch_system.getUnfinishedBatchJobs.return_value = []
 
         result = runner.invoke(killall)
 
-        batch_system.getUnfinishedJobsInfo.assert_called_once_with(getpass.getuser())
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(getpass.getuser())
         logger_mock.info.assert_called_once_with(
             "You have no active jobs. Nothing to kill."
         )
@@ -61,7 +61,7 @@ def test_killall_no_jobs_exits_zero():
 
 def test_killall_jobs_but_no_info_files_exits_zero():
     runner = CliRunner()
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = None
 
     with (
@@ -70,7 +70,7 @@ def test_killall_jobs_but_no_info_files_exits_zero():
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall)
 
@@ -86,7 +86,7 @@ def test_killall_yes_flag_invokes_repeater(tmp_path):
     runner = CliRunner()
     repeater_mock = MagicMock()
 
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = job_file
 
     with (
@@ -98,7 +98,7 @@ def test_killall_yes_flag_invokes_repeater(tmp_path):
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall, ["--yes"])
 
@@ -126,7 +126,7 @@ def test_killall_force_flag_invokes_repeater(tmp_path):
     runner = CliRunner()
     repeater_mock = MagicMock()
 
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = job_file
 
     with (
@@ -138,7 +138,7 @@ def test_killall_force_flag_invokes_repeater(tmp_path):
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall, ["--force"])
 
@@ -161,7 +161,7 @@ def test_killall_user_prompt_yes(monkeypatch, tmp_path):
 
     monkeypatch.setattr("qq_lib.killall.cli.yes_or_no_prompt", lambda _msg: True)
 
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = job_file
 
     with (
@@ -173,7 +173,7 @@ def test_killall_user_prompt_yes(monkeypatch, tmp_path):
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall)
 
@@ -195,7 +195,7 @@ def test_killall_user_prompt_no(monkeypatch, tmp_path):
 
     monkeypatch.setattr("qq_lib.killall.cli.yes_or_no_prompt", lambda _msg: False)
 
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = job_file
 
     with (
@@ -204,7 +204,7 @@ def test_killall_user_prompt_no(monkeypatch, tmp_path):
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall)
 
@@ -217,7 +217,7 @@ def test_killall_qqerror_in_main_loop_exits_91(tmp_path):
     job_file = tmp_path / "job5.qq"
     job_file.write_text("dummy content")
 
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = job_file
 
     with (
@@ -227,7 +227,7 @@ def test_killall_qqerror_in_main_loop_exits_91(tmp_path):
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall, ["--yes"])
 
@@ -239,7 +239,7 @@ def test_killall_generic_exception_exits_99(tmp_path):
     job_file = tmp_path / "job6.qq"
     job_file.write_text("dummy content")
 
-    job_mock = MagicMock(spec=BatchJobInfoInterface)
+    job_mock = MagicMock(spec=BatchJobInterface)
     job_mock.getInfoFile.return_value = job_file
 
     def raise_exception(*_args, **_kwargs):
@@ -252,7 +252,7 @@ def test_killall_generic_exception_exits_99(tmp_path):
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedJobsInfo.return_value = [job_mock]
+        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
 
         result = runner.invoke(killall, ["--yes"])
 

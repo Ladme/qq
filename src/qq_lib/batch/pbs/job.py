@@ -8,7 +8,7 @@ from typing import Self
 
 import yaml
 
-from qq_lib.batch.interface import BatchJobInfoInterface
+from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
 from qq_lib.core.common import hhmmss_to_duration
 from qq_lib.core.config import CFG
@@ -30,7 +30,7 @@ except ImportError:
     logger.debug("Loaded default YAML dumper.")
 
 
-class PBSJobInfo(BatchJobInfoInterface):
+class PBSJobInfo(BatchJobInterface):
     """
     Implementation of BatchJobInterface for PBS.
     Stores metadata for a single PBS job.

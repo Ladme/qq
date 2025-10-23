@@ -7,8 +7,6 @@ import subprocess
 from abc import ABC
 from pathlib import Path
 
-from qq_lib.batch.interface.node import BatchNodeInterface
-from qq_lib.batch.interface.queue import BatchQueueInterface
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -16,13 +14,15 @@ from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import QQResources
 
-from .job import BatchJobInfoInterface
+from .job import BatchJobInterface
+from .node import BatchNodeInterface
+from .queue import BatchQueueInterface
 
 logger = get_logger(__name__)
 
 
 class QQBatchInterface[
-    TBatchJob: BatchJobInfoInterface,
+    TBatchJob: BatchJobInterface,
     TBatchQueue: BatchQueueInterface,
     TBatchNode: BatchNodeInterface,
 ](ABC):
@@ -148,9 +148,9 @@ class QQBatchInterface[
         )
 
     @staticmethod
-    def getJobInfo(job_id: str) -> TBatchJob:
+    def getBatchJob(job_id: str) -> TBatchJob:
         """
-        Retrieve comprehensive information about a job.
+        Retrieve information about a job from the batch system.
 
         The returned object should be fully initialized, even if the job
         no longer exists or its information is unavailable.
@@ -162,11 +162,11 @@ class QQBatchInterface[
             TBatchJob: Object containing the job's metadata and state.
         """
         raise NotImplementedError(
-            "getJobInfo method is not implemented for this batch system implementation"
+            "getBatchJob method is not implemented for this batch system implementation"
         )
 
     @staticmethod
-    def getUnfinishedJobsInfo(user: str) -> list[TBatchJob]:
+    def getUnfinishedBatchJobs(user: str) -> list[TBatchJob]:
         """
         Retrieve information about all unfinished jobs submitted by `user`.
 
@@ -177,11 +177,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing the user's unfinished jobs.
         """
         raise NotImplementedError(
-            "getUnfinishedJobsInfo method is not implemented for this batch system implementation"
+            "getUnfinishedBatchJobs method is not implemented for this batch system implementation"
         )
 
     @staticmethod
-    def getJobsInfo(user: str) -> list[TBatchJob]:
+    def getBatchJobs(user: str) -> list[TBatchJob]:
         """
         Retrieve information about all jobs submitted by a specific user (including finished jobs).
 
@@ -192,11 +192,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing all jobs of the user.
         """
         raise NotImplementedError(
-            "getJobsInfo method is not implemented for this batch system implementation"
+            "getBatchJobs method is not implemented for this batch system implementation"
         )
 
     @staticmethod
-    def getAllUnfinishedJobsInfo() -> list[TBatchJob]:
+    def getAllUnfinishedBatchJobs() -> list[TBatchJob]:
         """
         Retrieve information about unfinished jobs of all users.
 
@@ -204,11 +204,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing unfinished jobs of all users.
         """
         raise NotImplementedError(
-            "getAllUnfinishedJobsInfo method is not implemented for this batch system implementation"
+            "getAllUnfinishedBatchJobs method is not implemented for this batch system implementation"
         )
 
     @staticmethod
-    def getAllJobsInfo() -> list[TBatchJob]:
+    def getAllBatchJobs() -> list[TBatchJob]:
         """
         Retrieve information about all jobs of all users.
 

@@ -13,8 +13,7 @@ logger = get_logger(__name__)
 
 class QQGoer(QQNavigator):
     """
-    Provides utilities to navigate to the working directory of a qq job
-    submitted from the current directory.
+    Provides utilities to open a shell in the working directory of a qq job.
     """
 
     def ensureSuitable(self) -> None:
@@ -42,7 +41,7 @@ class QQGoer(QQNavigator):
 
     def go(self) -> None:
         """
-        Navigate to the job's working directory on the main execution node.
+        Open a shell in the job's working directory on the main execution node.
 
         Raises:
             QQError: If the working directory or main node is not set and navigation

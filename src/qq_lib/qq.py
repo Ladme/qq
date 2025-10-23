@@ -1,6 +1,8 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import sys
+
 import click
 from click_help_colors import HelpColorsGroup
 
@@ -18,13 +20,33 @@ from qq_lib.stat import stat
 from qq_lib.submit import submit
 from qq_lib.sync import sync
 
+__version__ = "0.1.0-dev.12"
 
-@click.group(cls=HelpColorsGroup, help_options_color="bright_blue")
-def cli():
+
+@click.group(
+    cls=HelpColorsGroup, help_options_color="bright_blue", invoke_without_command=True
+)
+@click.option(
+    "--version",
+    is_flag=True,
+    help="Print the current version of qq and exit.",
+)
+@click.pass_context
+def cli(ctx: click.Context, version: bool):
     """
-    Run any qq subcommand.
+    Run any qq command.
+
+    qq is a wrapper around batch scheduling systems, simplifying job submission and management.
+
+    For detailed information, visit: https://ladme.github.io/qq-manual.
     """
-    pass
+    if version:
+        print(__version__)
+        sys.exit(0)
+
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+        sys.exit(0)
 
 
 cli.add_command(run)

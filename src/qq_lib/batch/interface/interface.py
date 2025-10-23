@@ -216,7 +216,7 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing all jobs of all users.
         """
         raise NotImplementedError(
-            "getAllJobsInfo method is not implemented for this batch system implementation"
+            "getAllBatchJobs method is not implemented for this batch system implementation"
         )
 
     @staticmethod

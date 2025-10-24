@@ -154,8 +154,8 @@ class QQInformer:
             tuple[str, Path] | None: A tuple of (main_node, work_dir)
                 if both are set, otherwise None.
         """
-        if all((self.info.main_node, self.info.work_dir)):
-            return self.info.main_node, self.info.work_dir
+        if (main_node := self.info.main_node) and (work_dir := self.info.work_dir):
+            return main_node, work_dir
         return None
 
     def getBatchState(self) -> BatchState:

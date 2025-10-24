@@ -172,10 +172,10 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMe
             )
 
         queues = []
-        for data, name in parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+        for data, name in parseMultiPBSDumpToDictionaries(
             result.stdout.strip(), "Queue"
         ):
-            queues.append(PBSQueue.fromDict(name, data))  # ty: ignore[possibly-unbound-attribute]
+            queues.append(PBSQueue.fromDict(name, data))
 
         return queues
 
@@ -198,10 +198,8 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMe
             )
 
         queues = []
-        for data, name in parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
-            result.stdout.strip(), None
-        ):
-            queues.append(PBSNode.fromDict(name, data))  # ty: ignore[possibly-unbound-attribute]
+        for data, name in parseMultiPBSDumpToDictionaries(result.stdout.strip(), None):
+            queues.append(PBSNode.fromDict(name, data))
 
         return queues
 
@@ -760,9 +758,9 @@ class QQPBS(QQBatchInterface[PBSJobInfo, PBSQueue, PBSNode], metaclass=QQBatchMe
             )
 
         jobs = []
-        for data, job_id in parseMultiPBSDumpToDictionaries(  # ty: ignore[possibly-unbound-attribute]
+        for data, job_id in parseMultiPBSDumpToDictionaries(
             result.stdout.strip(), "Job Id"
         ):
-            jobs.append(PBSJobInfo.fromDict(job_id, data))  # ty: ignore[possibly-unbound-attribute]
+            jobs.append(PBSJobInfo.fromDict(job_id, data))
 
         return jobs

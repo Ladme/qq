@@ -105,7 +105,7 @@ class QQResources(HasCouplingMethods):
         self.props = props
 
         # enforce coupling rules
-        self.__post_init__()
+        self.__post_init__()  # ty: ignore[unresolved-attribute]
 
         logger.debug(f"QQResources: {self}")
 
@@ -121,8 +121,8 @@ class QQResources(HasCouplingMethods):
             bool: True if a work_dir is not 'job_dir' or 'input_dir', otherwise False.
         """
         return not equals_normalized(
-            self.work_dir, "job_dir"
-        ) and not equals_normalized(self.work_dir, "input_dir")
+            str(self.work_dir), "job_dir"
+        ) and not equals_normalized(str(self.work_dir), "input_dir")
 
     @staticmethod
     def mergeResources(*resources: "QQResources") -> "QQResources":
@@ -211,7 +211,7 @@ class QQResources(HasCouplingMethods):
         if isinstance(value, str):
             return Size.fromString(value)
         if isinstance(value, dict):
-            return Size(**value)  # ty: ignore[missing-argument]
+            return Size(**value)  # ty: ignore[invalid-argument-type]
         if isinstance(value, Size):
             return value
         return None

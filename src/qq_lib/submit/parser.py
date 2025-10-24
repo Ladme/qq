@@ -112,7 +112,7 @@ class QQParser:
         Returns:
             type[QQBatchInterface] | None: The batch system class if specified, otherwise None.
         """
-        if batch_system := self._options.get("batch_system"):
+        if isinstance(batch_system := self._options.get("batch_system"), str):
             return QQBatchMeta.fromStr(batch_system)
 
         return None
@@ -124,7 +124,9 @@ class QQParser:
         Returns:
             str | None: Queue name, or None if not set.
         """
-        return self._options.get("queue")
+        if not isinstance(queue := self._options.get("queue"), str):
+            return None
+        return queue
 
     def getJobType(self) -> QQJobType | None:
         """
@@ -133,7 +135,7 @@ class QQParser:
         Returns:
             QQJobType | None: Enum value representing the job type, or None if not set.
         """
-        if job_type := self._options.get("job_type"):
+        if isinstance(job_type := self._options.get("job_type"), str):
             return QQJobType.fromStr(job_type)
 
         return None
@@ -158,7 +160,7 @@ class QQParser:
         Returns:
             list[Path]: List of excluded file paths. Returns an empty list if none specified.
         """
-        if exclude := self._options.get("exclude"):
+        if isinstance(exclude := self._options.get("exclude"), str):
             return split_files_list(exclude)
 
         return []
@@ -170,7 +172,9 @@ class QQParser:
         Returns:
             int | None: Start cycle, or None if not specified.
         """
-        return self._options.get("loop_start")
+        if isinstance(loop_start := self._options.get("loop_start"), int):
+            return loop_start
+        return None
 
     def getLoopEnd(self) -> int | None:
         """
@@ -179,7 +183,9 @@ class QQParser:
         Returns:
             int | None: End cycle, or None if not specified.
         """
-        return self._options.get("loop_end")
+        if isinstance(loop_end := self._options.get("loop_end"), int):
+            return loop_end
+        return None
 
     def getArchive(self) -> Path | None:
         """
@@ -200,7 +206,9 @@ class QQParser:
         Returns:
             str | None: Archive filename format string, or None if not set.
         """
-        return self._options.get("archive_format")
+        if isinstance(archive_format := self._options.get("archive_format"), str):
+            return archive_format
+        return None
 
     def getDepend(self) -> list[Depend]:
         """
@@ -209,7 +217,7 @@ class QQParser:
         Returns:
             list[Depend]: List of job dependencies.
         """
-        if raw := self._options.get("depend"):
+        if isinstance(raw := self._options.get("depend"), str):
             return Depend.multiFromStr(raw)
 
         return []

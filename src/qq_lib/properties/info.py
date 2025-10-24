@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 
 # load faster YAML loader and dumper
 try:
-    from yaml import CSafeLoader as SafeLoader  # ty: ignore[possibly-unbound-import]
+    from yaml import CSafeLoader as SafeLoader  # ty: ignore[possibly-missing-import]
 
     logger.debug("Loaded YAML CLoader.")
 except ImportError:
@@ -33,7 +33,7 @@ except ImportError:
     logger.debug("Loaded default YAML loader.")
 
 try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-unbound-import]
+    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
 
     logger.debug("Loaded YAML CDumper.")
 except ImportError:
@@ -298,7 +298,7 @@ class QQInfo:
                 )
             # convert resources
             elif f.type == QQResources:
-                init_kwargs[name] = QQResources(**value)
+                init_kwargs[name] = QQResources(**value)  # ty: ignore[invalid-argument-type]
             # convert the batch system
             elif f.type == type[QQBatchInterface] and isinstance(value, str):
                 init_kwargs[name] = QQBatchMeta.fromStr(value)
@@ -317,7 +317,7 @@ class QQInfo:
                 ]
             # convert dependencies
             elif f.type == list[Depend] and isinstance(value, list):
-                init_kwargs[name] = [Depend.fromStr(x) for x in value]
+                init_kwargs[name] = [Depend.fromStr(x) for x in value]  # ty: ignore[invalid-argument-type]
             # convert timestamp
             elif (f.type == datetime or f.type == datetime | None) and isinstance(
                 value, str

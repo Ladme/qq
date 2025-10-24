@@ -72,7 +72,7 @@ class QQSyncer(QQNavigator):
                 self._informer.info.input_dir,
                 self._main_node,
                 None,
-                [self._work_dir / x for x in files],
+                [self._work_dir / x for x in files],  # ty: ignore[unsupported-operator]
             )
         else:
             logger.info(

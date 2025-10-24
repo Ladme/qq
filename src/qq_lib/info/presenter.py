@@ -178,7 +178,7 @@ class QQPresenter:
         table.add_row("Submission queue:", Text(self._informer.info.queue))
         table.add_row("Input machine:", Text(self._informer.info.input_machine))
         table.add_row("Input directory:", Text(str(self._informer.info.input_dir)))
-        if self._informer.info.main_node:
+        if self._informer.info.main_node and self._informer.info.all_nodes:
             if len(self._informer.info.all_nodes) == 1:
                 table.add_row("Working node:", Text(self._informer.info.main_node))
             else:
@@ -395,10 +395,14 @@ class QQPresenter:
                     f"In queue for {format_duration_wdhhmmss(end_time - start_time)}",
                 )
             case RealState.RUNNING:
-                if len(self._informer.info.all_nodes) == 1:
-                    nodes = f"'{self._informer.info.main_node}'"
+                if not (all_nodes := self._informer.info.all_nodes) or not (
+                    main_node := self._informer.info.main_node
+                ):
+                    nodes = "unknown node(s)"
+                elif len(all_nodes) == 1:
+                    nodes = f"'{main_node}'"
                 else:
-                    nodes = f"'{self._informer.info.main_node}' and {len(self._informer.info.all_nodes) - 1} other nodes"
+                    nodes = f"'{main_node}' and {len(all_nodes) - 1} other nodes"
                 return (
                     "Job is running",
                     f"Running for {format_duration_wdhhmmss(end_time - start_time)} on {nodes}",

@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 # load faster YAML dumper
 try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-unbound-import]
+    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
 
     logger.debug("Loaded YAML CDumper.")
 except ImportError:
@@ -68,7 +68,7 @@ class PBSJobInfo(BatchJobInterface):
             )
             self._info: dict[str, str] = {}
         else:
-            self._info = parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+            self._info = parsePBSDumpToDictionary(result.stdout)
 
     def getState(self) -> BatchState:
         if not (state := self._info.get("job_state")):
@@ -106,13 +106,13 @@ class PBSJobInfo(BatchJobInterface):
 
         vnodes = []
         for split in raw_vnode.split("+"):
-            vnodes.append(PBSJobInfo._cleanNodeName(split.strip()))  # ty: ignore[possibly-unbound-attribute]
+            vnodes.append(PBSJobInfo._cleanNodeName(split.strip()))
 
         return (time, " + ".join(vnodes))
 
     def getMainNode(self) -> str | None:
         if raw_node := self._info.get("exec_host2"):
-            return PBSJobInfo._cleanNodeName(raw_node.split("+")[0].strip())  # ty: ignore[possibly-unbound-attribute]
+            return PBSJobInfo._cleanNodeName(raw_node.split("+")[0].strip())
 
         return None
 
@@ -122,7 +122,7 @@ class PBSJobInfo(BatchJobInterface):
 
         nodes = []
         for node in raw_nodes.split("+"):
-            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))  # ty: ignore[possibly-unbound-attribute]
+            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))
 
         return nodes
 
@@ -132,7 +132,7 @@ class PBSJobInfo(BatchJobInterface):
 
         nodes = []
         for node in raw_nodes.split("+"):
-            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))  # ty: ignore[possibly-unbound-attribute]
+            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))
 
         return nodes
 

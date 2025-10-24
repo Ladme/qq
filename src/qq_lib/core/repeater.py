@@ -57,7 +57,7 @@ class QQRepeater:
                 - BaseException: The caught exception instance.
                 - QQRepeater: Reference to this `QQRepeater` instance.
         """
-        self._handlers[exc_type] = handler
+        self._handlers[exc_type] = handler  # ty: ignore[invalid-assignment]
 
     def run(self) -> None:
         """
@@ -79,4 +79,4 @@ class QQRepeater:
             except tuple(self._handlers.keys()) as e:
                 self.encountered_errors[i] = e
                 handler = self._handlers[type(e)]
-                handler(e, self)
+                handler(e, self)  # ty: ignore[invalid-argument-type]

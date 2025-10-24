@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 # load faster YAML dumper
 try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-unbound-import]
+    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
 
     logger.debug("Loaded YAML CDumper.")
 except ImportError:
@@ -116,31 +116,31 @@ class PBSQueue(BatchQueueInterface):
         if result.returncode != 0:
             raise QQError(f"Queue '{self._name}' does not exist.")
 
-        self._info = parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+        self._info = parsePBSDumpToDictionary(result.stdout)
         self._setAttributes()
 
     def getName(self) -> str:
         return self._name
 
     def getPriority(self) -> int | None:
-        return self._info.get("Priority")
+        return PBSQueue._getIntValue(self._info, "Priority")
 
     def getTotalJobs(self) -> int:
-        return self._info.get("total_jobs") or 0
+        return PBSQueue._getIntValue(self._info, "total_jobs") or 0
 
     def getRunningJobs(self) -> int:
-        return self._job_numbers.get("Running") or 0
+        return PBSQueue._getIntValue(self._job_numbers, "Running") or 0
 
     def getQueuedJobs(self) -> int:
-        return self._job_numbers.get("Queued") or 0
+        return PBSQueue._getIntValue(self._job_numbers, "Queued") or 0
 
     def getOtherJobs(self) -> int:
         return (
-            (self._job_numbers.get("Transit") or 0)
-            + (self._job_numbers.get("Held") or 0)
-            + (self._job_numbers.get("Waiting") or 0)
-            + (self._job_numbers.get("Exiting") or 0)
-            + (self._job_numbers.get("Begun") or 0)
+            (PBSQueue._getIntValue(self._job_numbers, "Transit") or 0)
+            + (PBSQueue._getIntValue(self._job_numbers, "Held") or 0)
+            + (PBSQueue._getIntValue(self._job_numbers, "Waiting") or 0)
+            + (PBSQueue._getIntValue(self._job_numbers, "Exiting") or 0)
+            + (PBSQueue._getIntValue(self._job_numbers, "Begun") or 0)
         )
 
     def getMaxWalltime(self) -> timedelta | None:
@@ -210,6 +210,28 @@ class PBSQueue(BatchQueueInterface):
         field_names = {f.name for f in fields(QQResources)}
         return {k: v for k, v in default_resources.items() if k in field_names}
 
+    @staticmethod
+    def _getIntValue(dict: dict[str, str], key: str) -> int | None:
+        """
+        Retrieve an integer value from the provided dictionary.
+
+        Args:
+            key (str): The key to look up in the dictionary.
+
+        Returns:
+            int | None: The integer value if conversion succeeds, otherwise `None`.
+        """
+        if not (raw := dict.get(key)):
+            return None
+
+        try:
+            return int(raw)
+        except ValueError as e:
+            logger.debug(
+                f"Could not parse '{key}' value of '{raw}' as an integer: {e}."
+            )
+            return None
+
     def _setAttributes(self) -> None:
         """
         Initialize derived queue attributes to avoid redundant parsing.
@@ -253,7 +275,8 @@ class PBSQueue(BatchQueueInterface):
 
         try:
             self._job_numbers = {
-                k: int(v) for k, v in (p.split(":") for p in state_count.split())
+                k: int(v)
+                for k, v in (p.split(":") for p in state_count.split())  # ty: ignore[possibly-missing-attribute]
             }
         except Exception as e:
             logger.warning(f"Could not get job counts for queue '{self._name}': {e}.")

@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 # load faster YAML dumper
 try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-unbound-import]
+    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
 
     logger.debug("Loaded YAML CDumper.")
 except ImportError:
@@ -93,7 +93,7 @@ class PBSNode(BatchNodeInterface):
         if result.returncode != 0:
             raise QQError(f"Node '{self._name}' does not exist.")
 
-        self._info = parsePBSDumpToDictionary(result.stdout)  # ty: ignore[possibly-unbound-attribute]
+        self._info = parsePBSDumpToDictionary(result.stdout)
 
     def getName(self) -> str:
         return self._name

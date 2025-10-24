@@ -137,6 +137,7 @@ class QQRunner:
             QQError: If working directory setup fails.
         """
         if self._archiver:
+            assert self._informer.info.loop_info is not None
             # prepare the directory for archiving
             self._archiver.makeArchiveDir()
 
@@ -158,6 +159,7 @@ class QQRunner:
             self._setUpSharedDir()
 
         if self._archiver:
+            assert self._informer.info.loop_info is not None
             # fetch files for the current cycle of the loop job from the archive
             self._archiver.fromArchive(
                 self._work_dir, self._informer.info.loop_info.current
@@ -186,7 +188,7 @@ class QQRunner:
         logger.info(f"Executing script '{script}'.")
 
         try:
-            with Path.open(stdout_log, "w") as out, Path.open(stderr_log, "w") as err:
+            with Path(stdout_log).open("w") as out, Path(stderr_log).open("w") as err:
                 self._process = subprocess.Popen(
                     ["bash", str(script)],
                     stdout=out,
@@ -224,6 +226,7 @@ class QQRunner:
             QQError: If copying or deletion of files fails.
         """
         logger.info("Finalizing the execution.")
+        assert self._process is not None
 
         if self._process.returncode == 0:
             # archive files
@@ -541,7 +544,10 @@ class QQRunner:
         Raises:
             QQError: If the job cannot be resubmitted.
         """
-        loop_info = self._informer.info.loop_info
+        if not (loop_info := self._informer.info.loop_info):
+            logger.debug("Loop info is undefined while resubmiting. This is a bug!")
+            return
+
         if loop_info.current >= loop_info.end:
             logger.info("This was the final cycle of the loop job. Not resubmitting.")
             return

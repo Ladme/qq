@@ -149,7 +149,7 @@ class QQQueuesPresenter:
 
             # print all reroutings
             if dest_names := queue.getDestinations():
-                destinations = [q for q in self._queues if q._name in dest_names]
+                destinations = [q for q in self._queues if q.getName() in dest_names]
 
                 for rerouted in destinations:
                     QQQueuesPresenter._addQueueRow(

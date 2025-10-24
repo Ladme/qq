@@ -284,7 +284,7 @@ class QQConfig:
         Search for config file in standard locations (XDG compliant).
         Returns the first existing config file, or None.
         """
-        config_locations: list[Path] = [
+        config_locations: list[Path | None] = [
             # 1. Explicit environment variable (highest priority)
             Path(env_path) if (env_path := os.getenv("QQ_CONFIG")) else None,
             # 2. Current working directory (for development/override)

@@ -55,15 +55,12 @@ def test_prepare_regex_pattern_simple_regex():
     pattern = "file\\d{3}"
     regex = QQArchiver._prepare_regex_pattern(pattern)
 
-    assert regex.pattern.startswith("^")
-    assert regex.pattern.endswith("$")
-
     assert regex.fullmatch("file123")
     assert not regex.fullmatch("afile123")
     assert not regex.fullmatch("file1234")
 
 
-def test_prepare_regex_pattern_already_anchored():
+def test_prepare_regex_pattern_anchored():
     pattern = "^abc\\d+$"
     regex = QQArchiver._prepare_regex_pattern(pattern)
 
@@ -155,6 +152,19 @@ def test_get_files_printf_pattern_with_cycle(monkeypatch, archiver, input_dir, h
 
 
 @pytest.mark.parametrize("host", HOSTS)
+def test_get_files_printf_pattern_with_cycle_partial_match(
+    monkeypatch, archiver, input_dir, host
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    filenames = ["job0001_px.dat", "job0002.dat", "job0001.qqout", "job0001.err"]
+    touch_files(input_dir, filenames)
+
+    result = archiver._getFiles(input_dir, host=host, pattern="job%04d", cycle=1)
+    expected = [input_dir / "job0001_px.dat"]
+    assert set(result) == {f.resolve() for f in expected}
+
+
+@pytest.mark.parametrize("host", HOSTS)
 def test_get_files_include_qq_files(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in CFG.suffixes.all_suffixes]
@@ -208,6 +218,19 @@ def test_get_files_regex_pattern_with_cycle(monkeypatch, archiver, input_dir, ho
 
 
 @pytest.mark.parametrize("host", HOSTS)
+def test_get_files_regex_pattern_with_cycle_partial_match(
+    monkeypatch, archiver, input_dir, host
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    filenames = ["data_01.txt", "data_02_px.txt", "job0001.dat"]
+    touch_files(input_dir, filenames)
+
+    result = archiver._getFiles(input_dir, host=host, pattern=r"data_\d\d", cycle=2)
+    expected = [input_dir / "data_01.txt", input_dir / "data_02_px.txt"]
+    assert set(result) == {f.resolve() for f in expected}
+
+
+@pytest.mark.parametrize("host", HOSTS)
 def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir, host):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
@@ -226,6 +249,31 @@ def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir
         input_dir / "job0001.dat",
         input_dir / "job0002.dat",
         input_dir / "job0003.qqout",
+    ]
+    assert set(result) == {f.resolve() for f in expected}
+
+
+@pytest.mark.parametrize("host", HOSTS)
+def test_get_files_printf_pattern_without_cycle_partial_match(
+    monkeypatch, archiver, input_dir, host
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    filenames = ["job0001.dat", "job0002_px.dat", "job00031.qqout", "job4.dat"]
+    for f in filenames:
+        (input_dir / f).touch()
+
+    result = archiver._getFiles(input_dir, host=host, pattern="job%04d", cycle=None)
+    expected = [input_dir / "job0001.dat", input_dir / "job0002_px.dat"]
+    assert set(result) == {f.resolve() for f in expected}
+
+    result = archiver._getFiles(
+        input_dir, host=host, pattern="job%04d", cycle=None, include_qq_files=True
+    )
+    expected = [
+        input_dir / "job0001.dat",
+        input_dir / "job0002_px.dat",
+        input_dir / "job00031.qqout",
     ]
     assert set(result) == {f.resolve() for f in expected}
 

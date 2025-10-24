@@ -205,7 +205,7 @@ class QQArchiver:
         if cycle and is_printf_pattern(pattern):
             try:
                 # try inserting the loop number into the printf pattern
-                regex = re.compile(f"^{pattern % cycle}$")
+                regex = re.compile(f"{pattern % cycle}")
             except Exception:
                 logger.debug(
                     f"Ignoring loop number since the provided pattern ('{pattern}') does not support it."
@@ -235,11 +235,12 @@ class QQArchiver:
 
         logger.debug(f"All available files: {available_files}.")
         if include_qq_files:
-            return [f.resolve() for f in available_files if regex.fullmatch(f.stem)]
+            # the stem of the file must contain the regex pattern
+            return [f.resolve() for f in available_files if regex.search(f.stem)]
         return [
             f.resolve()
             for f in available_files
-            if regex.fullmatch(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
+            if regex.search(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
         ]
 
     @staticmethod
@@ -251,16 +252,10 @@ class QQArchiver:
             pattern (str): The pattern to convert.
 
         Returns:
-            re.Pattern[str]: Compiled regex pattern matching the entire filename stem.
+            re.Pattern[str]: Compiled regex pattern matching any part of the filename stem.
         """
         if is_printf_pattern(pattern):
             pattern = printf_to_regex(pattern)
-        else:
-            # make sure that regex matches the entire filename
-            if not pattern.startswith("^"):
-                pattern = f"^{pattern}"
-            if not pattern.endswith("$"):
-                pattern = f"{pattern}$"
 
         return re.compile(pattern)
 

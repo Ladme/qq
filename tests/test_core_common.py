@@ -431,12 +431,12 @@ def test_printf_to_regex(pattern, test_string, should_match):
 @pytest.mark.parametrize(
     "pattern, expected_regex",
     [
-        ("md%04d", r"^md\d{4}$"),
-        ("file%d", r"^file\d+$"),
-        ("file%03d_part%02d", r"^file\d{3}_part\d{2}$"),
-        ("data(%d).txt", r"^data\(\d+\)\.txt$"),
-        ("readme.txt", r"^readme\.txt$"),
-        ("%02d%03d", r"^\d{2}\d{3}$"),
+        ("md%04d", r"md\d{4}"),
+        ("file%d", r"file\d+"),
+        ("file%03d_part%02d", r"file\d{3}_part\d{2}"),
+        ("data(%d).txt", r"data\(\d+\)\.txt"),
+        ("readme.txt", r"readme\.txt"),
+        ("%02d%03d", r"\d{2}\d{3}"),
     ],
 )
 def test_regex_generation(pattern, expected_regex):

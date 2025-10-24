@@ -512,8 +512,7 @@ def printf_to_regex(pattern: str) -> str:
     """
     regex = re.escape(pattern)
     regex = re.sub(r"%0(\d+)d", r"\\d{\1}", regex)  # double backslash
-    regex = re.sub(r"%d", r"\\d+", regex)
-    return f"^{regex}$"
+    return re.sub(r"%d", r"\\d+", regex)
 
 
 def is_printf_pattern(pattern: str) -> bool:

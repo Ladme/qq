@@ -30,7 +30,10 @@ def test_cd_command_success_pbs_o_workdir():
     env_vars = "PBS_O_WORKDIR=/pbs/job/dir,OTHER_VAR=123"
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
-    with patch.object(QQPBS, "getBatchJob", return_value=job_info):
+    with (
+        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(QQPBS, "getBatchJob", return_value=job_info),
+    ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == 0
         assert result.stdout.strip() == "/pbs/job/dir"
@@ -41,7 +44,10 @@ def test_cd_command_success_input_dir():
     env_vars = f"{CFG.env_vars.input_dir}=/qq/input/dir,OTHER_VAR=123"
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
-    with patch.object(QQPBS, "getBatchJob", return_value=job_info):
+    with (
+        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(QQPBS, "getBatchJob", return_value=job_info),
+    ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == 0
         assert result.stdout.strip() == "/qq/input/dir"
@@ -51,6 +57,9 @@ def test_cd_command_job_does_not_exist():
     runner = CliRunner()
     job_info_empty = _make_jobinfo_with_info({})
 
-    with patch.object(QQPBS, "getBatchJob", return_value=job_info_empty):
+    with (
+        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(QQPBS, "getBatchJob", return_value=job_info_empty),
+    ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == CFG.exit_codes.default

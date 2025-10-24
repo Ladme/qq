@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
+from qq_lib.batch.interface.meta import QQBatchMeta
 from qq_lib.batch.pbs import QQPBS, PBSJobInfo
 from qq_lib.core.common import (
     CFG,
@@ -120,6 +121,7 @@ def test_get_info_files_multiple_info_files():
         tmp_path = Path(tmpdir)
         file1 = tmp_path / "job1.qqinfo"
         file1.write_text("info1")
+        sleep(0.1)
         file2 = tmp_path / "job2.qqinfo"
         file2.write_text("info2")
 
@@ -678,13 +680,16 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
 
 
 def test_get_info_file_from_job_id_success():
-    with patch.object(
-        QQPBS,
-        "getBatchJob",
-        return_value=_make_jobinfo_with_info(
-            {
-                "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
-            }
+    with (
+        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(
+            QQPBS,
+            "getBatchJob",
+            return_value=_make_jobinfo_with_info(
+                {
+                    "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
+                }
+            ),
         ),
     ):
         assert get_info_file_from_job_id("12345") == Path("/path/to/info_file.qqinfo")
@@ -692,6 +697,7 @@ def test_get_info_file_from_job_id_success():
 
 def test_get_info_file_from_job_id_no_info():
     with (
+        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
         patch.object(
             QQPBS,
             "getBatchJob",
@@ -708,6 +714,7 @@ def test_get_info_file_from_job_id_no_info():
 
 def test_get_info_file_from_job_id_nonexistent_job():
     with (
+        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
         patch.object(
             QQPBS,
             "getBatchJob",

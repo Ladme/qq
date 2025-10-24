@@ -1,0 +1,212 @@
+#!/usr/bin/env -S qq run
+########################################
+#     Script for running Gromacs       #
+#         loop jobs using qq           #
+#         script version: 0.3          #
+#      support: ladmeb@gmail.com       #
+########################################
+
+# qq job-type loop
+# qq loop-end  10
+# qq archive storage
+# qq archive-format md%04d
+
+# strict error handling
+set -euo pipefail
+set -o errtrace
+
+# if glob does not match anything, produce zero iterations
+shopt -s nullglob
+
+########################################
+#           Gromacs options            #
+########################################
+
+# simulation parameters
+MDP="md.mdp"
+# structure file
+GRO="system.gro"
+# checkpoint file (e.g. from equilibration); leave empty if not needed
+CPT=""
+# reference coordinates for restraints; leave empty if not needed
+REF=""
+# index file; leave empty string to set default (index.ndx)
+NDX=""
+# topology file; leave empty string to set default (topol.top)
+TOP=""
+# name of the plumed script; leave empty if not used
+# plumed can be used only if the module version enables it
+PLUMED=""
+
+# number of MPI ranks to use
+MPI="1"
+# number of OpenMP threads per MPI rank to use
+NTOMP="8"
+# number of GPUs to use
+NGPUS="0"
+
+# maximum number of warnings; leave empty to determine automatically (gen-vel)
+MAXWARN=""
+
+# load gromacs module
+module add gromacs:2021.4-plumed
+
+########################################
+#          Execution section           #
+########################################
+
+# OpenMP parameters
+export OMP_PLACES="cores"
+export OMP_NUM_THREADS="${NTOMP}"
+
+# set communication methods (for single-node runs only)
+export OMPI_MCA_btl="vader,self"
+export UCX_TLS="posix,self"
+
+# create STAGE strings
+# CURR - prefix for the data produced in this run
+# NEXT - prefix for the checkpoint file for the next run
+printf -v CURR "${QQ_ARCHIVE_FORMAT}" "${QQ_LOOP_CURRENT}"
+printf -v NEXT "${QQ_ARCHIVE_FORMAT}" "$((QQ_LOOP_CURRENT + 1))"
+
+# determine gromacs version to set the appropriate appending method
+GMX_VER="$(gmx --version | awk 'BEGIN {i = 0} tolower($0) ~ /gromacs version/ {split($NF, N, "."); if (N[1] > 6) i = 1} END {print i}')"
+
+# set version specific appending
+APPEND=""
+if [[ "${GMX_VER}" -eq 0 ]]; then
+  APPEND="-append"
+fi
+
+# plumed and OpenMP threads set up
+NTOMP_FLAG=""
+PLUMED_FILES=""
+PLUMED_METAD=""
+PLUMED_METAD_LC=""
+PLUMED_OUT=()
+
+if [[ -n "${PLUMED}" ]]; then
+    NTOMP_FLAG="-ntomp ${NTOMP}"
+
+    # obtain the names of all plumed output files
+    PLUMED_TMP="$(awk '
+    BEGIN {hill = ""}
+
+    /METAD \.\.\./ {a = 1; hill = "HILLS"; next}
+    /\.\.\. METAD/ {a = 0; next}
+    /METAD/ {hill = "HILLS"; b = 1}
+
+    {
+        for (i = 1; i <= NF; i++) {
+            if ($i ~ /^FILE/) {
+                n = split($i, name, "=")
+                if (a == 1 || b == 1)  { hill = name[n] }
+                else { out[++o] = name[n] }
+            }
+        }
+        b = 0
+    }
+
+    END {
+        for (key in out) printf " %s", out[key]
+        printf ":%s", hill
+    }
+    ' "${PLUMED}")"
+
+    # plumed file names
+    PLUMED_FILES="$(cut -d: -f1 <<< "${PLUMED_TMP}")"
+    PLUMED_METAD="$(cut -d: -f2 <<< "${PLUMED_TMP}")"
+    PLUMED_METAD_LC="$(tr '[:upper:]' '[:lower:]' <<< "${PLUMED_METAD}")"
+
+    # plumed variable for mdrun
+    PLUMED="-plumed ${PLUMED}"
+elif [[ -n "${NTOMP}" ]]; then
+    NTOMP_FLAG="-ntomp ${NTOMP}"
+fi
+
+CPI=""
+# used if this is the first cycle
+if [[ "${QQ_LOOP_CURRENT}" -eq "${QQ_LOOP_START}" ]]; then
+    # optional checkpoint and reference files for grompp
+    if [[ -n "${REF}" ]]; then REF="-r ${REF}"; fi
+    if [[ -n "${CPT}" ]]; then CPT="-t ${CPT}"; fi
+
+    # default index and topology files for grompp
+    if [[ -z "${NDX}" ]]; then NDX="index.ndx"; fi
+    if [[ -z "${TOP}" ]]; then TOP="topol.top"; fi
+
+    # automatically determine maxwarn based on generating velocities
+    if [[ -z "${MAXWARN}" ]]; then
+        GEN_VEL="$(awk 'BEGIN {i = 0} /gen[-_]vel/ {if (toupper($3) == "YES") i = 1} END {print i}' "${MDP}")"
+        if [[ "${GEN_VEL}" -eq 0 ]]; then MAXWARN=0; else MAXWARN=1; fi
+    fi
+    
+    # compile the tpr file
+    gmx grompp -f "${MDP}" -c "${GRO}" ${REF} ${CPT} -p "${TOP}" -n "${NDX}" -o "${CURR}.tpr" -quiet -maxwarn "${MAXWARN}"
+
+    # prepare mdout for archival
+    mv mdout.mdp "${CURR}.mdout"
+
+    # set version specific appending
+    if [[ "${GMX_VER}" -eq 1 ]]; then APPEND=""; fi
+
+# used if this is not a first cycle and not a continuation of a failed cycle
+else
+    # mdrun checkpoint file
+    CPI="-cpi ${CURR}.cpt"
+
+    # set version specific appending
+    if [[ "${GMX_VER}" -eq 1 ]]; then APPEND="-noappend"; fi
+
+    # are we running metadynamics? obtain hill file
+    if [[ -n "${PLUMED_METAD}" ]]; then PLUMED_HILL="${CURR}.${PLUMED_METAD_LC}"; fi
+
+    # rename HILL file
+    if [[ -n "${PLUMED_METAD}" ]]; then mv "${PLUMED_HILL}" "${PLUMED_METAD}"; fi
+fi
+
+# are we using GPUs?
+if [[ "${NGPUS}" -eq 0 ]]; then
+  NB_FLAG="-nb cpu"
+else
+  NB_FLAG="-nb gpu"
+fi
+
+# run the simulation
+mpirun \
+  -display-allocation \
+  -display-map \
+  -rank-by slot \
+  -map-by slot:PE=${NTOMP} \
+  -bind-to core \
+  -np ${MPI} \
+  gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
+  -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
+  ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+
+# rename output files from gromacs 2016 and later
+for PART in *part*; do
+  [[ -e "${PART}" ]] || break
+  IFS='.' read -r -a ARR <<< "${PART}"
+  mv -- "${PART}" "${ARR[0]}.${ARR[2]}"
+done
+
+# rename output files from plumed
+for I in ${PLUMED_FILES}; do
+  OUT="${CURR}.$(tr '[:upper:]' '[:lower:]' <<< "${I}")"
+  mv -- "${I}" "${OUT}"
+  PLUMED_OUT+=("${OUT}")
+done
+
+# rename hills files from plumed metadynamics
+if [[ -n "${PLUMED_METAD}" ]]; then
+  PLUMED_HILL="${NEXT}.${PLUMED_METAD_LC}"
+  mv -- "${PLUMED_METAD}" "${PLUMED_HILL}"
+fi
+
+# extend the simulation
+EXTEND="$(awk 'BEGIN {dt = 0.001; nsteps = 0} /nsteps/ {nsteps = $3} /dt/ {dt = $3} END {ext = nsteps * dt; if (!ext) {exit 2} else {print ext}}' "${MDP}")"
+gmx convert-tpr -s "${CURR}.tpr" -extend "${EXTEND}" -o "${NEXT}.tpr" -quiet
+
+# remove the unneeded and unarchived _prev files
+rm -f -- *_prev*

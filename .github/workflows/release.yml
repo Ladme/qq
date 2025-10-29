@@ -28,6 +28,10 @@ jobs:
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo $VERSION > VERSION
     
+    - name: Build with PyInstaller
+      run: |
+        uv run pyinstaller qq.spec
+
     - name: Create tarball
       run: |
         cd dist

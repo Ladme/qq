@@ -29,16 +29,19 @@ jobs:
       run: |
         VERSION=$(uv tree --depth 0 | grep -oP '(?<=v)\d+\.\d+\.\d+' | head -1)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo $VERSION > VERSION
     
     - name: Build with PyInstaller
       run: |
         uv run pyinstaller qq.spec
+    
+    - name: Add VERSION file to package directory
+      run: |
+        echo "${{ steps.get_version.outputs.version }}" > dist/qq/VERSION
 
     - name: Create tarball
       run: |
         cd dist
-        tar -czf ../qq-release.tar.gz * ../VERSION
+        tar -czf ../qq-release.tar.gz qq/
         cd ..
     
     - name: Upload release assets

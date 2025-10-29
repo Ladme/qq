@@ -9,21 +9,18 @@ permissions:
 
 jobs:
   build-and-upload:
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/pypa/manylinux2014_x86_64
-
+    runs-on: ubuntu-20.04
+    
     steps:
     - uses: actions/checkout@v5
 
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
     
     - name: Install dependencies and pyinstaller
       run: |
-        export PATH="$HOME/.local/bin:$PATH"
         uv sync
         uv pip install pyinstaller
     
@@ -46,11 +43,6 @@ jobs:
         cd dist
         tar -czf ../qq-release.tar.gz qq/
         cd ..
-    
-    - name: Install gh CLI
-      run: |
-        curl -fsSL https://github.com/cli/cli/releases/download/v2.82.1/gh_2.82.1_linux_amd64.tar.gz | tar xz
-        mv gh_2.82.1_linux_amd64/bin/gh /usr/local/bin/
     
     - name: Upload release assets
       run: |

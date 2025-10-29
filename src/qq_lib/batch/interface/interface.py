@@ -789,12 +789,14 @@ class QQBatchInterface[
         Returns:
             list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
         """
-
+        # syncing recursively (-r), symlinks copied as symlinks (-l),
+        # preserving times (-t), preserving device/special files (-D),
+        # but not preserving owners and groups
         # not using --checksum nor --ignore-times for performance reasons
         # some files may potentially not be correctly synced if they were
         # modified in both src_dir and dest_dir at the same time and have
         # the same size -> this should be so extremely rare that we do not care
-        command = ["rsync", "-a"]
+        command = ["rsync", "-rltD"]
         for file in relative_excluded:
             command.extend(["--exclude", str(file)])
 
@@ -834,7 +836,7 @@ class QQBatchInterface[
             list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
         """
 
-        command = ["rsync", "-a"]
+        command = ["rsync", "-rltD"]
         for file in relative_included:
             command.extend(["--include", str(file)])
         # exclude all files not specifically included

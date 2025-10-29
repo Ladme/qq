@@ -8,7 +8,7 @@ from click.testing import CliRunner
 
 from qq_lib.batch.interface import QQBatchMeta
 from qq_lib.batch.interface.interface import CFG
-from qq_lib.batch.pbs import QQPBS, PBSJobInfo
+from qq_lib.batch.pbs import QQPBS, PBSJob
 from qq_lib.cd.cli import cd
 
 
@@ -18,8 +18,8 @@ def register():
     QQBatchMeta.register(QQPBS)
 
 
-def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
-    job = PBSJobInfo.__new__(PBSJobInfo)
+def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
+    job = PBSJob.__new__(PBSJob)
     job._job_id = "1234"
     job._info = info
     return job

@@ -12,7 +12,7 @@ import pytest
 from rich.console import Console
 
 from qq_lib.batch.interface.meta import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS, PBSJobInfo
+from qq_lib.batch.pbs import QQPBS, PBSJob
 from qq_lib.core.common import (
     CFG,
     convert_absolute_to_relative,
@@ -672,8 +672,8 @@ def test_hhmmss_to_duration_invalid_ranges(timestr):
         hhmmss_to_duration(timestr)
 
 
-def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
-    job = PBSJobInfo.__new__(PBSJobInfo)
+def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
+    job = PBSJob.__new__(PBSJob)
     job._job_id = "1234"
     job._info = info
     return job

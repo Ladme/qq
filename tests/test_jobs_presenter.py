@@ -13,7 +13,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
 
-from qq_lib.batch.pbs import PBSJobInfo
+from qq_lib.batch.pbs import PBSJob
 from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
 from qq_lib.core.common import format_duration_wdhhmmss
 from qq_lib.jobs.presenter import CFG, QQJobsPresenter, QQJobsStatistics
@@ -87,7 +87,7 @@ def test_shorten_job_id(input_id, expected):
 
 @pytest.fixture
 def mock_job():
-    return PBSJobInfo.__new__(PBSJobInfo)
+    return PBSJob.__new__(PBSJob)
 
 
 def test_format_nodes_or_comment_returns_single_node(mock_job):
@@ -394,7 +394,7 @@ Job Id: 654321.fake-cluster.example.com
 def parsed_jobs(sample_pbs_dump):
     jobs = []
     for data, job_id in parseMultiPBSDumpToDictionaries(sample_pbs_dump, "Job Id"):
-        jobs.append(PBSJobInfo.fromDict(job_id, data))
+        jobs.append(PBSJob.fromDict(job_id, data))
     return jobs
 
 
@@ -462,7 +462,7 @@ def test_dump_yaml_roundtrip(parsed_jobs):
         if not doc.strip():
             continue
         data = yaml.safe_load(doc)
-        reloaded_jobs.append(PBSJobInfo.fromDict(data["Job Id"], data))
+        reloaded_jobs.append(PBSJob.fromDict(data["Job Id"], data))
 
     # check that the number of jobs matches
     assert len(reloaded_jobs) == len(parsed_jobs)

@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.batch.pbs import QQPBS, PBSJobInfo
+from qq_lib.batch.pbs import QQPBS, PBSJob
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.qqpbs import CFG
 from qq_lib.core.error import QQError
@@ -1050,7 +1050,7 @@ def test_get_jobs_info_using_command_success(sample_multi_dump_file):
         jobs = QQPBS._getBatchJobsUsingCommand("fake command - unused")
 
         assert len(jobs) == 3
-        assert all(isinstance(job, PBSJobInfo) for job in jobs)
+        assert all(isinstance(job, PBSJob) for job in jobs)
 
         expected_ids = [
             "123456.fake-cluster.example.com",

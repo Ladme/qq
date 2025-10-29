@@ -1,0 +1,45 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+  
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+    
+    - name: Install dependencies and pyinstaller
+      run: |
+        uv sync
+        uv pip install pyinstaller
+    
+    - name: Get version
+      id: get_version
+      run: |
+        VERSION=$(uv tree --depth 0 | grep -oP '(?<=v)\d+\.\d+\.\d+' | head -1)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo $VERSION > VERSION
+    
+    - name: Create tarball
+      run: |
+        cd dist
+        tar -czf ../qq-release.tar.gz * ../VERSION
+        cd ..
+    
+    - name: Upload release assets
+      run: |
+        # upload the package
+        gh release upload ${{ github.event.release.tag_name }} qq-release.tar.gz
+        
+        # upload installation scripts
+        gh release upload ${{ github.event.release.tag_name }} scripts/installation_scripts/*
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
-from qq_lib.batch.pbs.job import CFG, PBSJobInfo
+from qq_lib.batch.pbs.job import CFG, PBSJob
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
@@ -71,7 +71,7 @@ Job Id: 123456.fake-cluster.example.com
 
 
 def test_get_state(sample_dump_file):
-    pbs_job_info = object.__new__(PBSJobInfo)
+    pbs_job_info = object.__new__(PBSJob)
     pbs_job_info._info = parsePBSDumpToDictionary(sample_dump_file)
 
     assert pbs_job_info.getState() == BatchState.RUNNING
@@ -95,8 +95,8 @@ def test_get_state(sample_dump_file):
     assert pbs_job_info.getState() == BatchState.UNKNOWN
 
 
-def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJobInfo:
-    job = PBSJobInfo.__new__(PBSJobInfo)
+def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
+    job = PBSJob.__new__(PBSJob)
     job._job_id = "1234"
     job._info = info
     return job
@@ -260,16 +260,16 @@ def test_get_short_nodes():
 
 
 def test_clean_node_name():
-    assert PBSJobInfo._cleanNodeName("node02") == "node02"
-    assert PBSJobInfo._cleanNodeName("(node02:ncpus=4)") == "node02"
+    assert PBSJob._cleanNodeName("node02") == "node02"
+    assert PBSJob._cleanNodeName("(node02:ncpus=4)") == "node02"
     assert (
-        PBSJobInfo._cleanNodeName(
+        PBSJob._cleanNodeName(
             "(node05:ncpus=8:ngpus=1:mem=8388608kb:scratch_local=8388608kb)"
         )
         == "node05"
     )
     assert (
-        PBSJobInfo._cleanNodeName(
+        PBSJob._cleanNodeName(
             "node08:ncpus=8:ngpus=1:mem=8388608kb:scratch_local=8388608kb"
         )
         == "node08"
@@ -540,8 +540,8 @@ def test_pbs_job_info_get_exit_code_missing():
 
 def test_from_dict_creates_instance():
     info = {"Job_Name": "abc"}
-    job = PBSJobInfo.fromDict("job123", info)
-    assert isinstance(job, PBSJobInfo)
+    job = PBSJob.fromDict("job123", info)
+    assert isinstance(job, PBSJob)
     assert job._job_id == "job123"
     assert job._info is info
 

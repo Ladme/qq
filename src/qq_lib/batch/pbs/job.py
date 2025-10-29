@@ -30,7 +30,7 @@ except ImportError:
     logger.debug("Loaded default YAML dumper.")
 
 
-class PBSJobInfo(BatchJobInterface):
+class PBSJob(BatchJobInterface):
     """
     Implementation of BatchJobInterface for PBS.
     Stores metadata for a single PBS job.
@@ -106,13 +106,13 @@ class PBSJobInfo(BatchJobInterface):
 
         vnodes = []
         for split in raw_vnode.split("+"):
-            vnodes.append(PBSJobInfo._cleanNodeName(split.strip()))
+            vnodes.append(PBSJob._cleanNodeName(split.strip()))
 
         return (time, " + ".join(vnodes))
 
     def getMainNode(self) -> str | None:
         if raw_node := self._info.get("exec_host2"):
-            return PBSJobInfo._cleanNodeName(raw_node.split("+")[0].strip())
+            return PBSJob._cleanNodeName(raw_node.split("+")[0].strip())
 
         return None
 
@@ -122,7 +122,7 @@ class PBSJobInfo(BatchJobInterface):
 
         nodes = []
         for node in raw_nodes.split("+"):
-            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))
+            nodes.append(PBSJob._cleanNodeName(node.strip()))
 
         return nodes
 
@@ -132,7 +132,7 @@ class PBSJobInfo(BatchJobInterface):
 
         nodes = []
         for node in raw_nodes.split("+"):
-            nodes.append(PBSJobInfo._cleanNodeName(node.strip()))
+            nodes.append(PBSJob._cleanNodeName(node.strip()))
 
         return nodes
 
@@ -300,7 +300,7 @@ class PBSJobInfo(BatchJobInterface):
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
-        Construct a new instance of PBSJobInfo from a job ID and a dictionary of job information.
+        Construct a new instance of PBSJob from a job ID and a dictionary of job information.
 
         This method bypasses the standard initializer and directly sets the `_job_id` and `_info`
         attributes of the new instance.
@@ -310,7 +310,7 @@ class PBSJobInfo(BatchJobInterface):
             info (dict[str, str]): A dictionary containing PBS job metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of PBSJobInfo.
+            Self: A new instance of PBSJob.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.

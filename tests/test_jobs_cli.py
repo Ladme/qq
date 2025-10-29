@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS, PBSJobInfo
+from qq_lib.batch.pbs import QQPBS, PBSJob
 from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
 from qq_lib.jobs import jobs
 from qq_lib.jobs.presenter import QQJobsPresenter
@@ -70,7 +70,7 @@ Job Id: 654321.fake-cluster.example.com
 def parsed_jobs(sample_pbs_dump):
     jobs = []
     for data, job_id in parseMultiPBSDumpToDictionaries(sample_pbs_dump, "Job Id"):
-        jobs.append(PBSJobInfo.fromDict(job_id, data))
+        jobs.append(PBSJob.fromDict(job_id, data))
     return jobs
 
 

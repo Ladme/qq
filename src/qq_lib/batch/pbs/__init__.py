@@ -3,5 +3,5 @@
 
 # ruff: noqa: F401
 
-from .job import PBSJobInfo
+from .job import PBSJob
 from .qqpbs import QQPBS

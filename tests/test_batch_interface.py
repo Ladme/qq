@@ -282,7 +282,7 @@ def test_translate_rsync_excluded_command_local_to_local():
     src = Path("/source")
     dest = Path("/dest")
     cmd = QQBatchInterface._translateRsyncExcludedCommand(src, dest, None, None, [])
-    assert cmd == ["rsync", "-a", "/source/", "/dest"]
+    assert cmd == ["rsync", "-rltD", "/source/", "/dest"]
 
 
 def test_translate_rsync_excluded_command_local_to_remote():
@@ -291,7 +291,7 @@ def test_translate_rsync_excluded_command_local_to_remote():
     cmd = QQBatchInterface._translateRsyncExcludedCommand(
         src, dest, None, "remotehost", []
     )
-    assert cmd == ["rsync", "-a", "/source/", "remotehost:/dest"]
+    assert cmd == ["rsync", "-rltD", "/source/", "remotehost:/dest"]
 
 
 def test_translate_rsync_excluded_command_remote_to_local():
@@ -300,7 +300,7 @@ def test_translate_rsync_excluded_command_remote_to_local():
     cmd = QQBatchInterface._translateRsyncExcludedCommand(
         src, dest, "remotehost", None, []
     )
-    assert cmd == ["rsync", "-a", "remotehost:/source/", "/dest"]
+    assert cmd == ["rsync", "-rltD", "remotehost:/source/", "/dest"]
 
 
 def test_translate_rsync_excluded_command_with_excludes():
@@ -312,7 +312,7 @@ def test_translate_rsync_excluded_command_with_excludes():
     )
     expected = [
         "rsync",
-        "-a",
+        "-rltD",
         "--exclude",
         "temp",
         "--exclude",
@@ -327,7 +327,7 @@ def test_translate_rsync_excluded_command_empty_excludes_list():
     src = Path("/source")
     dest = Path("/dest")
     cmd = QQBatchInterface._translateRsyncExcludedCommand(src, dest, None, None, [])
-    expected = ["rsync", "-a", "/source/", "/dest"]
+    expected = ["rsync", "-rltD", "/source/", "/dest"]
     assert cmd == expected
 
 
@@ -437,7 +437,7 @@ def test_translate_rsync_included_command_local_to_local():
 
     expected = [
         "rsync",
-        "-a",
+        "-rltD",
         "--include",
         "file1.txt",
         "--include",
@@ -461,7 +461,7 @@ def test_translate_rsync_included_command_local_to_remote():
 
     expected = [
         "rsync",
-        "-a",
+        "-rltD",
         "--include",
         "file1.txt",
         "--exclude",
@@ -483,7 +483,7 @@ def test_translate_rsync_included_command_remote_to_local():
 
     expected = [
         "rsync",
-        "-a",
+        "-rltD",
         "--include",
         "file1.txt",
         "--exclude",
@@ -505,7 +505,7 @@ def test_translate_rsync_included_command_no_files():
 
     expected = [
         "rsync",
-        "-a",
+        "-rltD",
         "--exclude",
         "*",
         "/source/",

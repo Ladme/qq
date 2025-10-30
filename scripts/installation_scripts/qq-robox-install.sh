@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installs qq on your current desktop and on the computing nodes of the robox cluster.
-# Script version: 0.2.0
+# Script version: 0.3.0
 
 set -euo pipefail
 
@@ -9,7 +9,7 @@ set -euo pipefail
 # -----------------------
 
 # qq version to install
-QQ_VERSION="v0.3.0"
+QQ_VERSION="v__VERSION__"
 
 # GitHub release assets
 INSTALL_SCRIPT_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-install.sh"

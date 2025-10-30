@@ -38,6 +38,13 @@ jobs:
       run: |
         echo "${{ steps.get_version.outputs.version }}" > dist/qq/VERSION
 
+    - name: Update version in installation scripts
+      run: |
+        VERSION="${{ steps.get_version.outputs.version }}"
+        for script in scripts/installation_scripts/*; do
+          sed -i "s/__VERSION__/$VERSION/g" "$script"
+        done
+
     - name: Create tarball
       run: |
         cd dist

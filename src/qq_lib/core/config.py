@@ -38,6 +38,7 @@ class EnvironmentVariables:
     loop_current: str = "QQ_LOOP_CURRENT"
     loop_start: str = "QQ_LOOP_START"
     loop_end: str = "QQ_LOOP_END"
+    no_resubmit: str = "QQ_NO_RESUBMIT"
     archive_format: str = "QQ_ARCHIVE_FORMAT"
     pbs_scratch_dir: str = "SCRATCHDIR"
 
@@ -198,6 +199,8 @@ class ExitCodes:
     default: int = 91
     qq_run_fatal: int = 92
     qq_run_communication: int = 93
+    # used inside the script to indicate to qq that the loop job should not be resubmitted
+    qq_run_no_resubmit: int = 95
     unexpected_error: int = 99
 
 

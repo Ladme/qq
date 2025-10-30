@@ -124,6 +124,7 @@ class QQRunner:
                 self._informer.info.input_dir,
                 self._batch_system,
             )
+            self._should_resubmit = True
         else:
             self._archiver = None
 
@@ -202,6 +203,18 @@ class QQRunner:
 
         except Exception as e:
             raise QQError(f"Failed to execute script '{script}': {e}") from e
+
+        # if the script returns an exit code corresponding to CFG.exit_codes.qq_run_no_resubmit,
+        # do not submit the next cycle of the job but return 0
+        if (
+            self._informer.info.loop_info is not None
+            and self._process.returncode == CFG.exit_codes.qq_run_no_resubmit
+        ):
+            logger.debug(
+                f"Detected an exit code of '{self._process.returncode}'. Replacing with '0' and will not submit the next cycle of the job."
+            )
+            self._process.returncode = 0
+            self._should_resubmit = False
 
         return self._process.returncode
 
@@ -550,6 +563,12 @@ class QQRunner:
 
         if loop_info.current >= loop_info.end:
             logger.info("This was the final cycle of the loop job. Not resubmitting.")
+            return
+
+        if not self._should_resubmit:
+            logger.info(
+                f"The script finished with an exit code of '{CFG.exit_codes.qq_run_no_resubmit}' indicating that the next cycle of the job should not be submitted. Not resubmitting."
+            )
             return
 
         logger.info("Resubmitting the job.")

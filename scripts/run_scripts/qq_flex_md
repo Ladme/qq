@@ -1,13 +1,14 @@
 #!/usr/bin/env -S qq run
 ########################################
-#     Script for running Gromacs       #
-#         loop jobs using qq           #
-#         script version: 0.3          #
+#      Script for running Gromacs      #
+#   dynamic-length loop jobs using qq  #
+#         script version: 0.1          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
 # qq job-type loop
-# qq loop-end  10
+# loop-end is set automatically by the script
+# qq loop-end 1
 # qq archive storage
 # qq archive-format md%04d
 
@@ -47,6 +48,9 @@ NGPUS="0"
 
 # maximum number of warnings; leave empty to determine automatically (gen-vel)
 MAXWARN=""
+
+# maximum duration of a simulation run (in hours)
+MAX_TIME="23.5"
 
 # load gromacs module
 module add gromacs:2021.4-plumed
@@ -182,7 +186,7 @@ mpirun \
   -np ${MPI} \
   gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
   -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-  ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+  ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG} -maxh ${MAX_TIME}
 
 # rename output files from gromacs 2016 and later
 for PART in *part*; do
@@ -205,8 +209,21 @@ if [[ -n "${PLUMED_METAD}" ]]; then
 fi
 
 # extend the simulation
-EXTEND="$(awk 'BEGIN {dt = 0.001; nsteps = 0} /nsteps/ {nsteps = $3} /dt/ {dt = $3} END {ext = nsteps * dt; if (!ext) {exit 2} else {print ext}}' "${MDP}")"
-gmx convert-tpr -s "${CURR}.tpr" -extend "${EXTEND}" -o "${NEXT}.tpr" -quiet
+LAST_STEP=$(awk '$1 ~ /step$/ {step = $2} END {print step}' $(ls -tr1 *.stdout | tail -1) | sed 's/[^0-9]*//g')
+TARGET_STEP=$(gmx dump -s ${CURR}.tpr 2> /dev/null | awk '/nsteps/ {print $3}')
+
+SCRIPT_NAME=$(basename "${0}")
+echo $SCRIPT_NAME
+
+echo "Last step: ${LAST_STEP} and target step: ${TARGET_STEP}"
+if [[ "${LAST_STEP}" -ge "${TARGET_STEP}" ]]; then
+    sed "4 s/.*/$(printf "# qq loop-end %5d" "${QQ_LOOP_CURRENT}")/g" "${0}" > "${SCRIPT_NAME}"
+elif [[ "${QQ_LOOP_CURRENT}" -eq "${QQ_LOOP_END}" ]]; then
+    sed "4 s/.*/$(printf "# qq loop-end %5d" "$((QQ_LOOP_END+1))")/g" "${0}" > "${SCRIPT_NAME}"
+fi
+
+# prepare the tpr file for the next run
+cp ${CURR}.tpr ${NEXT}.tpr
 
 # remove the unneeded and unarchived _prev files
 rm -f -- *_prev*

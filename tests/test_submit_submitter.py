@@ -254,6 +254,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mo
     assert env[CFG.env_vars.loop_start] == str(DummyLoop.start)
     assert env[CFG.env_vars.loop_end] == str(DummyLoop.end)
     assert env[CFG.env_vars.archive_format] == DummyLoop.archive_format
+    assert env[CFG.env_vars.no_resubmit] == str(CFG.exit_codes.qq_run_no_resubmit)
     if debug_mode:
         assert env[CFG.env_vars.debug_mode] == "true"
     else:

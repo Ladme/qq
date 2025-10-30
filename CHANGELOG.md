@@ -1,3 +1,9 @@
+## Version 0.3.0
+
+- Added support for manually disabling automatic resubmission in loop jobs by returning the value of the `QQ_NO_RESUBMIT` environment variable from within the job script.
+
+***
+
 ## Version 0.2.1
 
 ### Bug fixes

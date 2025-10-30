@@ -224,6 +224,7 @@ class QQSubmitter:
             env_vars[CFG.env_vars.loop_start] = str(self._loop_info.start)
             env_vars[CFG.env_vars.loop_end] = str(self._loop_info.end)
             env_vars[CFG.env_vars.archive_format] = self._loop_info.archive_format
+            env_vars[CFG.env_vars.no_resubmit] = str(CFG.exit_codes.qq_run_no_resubmit)
 
         return env_vars
 

@@ -370,12 +370,30 @@ def test_qqrunner_resubmit_final_cycle():
 
     runner = QQRunner.__new__(QQRunner)
     runner._informer = informer_mock
+    runner._should_resubmit = True
 
     with patch("qq_lib.run.runner.logger") as mock_logger:
         runner._resubmit()
 
     mock_logger.info.assert_called_once_with(
         "This was the final cycle of the loop job. Not resubmitting."
+    )
+
+
+def test_qqrunner_resubmit_should_resubmit_is_false():
+    informer_mock = MagicMock()
+    informer_mock.info.loop_info.current = 5
+    informer_mock.info.loop_info.end = 9999
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._informer = informer_mock
+    runner._should_resubmit = False
+
+    with patch("qq_lib.run.runner.logger") as mock_logger:
+        runner._resubmit()
+
+    mock_logger.info.assert_called_once_with(
+        f"The script finished with an exit code of '{CFG.exit_codes.qq_run_no_resubmit}' indicating that the next cycle of the job should not be submitted. Not resubmitting."
     )
 
 
@@ -390,6 +408,7 @@ def test_qqrunner_resubmit_successful_resubmission():
     runner._informer = informer_mock
     runner._batch_system = MagicMock()
     runner._prepareCommandLineForResubmit = MagicMock(return_value=["cmd"])
+    runner._should_resubmit = True
 
     retryer_mock = MagicMock()
     retryer_mock.run.return_value = None
@@ -423,6 +442,7 @@ def test_qqrunner_resubmit_raises_qqerror():
     runner._informer = informer_mock
     runner._batch_system = MagicMock()
     runner._prepareCommandLineForResubmit = MagicMock(return_value=["cmd"])
+    runner._should_resubmit = True
 
     with (
         patch("qq_lib.run.runner.QQRetryer", side_effect=QQError("resubmit failed")),
@@ -991,6 +1011,54 @@ def test_qqrunner_execute_updates_info_and_runs_script(tmp_path):
         text=True,
     )
     sleep_mock.assert_called()
+    assert retcode == 0
+
+
+def test_qqrunner_execute_handles_no_resubmit_exit_code(tmp_path):
+    script_file = tmp_path / "script.sh"
+    script_file.write_text("#!/bin/bash\necho Hello\n")
+
+    stdout_file = tmp_path / "stdout.log"
+    stderr_file = tmp_path / "stderr.log"
+
+    runner = QQRunner.__new__(QQRunner)
+    runner._updateInfoRunning = MagicMock()
+    runner._informer = MagicMock()
+    runner._informer.info.script_name = str(script_file)
+    runner._informer.info.stdout_file = stdout_file
+    runner._informer.info.stderr_file = stderr_file
+    runner._informer.info.loop_info = MagicMock()
+    runner._should_resubmit = True
+
+    mock_process = MagicMock()
+    mock_process.poll.side_effect = [None, None, 95]
+    mock_process.returncode = 95
+
+    with (
+        patch(
+            "qq_lib.run.runner.subprocess.Popen", return_value=mock_process
+        ) as popen_mock,
+        patch("qq_lib.run.runner.Path.open", create=True) as open_mock,
+        patch("qq_lib.run.runner.sleep") as sleep_mock,
+        patch("qq_lib.run.runner.logger"),
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
+    ):
+        cfg_mock.runner.subprocess_checks_wait_time = 0.1
+        cfg_mock.exit_codes.qq_run_no_resubmit = 95
+        mock_file = MagicMock()
+        open_mock.return_value.__enter__.return_value = mock_file
+
+        retcode = runner.execute()
+
+    runner._updateInfoRunning.assert_called_once()
+    popen_mock.assert_called_once_with(
+        ["bash", str(script_file.resolve())],
+        stdout=mock_file,
+        stderr=mock_file,
+        text=True,
+    )
+    sleep_mock.assert_called()
+    assert not runner._should_resubmit
     assert retcode == 0
 
 

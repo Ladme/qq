@@ -9,7 +9,7 @@ set -euo pipefail
 # -----------------------
 
 # qq version to install
-QQ_VERSION="v0.2.1"
+QQ_VERSION="v0.3.0"
 
 # GitHub release assets
 INSTALL_SCRIPT_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-install.sh"

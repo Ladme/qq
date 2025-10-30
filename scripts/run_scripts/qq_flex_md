@@ -1,7 +1,7 @@
 #!/usr/bin/env -S qq run
 ########################################
 #      Script for running Gromacs      #
-#   dynamic-length loop jobs using qq  #
+#  flexible-length loop jobs using qq  #
 #         script version: 0.2          #
 #      support: ladmeb@gmail.com       #
 ########################################

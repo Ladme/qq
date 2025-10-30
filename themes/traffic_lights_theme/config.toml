@@ -1,0 +1,14 @@
+
+# Traffic light state colors
+[state_colors]
+queued = "bright_yellow"
+held = "bright_yellow"
+suspended = "bright_black"
+waiting = "bright_yellow"
+running = "bright_green"
+booting = "bright_cyan"
+killed = "bright_red"
+failed = "bright_red"
+finished = "bright_blue"
+exiting = "bright_magenta"
+

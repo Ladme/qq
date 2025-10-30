@@ -1,0 +1,38 @@
+
+# Theme for light terminals
+[presenter]
+value_style = "bright_black"
+notes_style = "grey50"
+
+[presenter.job_status_panel]
+border_style = "black"
+title_style = "black bold"
+
+[presenter.full_info_panel]
+border_style = "black"
+title_style = "black bold"
+rule_style = "black"
+
+[jobs_presenter]
+border_style = "black"
+title_style = "black bold"
+main_style = "bright_black"
+secondary_style = "grey50"
+
+[queues_presenter]
+border_style = "black"
+title_style = "black bold"
+main_text_style = "bright_black"
+
+[nodes_presenter]
+border_style = "black"
+title_style = "black bold"
+main_text_style = "bright_black"
+rule_style = "black"
+secondary_text_style = "grey50"
+
+[state_colors]
+in_an_inconsistent_state = "grey30"
+unknown = "grey30"
+sum = "black"
+other = "grey30"

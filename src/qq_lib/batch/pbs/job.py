@@ -10,7 +10,7 @@ import yaml
 
 from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
-from qq_lib.core.common import hhmmss_to_duration
+from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -19,15 +19,7 @@ from qq_lib.properties.states import BatchState
 
 logger = get_logger(__name__)
 
-# load faster YAML dumper
-try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CDumper.")
-except ImportError:
-    from yaml import Dumper
-
-    logger.debug("Loaded default YAML dumper.")
+Dumper: type[yaml.Dumper] = load_yaml_dumper()
 
 
 class PBSJob(BatchJobInterface):

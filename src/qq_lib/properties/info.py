@@ -10,6 +10,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -22,24 +23,8 @@ from .states import NaiveState
 
 logger = get_logger(__name__)
 
-# load faster YAML loader and dumper
-try:
-    from yaml import CSafeLoader as SafeLoader  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CLoader.")
-except ImportError:
-    from yaml import SafeLoader
-
-    logger.debug("Loaded default YAML loader.")
-
-try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CDumper.")
-except ImportError:
-    from yaml import Dumper
-
-    logger.debug("Loaded default YAML dumper.")
+SafeLoader: type[yaml.SafeLoader] = load_yaml_loader()
+Dumper: type[yaml.Dumper] = load_yaml_dumper()
 
 
 @dataclass

@@ -3,9 +3,11 @@
 
 import re
 from datetime import timedelta
+from functools import lru_cache
 from pathlib import Path
 
 import readchar
+import yaml
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
@@ -15,6 +17,37 @@ from .error import QQError
 from .logger import get_logger
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def load_yaml_dumper() -> type[yaml.Dumper]:
+    """Return the fastest available YAML dumper (CDumper if possible)."""
+    try:
+        from yaml import CDumper as Dumper  # type: ignore[attr-defined]
+
+        logger.debug("Loaded YAML CDumper.")
+    except ImportError:
+        from yaml import Dumper
+
+        logger.debug("Loaded default YAML dumper.")
+    return Dumper
+
+
+@lru_cache(maxsize=1)
+def load_yaml_loader() -> type[yaml.SafeLoader]:
+    """Return the fastest available safe YAML loader (CSafeLoader if possible)."""
+    try:
+        from yaml import (
+            CSafeLoader as SafeLoader,  # ty: ignore[possibly-missing-import]
+        )
+
+        logger.debug("Loaded YAML CLoader.")
+    except ImportError:
+        from yaml import SafeLoader
+
+        logger.debug("Loaded default YAML loader.")
+
+    return SafeLoader
 
 
 def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:

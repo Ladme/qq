@@ -337,6 +337,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
                 )
 
             resources.work_dir = "input_dir"
+            resources.work_size = None
+            resources.work_size_per_cpu = None
             return resources
 
         # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
@@ -351,6 +353,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
             resources.work_dir = "scratch_shm"
             resources.work_size = None
+            resources.work_size_per_cpu = None
             return resources
 
         # if work-dir matches any of the "standard" scratches supported by PBS

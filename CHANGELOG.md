@@ -2,6 +2,7 @@
 
 ### Bug fixes and other small changes
 - When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of qq info.
+- Fixed current cycle identification in loop jobs. Only a partial match in archived files is now required to consider them.
 
 ### Internal changes
 - Refactored loading of yaml Dumper and SafeLoader.

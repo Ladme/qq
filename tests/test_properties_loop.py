@@ -150,6 +150,22 @@ def test_get_cycle_selects_highest_number(temp_dir):
     assert loop_info._getCycle() == 7
 
 
+def test_get_cycle_selects_highest_number_partial_match(temp_dir):
+    (temp_dir / "md0001.xtc").write_text("x")
+    (temp_dir / "md0002.csv").write_text("x")
+    (temp_dir / "md0007_px.txt").write_text("x")
+    loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
+    assert loop_info._getCycle() == 7
+
+
+def test_get_cycle_selects_highest_number_partial_match2(temp_dir):
+    (temp_dir / "md0001.xtc").write_text("x")
+    (temp_dir / "md0002.csv").write_text("x")
+    (temp_dir / "file_md0007.txt").write_text("x")
+    loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
+    assert loop_info._getCycle() == 7
+
+
 def test_get_cycle_files_without_digits_are_ignored(temp_dir):
     (temp_dir / "mdabcd.md").write_text("x")
     (temp_dir / "mdxxxx.txt").write_text("x")

@@ -107,7 +107,7 @@ class QQLoopInfo:
         # use start as default
         max_number = self.start
         for f in self.archive.iterdir():
-            if not stem_pattern.fullmatch(f.stem):
+            if not stem_pattern.search(f.stem):
                 continue
 
             match = re.search(r"\d+", f.stem)

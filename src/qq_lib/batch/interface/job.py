@@ -43,6 +43,17 @@ class BatchJobInterface(ABC):
         pass
 
     @abstractmethod
+    def getAccount(self) -> str | None:
+        """
+        Return the account under which the job is submitted.
+
+        Returns:
+            str | None: Account associated with the job or None if no
+            account is defined.
+        """
+        pass
+
+    @abstractmethod
     def update(self) -> None:
         """
         Refresh the stored job information from the batch system.

@@ -155,7 +155,10 @@ class QQJobsPresenter:
         rows = []
         for job in self._jobs:
             state = job.getState()
-            start_time = job.getStartTime() or job.getSubmissionTime()
+            if state in {BatchState.QUEUED, BatchState.HELD, BatchState.WAITING}:
+                start_time = job.getSubmissionTime()
+            else:
+                start_time = job.getStartTime() or job.getSubmissionTime()
             end_time = (
                 datetime.now()
                 if state not in {BatchState.FINISHED, BatchState.FAILED}
@@ -166,6 +169,7 @@ class QQJobsPresenter:
             gpus = job.getNGPUs()
             nodes = job.getNNodes()
             self._stats.addJob(state, cpus, gpus, nodes)
+            exit_code = job.getExitCode()
 
             row = [
                 QQJobsPresenter._color(state.toCode(), state.color),
@@ -184,7 +188,15 @@ class QQJobsPresenter:
                 QQJobsPresenter._formatNodesOrComment(state, job),
                 QQJobsPresenter._formatUtilCPU(job.getUtilCPU()),
                 QQJobsPresenter._formatUtilMem(job.getUtilMem()),
-                QQJobsPresenter._formatExitCode(job.getExitCode()),
+                QQJobsPresenter._formatExitCode(
+                    exit_code
+                    if state
+                    in {
+                        BatchState.FINISHED,
+                        BatchState.FAILED,
+                    }  # only show exit code for completed jobs
+                    else None
+                ),
             ]
             rows.append(row)
 

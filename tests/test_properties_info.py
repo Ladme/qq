@@ -51,6 +51,7 @@ def sample_info(sample_resources):
         excluded_files=[Path("ignore.txt")],
         command_line=["-q", "default", "script.sh"],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
+        account="fake-account",
     )
 
 
@@ -85,6 +86,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
         "stderr_file",
         "resources",
         "excluded_files",
+        "account",
     }
     assert expected_fields.issubset(result.keys())
 
@@ -102,6 +104,7 @@ def test_to_yaml_contains_fields(sample_info):
     assert data["job_id"] == "12345.fake.server.com"
     assert data["job_name"] == "script.sh+025"
     assert data["resources"]["ncpus"] == 8
+    assert data["account"] == "fake-account"
 
 
 def test_to_yaml_skips_none_fields(sample_info):

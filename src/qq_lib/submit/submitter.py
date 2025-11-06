@@ -39,6 +39,7 @@ class QQSubmitter:
         self,
         batch_system: type[QQBatchInterface],
         queue: str,
+        account: str | None,
         script: Path,
         job_type: QQJobType,
         resources: QQResources,
@@ -54,6 +55,7 @@ class QQSubmitter:
             batch_system (type[QQBatchInterface]): The batch system class implementing
                 the QQBatchInterface used for job submission.
             queue (str): The name of the batch system queue to which the job will be submitted.
+            account (str | None): The name of the account to use for the job.
             script (Path): Path to the job script to submit.
             job_type (QQJobType): Type of the job to submit (e.g. standard, loop).
             resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
@@ -69,6 +71,7 @@ class QQSubmitter:
         self._batch_system = batch_system
         self._job_type = job_type
         self._queue = queue
+        self._account = account
         self._loop_info = loop_info
         self._script = script
         self._input_dir = script.resolve().parent
@@ -115,6 +118,7 @@ class QQSubmitter:
             self._job_name,
             self._depend,
             self._createEnvVarsDict(),
+            self._account,
         )
 
         # create job qq info file
@@ -139,6 +143,7 @@ class QQSubmitter:
                 excluded_files=self._exclude,
                 command_line=self._command_line,
                 depend=self._depend,
+                account=self._account,
             )
         )
         informer.toFile(self._info_file)

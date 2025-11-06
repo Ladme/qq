@@ -706,3 +706,10 @@ def test_pbs_job_info_is_empty():
 def test_pbs_job_info_is_empty_false():
     job = _make_jobinfo_with_info({})
     assert job.isEmpty()
+
+
+def test_pbs_job_get_account():
+    job = _make_jobinfo_with_info(
+        {"Submit_Host": "random.machine.org", "account": "fake-account"}
+    )
+    assert job.getAccount() is None

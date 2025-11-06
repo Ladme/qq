@@ -17,9 +17,15 @@ def test_invalid_unit_raises():
     "text, expected",
     [
         ("10mb", Size(10, "mb")),
+        ("10M", Size(10, "mb")),
+        ("10 M", Size(10, "mb")),
         ("10 mb", Size(10, "mb")),
+        ("10 m", Size(10, "mb")),
         ("2048KB", Size(2, "mb")),
+        ("1GB", Size(1, "gb")),
+        ("1g", Size(1, "gb")),
         ("5tb", Size(5, "tb")),
+        ("5T", Size(5, "tb")),
         ("1pb", Size(1, "pb")),
         ("0b", Size(0, "kb")),
         ("3b", Size(1, "kb")),
@@ -110,6 +116,28 @@ def test_str_conversions(value, expected_string):
 def test_to_str_exact(value, expected_string):
     s = Size(value, "kb")
     assert s.toStrExact() == expected_string
+
+
+@pytest.mark.parametrize(
+    "value, expected_string",
+    [
+        (0, "0K"),
+        (128, "128K"),
+        (1024, "1024K"),
+        (1025, "1025K"),
+        (1126, "1126K"),
+        (1139, "1139K"),
+        (337920, "337920K"),
+        (338420, "338420K"),
+        (1048576, "1048576K"),
+        (1990000, "1990000K"),
+        (1073741824, "1073741824K"),
+        (1573741824, "1573741824K"),
+    ],
+)
+def test_to_str_exact_slurm(value, expected_string):
+    s = Size(value, "kb")
+    assert s.toStrExactSlurm() == expected_string
 
 
 def test_multiplication():

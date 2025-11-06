@@ -32,6 +32,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
         submitter = QQSubmitter(
             batch_system=QQPBS,
             queue="default",
+            account=None,
             script=script,
             job_type=QQJobType.STANDARD,
             resources=QQResources(),
@@ -41,6 +42,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._batch_system == QQPBS
         assert submitter._job_type == QQJobType.STANDARD
         assert submitter._queue == "default"
+        assert submitter._account is None
         assert submitter._loop_info is None
         assert submitter._script == script
         assert submitter._input_dir == tmp_path
@@ -59,6 +61,7 @@ def test_qqsubmitter_init_raises_error_if_script_does_not_exist(tmp_path):
         QQSubmitter(
             batch_system=QQPBS,
             queue="default",
+            account=None,
             script=script,
             job_type=QQJobType.STANDARD,
             resources=QQResources(),
@@ -78,6 +81,7 @@ def test_qqsubmitter_init_raises_error_if_invalid_shebang(tmp_path):
         QQSubmitter(
             batch_system=QQPBS,
             queue="default",
+            account="fake-account",
             script=script,
             job_type=QQJobType.STANDARD,
             resources=QQResources(),
@@ -103,6 +107,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         submitter = QQSubmitter(
             batch_system=QQPBS,
             queue="long",
+            account="fake-account",
             script=script,
             job_type=QQJobType.LOOP,
             resources=QQResources(),
@@ -115,6 +120,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._batch_system == QQPBS
         assert submitter._job_type == QQJobType.LOOP
         assert submitter._queue == "long"
+        assert submitter._account == "fake-account"
         assert submitter._loop_info == loop_info
         assert submitter._script == script
         assert submitter._input_dir == tmp_path
@@ -407,6 +413,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._batch_system = MagicMock()
     submitter._resources = QQResources()
     submitter._queue = "default"
+    submitter._account = None
     submitter._script = tmp_path / "script.sh"
     submitter._job_name = "job1"
     submitter._script_name = "script.sh"
@@ -442,6 +449,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         submitter._job_name,
         submitter._depend,
         env_vars,
+        submitter._account,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
@@ -453,6 +461,7 @@ def test_qq_submitter_submit(tmp_path):
     submitter._batch_system = MagicMock()
     submitter._resources = QQResources()
     submitter._queue = "default"
+    submitter._account = "fake-account"
     submitter._script = tmp_path / "script.sh"
     submitter._job_name = "job1"
     submitter._script_name = "script.sh"
@@ -492,6 +501,7 @@ def test_qq_submitter_submit(tmp_path):
         submitter._job_name,
         submitter._depend,
         env_vars,
+        submitter._account,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
@@ -507,6 +517,7 @@ def test_qq_submitter_submit(tmp_path):
     assert qqinfo_arg.job_name == submitter._job_name
     assert qqinfo_arg.script_name == submitter._script_name
     assert qqinfo_arg.queue == submitter._queue
+    assert qqinfo_arg.account == submitter._account
     assert qqinfo_arg.job_type == submitter._job_type
     assert qqinfo_arg.input_machine == "host123"
     assert qqinfo_arg.input_dir == submitter._input_dir

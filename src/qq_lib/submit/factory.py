@@ -65,6 +65,7 @@ class QQSubmitterFactory:
         return QQSubmitter(
             BatchSystem,
             queue,
+            self._getAccount(),
             self._script,
             job_type,
             self._getResources(BatchSystem, queue),
@@ -203,3 +204,12 @@ class QQSubmitterFactory:
         return (
             Depend.multiFromStr(self._kwargs.get("depend") or "") or []
         ) + self._parser.getDepend()
+
+    def _getAccount(self) -> str | None:
+        """
+        Determine the account name to use for the job.
+
+        Returns:
+            str | None: The account name or None if not defined.
+        """
+        return self._kwargs.get("account") or self._parser.getAccount()

@@ -40,6 +40,9 @@ class PBSJob(BatchJobInterface):
     def getId(self) -> str:
         return self._job_id
 
+    def getAccount(self) -> str | None:
+        return None
+
     def update(self) -> None:
         # get job info from PBS
         command = f"qstat -fxw {self._job_id}"
@@ -158,7 +161,7 @@ class PBSJob(BatchJobInterface):
             return Size(0, "kb")
 
     def getStartTime(self) -> datetime | None:
-        return self._getDatetimeProperty("stime", "the job starting time")
+        return self._getDatetimeProperty("stime", "the job start time")
 
     def getSubmissionTime(self) -> datetime:
         return (

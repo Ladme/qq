@@ -222,6 +222,18 @@ class QQParser:
 
         return []
 
+    def getAccount(self) -> str | None:
+        """
+        Get the account name to use for the job.
+
+        Returns:
+            str | None: The account name or None if not defined.
+        """
+        if isinstance(account := self._options.get("account"), str):
+            return account
+
+        return None
+
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:
         """

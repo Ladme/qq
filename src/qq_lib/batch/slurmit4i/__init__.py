@@ -3,7 +3,4 @@
 
 # ruff: noqa: F401
 
-from .job import PBSJob
-from .node import PBSNode
-from .qqpbs import QQPBS
-from .queue import PBSQueue
+from .qqslurm import QQSlurmIT4I

@@ -49,7 +49,7 @@ class Size:
         Create a Size object from a string.
 
         Args:
-            s (str): A string representation of the size, e.g., "10mb", "10 mb".
+            s (str): A string representation of the size, e.g., "10mb", "10 mb", "10m", "10M".
 
         Returns:
             Size: A Size instance with parsed value and unit.
@@ -61,6 +61,11 @@ class Size:
         if not match:
             raise QQError(f"Invalid size string: '{s}'.")
         value, unit = match.groups()
+
+        # normalize single-letter units to their full form by appending 'b'
+        # but skip bytes
+        if len(unit) == 1 and unit != "b":
+            unit = unit.lower() + "b"
 
         return cls(int(value), unit)
 
@@ -106,6 +111,10 @@ class Size:
     def toStrExact(self) -> str:
         """Convert the Size to string while keeping it in kilobytes."""
         return f"{self.value}kb"
+
+    def toStrExactSlurm(self) -> str:
+        """Convert the Size to string while keeping it in kilobytes. Use K for the unit."""
+        return f"{self.value}K"
 
     def __floordiv__(self, n: int) -> "Size":
         """

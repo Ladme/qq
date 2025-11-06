@@ -41,6 +41,7 @@ class EnvironmentVariables:
     no_resubmit: str = "QQ_NO_RESUBMIT"
     archive_format: str = "QQ_ARCHIVE_FORMAT"
     pbs_scratch_dir: str = "SCRATCHDIR"
+    slurm_job_account: str = "SLURM_JOB_ACCOUNT"
 
 
 @dataclass
@@ -189,6 +190,7 @@ class DateFormats:
 
     standard: str = "%Y-%m-%d %H:%M:%S"
     pbs: str = "%a %b %d %H:%M:%S %Y"
+    slurm: str = "%Y-%m-%dT%H:%M:%S"
 
 
 @dataclass

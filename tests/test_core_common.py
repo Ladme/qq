@@ -17,6 +17,7 @@ from qq_lib.batch.pbs import QQPBS, PBSJob
 from qq_lib.core.common import (
     CFG,
     convert_absolute_to_relative,
+    dhhmmss_to_duration,
     equals_normalized,
     format_duration,
     format_duration_wdhhmmss,
@@ -660,6 +661,64 @@ def test_hhmmss_to_duration_valid(timestr, expected):
 def test_hhmmss_to_duration_invalid_format(timestr):
     with pytest.raises(QQError):
         hhmmss_to_duration(timestr)
+
+
+@pytest.mark.parametrize(
+    "timestr, expected",
+    [
+        # basic HH:MM:SS
+        ("00:00:00", timedelta(0)),
+        ("0:00:00", timedelta(0)),
+        ("0000:00:00", timedelta(0)),
+        ("00:00:01", timedelta(seconds=1)),
+        ("00:01:00", timedelta(minutes=1)),
+        ("01:00:00", timedelta(hours=1)),
+        ("12:34:56", timedelta(hours=12, minutes=34, seconds=56)),
+        ("36:15:00", timedelta(hours=36, minutes=15)),
+        ("100:00:05", timedelta(hours=100, seconds=5)),
+        ("999:59:59", timedelta(hours=999, minutes=59, seconds=59)),
+        ("1:2:3", timedelta(hours=1, minutes=2, seconds=3)),
+        ("36:15:00 ", timedelta(hours=36, minutes=15)),
+        (" 36:15:00", timedelta(hours=36, minutes=15)),
+        (" 36:15:00 ", timedelta(hours=36, minutes=15)),
+        # day-prefixed
+        ("1-00:00:00", timedelta(days=1)),
+        ("2-12:34:56", timedelta(days=2, hours=12, minutes=34, seconds=56)),
+        ("10-0:00:00", timedelta(days=10)),
+        ("0-1:00:00", timedelta(hours=1)),
+        ("3-36:15:00", timedelta(days=3, hours=36, minutes=15)),
+        ("7-999:59:59", timedelta(days=7, hours=999, minutes=59, seconds=59)),
+        (" 2-12:34:56 ", timedelta(days=2, hours=12, minutes=34, seconds=56)),
+    ],
+)
+def test_dhhmmss_to_duration_valid(timestr, expected):
+    assert dhhmmss_to_duration(timestr) == expected
+
+
+@pytest.mark.parametrize(
+    "timestr",
+    [
+        "24:00",
+        "12:34:56:78",
+        "12-34-56",
+        "abc",
+        "1h23m45s",
+        "",
+        "   ",
+        "1--12:00:00",
+        "-12:00:00",
+        "1-12:60:00",
+        "1-12:34:60",
+        "1-:12:00",
+        "1 -12:00:00",
+        "1 - 12:00:00",
+        "1--12:34:56",
+        "x-12:34:56",
+    ],
+)
+def test_dhhmmss_to_duration_invalid_format(timestr):
+    with pytest.raises(QQError):
+        dhhmmss_to_duration(timestr)
 
 
 @pytest.mark.parametrize(

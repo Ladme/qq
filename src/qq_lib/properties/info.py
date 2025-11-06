@@ -94,6 +94,9 @@ class QQInfo:
     # Loop job-associated information.
     loop_info: QQLoopInfo | None = None
 
+    # Account associated with the job
+    account: str | None = None
+
     # Job start time
     start_time: datetime | None = None
 

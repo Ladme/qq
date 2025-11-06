@@ -43,6 +43,12 @@ using qq directives of this format: `# qq <option>=<value>`.
     help="Name of the queue to submit the job to.",
 )
 @optgroup.option(
+    "--account",
+    type=str,
+    default=None,
+    help="Account to use for the job. Only needed in environments with accounting (e.g., IT4Innovations).",
+)
+@optgroup.option(
     "--job-type",
     type=str,
     default=None,

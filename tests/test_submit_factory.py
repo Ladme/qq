@@ -209,6 +209,30 @@ def test_qqsubmitter_factory_get_queue_raises_error_if_missing():
         factory._getQueue()
 
 
+def test_qqsubmitter_factory_get_account_uses_cli_over_parser():
+    mock_parser = MagicMock()
+    mock_parser.getAccount.return_value = "parser_account"
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"account": "cli_account"}
+
+    queue = factory._getAccount()
+    assert queue == "cli_account"
+
+
+def test_qqsubmitter_factory_get_account_uses_parser_if_no_cli():
+    mock_parser = MagicMock()
+    mock_parser.getAccount.return_value = "parser_account"
+
+    factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}  # no CLI account
+
+    queue = factory._getAccount()
+    assert queue == "parser_account"
+
+
 def test_qqsubmitter_factory_get_job_type_uses_cli_over_parser():
     mock_parser = MagicMock()
     parser_job_type = QQJobType.LOOP
@@ -307,6 +331,7 @@ def test_qqsubmitter_factory_make_submitter_standard_job():
     resources = QQResources()
     excludes = [Path("/tmp/file1")]
     depends = []
+    account = "fake-account"
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
     factory._parser = mock_parser
@@ -326,6 +351,7 @@ def test_qqsubmitter_factory_make_submitter_standard_job():
         patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
         patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
+        patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
         patch("qq_lib.submit.factory.QQSubmitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
@@ -340,10 +366,12 @@ def test_qqsubmitter_factory_make_submitter_standard_job():
     mock_get_res.assert_called_once_with(BatchSystem, queue)
     mock_get_excl.assert_called_once()
     mock_get_dep.assert_called_once()
+    mock_get_acct.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         BatchSystem,
         queue,
+        account,
         factory._script,
         QQJobType.STANDARD,
         resources,
@@ -362,6 +390,7 @@ def test_qqsubmitter_factory_make_submitter_loop_job():
     resources = QQResources()
     excludes = [Path("/tmp/file1")]
     depends = []
+    account = None
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
     factory._parser = mock_parser
@@ -382,6 +411,7 @@ def test_qqsubmitter_factory_make_submitter_loop_job():
         patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
         patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
+        patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
         patch("qq_lib.submit.factory.QQSubmitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
@@ -396,10 +426,12 @@ def test_qqsubmitter_factory_make_submitter_loop_job():
     mock_get_res.assert_called_once_with(BatchSystem, queue)
     mock_get_excl.assert_called_once()
     mock_get_dep.assert_called_once()
+    mock_get_acct.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         BatchSystem,
         queue,
+        account,
         factory._script,
         QQJobType.LOOP,
         resources,

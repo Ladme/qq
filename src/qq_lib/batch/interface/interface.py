@@ -105,6 +105,7 @@ class QQBatchInterface[
         job_name: str,
         depend: list[Depend],
         env_vars: dict[str, str],
+        account: str | None = None,
     ) -> str:
         """
         Submit a job to the batch system.
@@ -118,6 +119,7 @@ class QQBatchInterface[
             job_name (str): Name of the job to use.
             depend (list[Depend]): List of job dependencies.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
+            account (str | None): Optional account name to use for the job.
 
         Returns:
             str: Unique ID of the submitted job.

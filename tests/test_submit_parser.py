@@ -173,6 +173,22 @@ def test_qqparser_get_loop_start_value():
     assert result == 2
 
 
+def test_qqparser_get_account_value():
+    parser = QQParser.__new__(QQParser)
+    parser._options = {"account": "parser_account"}
+
+    result = parser.getAccount()
+    assert result == "parser_account"
+
+
+def test_qqparser_get_account_none():
+    parser = QQParser.__new__(QQParser)
+    parser._options = {}
+
+    result = parser.getAccount()
+    assert result is None
+
+
 def test_qqparser_get_exclude_empty_list():
     parser = QQParser.__new__(QQParser)
     parser._options = {}
@@ -517,6 +533,7 @@ def test_qqparser_integration():
     script_content = """#!/usr/bin/env -S qq run
 # Qq   BatchSystem=PBS
 # qq queue  default
+#  qQ account= fake-account
 
 #qq job-type=standard # comments can be here as well
 #   qq   ncpus  8
@@ -577,6 +594,7 @@ exit 0
 
     assert parser.getArchive() == Path("archive")
     assert parser.getArchiveFormat() == "cycle_%03d"
+    assert parser.getAccount() == "fake-account"
 
     # we have to delete the temporary file manually
     tmp_file_path.unlink()

@@ -344,6 +344,39 @@ def hhmmss_to_duration(timestr: str) -> timedelta:
     return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
 
+def dhhmmss_to_duration(timestr: str) -> timedelta:
+    """
+    Convert a time string in optional D-HH:MM:SS (or HH:MM:SS / HHH:MM:SS) format to a timedelta object.
+
+    Examples:
+        "0:00:00"      -> 0 seconds
+        "1:23:45"      -> 1 hour, 23 minutes, 45 seconds
+        "100:00:00"    -> 100 hours
+        "2-12:34:56"   -> 2 days, 12 hours, 34 minutes, 56 seconds
+
+    Args:
+        timestr (str): Input string in optional D-HH:MM:SS format.
+
+    Returns:
+        timedelta: The corresponding duration.
+
+    Raises:
+        QQError: If the input string is not in a valid format or contains invalid numeric values.
+    """
+    pattern = re.compile(r"^\s*(?:(\d+)-)?(\d+):([0-5]?\d):([0-5]?\d)\s*$")
+    match = pattern.fullmatch(timestr)
+    if not match:
+        raise QQError(f"Invalid D-HH:MM:SS time string '{timestr}'.")
+
+    days_str, hours_str, minutes_str, seconds_str = match.groups()
+    days = int(days_str) if days_str else 0
+    hours = int(hours_str)
+    minutes = int(minutes_str)
+    seconds = int(seconds_str)
+
+    return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+
+
 def normalize(s: str) -> str:
     """
     Normalize a string for consistent comparison.

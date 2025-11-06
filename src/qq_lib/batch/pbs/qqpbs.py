@@ -58,7 +58,11 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         job_name: str,
         depend: list[Depend],
         env_vars: dict[str, str],
+        account: str | None = None,
     ) -> str:
+        # account unused
+        _ = account
+
         QQPBS._sharedGuard(res, env_vars)
 
         # set env vars required for Infinity modules
@@ -375,7 +379,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             "input_dir",  # same as job_dir
         ]
         raise QQError(
-            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for PBS are: '{' '.join(supported_types)}'."
+            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {QQPBS.envName()} are: '{' '.join(supported_types)}'."
         )
 
     def isShared(directory: Path) -> bool:
@@ -481,6 +485,17 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
     @staticmethod
     def _translateEnvVars(env_vars: dict[str, str]) -> str:
+        """
+        Convert a dictionary of environment variables into a formatted string.
+
+        Args:
+            env_vars (dict[str, str]): A mapping of environment variable names
+                to their corresponding values.
+
+        Returns:
+            str: A comma-separated string of environment variable assignments,
+                suitable for inclusion in the qsub command.
+        """
         converted = []
         for key, value in env_vars.items():
             converted.append(f"\"{key}='{value}'\"")

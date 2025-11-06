@@ -1,5 +1,9 @@
 ## Version 0.4.0
 
+### Support for Slurm
+- qq can be now used on IT4Innovations clusters with the Slurm batch scheduler.
+- A new `qq submit` option `--account` has been added to allow submitting jobs on IT4I.
+
 ### Bug fixes and other small changes
 - When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of qq info.
 - Fixed current cycle identification in loop jobs. Only a partial match in archived files is now required to consider them.

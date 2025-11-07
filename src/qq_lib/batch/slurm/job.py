@@ -431,6 +431,20 @@ class SlurmJob(BatchJobInterface):
         return result.stdout.strip().split("\n")
 
     def _getIntProperty(self, property: str, property_name: str) -> int:
+        """
+        Retrieve an integer property value from the job information.
+
+        If the property contains a range (e.g., "MIN-MAX"), only the minimum value
+        is returned. If the property cannot be retrieved or converted to an integer,
+        0 is returned by default.
+
+        Args:
+            property (str): The key identifying the property in the job information.
+            property_name (str): A human-readable name of the property for logging.
+
+        Returns:
+            int: The integer value of the property, or 0 if unavailable or invalid.
+        """
         try:
             # we split by '-' because pending jobs may have this property shown as MIN-MAX
             # we show the value of the minimum
@@ -445,6 +459,19 @@ class SlurmJob(BatchJobInterface):
     def _getDatetimeProperty(
         self, property: str, property_name: str
     ) -> datetime | None:
+        """
+        Retrieve and parse a datetime property from the job information.
+
+        If the property is missing, empty, or marked as unknown, None is returned.
+        A warning is logged if parsing fails.
+
+        Args:
+            property (str): The key identifying the property in the job information.
+            property_name (str): A human-readable name of the property for logging.
+
+        Returns:
+            datetime | None: A datetime object if parsing succeeds, otherwise None.
+        """
         if not (raw_datetime := self._info.get(property)) or raw_datetime.lower() in [
             "unknown",
             "n/a",

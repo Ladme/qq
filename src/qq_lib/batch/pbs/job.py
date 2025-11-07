@@ -329,6 +329,13 @@ class PBSJob(BatchJobInterface):
         return int(match.group()) if match else None
 
     def _getEnvVars(self) -> dict[str, str] | None:
+        """
+        Retrieve environment variables associated with the job.
+
+        Returns:
+            dict[str, str] | None: A dictionary of environment variables, or None
+            if no variable list is available.
+        """
         if not (variable_list := self._info.get("Variable_List")):
             return None
 
@@ -337,6 +344,18 @@ class PBSJob(BatchJobInterface):
         )
 
     def _getIntProperty(self, property: str, property_name: str) -> int:
+        """
+        Retrieve an integer property value from the job information.
+
+        If the property is missing or cannot be converted, 0 is returned.
+
+        Args:
+            property (str): The key identifying the property in the job information.
+            property_name (str): A human-readable name of the property for logging.
+
+        Returns:
+            int: The integer value of the property, or 0 if unavailable or invalid.
+        """
         try:
             return int(self._info[property])
         except Exception:
@@ -349,6 +368,16 @@ class PBSJob(BatchJobInterface):
     def _getDatetimeProperty(
         self, property: str, property_name: str
     ) -> datetime | None:
+        """
+        Retrieve and parse a datetime property from the job information.
+
+        Args:
+            property (str): The key identifying the property in the job information.
+            property_name (str): A human-readable name of the property for logging.
+
+        Returns:
+            datetime | None: A datetime object if parsing succeeds, otherwise None.
+        """
         if not (raw_datetime := self._info.get(property)):
             return None
 

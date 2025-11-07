@@ -11,7 +11,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
 from qq_lib.batch.interface.meta import batch_system
-from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
+from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.common import equals_normalized
@@ -176,7 +176,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             )
 
         queues = []
-        for data, name in parseMultiPBSDumpToDictionaries(
+        for data, name in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Queue"
         ):
             queues.append(PBSQueue.fromDict(name, data))
@@ -202,7 +202,9 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             )
 
         queues = []
-        for data, name in parseMultiPBSDumpToDictionaries(result.stdout.strip(), None):
+        for data, name in parse_multi_pbs_dump_to_dictionaries(
+            result.stdout.strip(), None
+        ):
             queues.append(PBSNode.fromDict(name, data))
 
         return queues
@@ -781,7 +783,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             )
 
         jobs = []
-        for data, job_id in parseMultiPBSDumpToDictionaries(
+        for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
             jobs.append(PBSJob.fromDict(job_id, data))

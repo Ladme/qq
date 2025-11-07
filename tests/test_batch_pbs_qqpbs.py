@@ -1143,7 +1143,7 @@ def test_qqpbs_get_queues_returns_list(mock_run):
 
     with (
         patch(
-            "qq_lib.batch.pbs.qqpbs.parseMultiPBSDumpToDictionaries",
+            "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
             return_value=[({"key": "value"}, "queue1")],
         ) as mock_parse,
         patch(
@@ -1181,7 +1181,7 @@ def test_qqpbs_get_queues_multiple_queues(mock_run):
 
     with (
         patch(
-            "qq_lib.batch.pbs.qqpbs.parseMultiPBSDumpToDictionaries",
+            "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
             return_value=[
                 ({"data1": "value1"}, "queue1"),
                 ({"data2": "value2"}, "queue2"),
@@ -1219,7 +1219,7 @@ def test_qqpbs_get_default_queue_resources_returns_resources(mock_pbsqueue):
 def test_qqpbs_get_nodes_returns_list(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
     with patch(
-        "qq_lib.batch.pbs.qqpbs.parseMultiPBSDumpToDictionaries",
+        "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
         return_value=[({"key": "value"}, "node1")],
     ) as mock_parse:
         result = QQPBS.getNodes()
@@ -1251,7 +1251,7 @@ def test_qqpbs_get_nodes_raises_on_failure(mock_run):
 def test_qqpbs_get_nodes_multiple_nodes(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
     with patch(
-        "qq_lib.batch.pbs.qqpbs.parseMultiPBSDumpToDictionaries",
+        "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
         return_value=[
             ({"data1": "value1"}, "node1"),
             ({"data2": "value2"}, "node2"),

@@ -10,7 +10,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface import BatchJobInterface
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
 from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -64,7 +64,7 @@ class PBSJob(BatchJobInterface):
             )
             self._info: dict[str, str] = {}
         else:
-            self._info = parsePBSDumpToDictionary(result.stdout)
+            self._info = parse_pbs_dump_to_dictionary(result.stdout)
 
     def getState(self) -> BatchState:
         if not (state := self._info.get("job_state")):

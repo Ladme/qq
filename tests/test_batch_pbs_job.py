@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
 from qq_lib.batch.pbs.job import CFG, PBSJob
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
@@ -73,7 +73,7 @@ Job Id: 123456.fake-cluster.example.com
 
 def test_get_state(sample_dump_file):
     pbs_job_info = object.__new__(PBSJob)
-    pbs_job_info._info = parsePBSDumpToDictionary(sample_dump_file)
+    pbs_job_info._info = parse_pbs_dump_to_dictionary(sample_dump_file)
 
     assert pbs_job_info.getState() == BatchState.RUNNING
 
@@ -636,7 +636,7 @@ def test_pbs_job_info_get_env_vars_empty():
 
 
 def test_pbs_job_info_to_yaml(sample_dump_file):
-    info = parsePBSDumpToDictionary(sample_dump_file)
+    info = parse_pbs_dump_to_dictionary(sample_dump_file)
     job = _make_jobinfo_with_info(info)
 
     assert (

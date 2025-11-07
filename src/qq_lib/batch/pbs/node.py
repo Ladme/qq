@@ -7,7 +7,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface.node import BatchNodeInterface
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.common import load_yaml_dumper
 from qq_lib.core.error import QQError
@@ -86,7 +86,7 @@ class PBSNode(BatchNodeInterface):
         if result.returncode != 0:
             raise QQError(f"Node '{self._name}' does not exist.")
 
-        self._info = parsePBSDumpToDictionary(result.stdout)
+        self._info = parse_pbs_dump_to_dictionary(result.stdout)
 
     def getName(self) -> str:
         return self._name

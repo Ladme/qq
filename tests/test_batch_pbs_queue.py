@@ -93,7 +93,7 @@ def test_pbsqueue_update_success():
             "qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result
         ) as run_mock,
         patch(
-            "qq_lib.batch.pbs.queue.parsePBSDumpToDictionary",
+            "qq_lib.batch.pbs.queue.parse_pbs_dump_to_dictionary",
             return_value={"k": "v"},
         ) as parse_mock,
         patch.object(queue, "_setAttributes") as set_attrs_mock,

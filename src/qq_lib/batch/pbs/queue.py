@@ -10,7 +10,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface.queue import BatchQueueInterface
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
 from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -108,7 +108,7 @@ class PBSQueue(BatchQueueInterface):
         if result.returncode != 0:
             raise QQError(f"Queue '{self._name}' does not exist.")
 
-        self._info = parsePBSDumpToDictionary(result.stdout)
+        self._info = parse_pbs_dump_to_dictionary(result.stdout)
         self._setAttributes()
 
     def getName(self) -> str:

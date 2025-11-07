@@ -56,7 +56,7 @@ def test_pbs_node_init_calls_update(mock_update):
 
 
 @patch("qq_lib.batch.pbs.node.subprocess.run")
-@patch("qq_lib.batch.pbs.node.parsePBSDumpToDictionary")
+@patch("qq_lib.batch.pbs.node.parse_pbs_dump_to_dictionary")
 def test_pbs_node_update_parses_successfully(mock_parse, mock_run):
     node = PBSNode.__new__(PBSNode)
     node._name = "node1"
@@ -86,7 +86,7 @@ def test_pbs_node_update_raises_on_nonzero_return(mock_run):
 
 
 @patch("qq_lib.batch.pbs.node.subprocess.run")
-@patch("qq_lib.batch.pbs.node.parsePBSDumpToDictionary")
+@patch("qq_lib.batch.pbs.node.parse_pbs_dump_to_dictionary")
 def test_pbs_node_update_sets_info_even_if_parse_returns_empty(mock_parse, mock_run):
     node = PBSNode.__new__(PBSNode)
     node._name = "node_empty"

@@ -16,6 +16,7 @@ from qq_lib.killall import killall
 from qq_lib.nodes import nodes
 from qq_lib.queues import queues
 from qq_lib.run import run
+from qq_lib.shebang import shebang
 from qq_lib.stat import stat
 from qq_lib.submit import submit
 from qq_lib.sync import sync
@@ -62,3 +63,4 @@ cli.add_command(sync)
 cli.add_command(killall)
 cli.add_command(queues)
 cli.add_command(nodes)
+cli.add_command(shebang)

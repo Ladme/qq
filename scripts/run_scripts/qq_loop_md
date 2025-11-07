@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #         loop jobs using qq           #
-#         script version: 0.3          #
+#         script version: 0.4          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -49,7 +49,10 @@ NGPUS="0"
 MAXWARN=""
 
 # load gromacs module
+# Infinity
 module add gromacs:2021.4-plumed
+# Karolina
+# ml GROMACS/2021.4-fosscuda-2020b-PLUMED-2.7.3
 
 ########################################
 #          Execution section           #
@@ -60,8 +63,11 @@ export OMP_PLACES="cores"
 export OMP_NUM_THREADS="${NTOMP}"
 
 # set communication methods (for single-node runs only)
-export OMPI_MCA_btl="vader,self"
-export UCX_TLS="posix,self"
+# do not use on IT4Innovations
+if [[ "${QQ_BATCH_SYSTEM}" != "SlurmIT4I" ]]; then
+    export OMPI_MCA_btl="vader,self"
+    export UCX_TLS="posix,self"
+fi
 
 # create STAGE strings
 # CURR - prefix for the data produced in this run
@@ -173,16 +179,26 @@ else
 fi
 
 # run the simulation
-mpirun \
-  -display-allocation \
-  -display-map \
-  -rank-by slot \
-  -map-by slot:PE=${NTOMP} \
-  -bind-to core \
-  -np ${MPI} \
-  gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
-  -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-  ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
+    srun \
+    --mpi=pmix \
+    --ntasks=${MPI} \
+    --cpus-per-task=${NTOMP} \
+    gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
+    -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
+    ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+else
+    mpirun \
+    -display-allocation \
+    -display-map \
+    -rank-by slot \
+    -map-by slot:PE=${NTOMP} \
+    -bind-to core \
+    -np ${MPI} \
+    gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
+    -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
+    ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+fi
 
 # rename output files from gromacs 2016 and later
 for PART in *part*; do

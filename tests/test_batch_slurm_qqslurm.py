@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.batch.slurm.job import SlurmJob
 from qq_lib.batch.slurm.qqslurm import QQSlurm
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
@@ -534,7 +535,7 @@ def test_qqslurm_sync_selected_delegates(mock_sync):
 
 
 @patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_unfinished_batch_jobs_returns_sorted(mock_squeue):
+def test_qqslurm_get_unfinished_batch_jobs(mock_squeue):
     mock_job1 = MagicMock()
     mock_job2 = MagicMock()
     mock_job1.getId.return_value = "2"
@@ -544,12 +545,12 @@ def test_qqslurm_get_unfinished_batch_jobs_returns_sorted(mock_squeue):
     result = QQSlurm.getUnfinishedBatchJobs("user1")
 
     mock_squeue.assert_called_once_with('squeue -u user1 -t PENDING,RUNNING -h -o "%i"')
-    assert result == [mock_job2, mock_job1]
+    assert set(result) == {mock_job1, mock_job2}
 
 
 @patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSacctCommand")
 @patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_batch_jobs_combines_and_sorts(mock_squeue, mock_sacct):
+def test_qqslurm_get_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct_job = MagicMock()
     mock_sacct_job.getId.return_value = "2"
     mock_squeue_job = MagicMock()
@@ -561,11 +562,11 @@ def test_qqslurm_get_batch_jobs_combines_and_sorts(mock_squeue, mock_sacct):
 
     mock_sacct.assert_called_once()
     mock_squeue.assert_called_once()
-    assert result == [mock_squeue_job, mock_sacct_job]
+    assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
 @patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_all_unfinished_batch_jobs_returns_sorted(mock_squeue):
+def test_qqslurm_get_all_unfinished_batch_jobs(mock_squeue):
     mock_job1 = MagicMock()
     mock_job2 = MagicMock()
     mock_job1.getId.return_value = "3"
@@ -575,12 +576,12 @@ def test_qqslurm_get_all_unfinished_batch_jobs_returns_sorted(mock_squeue):
     result = QQSlurm.getAllUnfinishedBatchJobs()
 
     mock_squeue.assert_called_once_with('squeue -t PENDING,RUNNING -h -o "%i"')
-    assert result == [mock_job2, mock_job1]
+    assert set(result) == {mock_job1, mock_job2}
 
 
 @patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSacctCommand")
 @patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_all_batch_jobs_combines_and_sorts(mock_squeue, mock_sacct):
+def test_qqslurm_get_all_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct_job = MagicMock()
     mock_sacct_job.getId.return_value = "5"
     mock_squeue_job = MagicMock()
@@ -592,7 +593,7 @@ def test_qqslurm_get_all_batch_jobs_combines_and_sorts(mock_squeue, mock_sacct):
 
     mock_sacct.assert_called_once()
     mock_squeue.assert_called_once()
-    assert result == [mock_squeue_job, mock_sacct_job]
+    assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
 @patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
@@ -685,3 +686,37 @@ def test_qqslurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run
     mock_guard.assert_called_once_with(res, {})
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "ids,expected_order",
+    [
+        (["2", "1", "3"], ["1", "2", "3"]),
+        (["10_1", "2", "10_0"], ["2", "10_0", "10_1"]),
+        (["1_2_3", "1_1_9", "1_10_0"], ["1_1_9", "1_2_3", "1_10_0"]),
+    ],
+)
+def test_qq_slurm_sort_jobs_sorts_by_ids_for_sorting(ids, expected_order):
+    jobs = []
+    for job_id in ids:
+        job = SlurmJob.__new__(SlurmJob)
+        job._job_id = job_id
+        jobs.append(job)
+
+    QQSlurm.sortJobs(jobs)
+
+    result = [job.getId() for job in jobs]
+    assert result == expected_order
+
+
+def test_qq_slurm_sort_jobs_handles_zero_sort_keys():
+    job_valid = SlurmJob.__new__(SlurmJob)
+    job_valid._job_id = "1"
+    job_invalid = SlurmJob.__new__(SlurmJob)
+    job_invalid._job_id = "abc"
+
+    jobs = [job_valid, job_invalid]
+    QQSlurm.sortJobs(jobs)
+
+    result = [job.getId() for job in jobs]
+    assert result == ["abc", "1"]

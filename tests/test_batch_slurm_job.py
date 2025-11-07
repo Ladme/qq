@@ -817,3 +817,26 @@ def test_slurm_job_assign_if_allocated_falls_back_to_zero_when_req_missing():
     info = {"AllocCPUs": "0"}
     SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
     assert info["NumCPUs"] == "0"
+
+
+@pytest.mark.parametrize(
+    "job_id,expected",
+    [
+        ("123", [123]),
+        ("123.server.org", [123]),
+        ("123_45", [123, 45]),
+        ("123_45_6.server.org", [123, 45, 6]),
+        ("9x", [9]),
+    ],
+)
+def test_slurm_job_get_ids_for_sorting_returns_correct_groups(job_id, expected):
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = job_id
+    assert job.getIdsForSorting() == expected
+
+
+@pytest.mark.parametrize("job_id", ["abc123", "_123", "", "x_y_z"])
+def test_slurm_job_get_ids_for_sorting_returns_zero_for_invalid(job_id):
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = job_id
+    assert job.getIdsForSorting() == [0]

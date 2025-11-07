@@ -85,11 +85,12 @@ def test_jobs_command_unfinished_shows_jobs(parsed_jobs):
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
+        patch.object(QQPBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)
 
         assert result.exit_code == 0
-
+        mock_sort.assert_called_once()
         output = result.output
 
         for job in parsed_jobs:
@@ -109,10 +110,12 @@ def test_jobs_command_all_flag_shows_all_jobs(parsed_jobs):
             "getUnfinishedBatchJobs",
             side_effect=Exception("getUnfinishedBatchJobs should not be called"),
         ),
+        patch.object(QQPBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, ["--all"], catch_exceptions=False)
 
         assert result.exit_code == 0
+        mock_sort.assert_called_once()
         output = result.output
 
         for job in parsed_jobs:
@@ -132,10 +135,12 @@ def test_jobs_command_yaml_flag_outputs_yaml(parsed_jobs):
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
+        patch.object(QQPBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, ["--yaml"], catch_exceptions=False)
 
         assert result.exit_code == 0
+        mock_sort.assert_called_once()
         output = result.output
 
         for job in parsed_jobs:
@@ -157,8 +162,10 @@ def test_jobs_command_no_jobs():
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
+        patch.object(QQPBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)
 
         assert result.exit_code == 0
         assert "No jobs found." in result.output
+        mock_sort.assert_not_called()

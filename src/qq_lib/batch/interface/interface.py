@@ -184,6 +184,8 @@ class QQBatchInterface[
         """
         Retrieve information about all unfinished jobs submitted by `user`.
 
+        The jobs can be returned in arbitrary order.
+
         Args:
             user (str): Username for which to fetch unfinished jobs.
 
@@ -198,6 +200,8 @@ class QQBatchInterface[
     def getBatchJobs(user: str) -> list[TBatchJob]:
         """
         Retrieve information about all jobs submitted by a specific user (including finished jobs).
+
+        The jobs can be returned in arbitrary order.
 
         Args:
             user (str): Username for which to fetch all jobs.
@@ -214,6 +218,8 @@ class QQBatchInterface[
         """
         Retrieve information about unfinished jobs of all users.
 
+        The jobs can be returned in arbitrary order.
+
         Returns:
             list[TBatchJob]: A list of job info objects representing unfinished jobs of all users.
         """
@@ -225,6 +231,8 @@ class QQBatchInterface[
     def getAllBatchJobs() -> list[TBatchJob]:
         """
         Retrieve information about all jobs of all users.
+
+        The jobs can be returned in arbitrary order.
 
         Returns:
             list[TBatchJob]: A list of job info objects representing all jobs of all users.
@@ -686,6 +694,21 @@ class QQBatchInterface[
             raise QQError(
                 f"Could not resubmit the job on '{input_machine}': {result.stderr.strip()}."
             )
+
+    @staticmethod
+    def sortJobs(jobs: list[TBatchJob]) -> None:
+        """
+        Sort a list of batch system jobs by a defined attribute.
+
+        The default implementation sorts the jobs alphabetically by their job ID,
+        as returned by `job.getId()`. Subclasses may override this method to
+        implement custom sorting logic.
+
+        Args:
+            jobs (list[TBatchJob]): A list of batch job objects to be sorted
+                in-place.
+        """
+        jobs.sort(key=lambda job: job.getId())
 
     @staticmethod
     def _translateSSHCommand(host: str, directory: Path) -> list[str]:

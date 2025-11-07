@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -370,6 +371,27 @@ class SlurmJob(BatchJobInterface):
         SlurmJob._assignIfAllocated(info, "AllocNodes", "ReqNodes", "NumNodes")
 
         return SlurmJob.fromDict(info["JobId"], info)
+
+    def getIdsForSorting(self) -> list[int]:
+        """
+        Extract numeric components of the job ID for sorting.
+
+        The method retrieves the leading numeric portion of the job ID, which may
+        contain multiple integer groups separated by underscores. Parsing stops
+        when a non-digit and non-underscore character is encountered.
+
+        Returns:
+            list[int]: A list of integer components extracted from the job ID,
+                or [0] if no valid numeric portion is found.
+        """
+        # get the numerical portion of the job ID (may contain underscores)
+        match = re.match(r"(\d+(?:_\d+)*)", self.getId())
+        if not match:
+            return [0]
+
+        # split the matched portion into digit groups
+        groups = match.group(1).split("_")
+        return [int(g) for g in groups]
 
     @staticmethod
     def _expandNodeList(compact: str) -> list[str]:

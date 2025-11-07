@@ -590,3 +590,31 @@ def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
 
     assert captured["cmd"][0:2] == ["df", "-l"]
     assert Path(captured["cmd"][2]) == tmp_path
+
+
+class DummyJob:
+    def __init__(self, job_id):
+        self._id = job_id
+
+    def getId(self):
+        return self._id
+
+
+def test_qqbatchinterface_sort_jobs_sorts_by_id():
+    jobs = [DummyJob("c"), DummyJob("a"), DummyJob("b")]
+    QQBatchInterface.sortJobs(jobs)
+    ids = [job.getId() for job in jobs]
+    assert ids == ["a", "b", "c"]
+
+
+def test_qqbatchinterface_sort_jobs_with_numeric_ids():
+    jobs = [DummyJob("10"), DummyJob("2"), DummyJob("1")]
+    QQBatchInterface.sortJobs(jobs)
+    ids = [job.getId() for job in jobs]
+    assert ids == ["1", "10", "2"]
+
+
+def test_qqbatchinterface_sort_jobs_empty_list():
+    jobs = []
+    QQBatchInterface.sortJobs(jobs)
+    assert jobs == []

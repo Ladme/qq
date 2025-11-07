@@ -390,6 +390,11 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             input_machine=input_machine, input_dir=input_dir, command_line=command_line
         )
 
+    def sortJobs(jobs: list[PBSJob]) -> None:
+        # jobs with invalid ID get assigned an ID of 0 for sorting => they are sorted to the start
+        # and therefore are displayed at the top in the qq jobs / qq stat output
+        jobs.sort(key=lambda job: job.getIdInt() or 0)
+
     @staticmethod
     def _sharedGuard(res: QQResources, env_vars: dict[str, str]) -> None:
         """

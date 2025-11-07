@@ -121,10 +121,7 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         command = f'squeue -u {user} -t PENDING,RUNNING -h -o "%i"'
         logger.debug(command)
 
-        return sorted(
-            QQSlurm._getBatchJobsUsingSqueueCommand(command),
-            key=lambda x: x.getId(),
-        )
+        return QQSlurm._getBatchJobsUsingSqueueCommand(command)
 
     def getBatchJobs(user: str) -> list[SlurmJob]:
         # get all jobs, except pending which are not available from sacct
@@ -139,16 +136,13 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         squeue_jobs = QQSlurm._getBatchJobsUsingSqueueCommand(command)
 
-        return sorted(sacct_jobs + squeue_jobs, key=lambda x: x.getId())
+        return sacct_jobs + squeue_jobs
 
     def getAllUnfinishedBatchJobs() -> list[SlurmJob]:
         command = 'squeue -t PENDING,RUNNING -h -o "%i"'
         logger.debug(command)
 
-        return sorted(
-            QQSlurm._getBatchJobsUsingSqueueCommand(command),
-            key=lambda x: x.getId(),
-        )
+        return QQSlurm._getBatchJobsUsingSqueueCommand(command)
 
     def getAllBatchJobs() -> list[SlurmJob]:
         # get all jobs, except pending which are not available from sacct
@@ -163,7 +157,7 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         squeue_jobs = QQSlurm._getBatchJobsUsingSqueueCommand(command)
 
-        return sorted(sacct_jobs + squeue_jobs, key=lambda x: x.getId())
+        return sacct_jobs + squeue_jobs
 
     def getQueues() -> list[SlurmQueue]:
         raise NotImplementedError(
@@ -220,6 +214,9 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         QQBatchInterface.resubmit(
             input_machine=input_machine, input_dir=input_dir, command_line=command_line
         )
+
+    def sortJobs(jobs: list[SlurmJob]) -> None:
+        jobs.sort(key=lambda job: job.getIdsForSorting())
 
     @staticmethod
     def _translateKill(job_id: str) -> str:

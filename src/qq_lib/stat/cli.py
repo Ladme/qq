@@ -44,6 +44,7 @@ def stat(all: bool, yaml: bool) -> NoReturn:
             logger.info("No jobs found.")
             sys.exit(0)
 
+        BatchSystem.sortJobs(jobs)
         presenter = QQJobsPresenter(jobs)
         if yaml:
             presenter.dumpYaml()

@@ -6,6 +6,7 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -713,3 +714,34 @@ def test_pbs_job_get_account():
         {"Submit_Host": "random.machine.org", "account": "fake-account"}
     )
     assert job.getAccount() is None
+
+
+@pytest.mark.parametrize(
+    "job_id,expected",
+    [
+        ("1234.server", 1234),
+        ("0007.host", 7),
+        ("9", 9),
+        ("42abc", 42),
+        ("12345678[]", 12345678),
+        ("12345678[].fake.server.org", 12345678),
+    ],
+)
+def test_pbs_job_get_id_int(job_id, expected):
+    job = PBSJob.__new__(PBSJob)
+    job._job_id = job_id
+    assert job.getIdInt() == expected
+
+
+@pytest.mark.parametrize("job_id", ["abc123", "", "!@#"])
+def test_pbs_job_get_id_int_returns_none_for_invalid(job_id):
+    job = PBSJob.__new__(PBSJob)
+    job._job_id = job_id
+    assert job.getIdInt() is None
+
+
+def test_pbs_job_get_id_int_returns_none_on_conversion_failure():
+    job = PBSJob.__new__(PBSJob)
+    job._job_id = "123x"
+    with patch("qq_lib.batch.pbs.job.re.match", return_value=None):
+        assert job.getIdInt() is None

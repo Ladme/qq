@@ -1276,3 +1276,38 @@ def test_qqpbs_get_job_id_returns_none_when_missing():
     with patch.dict(os.environ, {}, clear=True):
         result = QQPBS.getJobId()
     assert result is None
+
+
+@pytest.mark.parametrize(
+    "ids,expected_order",
+    [
+        (["3.server", "1.server", "2.server"], ["1.server", "2.server", "3.server"]),
+        (["10.server", "2.server", "1.server"], ["1.server", "2.server", "10.server"]),
+    ],
+)
+def test_qq_pbs_sort_jobs_sorts_by_id_int(ids, expected_order):
+    jobs = []
+    for job_id in ids:
+        job = PBSJob.__new__(PBSJob)
+        job._job_id = job_id
+        jobs.append(job)
+
+    QQPBS.sortJobs(jobs)
+
+    result = [job.getId() for job in jobs]
+    assert result == expected_order
+
+
+def test_qq_pbs_sort_jobs_handles_none_values(monkeypatch):
+    # jobs returning None from getIdInt should sort to the beginning
+    job_valid = PBSJob.__new__(PBSJob)
+    job_valid._job_id = "1.server"
+    job_none = PBSJob.__new__(PBSJob)
+    job_none._job_id = "abc"
+    monkeypatch.setattr(job_none, "getIdInt", lambda: None)
+
+    jobs = [job_valid, job_none]
+    QQPBS.sortJobs(jobs)
+
+    result = [job.getId() for job in jobs]
+    assert result == ["abc", "1.server"]

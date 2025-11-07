@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -315,6 +316,17 @@ class PBSJob(BatchJobInterface):
         job_info._info = info
 
         return job_info
+
+    def getIdInt(self) -> int | None:
+        """
+        Extract the leading numeric portion of the job ID and return it as an integer.
+
+        Returns:
+            int | None: The integer value of the leading digits in the job ID,
+            or `None` if no valid digits are found or conversion fails.
+        """
+        match = re.match(r"\d+", self.getId())
+        return int(match.group()) if match else None
 
     def _getEnvVars(self) -> dict[str, str] | None:
         if not (variable_list := self._info.get("Variable_List")):

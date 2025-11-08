@@ -402,7 +402,7 @@ class QQPresenter:
                 elif len(all_nodes) == 1:
                     nodes = f"'{main_node}'"
                 else:
-                    nodes = f"'{main_node}' and {len(all_nodes) - 1} other nodes"
+                    nodes = f"'{main_node}' and {len(all_nodes) - 1} other node{'s' if len(all_nodes) > 2 else ''}"
                 return (
                     "Job is running",
                     f"Running for {format_duration_wdhhmmss(end_time - start_time)} on {nodes}",

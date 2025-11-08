@@ -13,10 +13,10 @@ from qq_lib.batch.interface import QQBatchInterface
 from qq_lib.batch.pbs import QQPBS, PBSJob
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.qqpbs import CFG
+from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import QQResources
-from qq_lib.properties.size import Size
 
 
 @pytest.fixture
@@ -891,7 +891,7 @@ def test_translate_submit_complex_with_depend():
 def test_transform_resources_input_dir_warns_and_sets_work_dir():
     provided = QQResources(work_dir="input_dir", work_size="10gb")
     with (
-        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
         patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.qqpbs.logger.warning") as mock_warning,
@@ -910,7 +910,7 @@ def test_transform_resources_input_dir_warns_and_sets_work_dir():
 def test_transform_resources_job_dir_warns_and_sets_work_dir():
     provided = QQResources(work_dir="input_dir", work_size="10gb")
     with (
-        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
         patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.qqpbs.logger.warning") as mock_warning,
@@ -929,7 +929,7 @@ def test_transform_resources_job_dir_warns_and_sets_work_dir():
 def test_transform_resources_scratch_shm_warns_and_clears_work_size():
     provided = QQResources(work_dir="scratch_shm", work_size="10gb")
     with (
-        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
         patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.qqpbs.logger.warning") as mock_warning,
@@ -950,9 +950,7 @@ def test_transform_resources_supported_scratch():
     for scratch in QQPBS.SUPPORTED_SCRATCHES:
         provided = QQResources(work_dir=scratch, work_size="10gb")
         with (
-            patch.object(
-                QQPBS, "_getDefaultQueueResources", return_value=QQResources()
-            ),
+            patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
             patch.object(
                 QQPBS, "_getDefaultServerResources", return_value=QQResources()
             ),
@@ -971,9 +969,7 @@ def test_transform_resources_supported_scratch_unnormalized():
             work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
         )
         with (
-            patch.object(
-                QQPBS, "_getDefaultQueueResources", return_value=QQResources()
-            ),
+            patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
             patch.object(
                 QQPBS, "_getDefaultServerResources", return_value=QQResources()
             ),
@@ -992,7 +988,7 @@ def test_transform_resources_supported_scratch_unnormalized():
 def test_transform_resources_unknown_work_dir_raises():
     provided = QQResources(work_dir="unknown_scratch")
     with (
-        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
         patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         pytest.raises(QQError, match="Unknown working directory type specified"),
@@ -1003,7 +999,7 @@ def test_transform_resources_unknown_work_dir_raises():
 def test_transform_resources_missing_work_dir_raises():
     provided = QQResources(work_dir=None)
     with (
-        patch.object(QQPBS, "_getDefaultQueueResources", return_value=QQResources()),
+        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
         patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         pytest.raises(
@@ -1198,21 +1194,6 @@ def test_qqpbs_get_queues_multiple_queues(mock_run):
     assert mock_from_dict.call_count == 2
 
     assert result == ["queue_obj1", "queue_obj2"]
-
-
-@patch("qq_lib.batch.pbs.qqpbs.PBSQueue")
-def test_qqpbs_get_default_queue_resources_returns_resources(mock_pbsqueue):
-    mock_instance = MagicMock()
-    mock_instance.getDefaultResources.return_value = {"mem": "8gb", "ncpus": 4}
-    mock_pbsqueue.return_value = mock_instance
-
-    result = QQPBS._getDefaultQueueResources("gpu")
-    mock_pbsqueue.assert_called_once_with("gpu")
-    mock_instance.getDefaultResources.assert_called_once()
-
-    assert isinstance(result, QQResources)
-    assert result.mem == Size(8, "gb")
-    assert result.ncpus == 4
 
 
 @patch("qq_lib.batch.pbs.qqpbs.subprocess.run")

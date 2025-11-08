@@ -3,6 +3,7 @@
 
 from dataclasses import fields
 
+from qq_lib.core.common import dhhmmss_to_duration, format_duration_wdhhmmss
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import QQResources
 
@@ -62,6 +63,12 @@ def default_resources_from_dict(res: dict[str, str]) -> QQResources:
 
         converted_key = converter.get(key, key)
         if converted_key in field_names:
+            if converted_key in {"mem_per_cpu", "mem"} and value.isnumeric():
+                # default unit for Slurm sizes is MB
+                value += "mb"
+            if converted_key == "walltime":
+                # convert to duration format understandable to qq
+                value = format_duration_wdhhmmss(dhhmmss_to_duration(value))
             converted_resources[converted_key] = value
 
     return QQResources(**converted_resources)

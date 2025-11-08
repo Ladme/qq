@@ -108,7 +108,7 @@ class QQQueuesPresenter:
         )
         table.add_column(
             header=Text(
-                BatchState.QUEUED.toCode(),
+                f"{BatchState.QUEUED.toCode()}{BatchState.HELD.toCode()}",
                 justify="right",
                 style=CFG.state_colors.queued,
             ),
@@ -224,7 +224,7 @@ class QQQueuesPresenter:
         table.add_row(
             Text(mark, style=mark_style),
             Text(queue.getName(), style=text_style),
-            Text(str(queue.getPriority() or ""), style=text_style),
+            Text(queue.getPriority() or "", style=text_style),
             Text(str(queue.getRunningJobs()), style=CFG.state_colors.running),
             Text(str(queue.getQueuedJobs()), style=CFG.state_colors.queued),
             Text(str(queue.getOtherJobs()), style=CFG.state_colors.other),

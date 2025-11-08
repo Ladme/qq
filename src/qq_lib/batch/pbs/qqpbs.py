@@ -317,7 +317,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
     def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
         # default resources of the queue
-        default_queue_resources = QQPBS._getDefaultQueueResources(queue)
+        default_queue_resources = PBSQueue(queue).getDefaultResources()
         # default hard-coded resources
         default_batch_resources = QQPBS._getDefaultServerResources()
 
@@ -664,20 +664,6 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             work_size_per_cpu="1gb",
             walltime="1d",
         )
-
-    @staticmethod
-    def _getDefaultQueueResources(queue: str) -> QQResources:
-        """
-        Query PBS for the default resources of a given queue.
-
-        Args:
-            queue (str): The name of the PBS queue to query.
-
-        Returns:
-            QQResources: A QQResources object populated with the queue's default resources.
-                        If the queue cannot be queried or an error occurs, returns an empty QQResources object.
-        """
-        return QQResources(**PBSQueue(queue).getDefaultResources())
 
     @staticmethod
     def _translateKillForce(job_id: str) -> str:

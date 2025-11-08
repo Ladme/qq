@@ -298,14 +298,34 @@ def test_slurm_job_get_name_returns_placeholder_and_logs_warning(mock_warning):
 
 def test_slurm_job_get_ncpus_returns_integer_value():
     job = SlurmJob.__new__(SlurmJob)
-    job._info = {"NumCPUs": "16"}
+    job._info = {"NumCPUs": "16", "MinCPUsNode": "8", "NumNodes": "2"}
     assert job.getNCPUs() == 16
 
 
 def test_slurm_job_get_ncpus_returns_min_value_when_range():
     job = SlurmJob.__new__(SlurmJob)
-    job._info = {"NumCPUs": "8-32"}
+    job._info = {"NumCPUs": "8-32", "MinCPUsNode": "8", "NumNodes": "1"}
     assert job.getNCPUs() == 8
+
+
+def test_slurm_job_get_ncpus_min_cpus_not_defined():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "321"
+    job._info = {"NumCPUs": "16", "NumNodes": "2"}
+    assert job.getNCPUs() == 16
+
+
+def test_slurm_job_get_ncpus_nnodes_not_defined():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "321"
+    job._info = {"NumCPUs": "16", "MinCPUsNode": "8"}
+    assert job.getNCPUs() == 16
+
+
+def test_slurm_job_get_ncpus_returns_min_cpus_if_higher():
+    job = SlurmJob.__new__(SlurmJob)
+    job._info = {"NumCPUs": "1", "MinCPUsNode": "8", "NumNodes": "2"}
+    assert job.getNCPUs() == 16
 
 
 def test_slurm_job_get_ncpus_returns_zero_when_invalid_value():

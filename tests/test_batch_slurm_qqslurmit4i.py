@@ -84,126 +84,126 @@ def test_qqslurmit4i_get_default_server_resources_returns_empty_on_failure(
 
 @patch("qq_lib.batch.slurmit4i.qqslurm.subprocess.run")
 @patch("qq_lib.batch.slurmit4i.qqslurm.os.chdir")
-@patch(
-    "qq_lib.batch.slurmit4i.qqslurm.Path.cwd", return_value=Path("/home/user/current")
-)
-def test_qqslurmit4i_resubmit_success(mock_cwd, mock_chdir, mock_run):
+def test_qqslurmit4i_resubmit_success(mock_chdir, mock_run):
     mock_run.return_value = MagicMock(returncode=0)
     QQSlurmIT4I.resubmit(
         input_dir=Path("/home/user/jobdir"), command_line=["-q", "default"]
     )
-    mock_cwd.assert_called_once()
-    mock_chdir.assert_any_call(Path("/home/user/jobdir"))
-    mock_chdir.assert_any_call(Path("/home/user/current"))
+    mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
     mock_run.assert_called_once()
 
 
 @patch("qq_lib.batch.slurmit4i.qqslurm.os.chdir", side_effect=OSError("failed to cd"))
-@patch(
-    "qq_lib.batch.slurmit4i.qqslurm.Path.cwd", return_value=Path("/home/user/current")
-)
-def test_qqslurmit4i_resubmit_raises_when_cannot_cd(mock_cwd, mock_chdir):
+def test_qqslurmit4i_resubmit_raises_when_cannot_cd(mock_chdir):
     with pytest.raises(QQError, match="Could not navigate to"):
         QQSlurmIT4I.resubmit(
             input_dir=Path("/home/user/jobdir"), command_line=["-q", "default"]
         )
-    mock_cwd.assert_called_once()
     mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
 
 
 @patch("qq_lib.batch.slurmit4i.qqslurm.subprocess.run")
 @patch("qq_lib.batch.slurmit4i.qqslurm.os.chdir")
-@patch(
-    "qq_lib.batch.slurmit4i.qqslurm.Path.cwd", return_value=Path("/home/user/current")
-)
-def test_qqslurmit4i_resubmit_raises_when_command_fails(mock_cwd, mock_chdir, mock_run):
+def test_qqslurmit4i_resubmit_raises_when_command_fails(mock_chdir, mock_run):
     mock_run.return_value = MagicMock(returncode=1, stderr="execution failed")
     with pytest.raises(QQError):
         QQSlurmIT4I.resubmit(
             input_dir=Path("/home/user/jobdir"), command_line=["-q", "default"]
         )
-    mock_cwd.assert_called_once()
-    mock_chdir.assert_any_call(Path("/home/user/jobdir"))
-    mock_chdir.assert_any_call(Path("/home/user/current"))
-
-
-@patch(
-    "qq_lib.batch.slurmit4i.qqslurm.subprocess.run",
-    return_value=MagicMock(returncode=0),
-)
-@patch(
-    "qq_lib.batch.slurmit4i.qqslurm.os.chdir",
-    side_effect=[None, OSError("cannot go back")],
-)
-@patch(
-    "qq_lib.batch.slurmit4i.qqslurm.Path.cwd", return_value=Path("/home/user/current")
-)
-@patch("qq_lib.batch.slurmit4i.qqslurm.logger.warning")
-def test_qqslurmit4i_resubmit_warns_when_cannot_return(
-    mock_warn, mock_cwd, mock_chdir, mock_run
-):
-    QQSlurmIT4I.resubmit(input_dir=Path("/home/user/jobdir"), command_line=["ok.sh"])
-    mock_cwd.assert_called_once()
-    assert mock_chdir.call_count == 2
-    mock_chdir.assert_any_call(Path("/home/user/jobdir"))
-    mock_chdir.assert_any_call(Path("/home/user/current"))
-    mock_run.assert_called_once()
-    mock_warn.assert_called_once()
+    mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
 
 
 def test_qqslurmit4i_is_shared_returns_true():
     assert QQSlurmIT4I.isShared(Path.cwd())
 
 
+@patch("qq_lib.batch.slurmit4i.qqslurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.qqslurm.QQSlurmIT4I._getDefaultServerResources",
     return_value=QQResources(),
 )
-def test_qqslurmit4i_transform_resources_valid_work_dir_scratch(mock_get_defaults):
+def test_qqslurmit4i_transform_resources_valid_work_dir_scratch(
+    mock_get_defaults, mock_queue
+):
+    mock_instance = MagicMock()
+    mock_queue.return_value = mock_instance
+    mock_instance.getDefaultResources.return_value = QQResources()
+
     provided = QQResources(work_dir="scratch")
     result = QQSlurmIT4I.transformResources("default", provided)
+
     mock_get_defaults.assert_called_once()
+    mock_queue.assert_called_once_with("default")
+    mock_instance.getDefaultResources.assert_called_once()
     assert result.work_dir == "scratch"
 
 
+@patch("qq_lib.batch.slurmit4i.qqslurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.qqslurm.QQSlurmIT4I._getDefaultServerResources",
     return_value=QQResources(),
 )
-def test_qqslurmit4i_transform_resources_raises_when_no_work_dir(mock_get_defaults):
+def test_qqslurmit4i_transform_resources_raises_when_no_work_dir(
+    mock_get_defaults, mock_queue
+):
+    mock_instance = MagicMock()
+    mock_queue.return_value = mock_instance
+    mock_instance.getDefaultResources.return_value = QQResources()
+
     provided = QQResources()
     with pytest.raises(
         QQError, match="Work-dir is not set after filling in default attributes"
     ):
         QQSlurmIT4I.transformResources("default", provided)
+
     mock_get_defaults.assert_called_once()
+    mock_queue.assert_called_once_with("default")
+    mock_instance.getDefaultResources.assert_called_once()
 
 
 @patch("qq_lib.batch.slurmit4i.qqslurm.logger.warning")
+@patch("qq_lib.batch.slurmit4i.qqslurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.qqslurm.QQSlurmIT4I._getDefaultServerResources",
     return_value=QQResources(),
 )
 def test_qqslurmit4i_transform_resources_warns_when_work_size_set(
-    mock_get_defaults, mock_warn
+    mock_get_defaults, mock_queue, mock_warn
 ):
+    mock_instance = MagicMock()
+    mock_queue.return_value = mock_instance
+    mock_instance.getDefaultResources.return_value = QQResources()
+
     provided = QQResources(work_dir="scratch", work_size=Size(10, "gb"))
     QQSlurmIT4I.transformResources("default", provided)
+
     mock_warn.assert_called_once()
     mock_get_defaults.assert_called_once()
+    mock_queue.assert_called_once_with("default")
+    mock_instance.getDefaultResources.assert_called_once()
 
 
+@patch("qq_lib.batch.slurmit4i.qqslurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.qqslurm.QQSlurmIT4I._getDefaultServerResources",
     return_value=QQResources(),
 )
-def test_qqslurmit4i_transform_resources_raises_for_unknown_work_dir(mock_get_defaults):
+def test_qqslurmit4i_transform_resources_raises_for_unknown_work_dir(
+    mock_get_defaults, mock_queue
+):
+    mock_instance = MagicMock()
+    mock_queue.return_value = mock_instance
+    mock_instance.getDefaultResources.return_value = QQResources()
+
     provided = QQResources(work_dir="nonsense")
     with pytest.raises(
         QQError, match="Unknown working directory type specified: work-dir"
     ):
         QQSlurmIT4I.transformResources("default", provided)
+
     mock_get_defaults.assert_called_once()
+    mock_queue.assert_called_once_with("default")
+    mock_instance.getDefaultResources.assert_called_once()
 
 
 @patch("qq_lib.batch.slurmit4i.qqslurm.QQBatchInterface.syncWithExclusions")

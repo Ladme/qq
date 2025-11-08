@@ -14,6 +14,7 @@ from qq_lib.batch.slurm.common import (
     default_resources_from_dict,
     parse_slurm_dump_to_dictionary,
 )
+from qq_lib.batch.slurm.queue import SlurmQueue
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -124,8 +125,7 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
 
     def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
         # default resources of the queue
-        # TODO: replace with queue default properties
-        default_queue_resources = QQResources()
+        default_queue_resources = SlurmQueue(queue).getDefaultResources()
         # default server or hard-coded resources
         default_batch_resources = QQSlurmIT4I._getDefaultServerResources()
 
@@ -165,7 +165,6 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
 
         logger.debug(f"Navigating to '{input_dir}' to execute '{qq_submit_command}'.")
-        working_directory = Path.cwd()
         try:
             os.chdir(input_dir)
         except Exception as e:
@@ -173,6 +172,7 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
                 f"Could not resubmit the job. Could not navigate to '{input_dir}': {e}."
             ) from e
 
+        logger.debug(f"Navigated to {input_dir}.")
         result = subprocess.run(
             ["bash"],
             input=qq_submit_command,
@@ -181,14 +181,6 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
             capture_output=True,
             errors="replace",
         )
-
-        # move back to the working directory
-        try:
-            os.chdir(working_directory)
-        except Exception as e:
-            logger.warning(
-                f"Could not move back to the working directory '{working_directory}' after resubmitting: {e}."
-            )
 
         if result.returncode != 0:
             raise QQError(f"Could not resubmit the job: {result.stderr.strip()}.")

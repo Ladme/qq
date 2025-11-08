@@ -58,7 +58,7 @@ def test_qqqueues_presenter_add_queue_row_main_available():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = True
     queue.getName.return_value = "mainq"
-    queue.getPriority.return_value = 47
+    queue.getPriority.return_value = "47"
     queue.getRunningJobs.return_value = 5
     queue.getQueuedJobs.return_value = 3
     queue.getOtherJobs.return_value = 2
@@ -88,7 +88,7 @@ def test_qqqueues_presenter_add_queue_row_main_unavailable():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = False
     queue.getName.return_value = "main_unavail"
-    queue.getPriority.return_value = 0
+    queue.getPriority.return_value = "0"
     queue.getRunningJobs.return_value = 0
     queue.getQueuedJobs.return_value = 1
     queue.getOtherJobs.return_value = 0
@@ -115,7 +115,7 @@ def test_qqqueues_presenter_add_queue_row_rerouted_available():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = True
     queue.getName.return_value = "reroutedq"
-    queue.getPriority.return_value = 7
+    queue.getPriority.return_value = "7"
     queue.getRunningJobs.return_value = 2
     queue.getQueuedJobs.return_value = 4
     queue.getOtherJobs.return_value = 1
@@ -145,7 +145,7 @@ def test_qqqueues_presenter_add_queue_row_rerouted_unavailable():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = False
     queue.getName.return_value = "rerouted_blocked"
-    queue.getPriority.return_value = 3
+    queue.getPriority.return_value = "3"
     queue.getRunningJobs.return_value = 0
     queue.getQueuedJobs.return_value = 0
     queue.getOtherJobs.return_value = 0
@@ -172,7 +172,7 @@ def test_qqqueues_presenter_add_queue_row_dangling():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = True
     queue.getName.return_value = "danglingq"
-    queue.getPriority.return_value = 11
+    queue.getPriority.return_value = "T7 (3)"
     queue.getRunningJobs.return_value = 1
     queue.getQueuedJobs.return_value = 1
     queue.getOtherJobs.return_value = 1
@@ -189,7 +189,7 @@ def test_qqqueues_presenter_add_queue_row_dangling():
     output = buffer.getvalue()
 
     assert "danglingq" in output
-    assert "11" in output
+    assert "T7 (3)" in output
     assert "1" in output
     assert "3" in output
     assert "Dangling dest" in output
@@ -202,7 +202,7 @@ def _make_queue(
     from_route_only: bool = False,
     destinations: list[str] | None = None,
     available_to: bool = True,
-    priority: int | None = 10,
+    priority: str | None = "10",
     running: int = 1,
     queued: int = 2,
     other: int = 3,

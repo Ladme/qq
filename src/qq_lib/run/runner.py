@@ -572,6 +572,9 @@ class QQRunner:
             return
 
         logger.info("Resubmitting the job.")
+        logger.debug(
+            f"Resubmitting using the batch system '{str(self._batch_system)}'."
+        )
 
         QQRetryer(
             self._batch_system.resubmit,

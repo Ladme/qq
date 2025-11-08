@@ -170,7 +170,13 @@ class SlurmJob(BatchJobInterface):
         return name
 
     def getNCPUs(self) -> int:
-        return self._getIntProperty("NumCPUs", "the number of CPUs")
+        min_cpus = (
+            self._getIntProperty("MinCPUsNode", "the minimum number of CPUs per node")
+            * self.getNNodes()
+        )
+        cpus = self._getIntProperty("NumCPUs", "the number of CPUs")
+
+        return max(min_cpus, cpus)
 
     def getNGPUs(self) -> int:
         tres = self._getTres()

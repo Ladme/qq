@@ -4,6 +4,8 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
 
+from qq_lib.properties.resources import QQResources
+
 
 class BatchQueueInterface(ABC):
     """
@@ -35,12 +37,12 @@ class BatchQueueInterface(ABC):
         pass
 
     @abstractmethod
-    def getPriority(self) -> int | None:
+    def getPriority(self) -> str | None:
         """
         Retrieve the scheduling priority of the queue.
 
         Returns:
-            int | None: The queue priority, or None if priority information
+            str | None: The queue priority, or None if priority information
             is not available.
         """
         pass
@@ -151,14 +153,11 @@ class BatchQueueInterface(ABC):
         pass
 
     @abstractmethod
-    def getDefaultResources(self) -> dict[str, str]:
+    def getDefaultResources(self) -> QQResources:
         """
         Return the default resource definitions for this queue.
 
-        The returned dictionary specifies default resource values
-        that can be used to construct a `QQResources` object.
-
         Returns:
-            dict[str, str]: A mapping of resource names to their default values.
+            QQResources: Default resources allocated for jobs submitted to this queue.
         """
         pass

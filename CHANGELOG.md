@@ -11,6 +11,7 @@
 - When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of qq info.
 - Fixed current cycle identification in loop jobs. Only a partial match in archived files is now required to consider them.
 - Jobs obtained using `qq jobs` and `qq stat` are now always sorted by job id.
+- The number of queued jobs presented in the output of `qq queues` now always includes the sum of queued and held jobs. The column title was changed to 'QH' to reflect this.
 
 ### Internal changes
 - Refactored loading of yaml Dumper and SafeLoader.

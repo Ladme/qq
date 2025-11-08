@@ -136,7 +136,9 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         squeue_jobs = QQSlurm._getBatchJobsUsingSqueueCommand(command)
 
-        return sacct_jobs + squeue_jobs
+        # filter out duplicate jobs
+        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        return list(merged.values())
 
     def getAllUnfinishedBatchJobs() -> list[SlurmJob]:
         command = 'squeue -t PENDING,RUNNING -h -o "%i"'
@@ -157,12 +159,34 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         squeue_jobs = QQSlurm._getBatchJobsUsingSqueueCommand(command)
 
-        return sacct_jobs + squeue_jobs
+        # filter out duplicate jobs
+        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        return list(merged.values())
 
     def getQueues() -> list[SlurmQueue]:
-        raise NotImplementedError(
-            "getQueues method is not implemented for this batch system implementation"
+        command = "scontrol show partition -o"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not retrieve information about queues: {result.stderr.strip()}."
+            )
+
+        queues = []
+        for line in result.stdout.splitlines():
+            info = parse_slurm_dump_to_dictionary(line)
+            queues.append(SlurmQueue.fromDict(info["PartitionName"], info))
+
+        return queues
 
     def getNodes() -> list[SlurmNode]:
         raise NotImplementedError(
@@ -281,7 +305,10 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         if env_vars:
             command += f"--export ALL,{QQSlurm._translateEnvVars(env_vars)} "
 
-        # handle per-chunk resources, incl. workdir
+        # handle number of nodes
+        command += f"--nodes {res.nnodes} "
+
+        # handle per-chunk resources
         translated = QQSlurm._translatePerChunkResources(res)
         command += " ".join(translated) + " "
 
@@ -369,7 +396,11 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         # translate per-chunk resources
         if res.ncpus:
-            trans_res.append(f"--mincpus={res.ncpus // res.nnodes}")
+            # we set MPI ranks and OpenMPI threads here, but these can be overriden
+            # in the body of the script
+            # this setup is here only to allow for better accounting by Slurm
+            trans_res.append("--ntasks-per-node=1")
+            trans_res.append(f"--cpus-per-task={res.ncpus // res.nnodes}")
 
         if res.mem:
             trans_res.append(f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}")

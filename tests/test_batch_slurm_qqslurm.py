@@ -229,7 +229,8 @@ def test_qqslurm_translate_per_chunk_resources_two_nodes():
     res.mem = Size(32, "gb")
     res.ngpus = 4
     result = QQSlurm._translatePerChunkResources(res)
-    assert "--mincpus=4" in result
+    assert "--ntasks-per-node=1" in result
+    assert "--cpus-per-task=4" in result
     assert f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}" in result
     assert "--gpus-per-node=2" in result
 
@@ -241,7 +242,8 @@ def test_qqslurm_translate_per_chunk_resources_single_node():
     res.mem = Size(16, "gb")
     res.ngpus = 2
     result = QQSlurm._translatePerChunkResources(res)
-    assert "--mincpus=4" in result
+    assert "--ntasks-per-node=1" in result
+    assert "--cpus-per-task=4" in result
     assert f"--mem={res.mem.toStrExactSlurm()}" in result
     assert "--gpus-per-node=2" in result
 
@@ -253,7 +255,8 @@ def test_qqslurm_translate_per_chunk_resources_multiple_nodes():
     res.mem = Size(50, "gb")
     res.ngpus = 5
     result = QQSlurm._translatePerChunkResources(res)
-    assert "--mincpus=2" in result
+    assert "--ntasks-per-node=1" in result
+    assert "--cpus-per-task=2" in result
     assert f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}" in result
     assert "--gpus-per-node=1" in result
 
@@ -351,7 +354,9 @@ def test_qqslurm_translate_submit_basic_command():
     assert f"-p {queue}" in command
     assert f"-e {input_dir / (job_name + '.qqout')}" in command
     assert f"-o {input_dir / (job_name + '.qqout')}" in command
-    assert f"--mincpus={res.ncpus // res.nnodes}" in command
+    assert f"--nodes {res.nnodes}" in command
+    assert "--ntasks-per-node=1" in command
+    assert f"--cpus-per-task={res.ncpus // res.nnodes}" in command
     assert f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}" in command
     assert f"--gpus-per-node={res.ngpus // res.nnodes}" in command
     assert f"--time={res.walltime}" in command
@@ -555,13 +560,14 @@ def test_qqslurm_get_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct_job.getId.return_value = "2"
     mock_squeue_job = MagicMock()
     mock_squeue_job.getId.return_value = "1"
-    mock_sacct.return_value = [mock_sacct_job]
+    mock_sacct.return_value = [mock_sacct_job, mock_squeue_job]
     mock_squeue.return_value = [mock_squeue_job]
 
     result = QQSlurm.getBatchJobs("user2")
 
     mock_sacct.assert_called_once()
     mock_squeue.assert_called_once()
+    assert len(result) == 2
     assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
@@ -587,12 +593,13 @@ def test_qqslurm_get_all_batch_jobs(mock_squeue, mock_sacct):
     mock_squeue_job = MagicMock()
     mock_squeue_job.getId.return_value = "2"
     mock_sacct.return_value = [mock_sacct_job]
-    mock_squeue.return_value = [mock_squeue_job]
+    mock_squeue.return_value = [mock_squeue_job, mock_sacct_job]
 
     result = QQSlurm.getAllBatchJobs()
 
     mock_sacct.assert_called_once()
     mock_squeue.assert_called_once()
+    assert len(result) == 2
     assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
@@ -720,3 +727,45 @@ def test_qq_slurm_sort_jobs_handles_zero_sort_keys():
 
     result = [job.getId() for job in jobs]
     assert result == ["abc", "1"]
+
+
+@patch("qq_lib.batch.slurm.qqslurm.SlurmQueue.fromDict")
+@patch("qq_lib.batch.slurm.qqslurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
+def test_qqslurm_get_queues(mock_run, mock_parse, mock_fromdict):
+    mock_run.return_value = MagicMock(
+        returncode=0,
+        stdout="PartitionName=default AllowGroups=ALL\nPartitionName=cpu AllowGroups=ALL",
+        stderr="",
+    )
+    mock_parse.side_effect = [
+        {"PartitionName": "default", "AllowGroups": "ALL"},
+        {"PartitionName": "cpu", "AllowGroups": "ALL"},
+    ]
+    mock_fromdict.side_effect = [
+        MagicMock(
+            _name="default", _info={"PartitionName": "default", "AllowGroups": "ALL"}
+        ),
+        MagicMock(_name="cpu", _info={"PartitionName": "cpu", "AllowGroups": "ALL"}),
+    ]
+    result = QQSlurm.getQueues()
+    assert len(result) == 2
+    assert result[0]._name == "default"
+    assert result[1]._name == "cpu"
+    mock_run.assert_called_once_with(
+        ["bash"],
+        input="scontrol show partition -o",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+    assert mock_parse.call_count == 2
+    assert mock_fromdict.call_count == 2
+
+
+@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
+def test_qqslurm_get_queues_scontrol_fails(mock_run):
+    mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="some error")
+    with pytest.raises(QQError, match="Could not retrieve information about queues"):
+        QQSlurm.getQueues()

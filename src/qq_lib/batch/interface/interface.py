@@ -337,6 +337,7 @@ class QQBatchInterface[
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 host,
@@ -377,6 +378,7 @@ class QQBatchInterface[
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"cat > {file}",
@@ -414,6 +416,7 @@ class QQBatchInterface[
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 # ignore an error if the directory already exists
@@ -455,6 +458,7 @@ class QQBatchInterface[
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"ls -A {directory}",
@@ -503,6 +507,7 @@ class QQBatchInterface[
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 mv_command,
@@ -681,6 +686,7 @@ class QQBatchInterface[
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 input_machine,
@@ -727,6 +733,7 @@ class QQBatchInterface[
         return [
             "ssh",
             "-o PasswordAuthentication=no",  # never ask for password
+            "-o GSSAPIAuthentication=yes",  # allow Kerberos tickets
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
@@ -821,7 +828,12 @@ class QQBatchInterface[
         # some files may potentially not be correctly synced if they were
         # modified in both src_dir and dest_dir at the same time and have
         # the same size -> this should be so extremely rare that we do not care
-        command = ["rsync", "-rltD"]
+        command = [
+            "rsync",
+            "-e",
+            "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",  # allow Kerberos tickets and never ask for password
+            "-rltD",
+        ]
         for file in relative_excluded:
             command.extend(["--exclude", str(file)])
 
@@ -861,7 +873,12 @@ class QQBatchInterface[
             list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
         """
 
-        command = ["rsync", "-rltD"]
+        command = [
+            "rsync",
+            "-e",
+            "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",  # allow Kerberos tickets and never ask for password
+            "-rltD",
+        ]
         for file in relative_included:
             command.extend(["--include", str(file)])
         # exclude all files not specifically included

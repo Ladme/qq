@@ -48,6 +48,7 @@ def test_navigate_success(tmp_path):
             [
                 "ssh",
                 "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "fake.host.org",
                 "-t",

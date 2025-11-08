@@ -11,9 +11,10 @@
 - Collective variables `QQ_NCPUS`, `QQ_NGPUS`, `QQ_NNODES`, and `QQ_WALLTIME` are now exported to the job environment.
 
 ### Bug fixes and other small changes
-- When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of qq info.
+- When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of `qq info`.
+- Fixed occasional SSH authentication failures by explicitly enabling GSSAPI authentication.
 - Fixed current cycle identification in loop jobs. Only a partial match in archived files is now required to consider them.
-- Jobs obtained using `qq jobs` and `qq stat` are now always sorted by job id.
+- Jobs obtained using `qq jobs` and `qq stat` are now always sorted by job ID.
 - The number of queued jobs presented in the output of `qq queues` now always includes the sum of queued and held jobs. The column title was changed to 'QH' to reflect this.
 
 ### Internal changes

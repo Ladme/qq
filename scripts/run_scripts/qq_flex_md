@@ -262,6 +262,6 @@ TARGET_STEP=$(gmx_mpi dump -s ${CURR}.tpr 2> /dev/null | awk '/nsteps/ {print $3
 
 echo "[QQ_FLEX_MD]    INFO    Last step: ${LAST_STEP} and target step: ${TARGET_STEP}" >&2
 if [[ "${LAST_STEP}" -ge "${TARGET_STEP}" ]]; then
-    # signal to the qq that the job should not be resubmitted
+    # signal to qq that the job should not be resubmitted
     exit "${QQ_NO_RESUBMIT}"
 fi

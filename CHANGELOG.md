@@ -7,6 +7,9 @@
 ### qq shebang
 - Introduced a new command, `qq shebang`, which makes it easier to add the required `qq run` shebang line to your scripts.
 
+### More qq collective variables
+- Collective variables `QQ_NCPUS`, `QQ_NGPUS`, `QQ_NNODES`, and `QQ_WALLTIME` are now exported to the job environment.
+
 ### Bug fixes and other small changes
 - When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of qq info.
 - Fixed current cycle identification in loop jobs. Only a partial match in archived files is now required to consider them.

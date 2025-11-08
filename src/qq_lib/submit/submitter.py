@@ -9,7 +9,7 @@ from pathlib import Path
 
 import qq_lib
 from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.core.common import get_info_file
+from qq_lib.core.common import get_info_file, hhmmss_to_duration
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -222,6 +222,15 @@ class QQSubmitter:
 
         # contains the path to the input directory
         env_vars[CFG.env_vars.input_dir] = str(self._input_dir)
+
+        # environment variables for resources
+        env_vars[CFG.env_vars.ncpus] = str(self._resources.ncpus or 1)
+        env_vars[CFG.env_vars.ngpus] = str(self._resources.ngpus or 0)
+        env_vars[CFG.env_vars.nnodes] = str(self._resources.nnodes or 1)
+        env_vars[CFG.env_vars.walltime] = str(
+            hhmmss_to_duration(self._resources.walltime or "00:00:00").total_seconds()
+            / 3600
+        )
 
         # loop job-specific environment variables
         if self._loop_info:

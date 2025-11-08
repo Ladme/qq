@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #         loop jobs using qq           #
-#         script version: 0.4          #
+#         script version: 0.6          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -38,35 +38,74 @@ TOP=""
 # plumed can be used only if the module version enables it
 PLUMED=""
 
-# number of MPI ranks to use
-MPI="1"
-# number of OpenMP threads per MPI rank to use
-NTOMP="8"
-# number of GPUs to use
-NGPUS="0"
-
 # maximum number of warnings; leave empty to determine automatically (gen-vel)
 MAXWARN=""
 
+# number of MPI ranks to use; leave empty to determine automatically
+MPI=""
+# number of OpenMP threads per MPI rank to use; leave empty to determine automatically
+NTOMP=""
+
 # load gromacs module
-# Infinity
+# Infinity example
 module add gromacs:2021.4-plumed
-# Karolina
+
+# Metamodules example
+# metamodule add gromacs/2024.3-cuda
+
+# Karolina module example
 # ml GROMACS/2021.4-fosscuda-2020b-PLUMED-2.7.3
 
 ########################################
 #          Execution section           #
 ########################################
 
-# OpenMP parameters
+# set MPI ranks and OpenMP threads
+# by default, use one MPI rank per node or per GPU
+if [[ -z "${MPI}" ]]; then 
+    MPI=$(( QQ_NGPUS > QQ_NNODES ? QQ_NGPUS : QQ_NNODES ))
+    echo "[QQ_LOOP_MD]    INFO    Setting the number of MPI ranks to ${MPI}."
+fi
+
+if [[ "${MPI}" -eq 0 ]]; then
+    echo "[QQ_LOOP_MD]    ERROR    The number of MPI ranks cannot be 0." >&2
+    exit 1
+fi
+
+# by default, use the highest possible number of OpenMP threads
+if [[ -z "${NTOMP}" ]]; then
+    NTOMP=$(( QQ_NCPUS / MPI ))
+    echo "[QQ_LOOP_MD]    INFO    Setting the number of OpenMP threads per MPI rank to ${NTOMP}."
+fi
+
+if [[ "${NTOMP}" -eq 0 ]]; then
+    echo "[QQ_LOOP_MD]    ERROR    The number of OpenMP threads per MPI rank cannot be 0." >&2
+    exit 1
+fi
+
+TOTAL_NTOMP=$(( NTOMP * MPI ))
+
+# check for oversubscription
+if [[ "${TOTAL_NTOMP}" -gt "${QQ_NCPUS}" ]]; then
+    echo "[QQ_LOOP_MD]    ERROR    The total number of OpenMP threads (${TOTAL_NTOMP}) exceeds the number of allocated CPU cores (${QQ_NCPUS})." >&2
+    exit 1
+fi
+
+# set OpenMP parameters
 export OMP_PLACES="cores"
 export OMP_NUM_THREADS="${NTOMP}"
 
-# set communication methods (for single-node runs only)
-# do not use on IT4Innovations
-if [[ "${QQ_BATCH_SYSTEM}" != "SlurmIT4I" ]]; then
+# set communication methods for a single-node run
+if [[ "${QQ_NNODES}" -eq 1 ]]; then
     export OMPI_MCA_btl="vader,self"
     export UCX_TLS="posix,self"
+fi
+
+# Gromacs -nb option
+if [[ "${QQ_NGPUS}" -eq 0 ]]; then
+    NB="cpu"
+else
+    NB="gpu"
 fi
 
 # create STAGE strings
@@ -76,7 +115,7 @@ printf -v CURR "${QQ_ARCHIVE_FORMAT}" "${QQ_LOOP_CURRENT}"
 printf -v NEXT "${QQ_ARCHIVE_FORMAT}" "$((QQ_LOOP_CURRENT + 1))"
 
 # determine gromacs version to set the appropriate appending method
-GMX_VER="$(gmx --version | awk 'BEGIN {i = 0} tolower($0) ~ /gromacs version/ {split($NF, N, "."); if (N[1] > 6) i = 1} END {print i}')"
+GMX_VER="$(gmx_mpi --version | awk 'BEGIN {i = 0} tolower($0) ~ /gromacs version/ {split($NF, N, "."); if (N[1] > 6) i = 1} END {print i}')"
 
 # set version specific appending
 APPEND=""
@@ -84,16 +123,12 @@ if [[ "${GMX_VER}" -eq 0 ]]; then
   APPEND="-append"
 fi
 
-# plumed and OpenMP threads set up
-NTOMP_FLAG=""
+# plumed setup
 PLUMED_FILES=""
 PLUMED_METAD=""
 PLUMED_METAD_LC=""
 PLUMED_OUT=()
-
 if [[ -n "${PLUMED}" ]]; then
-    NTOMP_FLAG="-ntomp ${NTOMP}"
-
     # obtain the names of all plumed output files
     PLUMED_TMP="$(awk '
     BEGIN {hill = ""}
@@ -126,8 +161,6 @@ if [[ -n "${PLUMED}" ]]; then
 
     # plumed variable for mdrun
     PLUMED="-plumed ${PLUMED}"
-elif [[ -n "${NTOMP}" ]]; then
-    NTOMP_FLAG="-ntomp ${NTOMP}"
 fi
 
 CPI=""
@@ -148,7 +181,7 @@ if [[ "${QQ_LOOP_CURRENT}" -eq "${QQ_LOOP_START}" ]]; then
     fi
     
     # compile the tpr file
-    gmx grompp -f "${MDP}" -c "${GRO}" ${REF} ${CPT} -p "${TOP}" -n "${NDX}" -o "${CURR}.tpr" -quiet -maxwarn "${MAXWARN}"
+    gmx_mpi grompp -f "${MDP}" -c "${GRO}" ${REF} ${CPT} -p "${TOP}" -n "${NDX}" -o "${CURR}.tpr" -quiet -maxwarn "${MAXWARN}"
 
     # prepare mdout for archival
     mv mdout.mdp "${CURR}.mdout"
@@ -171,13 +204,6 @@ else
     if [[ -n "${PLUMED_METAD}" ]]; then mv "${PLUMED_HILL}" "${PLUMED_METAD}"; fi
 fi
 
-# are we using GPUs?
-if [[ "${NGPUS}" -eq 0 ]]; then
-  NB_FLAG="-nb cpu"
-else
-  NB_FLAG="-nb gpu"
-fi
-
 # run the simulation
 if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     srun \
@@ -186,7 +212,7 @@ if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     --cpus-per-task=${NTOMP} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB}
 else
     mpirun \
     -display-allocation \
@@ -197,7 +223,7 @@ else
     -np ${MPI} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} ${NTOMP_FLAG} ${APPEND} ${NB_FLAG}
+    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB}
 fi
 
 # rename output files from gromacs 2016 and later
@@ -222,7 +248,7 @@ fi
 
 # extend the simulation
 EXTEND="$(awk 'BEGIN {dt = 0.001; nsteps = 0} /nsteps/ {nsteps = $3} /dt/ {dt = $3} END {ext = nsteps * dt; if (!ext) {exit 2} else {print ext}}' "${MDP}")"
-gmx convert-tpr -s "${CURR}.tpr" -extend "${EXTEND}" -o "${NEXT}.tpr" -quiet
+gmx_mpi convert-tpr -s "${CURR}.tpr" -extend "${EXTEND}" -o "${NEXT}.tpr" -quiet
 
 # remove the unneeded and unarchived _prev files
 rm -f -- *_prev*

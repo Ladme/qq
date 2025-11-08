@@ -209,6 +209,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
     submitter._batch_system = QQPBS
     submitter._loop_info = None
     submitter._input_dir = tmp_path
+    submitter._resources = QQResources(nnodes=2, ncpus=8, ngpus=2, walltime="1d")
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
@@ -221,6 +222,10 @@ def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
     assert env[CFG.env_vars.input_machine] == socket.gethostname()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
+    assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
+    assert env[CFG.env_vars.ncpus] == str(submitter._resources.ncpus)
+    assert env[CFG.env_vars.ngpus] == str(submitter._resources.ngpus)
+    assert env[CFG.env_vars.walltime] == "24.0"
     if debug_mode:
         assert env[CFG.env_vars.debug_mode] == "true"
     else:
@@ -243,6 +248,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mo
     submitter._batch_system = "BatchSystem"
     submitter._loop_info = DummyLoop()
     submitter._input_dir = tmp_path
+    submitter._resources = QQResources()
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):

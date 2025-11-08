@@ -25,13 +25,19 @@ logger = get_logger(__name__)
     help_options_color="bright_blue",
 )
 @click.option(
+    "-e",
+    "--extra",
+    is_flag=True,
+    help="Show additional information about the jobs.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
     help="Include both unfinished and finished jobs in the summary.",
 )
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
-def stat(all: bool, yaml: bool) -> NoReturn:
+def stat(extra: bool, all: bool, yaml: bool) -> NoReturn:
     try:
         BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
 
@@ -45,7 +51,7 @@ def stat(all: bool, yaml: bool) -> NoReturn:
             sys.exit(0)
 
         BatchSystem.sortJobs(jobs)
-        presenter = QQJobsPresenter(jobs)
+        presenter = QQJobsPresenter(jobs, extra)
         if yaml:
             presenter.dumpYaml()
         else:

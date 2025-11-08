@@ -5,7 +5,7 @@
 import io
 import sys
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import yaml
@@ -399,7 +399,7 @@ def parsed_jobs(sample_pbs_dump):
 
 
 def test_create_basic_jobs_table_contains_all_headers_and_jobs(parsed_jobs):
-    presenter = QQJobsPresenter(parsed_jobs)
+    presenter = QQJobsPresenter(parsed_jobs, False)
 
     result = presenter._createBasicJobsTable()
     expected_headers = [
@@ -445,7 +445,7 @@ def test_create_basic_jobs_table_contains_all_headers_and_jobs(parsed_jobs):
 
 
 def test_dump_yaml_roundtrip(parsed_jobs):
-    presenter = QQJobsPresenter(parsed_jobs)
+    presenter = QQJobsPresenter(parsed_jobs, False)
 
     # capture stdout
     captured = io.StringIO()
@@ -481,7 +481,7 @@ def test_dump_yaml_roundtrip(parsed_jobs):
 
 
 def test_create_jobs_info_panel_structure(parsed_jobs):
-    presenter = QQJobsPresenter(parsed_jobs)
+    presenter = QQJobsPresenter(parsed_jobs, False)
     panel_group = presenter.createJobsInfoPanel()
 
     assert isinstance(panel_group, Group)
@@ -503,6 +503,26 @@ def test_create_jobs_info_panel_structure(parsed_jobs):
         QQJobsPresenter._shortenJobId(job.getId()) in jobs_table.plain
         for job in parsed_jobs
     )
+
+
+@pytest.mark.parametrize("extra_flag,should_call", [(True, True), (False, False)])
+def test_qqjobspresenter_create_jobs_info_panel_insert_extra_info(
+    extra_flag, should_call
+):
+    presenter = QQJobsPresenter.__new__(QQJobsPresenter)
+    presenter._extra = extra_flag
+    presenter._createBasicJobsTable = Mock(return_value="BASIC_TABLE")
+    presenter._stats = Mock()
+    presenter._stats.createStatsPanel.return_value = Mock()
+
+    with patch.object(
+        presenter, "_insertExtraInfo", return_value="UPDATED_TABLE"
+    ) as mock_insert:
+        presenter.createJobsInfoPanel(console=Mock(size=Mock(width=100)))
+
+    assert mock_insert.called is should_call
+    if should_call:
+        mock_insert.assert_called_once_with("BASIC_TABLE")
 
 
 @pytest.mark.parametrize(
@@ -876,3 +896,86 @@ def test_add_job_mixed_states_accumulates_correctly():
     assert stats.n_allocated_cpus == 7
     assert stats.n_allocated_gpus == 3
     assert stats.n_allocated_nodes == 3
+
+
+@pytest.mark.parametrize(
+    "input_machine,input_dir,expected_machine,expected_dir",
+    [
+        # both have valid info
+        ("machine1", "/path/dir", True, True),
+        # input machine missing, dir valid
+        ("?????", "/path/dir", False, True),
+        # input machine valid, dir missing
+        ("machine2", "????", True, False),
+        # both missing
+        ("?????", "???", False, False),
+    ],
+)
+def test_qqjobspresenter_insert_extra_info_various_combinations(
+    input_machine, input_dir, expected_machine, expected_dir
+):
+    job = Mock()
+    job.getInputMachine.return_value = input_machine
+    job.getInputDir.return_value = input_dir
+
+    presenter = QQJobsPresenter.__new__(QQJobsPresenter)
+    presenter._jobs = [job]
+
+    table = "HEADER\nROW1"
+
+    result = presenter._insertExtraInfo(table)
+
+    assert "HEADER" in result
+    assert "ROW1" in result
+
+    assert (">   Input machine:" in result) == expected_machine
+    assert (">   Input directory:" in result) == expected_dir
+
+
+def test_qqjobspresenter_insert_extra_info_multiple_jobs():
+    job1 = Mock()
+    job1.getInputMachine.return_value = "machineA"
+    job1.getInputDir.return_value = "/dirA"
+
+    job2 = Mock()
+    job2.getInputMachine.return_value = "machineB"
+    job2.getInputDir.return_value = "/dirB"
+
+    presenter = QQJobsPresenter.__new__(QQJobsPresenter)
+    presenter._jobs = [job1, job2]
+
+    table = "HEADER\nROW1\nROW2"
+    result = presenter._insertExtraInfo(table)
+
+    assert "machineA" in result
+    assert "machineB" in result
+    assert "/dirA" in result
+    assert "/dirB" in result
+
+
+def test_qqjobspresenter_insert_extra_info_preserves_header_and_spacing():
+    job = Mock()
+    job.getInputMachine.return_value = "machineX"
+    job.getInputDir.return_value = "/inputX"
+
+    presenter = QQJobsPresenter.__new__(QQJobsPresenter)
+    presenter._jobs = [job]
+
+    table = "HEADER\nROW1"
+    result = presenter._insertExtraInfo(table)
+
+    assert result.startswith("HEADER\n")
+    assert result.strip().endswith("")
+
+
+def test_qqjobspresenter_insert_extra_info_uses_cfg_style():
+    job = Mock()
+    job.getInputMachine.return_value = "machineZ"
+    job.getInputDir.return_value = "/inputZ"
+
+    presenter = QQJobsPresenter.__new__(QQJobsPresenter)
+    presenter._jobs = [job]
+
+    result = presenter._insertExtraInfo("HEADER\nROW1")
+
+    assert QQJobsPresenter.ANSI_COLORS[CFG.jobs_presenter.extra_info_style] in result

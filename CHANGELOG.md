@@ -7,6 +7,9 @@
 ### qq shebang
 - Introduced a new command, `qq shebang`, which makes it easier to add the required `qq run` shebang line to your scripts.
 
+### qq jobs/stat flag --extra
+- Added a flag `-e`/`--extra` for `qq jobs` and `qq stat` which makes qq print additional information about each job. Currently the input machine and input directory are printed (if available), but the list may be expanded in the future.
+
 ### More qq collective variables
 - Collective variables `QQ_NCPUS`, `QQ_NGPUS`, `QQ_NNODES`, and `QQ_WALLTIME` are now exported to the job environment.
 

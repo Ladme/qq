@@ -18,6 +18,7 @@ border_style = "black"
 title_style = "black bold"
 main_style = "bright_black"
 secondary_style = "grey50"
+extra_info_style = "grey70"
 
 [queues_presenter]
 border_style = "black"

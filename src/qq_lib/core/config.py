@@ -139,6 +139,7 @@ class JobsPresenterSettings:
     headers_style: str = "default"
     main_style: str = "white"
     secondary_style: str = "grey70"
+    extra_info_style: str = "grey50"
     strong_warning_style: str = "bright_red"
     mild_warning_style: str = "bright_yellow"
 

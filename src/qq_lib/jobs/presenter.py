@@ -69,16 +69,18 @@ class QQJobsPresenter:
         with_header_hide=["lineabove", "linebelow"],
     )
 
-    def __init__(self, jobs: list[BatchJobInterface]):
+    def __init__(self, jobs: list[BatchJobInterface], extra: bool):
         """
         Initialize the presenter with a list of jobs.
 
         Args:
             jobs (list[BatchJobInterface]): List of job information objects
                 to be presented.
+            extra (bool): Should show additional info about jobs.
         """
         self._jobs = jobs
         self._stats = QQJobsStatistics()
+        self._extra = extra
 
     def createJobsInfoPanel(self, console: Console | None = None) -> Group:
         """
@@ -94,8 +96,12 @@ class QQJobsPresenter:
         console = console or Console()
         panel_width = console.size.width
 
+        jobs_table = self._createBasicJobsTable()
+        if self._extra:
+            jobs_table = self._insertExtraInfo(jobs_table)
+
         # convert ANSI codes to Rich Text
-        jobs_panel = Text.from_ansi(self._createBasicJobsTable())
+        jobs_panel = Text.from_ansi(jobs_table)
         stats_panel = self._stats.createStatsPanel()
 
         content = Group(
@@ -212,6 +218,39 @@ class QQJobsPresenter:
             stralign="center",
             numalign="center",
         )
+
+    def _insertExtraInfo(self, table: str) -> str:
+        """
+        Augment a formatted job table with additional information about each job.
+
+        Lines where job attributes are missing (indicated by "???") are skipped.
+
+        Args:
+            table (str): The formatted table string containing one line per job.
+
+        Returns:
+            str: A new table string including the extra job information lines.
+        """
+        split_table = table.splitlines()
+        table_with_extra_info = split_table[0] + "\n"
+
+        for line, job in zip(split_table[1:], self._jobs):
+            table_with_extra_info += line + "\n"
+
+            if "???" not in (input_machine := job.getInputMachine()):
+                table_with_extra_info += QQJobsPresenter._color(
+                    f" >   Input machine:   {input_machine}\n",
+                    CFG.jobs_presenter.extra_info_style,
+                )
+
+            if "???" not in (input_dir := str(job.getInputDir())):
+                table_with_extra_info += QQJobsPresenter._color(
+                    f" >   Input directory: {input_dir}\n",
+                    CFG.jobs_presenter.extra_info_style,
+                )
+            table_with_extra_info += "\n"
+
+        return table_with_extra_info
 
     @staticmethod
     def _formatTime(

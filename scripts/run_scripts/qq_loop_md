@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #         loop jobs using qq           #
-#         script version: 0.6          #
+#         script version: 0.7          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -30,9 +30,9 @@ GRO="system.gro"
 CPT=""
 # reference coordinates for restraints; leave empty if not needed
 REF=""
-# index file; leave empty string to set default (index.ndx)
+# index file; leave empty to set default (index.ndx)
 NDX=""
-# topology file; leave empty string to set default (topol.top)
+# topology file; leave empty to set default (topol.top)
 TOP=""
 # name of the plumed script; leave empty if not used
 # plumed can be used only if the module version enables it

@@ -2,7 +2,7 @@
 ########################################
 #      Script for running Gromacs      #
 #  flexible-length loop jobs using qq  #
-#         script version: 0.6          #
+#         script version: 0.7          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -30,9 +30,9 @@ GRO="system.gro"
 CPT=""
 # reference coordinates for restraints; leave empty if not needed
 REF=""
-# index file; leave empty string to set default (index.ndx)
+# index file; leave empty to set default (index.ndx)
 NDX=""
-# topology file; leave empty string to set default (topol.top)
+# topology file; leave empty to set default (topol.top)
 TOP=""
 # name of the plumed script; leave empty if not used
 # plumed can be used only if the module version enables it
@@ -45,6 +45,9 @@ MAXWARN=""
 MPI=""
 # number of OpenMP threads per MPI rank to use; leave empty to determine automatically
 NTOMP=""
+
+# maximum duration of a simulation run (in hours); leave empty to determine automatically
+MAX_TIME=""
 
 # load gromacs module
 # Infinity example
@@ -108,8 +111,10 @@ else
     NB="gpu"
 fi
 
-# maximum run time is automatically set to 97% of the job walltime
-MAX_TIME=$(echo "scale=3; (${QQ_WALLTIME} * 0.97) / 1" | bc)
+if [[ -z "${MAX_TIME}" ]]; then
+    # maximum run time is automatically set to 97% of the job's walltime
+    MAX_TIME=$(echo "scale=3; (${QQ_WALLTIME} * 0.97) / 1" | bc)
+fi
 echo "[QQ_FLEX_MD]    INFO    Setting the maximum Gromacs runtime to ${MAX_TIME} hours."
 
 # create STAGE strings

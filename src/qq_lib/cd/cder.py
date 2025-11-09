@@ -11,7 +11,7 @@ from qq_lib.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-class QQCder:
+class Cder:
     """
     Retrieve and provide the input directory for a specific job
     in the configured batch system.
@@ -19,7 +19,7 @@ class QQCder:
 
     def __init__(self, BatchSystem: type[BatchInterface], job_id: str):
         """
-        Initialize the QQCder instance with a batch system interface and job ID.
+        Initialize the Cder instance with a batch system interface and job ID.
 
         Args:
             BatchSystem (type[BatchInterface]): Batch system class to use.
@@ -38,7 +38,7 @@ class QQCder:
         Raises:
             QQError: If the job does not exist.
         """
-        path = QQCder._getInputDirFromJobId(self._BatchSystem, self._job_id)
+        path = Cder._getInputDirFromJobId(self._BatchSystem, self._job_id)
         logger.debug(f"Changing directory to '{path}'.")
         return str(path)
 

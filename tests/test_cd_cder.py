@@ -8,7 +8,7 @@ import pytest
 
 from qq_lib.batch.interface.interface import CFG
 from qq_lib.batch.pbs import PBS, PBSJob
-from qq_lib.cd.cder import QQCder
+from qq_lib.cd.cder import Cder
 from qq_lib.core.error import QQError
 
 
@@ -24,7 +24,7 @@ def test_cder_cd_success_pbs_o_workdir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with patch.object(PBS, "getBatchJob", return_value=job_info):
-        cder = QQCder(PBS, "1234")
+        cder = Cder(PBS, "1234")
         assert cder.cd() == "/pbs/job/dir"
 
 
@@ -33,7 +33,7 @@ def test_cder_cd_success_input_dir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with patch.object(PBS, "getBatchJob", return_value=job_info):
-        cder = QQCder(PBS, "1234")
+        cder = Cder(PBS, "1234")
         assert cder.cd() == "/qq/input/dir"
 
 
@@ -42,7 +42,7 @@ def test_cder_cd_success_inf_input_dir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with patch.object(PBS, "getBatchJob", return_value=job_info):
-        cder = QQCder(PBS, "1234")
+        cder = Cder(PBS, "1234")
         assert cder.cd() == "/infinity/input/dir"
 
 
@@ -53,5 +53,5 @@ def test_cder_cd_does_not_exist():
         patch.object(PBS, "getBatchJob", return_value=job_info_empty),
         pytest.raises(QQError, match="does not exist"),
     ):
-        cder = QQCder(PBS, "1234")
+        cder = Cder(PBS, "1234")
         cder.cd()

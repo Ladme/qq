@@ -1,13 +1,13 @@
 #!/usr/bin/env -S qq run
 ########################################
-#      Script for running Gromacs      #
-#  flexible-length loop jobs using qq  #
-#         script version: 0.7          #
+#     Script for running Gromacs       #
+#     multidir loop jobs using qq      #
+#         script version: 0.1          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
 # qq job-type loop
-# qq loop-end 9999
+# qq loop-end  10
 # qq archive storage
 # qq archive-format md%04d
 
@@ -35,8 +35,19 @@ NDX=""
 # topology file; leave empty to set default (topol.top)
 TOP=""
 # name of the plumed script; leave empty if not used
+# plumed is required if HREX is true
 # plumed can be used only if the module version enables it
 PLUMED=""
+
+# pattern for simulation directory names
+# with this setting, each individual simulation should be stored in a subdirectory
+# following the naming pattern: win01, win02, win03, ..., win44, etc.
+CLIENTS_PATTERN="win"
+# frequency of replica exchange attempts; leave empty for no exchanges being attempted
+RE_FREQ="50000"
+# run Hamiltonian replica exchange; leave empty to NOT run Hamiltonian replica exchange
+# if this option is set, you also need to set RE_FREQ
+HREX="true"
 
 # maximum number of warnings; leave empty to determine automatically (gen-vel)
 MAXWARN=""
@@ -46,15 +57,9 @@ MPI=""
 # number of OpenMP threads per MPI rank to use; leave empty to determine automatically
 NTOMP=""
 
-# maximum duration of a simulation run (in hours); leave empty to determine automatically
-MAX_TIME=""
-
 # load gromacs module
 # Infinity example
 module add gromacs:2021.4-plumed
-
-# Metamodules example
-# metamodule add gromacs/2024.3-cuda
 
 # Karolina module example
 # ml GROMACS/2021.4-fosscuda-2020b-PLUMED-2.7.3
@@ -63,26 +68,36 @@ module add gromacs:2021.4-plumed
 #          Execution section           #
 ########################################
 
+# all client directories
+CLIENTS=($(ls -d ${CLIENTS_PATTERN}* | sort -V))
+# number of clients
+N_CLIENTS="${#CLIENTS[@]}"
+# suffixes used for the clients
+CLI_SUFFIXES=()
+for CLIENT in "${CLIENTS[@]}"; do
+    CLI_SUFFIXES+=( "${CLIENT#${CLIENTS_PATTERN}}" )
+done
+
 # set MPI ranks and OpenMP threads
-# by default, use one MPI rank per node or per GPU
+# by default, use one MPI rank per client or GPU
 if [[ -z "${MPI}" ]]; then 
-    MPI=$(( QQ_NGPUS > QQ_NNODES ? QQ_NGPUS : QQ_NNODES ))
-    echo "[QQ_FLEX_MD]    INFO    Setting the number of MPI ranks to ${MPI}."
+    MPI=$(( QQ_NGPUS > N_CLIENTS ? QQ_NGPUS : N_CLIENTS ))
+    echo "[QQ_LOOP_RE]    INFO    Setting the number of MPI ranks to ${MPI}."
 fi
 
 if [[ "${MPI}" -eq 0 ]]; then
-    echo "[QQ_FLEX_MD]    ERROR    The number of MPI ranks cannot be 0." >&2
+    echo "[QQ_LOOP_RE]    ERROR    The number of MPI ranks cannot be 0." >&2
     exit 1
 fi
 
 # by default, use the highest possible number of OpenMP threads
 if [[ -z "${NTOMP}" ]]; then
     NTOMP=$(( QQ_NCPUS / MPI ))
-    echo "[QQ_FLEX_MD]    INFO    Setting the number of OpenMP threads per MPI rank to ${NTOMP}."
+    echo "[QQ_LOOP_RE]    INFO    Setting the number of OpenMP threads per MPI rank to ${NTOMP}."
 fi
 
 if [[ "${NTOMP}" -eq 0 ]]; then
-    echo "[QQ_FLEX_MD]    ERROR    The number of OpenMP threads per MPI rank cannot be 0." >&2
+    echo "[QQ_LOOP_RE]    ERROR    The number of OpenMP threads per MPI rank cannot be 0." >&2
     exit 1
 fi
 
@@ -90,7 +105,7 @@ TOTAL_NTOMP=$(( NTOMP * MPI ))
 
 # check for oversubscription
 if [[ "${TOTAL_NTOMP}" -gt "${QQ_NCPUS}" ]]; then
-    echo "[QQ_FLEX_MD]    ERROR    The total number of OpenMP threads (${TOTAL_NTOMP}) exceeds the number of allocated CPU cores (${QQ_NCPUS})." >&2
+    echo "[QQ_LOOP_RE]    ERROR    The total number of OpenMP threads (${TOTAL_NTOMP}) exceeds the number of allocated CPU cores (${QQ_NCPUS})." >&2
     exit 1
 fi
 
@@ -111,11 +126,16 @@ else
     NB="gpu"
 fi
 
-if [[ -z "${MAX_TIME}" ]]; then
-    # maximum run time is automatically set to 97% of the job's walltime
-    MAX_TIME=$(echo "scale=3; (${QQ_WALLTIME} * 0.97) / 1" | bc)
+# replica exchange options
+REPLEX=""
+if [[ -n "${RE_FREQ}" ]]; then
+    # run replica exchange
+    REPLEX="-replex ${RE_FREQ}"
+    if [[ -n "${HREX}" ]]; then
+        # run Hamiltonian replica exchange
+        HREX="-hrex"
+    fi
 fi
-echo "[QQ_FLEX_MD]    INFO    Setting the maximum Gromacs runtime to ${MAX_TIME} hours."
 
 # create STAGE strings
 # CURR - prefix for the data produced in this run
@@ -133,6 +153,7 @@ if [[ "${GMX_VER}" -eq 0 ]]; then
 fi
 
 # plumed setup
+# this assumes that a consistent plumed file is used for all clients
 PLUMED_FILES=""
 PLUMED_METAD=""
 PLUMED_METAD_LC=""
@@ -161,7 +182,7 @@ if [[ -n "${PLUMED}" ]]; then
         for (key in out) printf " %s", out[key]
         printf ":%s", hill
     }
-    ' "${PLUMED}")"
+    ' "${CLIENTS[0]}/${PLUMED}")"
 
     # plumed file names
     PLUMED_FILES="$(cut -d: -f1 <<< "${PLUMED_TMP}")"
@@ -170,6 +191,9 @@ if [[ -n "${PLUMED}" ]]; then
 
     # plumed variable for mdrun
     PLUMED="-plumed ${PLUMED}"
+elif [[ -n "${HREX}" ]]; then
+    # running Hamiltonian replica exchange, using default plumed file
+    PLUMED="-plumed plumed.dat"
 fi
 
 CPI=""
@@ -184,16 +208,31 @@ if [[ "${QQ_LOOP_CURRENT}" -eq "${QQ_LOOP_START}" ]]; then
     if [[ -z "${TOP}" ]]; then TOP="topol.top"; fi
 
     # automatically determine maxwarn based on generating velocities
+    # assumed this is the same for all clients
     if [[ -z "${MAXWARN}" ]]; then
-        GEN_VEL="$(awk 'BEGIN {i = 0} /gen[-_]vel/ {if (toupper($3) == "YES") i = 1} END {print i}' "${MDP}")"
+        GEN_VEL="$(awk 'BEGIN {i = 0} /gen[-_]vel/ {if (toupper($3) == "YES") i = 1} END {print i}' "${CLIENTS[0]}/${MDP}")"
         if [[ "${GEN_VEL}" -eq 0 ]]; then MAXWARN=0; else MAXWARN=1; fi
     fi
-    
-    # compile the tpr file
-    gmx_mpi grompp -f "${MDP}" -c "${GRO}" ${REF} ${CPT} -p "${TOP}" -n "${NDX}" -o "${CURR}.tpr" -quiet -maxwarn "${MAXWARN}"
 
-    # prepare mdout for archival
-    mv mdout.mdp "${CURR}.mdout"
+    # compile tpr files for the individual clients
+    for ((I=0; I<${#CLIENTS[@]}; I++)); do
+        CLI=${CLIENTS[I]}
+        SUFFIX=${CLI_SUFFIXES[I]}
+
+        cd -- "${CLI}"
+
+        gmx_mpi grompp -f "${MDP}" -c "${GRO}" ${REF} ${CPT} -p "${TOP}" -n "${NDX}" -o "${CURR}.tpr" -quiet -maxwarn "${MAXWARN}"
+
+        # prepare a plumed file, if it does not exist and is needed
+        if [[ -n "${HREX}" ]]; then
+            touch plumed.dat
+        fi
+
+        # prepare mdout for archival
+        mv mdout.mdp "${CURR}.mdout"
+
+        cd ..
+    done
 
     # set version specific appending
     if [[ "${GMX_VER}" -eq 1 ]]; then APPEND=""; fi
@@ -203,16 +242,23 @@ else
     # mdrun checkpoint file
     CPI="-cpi ${CURR}.cpt"
 
+    # distribute files among all clients
+    for ((I=0; I<${#CLIENTS[@]}; I++)); do
+        CLI=${CLIENTS[I]}
+        SUFFIX=${CLI_SUFFIXES[I]}
+
+        mv -- ${CURR}-${SUFFIX}.cpt ${CLI}/${CURR}.cpt
+        mv -- ${CURR}-${SUFFIX}.tpr ${CLI}/${CURR}.tpr
+
+        # put HILL file to the given client
+        if [[ -n "${PLUMED_METAD}" ]]; then mv -- "${CURR}-${SUFFIX}.${PLUMED_METAD_LC}" "${CLI}/${CURR}.${PLUMED_METAD_LC}"; fi
+    done
+
     # set version specific appending
     if [[ "${GMX_VER}" -eq 1 ]]; then APPEND="-noappend"; fi
-
-    # are we running metadynamics? obtain hill file
-    if [[ -n "${PLUMED_METAD}" ]]; then PLUMED_HILL="${CURR}.${PLUMED_METAD_LC}"; fi
-
-    # rename HILL file
-    if [[ -n "${PLUMED_METAD}" ]]; then mv "${PLUMED_HILL}" "${PLUMED_METAD}"; fi
 fi
 
+IFS=" "
 # run the simulation
 if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     srun \
@@ -221,7 +267,8 @@ if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     --cpus-per-task=${NTOMP} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} -maxh ${MAX_TIME}
+    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} \
+    -multidir ${CLIENTS[*]} ${REPLEX} ${HREX}
 else
     mpirun \
     -display-allocation \
@@ -232,41 +279,51 @@ else
     -np ${MPI} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} -maxh ${MAX_TIME}
+    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} \
+    -multidir ${CLIENTS[*]} ${REPLEX} ${HREX}
 fi
 
-# rename output files from gromacs 2016 and later
-for PART in *part*; do
-  [[ -e "${PART}" ]] || break
-  IFS='.' read -r -a ARR <<< "${PART}"
-  mv -- "${PART}" "${ARR[0]}.${ARR[2]}"
+# prepare files from the clients for archival
+for ((I=0; I<${#CLIENTS[@]}; I++)); do
+    CLI=${CLIENTS[I]}
+    SUFFIX=${CLI_SUFFIXES[I]}
+
+    cd ${CLI}
+        
+    # rename output files from gromacs 2016 and later
+    for PART in *part*; do
+        [[ -e "${PART}" ]] || break
+        IFS='.' read -r -a ARR <<< "${PART}"
+        mv -- "${PART}" "${ARR[0]}.${ARR[2]}"
+    done
+
+    # rename output files from plumed
+    for I in ${PLUMED_FILES}; do
+        OUT="${CURR}.$(tr '[:upper:]' '[:lower:]' <<< "${I}")"
+        mv -- "${I}" "${OUT}"
+        PLUMED_OUT+=("${OUT}")
+    done
+
+    # rename hills files from plumed metadynamics
+    if [[ -n "${PLUMED_METAD}" ]]; then
+        PLUMED_HILL="${NEXT}.${PLUMED_METAD_LC}"
+        mv -- "${PLUMED_METAD}" "${PLUMED_HILL}"
+    fi
+
+    # extend the simulation
+    EXTEND="$(awk 'BEGIN {dt = 0.001; nsteps = 0} /nsteps/ {nsteps = $3} /dt/ {dt = $3} END {ext = nsteps * dt; if (!ext) {exit 2} else {print ext}}' "${MDP}")"
+    gmx_mpi convert-tpr -s "${CURR}.tpr" -extend "${EXTEND}" -o "${NEXT}.tpr" -quiet
+
+    # remove the unneeded _prev files
+    rm -f -- *_prev*
+
+    # prepare files for archival
+    for FILE in *${CURR}* *${NEXT}*; do
+        STEM="${FILE%%.*}"
+        EXT="${FILE#*.}"
+
+        mv -- "${FILE}" "../${STEM}-${SUFFIX}.${EXT}"
+    done
+
+    cd ..
 done
-
-# rename output files from plumed
-for I in ${PLUMED_FILES}; do
-  OUT="${CURR}.$(tr '[:upper:]' '[:lower:]' <<< "${I}")"
-  mv -- "${I}" "${OUT}"
-  PLUMED_OUT+=("${OUT}")
-done
-
-# rename hills files from plumed metadynamics
-if [[ -n "${PLUMED_METAD}" ]]; then
-  PLUMED_HILL="${NEXT}.${PLUMED_METAD_LC}"
-  mv -- "${PLUMED_METAD}" "${PLUMED_HILL}"
-fi
-
-# prepare the tpr file for the next run
-cp ${CURR}.tpr ${NEXT}.tpr
-
-# remove the unneeded and unarchived _prev files
-rm -f -- *_prev*
-
-# extend the simulation
-LAST_STEP=$(awk '$1 ~ /step$/ {step = $2} END {print step}' $(ls -tr1 *.err | tail -1) | sed 's/[^0-9]*//g')
-TARGET_STEP=$(gmx_mpi dump -s ${CURR}.tpr 2> /dev/null | awk '/nsteps/ {print $3}')
-
-echo "[QQ_FLEX_MD]    INFO    Last step: ${LAST_STEP} and target step: ${TARGET_STEP}"
-if [[ "${LAST_STEP}" -ge "${TARGET_STEP}" ]]; then
-    # signal to qq that the job should not be resubmitted
-    exit "${QQ_NO_RESUBMIT}"
-fi

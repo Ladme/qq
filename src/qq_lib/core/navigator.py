@@ -13,7 +13,7 @@ from .operator import Operator
 logger = get_logger(__name__)
 
 
-class QQNavigator(Operator):
+class Navigator(Operator):
     """
     Base class for performing operations with job's working directory.
 
@@ -28,6 +28,14 @@ class QQNavigator(Operator):
     """
 
     def __init__(self, info_file: Path, host: str | None = None):
+        """
+        Initialize a Navigator instance from a qq info file.
+
+        Args:
+            info_file (Path): Path to the qq info file describing the job.
+            host (str | None, optional): Optional hostname of a machine from
+                which to load job information. Defaults to None meaning 'current machine'.
+        """
         super().__init__(info_file, host)
         self._setDestination()
 

@@ -3,12 +3,12 @@
 
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
-from qq_lib.core.navigator import QQNavigator
+from qq_lib.core.navigator import Navigator
 
 logger = get_logger(__name__)
 
 
-class QQSyncer(QQNavigator):
+class QQSyncer(Navigator):
     """
     Handle synchronization of job files between a remote working directory
     (on a compute node or cluster) and the local input directory.

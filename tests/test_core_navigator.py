@@ -8,26 +8,26 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.core.navigator import QQNavigator
+from qq_lib.core.navigator import Navigator
 from qq_lib.properties.states import RealState
 
 
-def test_qqnavigator_init(tmp_path):
+def test_navigator_init(tmp_path):
     info_file = tmp_path / "job.qqinfo"
     host = "example.host.org"
 
     with (
         patch("qq_lib.core.operator.Operator.__init__") as super_init,
-        patch.object(QQNavigator, "_setDestination") as set_destination,
+        patch.object(Navigator, "_setDestination") as set_destination,
     ):
-        QQNavigator(info_file, host)
+        Navigator(info_file, host)
 
     super_init.assert_called_once_with(info_file, host)
     set_destination.assert_called_once()
 
 
-def test_qqnavigator_update_calls_super_and_set_destination():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_update_calls_super_and_set_destination():
+    navigator = Navigator.__new__(Navigator)
 
     with (
         patch("qq_lib.core.operator.Operator.update") as super_update,
@@ -47,22 +47,22 @@ def test_qqnavigator_update_calls_super_and_set_destination():
         (None, None),
     ],
 )
-def test_qqnavigator_has_destination_false(work_dir, main_node):
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_has_destination_false(work_dir, main_node):
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = work_dir
     navigator._main_node = main_node
     assert navigator.hasDestination() is False
 
 
-def test_qqnavigator_has_destination_true():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_has_destination_true():
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = "/work/dir"
     navigator._main_node = "main-node"
     assert navigator.hasDestination() is True
 
 
-def test_qqnavigator_set_destination_with_value():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_set_destination_with_value():
+    navigator = Navigator.__new__(Navigator)
     navigator._informer = MagicMock()
     navigator._informer.getDestination.return_value = ("main-node", "/work/dir")
 
@@ -72,8 +72,8 @@ def test_qqnavigator_set_destination_with_value():
     assert navigator._work_dir == "/work/dir"
 
 
-def test_qqnavigator_set_destination_none():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_set_destination_none():
+    navigator = Navigator.__new__(Navigator)
     navigator._informer = MagicMock()
     navigator._informer.getDestination.return_value = None
 
@@ -83,8 +83,8 @@ def test_qqnavigator_set_destination_none():
     assert navigator._work_dir is None
 
 
-def test_qqnavigator_is_in_work_dir_in_input_dir():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_is_in_work_dir_in_input_dir():
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
     navigator._informer.usesScratch.return_value = False
@@ -93,8 +93,8 @@ def test_qqnavigator_is_in_work_dir_in_input_dir():
     assert navigator._isInWorkDir() is True
 
 
-def test_qqnavigator_is_in_work_dir_shared_not_in_input_dir(tmp_path):
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_is_in_work_dir_shared_not_in_input_dir(tmp_path):
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = tmp_path
     navigator._informer = MagicMock()
     navigator._informer.usesScratch.return_value = False
@@ -103,8 +103,8 @@ def test_qqnavigator_is_in_work_dir_shared_not_in_input_dir(tmp_path):
     assert navigator._isInWorkDir() is False
 
 
-def test_qqnavigator_is_in_work_dir_work_dir_none():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_is_in_work_dir_work_dir_none():
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = None
     navigator._informer = MagicMock()
     navigator._main_node = socket.gethostname()
@@ -112,8 +112,8 @@ def test_qqnavigator_is_in_work_dir_work_dir_none():
     assert navigator._isInWorkDir() is False
 
 
-def test_qqnavigator_is_in_work_dir_scratch_main_node_mismatch():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_is_in_work_dir_scratch_main_node_mismatch():
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
     navigator._informer.usesScratch.return_value = True
@@ -123,8 +123,8 @@ def test_qqnavigator_is_in_work_dir_scratch_main_node_mismatch():
         assert navigator._isInWorkDir() is False
 
 
-def test_qqnavigator_is_in_work_dir_scratch_main_node_match():
-    navigator = QQNavigator.__new__(QQNavigator)
+def test_navigator_is_in_work_dir_scratch_main_node_match():
+    navigator = Navigator.__new__(Navigator)
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
     navigator._informer.usesScratch.return_value = True
@@ -144,7 +144,7 @@ def test_qqnavigator_is_in_work_dir_scratch_main_node_match():
     ],
 )
 def test_qqgoer_is_queued(state, expected):
-    goer = QQNavigator.__new__(QQNavigator)
+    goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isQueued() is expected
 
@@ -160,7 +160,7 @@ def test_qqgoer_is_queued(state, expected):
     ],
 )
 def test_qqgoer_is_killed(state, job_exit_code, expected):
-    goer = QQNavigator.__new__(QQNavigator)
+    goer = Navigator.__new__(Navigator)
     goer._state = state
     goer._informer = MagicMock()
     goer._informer.info.job_exit_code = job_exit_code
@@ -175,7 +175,7 @@ def test_qqgoer_is_killed(state, job_exit_code, expected):
     ],
 )
 def test_qqgoer_is_finished(state, expected):
-    goer = QQNavigator.__new__(QQNavigator)
+    goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isFinished() is expected
 
@@ -188,7 +188,7 @@ def test_qqgoer_is_finished(state, expected):
     ],
 )
 def test_qqgoer_is_failed(state, expected):
-    goer = QQNavigator.__new__(QQNavigator)
+    goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isFailed() is expected
 
@@ -202,7 +202,7 @@ def test_qqgoer_is_failed(state, expected):
     ],
 )
 def test_qqgoer_is_unknown_inconsistent(state, expected):
-    goer = QQNavigator.__new__(QQNavigator)
+    goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isUnknownInconsistent() is expected
 
@@ -218,7 +218,7 @@ def test_qqgoer_is_unknown_inconsistent(state, expected):
     ],
 )
 def test_qqgoer_is_exiting_successfully(state, job_exit_code, expected):
-    goer = QQNavigator.__new__(QQNavigator)
+    goer = Navigator.__new__(Navigator)
     goer._state = state
     goer._informer = MagicMock()
     goer._informer.info.job_exit_code = job_exit_code

@@ -4,4 +4,4 @@
 # ruff: noqa: F401
 
 from .cli import jobs
-from .presenter import QQJobsPresenter, QQJobsStatistics
+from .presenter import JobsPresenter, JobsStatistics

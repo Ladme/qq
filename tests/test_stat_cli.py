@@ -10,7 +10,7 @@ from click.testing import CliRunner
 from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
-from qq_lib.jobs.presenter import QQJobsPresenter
+from qq_lib.jobs.presenter import JobsPresenter
 from qq_lib.stat import stat
 
 
@@ -94,7 +94,7 @@ def test_stat_command_unfinished_shows_jobs(parsed_jobs):
         output = result.output
 
         for job in parsed_jobs:
-            assert QQJobsPresenter._shortenJobId(job.getId()) in output
+            assert JobsPresenter._shortenJobId(job.getId()) in output
             assert job.getName() in output
             assert job.getUser() in output
 
@@ -119,7 +119,7 @@ def test_stat_command_all_flag_shows_all_jobs(parsed_jobs):
         output = result.output
 
         for job in parsed_jobs:
-            assert QQJobsPresenter._shortenJobId(job.getId()) in output
+            assert JobsPresenter._shortenJobId(job.getId()) in output
             assert job.getName() in output
             assert job.getUser() in output
 

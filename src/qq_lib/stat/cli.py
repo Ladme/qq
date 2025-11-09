@@ -13,7 +13,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.jobs.presenter import QQJobsPresenter
+from qq_lib.jobs.presenter import JobsPresenter
 
 logger = get_logger(__name__)
 
@@ -51,7 +51,7 @@ def stat(extra: bool, all: bool, yaml: bool) -> NoReturn:
             sys.exit(0)
 
         BatchSystem.sortJobs(jobs)
-        presenter = QQJobsPresenter(jobs, extra)
+        presenter = JobsPresenter(jobs, extra)
         if yaml:
             presenter.dumpYaml()
         else:

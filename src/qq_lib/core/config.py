@@ -130,7 +130,7 @@ class PresenterSettings:
 
 @dataclass
 class JobsPresenterSettings:
-    """Settings for QQJobsPresenter."""
+    """Settings for JobsPresenter."""
 
     max_job_name_length: int = 20
     max_nodes_length: int = 40

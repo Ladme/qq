@@ -15,7 +15,7 @@ from qq_lib.core.error import QQError
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import QQLoopInfo
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
 from qq_lib.submit.submitter import CFG, QQSubmitter
@@ -93,7 +93,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
-    loop_info = QQLoopInfo(1, 5, Path("storage"), "job%04d")
+    loop_info = LoopInfo(1, 5, Path("storage"), "job%04d")
     exclude_files = [tmp_path / "file1.txt", tmp_path / "file2.txt"]
     depend_jobs = [
         Depend(DependType.AFTER_SUCCESS, ["12345"]),

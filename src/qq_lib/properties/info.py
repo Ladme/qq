@@ -17,7 +17,7 @@ from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 
 from .job_type import JobType
-from .loop import QQLoopInfo
+from .loop import LoopInfo
 from .resources import QQResources
 from .states import NaiveState
 
@@ -92,7 +92,7 @@ class Info:
     depend: list[Depend] = field(default_factory=list)
 
     # Loop job-associated information.
-    loop_info: QQLoopInfo | None = None
+    loop_info: LoopInfo | None = None
 
     # Account associated with the job
     account: str | None = None
@@ -229,7 +229,7 @@ class Info:
             if f.type == JobType:
                 result[f.name] = str(value)
             # convert resources
-            elif f.type == QQResources or f.type == QQLoopInfo | None:
+            elif f.type == QQResources or f.type == LoopInfo | None:
                 result[f.name] = value.toDict()
             # convert the state and the batch system
             elif (
@@ -279,9 +279,9 @@ class Info:
             if f.type == JobType and isinstance(value, str):
                 init_kwargs[name] = JobType.fromStr(value)
             # convert optional loop job info
-            elif f.type == QQLoopInfo | None and isinstance(value, dict):
+            elif f.type == LoopInfo | None and isinstance(value, dict):
                 # 'archive' must be converted to Path
-                init_kwargs[name] = QQLoopInfo(  # ty: ignore[missing-argument]
+                init_kwargs[name] = LoopInfo(  # ty: ignore[missing-argument]
                     **{k: Path(v) if k == "archive" else v for k, v in value.items()}
                 )
             # convert resources

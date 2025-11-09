@@ -17,7 +17,7 @@ from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import QQLoopInfo
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
 
@@ -44,7 +44,7 @@ class QQSubmitter:
         job_type: JobType,
         resources: QQResources,
         command_line: list[str],
-        loop_info: QQLoopInfo | None = None,
+        loop_info: LoopInfo | None = None,
         exclude: list[Path] | None = None,
         depend: list[Depend] | None = None,
     ):
@@ -60,7 +60,7 @@ class QQSubmitter:
             job_type (JobType): Type of the job to submit (e.g. standard, loop).
             resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
             command_line (list[str]): List of all arguments and options provided on the command line.
-            loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
+            loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
             depend (list[Depend] | None): Optional list of job dependencies.
 

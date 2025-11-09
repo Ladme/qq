@@ -24,7 +24,7 @@ def test_str_method():
         ("LoOp", JobType.LOOP),
     ],
 )
-def test_fromStr_valid(input_str, expected):
+def test_from_str_valid(input_str, expected):
     assert JobType.fromStr(input_str) == expected
 
 
@@ -39,7 +39,7 @@ def test_fromStr_valid(input_str, expected):
         "looping",
     ],
 )
-def test_fromStr_invalid_raises_QQError(invalid_str):
+def test_from_str_invalid_raises(invalid_str):
     with pytest.raises(QQError) as excinfo:
         JobType.fromStr(invalid_str)
     assert invalid_str in str(excinfo.value)

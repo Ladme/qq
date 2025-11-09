@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 @dataclass(init=False)
-class QQLoopInfo:
+class LoopInfo:
     """
     Dataclass containing information about a qq loop job.
     """

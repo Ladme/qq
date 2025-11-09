@@ -11,7 +11,7 @@ from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import QQLoopInfo
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.size import Size
 from qq_lib.submit.factory import QQSubmitterFactory
@@ -96,7 +96,7 @@ def test_qqsubmitter_factory_get_loop_info_uses_cli_over_parser():
 
     loop_info = factory._getLoopInfo()
 
-    assert isinstance(loop_info, QQLoopInfo)
+    assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10
     assert loop_info.end == 20
     assert loop_info.archive == Path("archive").resolve()
@@ -117,7 +117,7 @@ def test_qqsubmitter_factory_get_loop_info_falls_back_to_parser():
 
     loop_info = factory._getLoopInfo()
 
-    assert isinstance(loop_info, QQLoopInfo)
+    assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 2
     assert loop_info.end == 5
     assert loop_info.archive == Path("archive").resolve()
@@ -140,7 +140,7 @@ def test_qqsubmitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
 
     loop_info = factory._getLoopInfo()
 
-    assert isinstance(loop_info, QQLoopInfo)
+    assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10  # CLI
     assert loop_info.end == 50  # parser
     assert loop_info.archive == Path("storage").resolve()  # default

@@ -8,13 +8,13 @@ from pathlib import Path
 import pytest
 
 from qq_lib.core.error import QQError
-from qq_lib.properties.loop import QQLoopInfo
+from qq_lib.properties.loop import LoopInfo
 
 
 def test_valid_constructor(tmp_path):
     input_dir = tmp_path / "job"
 
-    loop_info = QQLoopInfo(
+    loop_info = LoopInfo(
         start=1,
         end=5,
         archive=input_dir / "archive",
@@ -32,7 +32,7 @@ def test_valid_constructor(tmp_path):
 def test_constructor_with_current(tmp_path):
     input_dir = tmp_path / "job"
 
-    loop_info = QQLoopInfo(
+    loop_info = LoopInfo(
         start=1,
         end=5,
         archive=input_dir / "archive",
@@ -52,7 +52,7 @@ def test_missing_end(tmp_path):
     input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="loop-end"):
-        QQLoopInfo(
+        LoopInfo(
             start=1,
             end=None,
             archive=input_dir / "archive",
@@ -65,7 +65,7 @@ def test_start_greater_than_end(tmp_path):
     input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="loop-start"):
-        QQLoopInfo(
+        LoopInfo(
             start=10,
             end=5,
             archive=input_dir / "archive",
@@ -78,7 +78,7 @@ def test_start_negative(tmp_path):
     input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="loop-start"):
-        QQLoopInfo(
+        LoopInfo(
             start=-1,
             end=5,
             archive=input_dir / "archive",
@@ -91,7 +91,7 @@ def test_current_greater_than_end(tmp_path):
     input_dir = tmp_path / "job"
 
     with pytest.raises(QQError, match="Current cycle number"):
-        QQLoopInfo(
+        LoopInfo(
             start=1,
             end=5,
             archive=input_dir / "archive",
@@ -107,7 +107,7 @@ def test_invalid_archive_dir(tmp_path):
     with pytest.raises(
         QQError, match="Input directory cannot be used as the loop job's archive"
     ):
-        QQLoopInfo(
+        LoopInfo(
             start=1,
             end=5,
             archive=input_dir,
@@ -117,7 +117,7 @@ def test_invalid_archive_dir(tmp_path):
 
 
 def _create_loop_info_stub(start, archive_path, archive_format="md%04d"):
-    loop_info = QQLoopInfo.__new__(QQLoopInfo)
+    loop_info = LoopInfo.__new__(LoopInfo)
     loop_info.start = start
     loop_info.archive = Path(archive_path).resolve()
     loop_info.archive_format = archive_format

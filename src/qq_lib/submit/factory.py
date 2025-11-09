@@ -11,7 +11,7 @@ from qq_lib.core.common import split_files_list
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import QQLoopInfo
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import QQResources
 
 from .parser import QQParser
@@ -154,17 +154,17 @@ class QQSubmitterFactory:
             ),
         )
 
-    def _getLoopInfo(self) -> QQLoopInfo:
+    def _getLoopInfo(self) -> LoopInfo:
         """
-        Construct QQLoopInfo holding information about the loop job.
+        Construct LoopInfo holding information about the loop job.
 
         Returns:
-            QQLoopInfo: An object containing loop job parameters.
+            LoopInfo: An object containing loop job parameters.
 
         Raises:
             QQError: If required loop job parameters are missing or invalid.
         """
-        return QQLoopInfo(
+        return LoopInfo(
             self._kwargs.get("loop_start") or self._parser.getLoopStart() or 1,
             self._kwargs.get("loop_end") or self._parser.getLoopEnd(),
             Path(self._kwargs.get("archive") or self._parser.getArchive() or "storage"),

@@ -239,7 +239,7 @@ class SizeOptions:
 
 
 @dataclass
-class QQConfig:
+class Config:
     """Main configuration for qq."""
 
     suffixes: FileSuffixes = field(default_factory=FileSuffixes)
@@ -272,10 +272,10 @@ class QQConfig:
             config_path: Explicit path to config file. If None, searches standard locations.
 
         Returns:
-            QQConfig instance with loaded or default values.
+            Config instance with loaded or default values.
         """
         if config_path is None:
-            config_path = QQConfig._get_config_path()
+            config_path = Config._get_config_path()
 
         try:
             if config_path and config_path.exists():
@@ -336,4 +336,4 @@ def _dict_to_dataclass(cls, data: dict[str, Any]):
 
 
 # Global configuration for qq.
-CFG = QQConfig.load()
+CFG = Config.load()

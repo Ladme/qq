@@ -5,4 +5,4 @@
 
 from .cli import info
 from .informer import Informer
-from .presenter import QQPresenter
+from .presenter import Presenter

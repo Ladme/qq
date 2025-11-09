@@ -112,7 +112,7 @@ class FullInfoPanelSettings:
 
 @dataclass
 class PresenterSettings:
-    """Settings for QQPresenter."""
+    """Settings for Presenter."""
 
     job_status_panel: JobStatusPanelSettings = field(
         default_factory=JobStatusPanelSettings

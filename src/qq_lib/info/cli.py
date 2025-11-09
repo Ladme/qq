@@ -17,7 +17,7 @@ from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import Informer
-from qq_lib.info.presenter import QQPresenter
+from qq_lib.info.presenter import Presenter
 
 logger = get_logger(__name__)
 
@@ -81,7 +81,7 @@ def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
             f"Info file for job '{job}' does not exist or is not reachable."
         )
 
-    presenter = QQPresenter(informer)
+    presenter = Presenter(informer)
     console = Console()
     if short:
         console.print(presenter.getShortInfo())

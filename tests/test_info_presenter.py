@@ -13,7 +13,7 @@ from rich.text import Text
 
 from qq_lib.batch.pbs import PBS
 from qq_lib.info.informer import Informer
-from qq_lib.info.presenter import CFG, QQPresenter
+from qq_lib.info.presenter import CFG, Presenter
 from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.resources import QQResources
@@ -85,7 +85,7 @@ def test_presenter_state_messages(
     if state == RealState.FAILED:
         sample_info.job_exit_code = 1
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
 
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
@@ -100,7 +100,7 @@ def test_presenter_state_messages_running_single_node(sample_info):
     sample_info.main_node = ["node1"]
     sample_info.all_nodes = ["node1"]
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
 
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
@@ -119,7 +119,7 @@ def test_presenter_state_messages_running_multiple_nodes(sample_info):
     sample_info.main_node = ["node1"]
     sample_info.all_nodes = ["node1", "node3", "node4", "node2"]
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
 
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
@@ -137,7 +137,7 @@ def test_presenter_state_messages_running_multiple_nodes(sample_info):
 def test_presenter_state_messages_exiting(sample_info, exit_code):
     sample_info.job_exit_code = exit_code
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     first_msg, second_msg = presenter._getStateMessages(
         RealState.EXITING, datetime.now(), datetime.now()
     )
@@ -152,7 +152,7 @@ def test_presenter_state_messages_exiting(sample_info, exit_code):
 
 
 def test_create_job_status_panel(sample_info):
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
 
     with patch.object(Informer, "getRealState", return_value=RealState.RUNNING):
         panel_group: Group = presenter.createJobStatusPanel()
@@ -181,7 +181,7 @@ def test_create_job_status_panel(sample_info):
 
 
 def test_create_basic_info_table(sample_info):
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     table = presenter._createBasicInfoTable()
 
     assert isinstance(table, Table)
@@ -209,7 +209,7 @@ def test_create_basic_info_table(sample_info):
 
 def test_create_basic_info_table_multiple_nodes(sample_info):
     sample_info.all_nodes = ["node01", "nod04", "node02", "node06"]
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     table = presenter._createBasicInfoTable()
 
     assert isinstance(table, Table)
@@ -239,7 +239,7 @@ def test_create_basic_info_table_no_working(sample_info):
     sample_info.main_node = None
     sample_info.work_dir = None
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     table = presenter._createBasicInfoTable()
 
     assert isinstance(table, Table)
@@ -264,7 +264,7 @@ def test_create_basic_info_table_no_working(sample_info):
 
 def test_create_resources_table(sample_info):
     console = Console(record=True)
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     table = presenter._createResourcesTable(term_width=console.size.width)
 
     assert isinstance(table, Table)
@@ -303,7 +303,7 @@ def test_create_job_history_table_with_times(sample_info, state, exit_code):
     sample_info.start_time = sample_info.submission_time + timedelta(minutes=10)
     sample_info.completion_time = sample_info.start_time + timedelta(minutes=30)
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     table = presenter._createJobHistoryTable(state, exit_code)
 
     assert isinstance(table, Table)
@@ -320,7 +320,7 @@ def test_create_job_history_table_with_times(sample_info, state, exit_code):
     assert str(sample_info.start_time) in output
     assert "was running" in output
     assert (
-        f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:"
+        f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:"
         in output
     )
     assert str(sample_info.completion_time) in output
@@ -331,7 +331,7 @@ def test_create_job_history_table_submitted_only(sample_info):
     sample_info.start_time = None
     sample_info.completion_time = None
 
-    presenter = QQPresenter(Informer(sample_info))
+    presenter = Presenter(Informer(sample_info))
     table = presenter._createJobHistoryTable(RealState.QUEUED, None)
 
     console = Console(record=True)
@@ -360,7 +360,7 @@ def test_create_job_status_table_states(sample_info, state):
 
     informer = Informer(sample_info)
     informer.info.job_state = state
-    presenter = QQPresenter(informer)
+    presenter = Presenter(informer)
 
     table = presenter._createJobStatusTable(state)
 
@@ -387,7 +387,7 @@ def test_create_job_status_table_states(sample_info, state):
 def test_create_job_status_table_with_estimated(sample_info, state):
     informer = Informer(sample_info)
     informer.info.job_state = state
-    presenter = QQPresenter(informer)
+    presenter = Presenter(informer)
 
     table = presenter._createJobStatusTable(
         state, "Should not be printed", (datetime.now(), "fake_node")
@@ -419,7 +419,7 @@ def test_create_job_status_table_with_estimated(sample_info, state):
 def test_create_job_status_table_with_comment(sample_info, state):
     informer = Informer(sample_info)
     informer.info.job_state = state
-    presenter = QQPresenter(informer)
+    presenter = Presenter(informer)
 
     table = presenter._createJobStatusTable(state, "This is a test comment")
 
@@ -452,7 +452,7 @@ def mock_informer():
 
 @pytest.fixture
 def presenter(mock_informer):
-    return QQPresenter(mock_informer)
+    return Presenter(mock_informer)
 
 
 @pytest.mark.parametrize(
@@ -500,7 +500,7 @@ def test_get_short_info_returns_correct_text_and_style(state):
     informer_mock.info.job_id = "12345"
     informer_mock.getRealState.return_value = state
 
-    presenter = QQPresenter(informer_mock)
+    presenter = Presenter(informer_mock)
 
     result = presenter.getShortInfo()
 
@@ -519,7 +519,7 @@ def test_get_short_info_combines_job_id_and_state_correctly():
     informer_mock.info.job_id = "9999"
     informer_mock.getRealState.return_value = RealState.RUNNING
 
-    presenter = QQPresenter(informer_mock)
+    presenter = Presenter(informer_mock)
 
     result = presenter.getShortInfo()
 
@@ -541,4 +541,4 @@ def test_get_short_info_combines_job_id_and_state_correctly():
     ],
 )
 def test_translate_state_to_completed_msg(state, exit_code, expected):
-    assert QQPresenter._translateStateToCompletedMsg(state, exit_code) == expected
+    assert Presenter._translateStateToCompletedMsg(state, exit_code) == expected

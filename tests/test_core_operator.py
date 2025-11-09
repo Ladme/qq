@@ -107,7 +107,7 @@ def test_operator_print_info():
     mock_console = MagicMock()
     mock_panel = MagicMock()
 
-    with patch("qq_lib.core.operator.QQPresenter") as mock_presenter_cls:
+    with patch("qq_lib.core.operator.Presenter") as mock_presenter_cls:
         mock_presenter_instance = MagicMock()
         mock_presenter_cls.return_value = mock_presenter_instance
         mock_presenter_instance.createJobStatusPanel.return_value = mock_panel

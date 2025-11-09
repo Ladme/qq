@@ -26,7 +26,7 @@ def test_info_for_job_short_prints_short_info(tmp_path):
     with (
         patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
         patch(
-            "qq_lib.info.cli.QQPresenter", return_value=presenter_mock
+            "qq_lib.info.cli.Presenter", return_value=presenter_mock
         ) as presenter_cls,
         patch("qq_lib.info.cli.Console") as console_cls,
     ):
@@ -52,7 +52,7 @@ def test_info_for_job_full_prints_full_info_panel(tmp_path):
     with (
         patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
         patch(
-            "qq_lib.info.cli.QQPresenter", return_value=presenter_mock
+            "qq_lib.info.cli.Presenter", return_value=presenter_mock
         ) as presenter_cls,
         patch("qq_lib.info.cli.Console") as console_cls,
     ):

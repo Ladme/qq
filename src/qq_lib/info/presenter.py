@@ -18,7 +18,7 @@ from qq_lib.properties.states import RealState
 from .informer import Informer
 
 
-class QQPresenter:
+class Presenter:
     """
     Presentation layer for qq job information.
     """
@@ -297,7 +297,7 @@ class QQPresenter:
                 ),
             )
             table.add_row(
-                f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
                 Text(f"{completed}"),
             )
         # job is "completed" (likely killed) but never started running
@@ -310,7 +310,7 @@ class QQPresenter:
                 ),
             )
             table.add_row(
-                f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
                 Text(f"{completed}"),
             )
 

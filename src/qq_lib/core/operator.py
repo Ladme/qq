@@ -6,7 +6,7 @@ from pathlib import Path
 from rich.console import Console
 
 from qq_lib.info.informer import Informer
-from qq_lib.info.presenter import QQPresenter
+from qq_lib.info.presenter import Presenter
 
 
 class Operator:
@@ -59,7 +59,7 @@ class Operator:
         Args:
             console (Console): Rich Console instance used to render output.
         """
-        presenter = QQPresenter(self._informer)
+        presenter = Presenter(self._informer)
         panel = presenter.createJobStatusPanel(console)
         console.print(panel)
 

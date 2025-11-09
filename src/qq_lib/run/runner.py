@@ -341,7 +341,10 @@ class Runner:
         ).run()
 
         # files excluded from copying to the working directory
-        excluded = self._informer.info.excluded_files + [self._info_file]
+        qq_out = (
+            self._informer.info.input_dir / self._informer.info.job_name
+        ).with_suffix(CFG.suffixes.qq_out)
+        excluded = self._informer.info.excluded_files + [self._info_file, qq_out]
         if self._archiver:
             excluded.append(self._archiver._archive)
 

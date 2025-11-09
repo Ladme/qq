@@ -709,6 +709,8 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._informer.info.job_id = "123"
     runner._informer.info.excluded_files = ["ignore.txt"]
     runner._informer.info.input_machine = "random.host.org"
+    runner._informer.info.input_dir = Path("/input")
+    runner._informer.info.job_name = "job+0002"
     runner._archiver = None
 
     scratch_dir = Path("/scratch")
@@ -737,7 +739,7 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
 
     # third Retryer call: syncWithExclusions
     sync_call = retryer_cls.call_args_list[2]
-    expected_excluded = ["ignore.txt", runner._info_file]
+    expected_excluded = ["ignore.txt", runner._info_file, Path("/input/job+0002.qqout")]
     assert sync_call.args[0] == runner._batch_system.syncWithExclusions
     assert sync_call.args[1] == runner._input_dir
     assert sync_call.args[2] == work_dir
@@ -757,6 +759,8 @@ def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     runner._informer.info.job_id = "123"
     runner._informer.info.excluded_files = ["ignore.txt"]
     runner._informer.info.input_machine = "random.host.org"
+    runner._informer.info.input_dir = Path("/input")
+    runner._informer.info.job_name = "job+0002"
 
     # set archiver with a dummy _archive attribute
     archiver_mock = MagicMock()

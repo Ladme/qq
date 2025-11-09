@@ -189,9 +189,29 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         return queues
 
     def getNodes() -> list[SlurmNode]:
-        raise NotImplementedError(
-            "getNodes method is not implemented for this batch system implementations"
+        command = "scontrol show node -o"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
         )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not retrieve information about nodes: {result.stderr.strip()}."
+            )
+
+        nodes = []
+        for line in result.stdout.splitlines():
+            info = parse_slurm_dump_to_dictionary(line)
+            nodes.append(SlurmNode.fromDict(info["NodeName"], info))
+
+        return nodes
 
     def readRemoteFile(host: str, file: Path) -> str:
         return QQPBS.readRemoteFile(host, file)

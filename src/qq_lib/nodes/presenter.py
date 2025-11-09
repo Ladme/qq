@@ -42,6 +42,7 @@ class NodeGroup:
         self._setSharedProperties()
 
         self._show_gpus = self._shouldShowGPUs()
+        self._show_gpu_mem = self._shouldShowGPUMem()
         self._show_local = self._shouldShowLocalScratch()
         self._show_ssd = self._shouldShowSSDScratch()
         self._show_shared = self._shouldShowSharedScratch()
@@ -86,7 +87,7 @@ class NodeGroup:
             "NCPUs": True,
             "CPU Mem": True,
             "NGPUs": self._show_gpus,
-            "GPU Mem": self._show_gpus,
+            "GPU Mem": self._show_gpu_mem,
             "Scratch Local": self._show_local,
             "Scratch SSD": self._show_ssd,
             "Scratch Shared": self._show_shared,
@@ -196,7 +197,7 @@ class NodeGroup:
             if self._show_gpus
             else None,
             Text(str(node.getFreeGPUMemory()), style=style)
-            if self._show_gpus
+            if self._show_gpu_mem
             else None,
             Text(str(node.getFreeLocalScratch()), style=style)
             if self._show_local
@@ -218,12 +219,21 @@ class NodeGroup:
 
     def _shouldShowGPUs(self) -> bool:
         """
-        Determine whether GPU-related columns should be displayed.
+        Determine whether the GPUs column should be displayed.
 
         Returns:
             bool: True if any node has GPUs, False otherwise.
         """
         return any(n.getNGPUs() != 0 for n in self.nodes)
+
+    def _shouldShowGPUMem(self) -> bool:
+        """
+        Determine whether GPU memory column should be displayed.
+
+        Returns:
+            bool: True if any node has GPU memory, False otherwise.
+        """
+        return any(n.getGPUMemory().value != 0 for n in self.nodes)
 
     def _shouldShowLocalScratch(self) -> bool:
         """

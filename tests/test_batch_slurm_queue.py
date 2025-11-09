@@ -325,7 +325,7 @@ def test_slurm_queue_from_route_only_returns_false():
     assert result is False
 
 
-def test_slurm_queue_to_yaml_round_trip_slurm_data():
+def test_slurm_queue_to_yaml_round_trip():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._name = "cpu"
 

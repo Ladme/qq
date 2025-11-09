@@ -24,6 +24,7 @@ from qq_lib.properties.size import Size
 @patch.object(NodeGroup, "_shouldShowSharedScratch", return_value=True)
 @patch.object(NodeGroup, "_shouldShowSSDScratch", return_value=True)
 @patch.object(NodeGroup, "_shouldShowLocalScratch", return_value=True)
+@patch.object(NodeGroup, "_shouldShowGPUMem", return_value=True)
 @patch.object(NodeGroup, "_shouldShowGPUs", return_value=True)
 @patch.object(NodeGroup, "_setSharedProperties")
 @patch.object(NodeGroup, "_sortNodes")
@@ -31,6 +32,7 @@ def test_node_group_init(
     mock_sort,
     mock_set_props,
     mock_show_gpus,
+    mock_show_gpu_mem,
     mock_show_local,
     mock_show_ssd,
     mock_show_shared,
@@ -42,6 +44,7 @@ def test_node_group_init(
     mock_sort.assert_called_once()
     mock_set_props.assert_called_once()
     mock_show_gpus.assert_called_once()
+    mock_show_gpu_mem.assert_called_once()
     mock_show_local.assert_called_once()
     mock_show_ssd.assert_called_once()
     mock_show_shared.assert_called_once()
@@ -76,6 +79,26 @@ def test_node_group_should_show_gpus_returns_false_if_no_node_has_gpus():
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
     assert group._shouldShowGPUs() is False
+
+
+def test_node_group_should_show_gpu_mem_returns_true_if_any_node_has_gpu_mem():
+    node1 = MagicMock(spec=["getGPUMemory"])
+    node1.getGPUMemory.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["getGPUMemory"])
+    node2.getGPUMemory.return_value = Size(4, "gb")
+    group = NodeGroup.__new__(NodeGroup)
+    group.nodes = [node1, node2]
+    assert group._shouldShowGPUMem() is True
+
+
+def test_node_group_should_show_gpu_mem_returns_false_if_no_node_has_gpu_mem():
+    node1 = MagicMock(spec=["getGPUMemory"])
+    node1.getGPUMemory.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["getGPUMemory"])
+    node2.getGPUMemory.return_value = Size(0, "gb")
+    group = NodeGroup.__new__(NodeGroup)
+    group.nodes = [node1, node2]
+    assert group._shouldShowGPUMem() is False
 
 
 def test_node_group_should_show_local_scratch_returns_true_if_any_has_space():
@@ -197,6 +220,7 @@ def test_node_group_add_node_row_all_shows(
     group = NodeGroup.__new__(NodeGroup)
     group._user = "user1"
     group._show_gpus = True
+    group._show_gpu_mem = True
     group._show_local = True
     group._show_ssd = True
     group._show_shared = True
@@ -255,6 +279,7 @@ def test_node_group_add_node_row_all_shows_false(
     group = NodeGroup.__new__(NodeGroup)
     group._user = "user2"
     group._show_gpus = False
+    group._show_gpu_mem = False
     group._show_local = False
     group._show_ssd = False
     group._show_shared = False
@@ -391,6 +416,7 @@ def test_node_group_create_nodes_table(mock_add_row):
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
     group._show_gpus = True
+    group._show_gpu_mem = True
     group._show_local = True
     group._show_ssd = True
     group._show_shared = True
@@ -426,6 +452,7 @@ def test_node_group_create_nodes_table_respects_disabled_columns(mock_add_row):
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node]
     group._show_gpus = False
+    group._show_gpu_mem = False
     group._show_local = False
     group._show_ssd = False
     group._show_shared = False

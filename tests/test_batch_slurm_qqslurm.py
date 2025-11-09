@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.batch.slurm.job import SlurmJob
+from qq_lib.batch.slurm.node import SlurmNode
 from qq_lib.batch.slurm.qqslurm import QQSlurm
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
@@ -769,3 +770,52 @@ def test_qqslurm_get_queues_scontrol_fails(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="some error")
     with pytest.raises(QQError, match="Could not retrieve information about queues"):
         QQSlurm.getQueues()
+
+
+@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
+@patch("qq_lib.batch.slurm.qqslurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.qqslurm.SlurmNode.fromDict")
+def test_qqslurm_get_nodes_success(mock_from_dict, mock_parser, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "NodeName=node1 Arch=x86_64\nNodeName=node2 Arch=x86_64"
+    mock_run.return_value = mock_result
+
+    mock_parser.side_effect = [
+        {"NodeName": "node1", "Arch": "x86_64"},
+        {"NodeName": "node2", "Arch": "x86_64"},
+    ]
+
+    mock_node1 = MagicMock(spec=SlurmNode)
+    mock_node2 = MagicMock(spec=SlurmNode)
+    mock_from_dict.side_effect = [mock_node1, mock_node2]
+
+    result = QQSlurm.getNodes()
+
+    mock_run.assert_called_once_with(
+        ["bash"],
+        input="scontrol show node -o",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+
+    assert mock_parser.call_count == 2
+    mock_from_dict.assert_any_call("node1", {"NodeName": "node1", "Arch": "x86_64"})
+    mock_from_dict.assert_any_call("node2", {"NodeName": "node2", "Arch": "x86_64"})
+
+    assert result == [mock_node1, mock_node2]
+
+
+@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
+def test_qqslurm_get_nodes_failure_raises_qqerror(mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stderr = "some error"
+    mock_run.return_value = mock_result
+
+    with pytest.raises(
+        QQError, match="Could not retrieve information about nodes: some error."
+    ):
+        QQSlurm.getNodes()

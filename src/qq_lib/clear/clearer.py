@@ -15,14 +15,14 @@ from qq_lib.properties.states import RealState
 logger = get_logger(__name__)
 
 
-class QQClearer:
+class Clearer:
     """
     Handles detection and removal of qq runtime files from a directory.
     """
 
     def __init__(self, directory: Path):
         """
-        Initialize a QQClearer for a specific directory.
+        Initialize a Clearer for a specific directory.
 
         Args:
             directory (Path): The directory to clear qq runtime files from.
@@ -60,7 +60,7 @@ class QQClearer:
             return
 
         # remove the files that are safe to be deleted
-        QQClearer._deleteFiles(to_delete)
+        Clearer._deleteFiles(to_delete)
         logger.info(
             f"Removed {len(to_delete)} qq file{'s' if len(to_delete) > 1 else ''}."
         )

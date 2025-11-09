@@ -14,7 +14,7 @@ from types import FrameType
 from typing import NoReturn
 
 import qq_lib
-from qq_lib.archive.archiver import QQArchiver
+from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
@@ -117,7 +117,7 @@ class QQRunner:
 
         # initialize archiver, if this is a loop job
         if loop_info := self._informer.info.loop_info:
-            self._archiver = QQArchiver(
+            self._archiver = Archiver(
                 loop_info.archive,
                 loop_info.archive_format,
                 self._informer.info.input_machine,

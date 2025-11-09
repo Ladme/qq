@@ -14,7 +14,7 @@ from qq_lib.core.retryer import QQRetryer
 logger = get_logger(__name__, show_time=True)
 
 
-class QQArchiver:
+class Archiver:
     """
     Handles archiving and retrieval of files for a job.
     """
@@ -28,7 +28,7 @@ class QQArchiver:
         batch_system: type[BatchInterface],
     ):
         """
-        Initialize the QQArchiver.
+        Initialize the Archiver.
 
         Args:
             archive (Path): Absolute path to the archive directory.
@@ -210,12 +210,12 @@ class QQArchiver:
                 logger.debug(
                     f"Ignoring loop number since the provided pattern ('{pattern}') does not support it."
                 )
-                regex = QQArchiver._prepare_regex_pattern(pattern)
+                regex = Archiver._prepare_regex_pattern(pattern)
         else:
             logger.debug(
                 f"Loop number not specified or the provided pattern ('{pattern}') does not support it."
             )
-            regex = QQArchiver._prepare_regex_pattern(pattern)
+            regex = Archiver._prepare_regex_pattern(pattern)
 
         logger.debug(f"Regex for matching: {regex}.")
 

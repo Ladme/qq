@@ -52,8 +52,8 @@ class QQSubmitter:
         Initialize a QQSubmitter instance.
 
         Args:
-            batch_system (type[QQBatchInterface]): The batch system class implementing
-                the QQBatchInterface used for job submission.
+            batch_system (type[BatchInterface]): The batch system class implementing
+                the BatchInterface used for job submission.
             queue (str): The name of the batch system queue to which the job will be submitted.
             account (str | None): The name of the account to use for the job.
             script (Path): Path to the job script to submit.

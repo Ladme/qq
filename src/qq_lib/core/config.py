@@ -69,7 +69,7 @@ class RunnerSettings:
 
 @dataclass
 class ArchiverSettings:
-    """Settings for QQArchiver operations."""
+    """Settings for Archiver operations."""
 
     retry_tries: int = 3
     retry_wait: int = 300

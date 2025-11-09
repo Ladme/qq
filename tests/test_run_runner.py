@@ -155,7 +155,7 @@ def test_qq_runner_init_creates_archiver_when_loop_info_present():
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
         patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
-        patch("qq_lib.run.runner.QQArchiver") as mock_archiver,
+        patch("qq_lib.run.runner.Archiver") as mock_archiver,
     ):
         batch = MagicMock()
         batch.getJobId.return_value = "12345"

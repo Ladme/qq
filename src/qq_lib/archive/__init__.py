@@ -3,4 +3,4 @@
 
 # ruff: noqa
 
-from .archiver import QQArchiver
+from .archiver import Archiver

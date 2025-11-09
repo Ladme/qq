@@ -15,7 +15,7 @@ from qq_lib.core.common import (
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
+from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import QQInformer
 from qq_lib.info.presenter import QQPresenter
 
@@ -49,7 +49,7 @@ def info(job: str | None, short: bool) -> NoReturn:
     """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
-        QQRepeater(info_files, _info_for_job, short, job).run()
+        Repeater(info_files, _info_for_job, short, job).run()
         sys.exit(0)
     except QQError as e:
         logger.error(e)

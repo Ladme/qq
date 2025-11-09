@@ -24,7 +24,7 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
+from qq_lib.core.repeater import Repeater
 from qq_lib.go.goer import QQGoer
 
 logger = get_logger(__name__)
@@ -61,7 +61,7 @@ def go(job: str | None) -> NoReturn:
     """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = QQRepeater(info_files, _go_to_job, job)
+        repeater = Repeater(info_files, _go_to_job, job)
         repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)

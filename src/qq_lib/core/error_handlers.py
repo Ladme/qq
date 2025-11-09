@@ -8,14 +8,14 @@ from typing import NoReturn
 from .config import CFG
 from .error import QQNotSuitableError
 from .logger import get_logger
-from .repeater import QQRepeater
+from .repeater import Repeater
 
 logger = get_logger(__name__)
 
 
 def handle_not_suitable_error(
     exception: BaseException,
-    metadata: QQRepeater,
+    metadata: Repeater,
 ) -> None:
     """
     Handle cases where a job is unsuitable for a qq operation.
@@ -40,7 +40,7 @@ def handle_not_suitable_error(
 
 def handle_job_mismatch_error(
     exception: BaseException,
-    _metadata: QQRepeater,
+    _metadata: Repeater,
 ) -> NoReturn:
     """
     Handle cases where the provided job ID does not match the qq info file.
@@ -51,7 +51,7 @@ def handle_job_mismatch_error(
 
 def handle_general_qq_error(
     exception: BaseException,
-    metadata: QQRepeater,
+    metadata: Repeater,
 ) -> None:
     """
     Handle general qq errors that occur during a qq operation.
@@ -66,7 +66,7 @@ def handle_general_qq_error(
 
 def ignore_error(
     _exception: BaseException,
-    _metadata: QQRepeater,
+    _metadata: Repeater,
 ) -> None:
     """
     Ignore the error.

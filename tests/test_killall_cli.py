@@ -93,7 +93,7 @@ def test_killall_yes_flag_invokes_repeater(tmp_path):
         patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
         patch("qq_lib.killall.cli._jobs_to_paths", return_value=[job_file]),
         patch(
-            "qq_lib.killall.cli.QQRepeater", return_value=repeater_mock
+            "qq_lib.killall.cli.Repeater", return_value=repeater_mock
         ) as repeater_cls,
         patch("qq_lib.killall.cli.logger"),
     ):
@@ -133,7 +133,7 @@ def test_killall_force_flag_invokes_repeater(tmp_path):
         patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
         patch("qq_lib.killall.cli._jobs_to_paths", return_value=[job_file]),
         patch(
-            "qq_lib.killall.cli.QQRepeater", return_value=repeater_mock
+            "qq_lib.killall.cli.Repeater", return_value=repeater_mock
         ) as repeater_cls,
         patch("qq_lib.killall.cli.logger"),
     ):
@@ -168,7 +168,7 @@ def test_killall_user_prompt_yes(monkeypatch, tmp_path):
         patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
         patch("qq_lib.killall.cli._jobs_to_paths", return_value=[job_file]),
         patch(
-            "qq_lib.killall.cli.QQRepeater", return_value=repeater_mock
+            "qq_lib.killall.cli.Repeater", return_value=repeater_mock
         ) as repeater_cls,
         patch("qq_lib.killall.cli.logger"),
     ):
@@ -223,7 +223,7 @@ def test_killall_qqerror_in_main_loop_exits_91(tmp_path):
     with (
         patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
         patch("qq_lib.killall.cli._jobs_to_paths", return_value=[job_file]),
-        patch("qq_lib.killall.cli.QQRepeater", side_effect=QQError("fail")),
+        patch("qq_lib.killall.cli.Repeater", side_effect=QQError("fail")),
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
@@ -248,7 +248,7 @@ def test_killall_generic_exception_exits_99(tmp_path):
     with (
         patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
         patch("qq_lib.killall.cli._jobs_to_paths", return_value=[job_file]),
-        patch("qq_lib.killall.cli.QQRepeater", side_effect=raise_exception),
+        patch("qq_lib.killall.cli.Repeater", side_effect=raise_exception),
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value

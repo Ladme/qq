@@ -56,7 +56,7 @@ def test_go_invokes_repeater_and_exits_success(tmp_path):
             "qq_lib.go.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.go.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.go.cli.logger"),
     ):
         result = runner.invoke(go, [])
@@ -82,7 +82,7 @@ def test_go_catches_qqerror_and_exits_91(tmp_path):
             "qq_lib.go.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.go.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.go.cli.logger") as mock_logger,
     ):
         result = runner.invoke(go, [])
@@ -104,7 +104,7 @@ def test_go_catches_generic_exception_and_exits_99(tmp_path):
             "qq_lib.go.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.go.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.go.cli.logger") as mock_logger,
     ):
         result = runner.invoke(go, [])

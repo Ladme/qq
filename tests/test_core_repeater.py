@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from qq_lib.core.repeater import QQRepeater
+from qq_lib.core.repeater import Repeater
 
 
 @pytest.fixture
@@ -37,8 +37,8 @@ def error_func():
     return func
 
 
-def test_qqrepeater_runs_all_items(sample_items, success_func):
-    repeater = QQRepeater(sample_items, success_func)
+def test_repeater_runs_all_items(sample_items, success_func):
+    repeater = Repeater(sample_items, success_func)
     repeater.run()
 
     assert success_func.calls == sample_items
@@ -46,8 +46,8 @@ def test_qqrepeater_runs_all_items(sample_items, success_func):
     assert repeater.encountered_errors == {}
 
 
-def test_qqrepeater_on_exception_registers_handler(sample_items):
-    repeater = QQRepeater(sample_items, lambda _: None)
+def test_repeater_on_exception_registers_handler(sample_items):
+    repeater = Repeater(sample_items, lambda _: None)
     handler = Mock()
     repeater.onException(ValueError, handler)
 
@@ -55,10 +55,10 @@ def test_qqrepeater_on_exception_registers_handler(sample_items):
     assert repeater._handlers[ValueError] is handler
 
 
-def test_qqrepeater_handles_registered_exception(sample_items, error_func):
+def test_repeater_handles_registered_exception(sample_items, error_func):
     handler = Mock()
 
-    repeater = QQRepeater(sample_items, error_func)
+    repeater = Repeater(sample_items, error_func)
     repeater.onException(ValueError, handler)
     repeater.run()
 
@@ -71,7 +71,7 @@ def test_qqrepeater_handles_registered_exception(sample_items, error_func):
     assert isinstance(repeater.encountered_errors[1], ValueError)
 
 
-def test_qqrepeater_multiple_handlers(sample_items):
+def test_repeater_multiple_handlers(sample_items):
     def func(x):
         if x == "a":
             raise ValueError("val")
@@ -82,7 +82,7 @@ def test_qqrepeater_multiple_handlers(sample_items):
     h_val = Mock()
     h_type = Mock()
 
-    repeater = QQRepeater(sample_items, func)
+    repeater = Repeater(sample_items, func)
     repeater.onException(ValueError, h_val)
     repeater.onException(TypeError, h_type)
     repeater.run()
@@ -96,13 +96,13 @@ def test_qqrepeater_multiple_handlers(sample_items):
     )
 
 
-def test_qqrepeater_unhandled_exception_propagates(sample_items):
+def test_repeater_unhandled_exception_propagates(sample_items):
     def func(x):
         if x == "b":
             raise KeyError("boom")
         return x
 
-    repeater = QQRepeater(sample_items, func)
+    repeater = Repeater(sample_items, func)
 
     with pytest.raises(KeyError, match="boom"):
         repeater.run()
@@ -112,13 +112,13 @@ def test_qqrepeater_unhandled_exception_propagates(sample_items):
     assert repeater.encountered_errors == {}
 
 
-def test_qqrepeater_handler_raises(sample_items, error_func):
+def test_repeater_handler_raises(sample_items, error_func):
     def bad_handler(exception, metadata):
         _ = exception
         _ = metadata
         raise RuntimeError("handler failed")
 
-    repeater = QQRepeater(sample_items, error_func)
+    repeater = Repeater(sample_items, error_func)
     repeater.onException(ValueError, bad_handler)
 
     with pytest.raises(RuntimeError, match="handler failed"):
@@ -127,8 +127,8 @@ def test_qqrepeater_handler_raises(sample_items, error_func):
     assert 1 in repeater.encountered_errors
 
 
-def test_qqrepeater_empty_items(success_func):
-    repeater = QQRepeater([], success_func)
+def test_repeater_empty_items(success_func):
+    repeater = Repeater([], success_func)
     repeater.run()
 
     assert success_func.calls == []
@@ -136,7 +136,7 @@ def test_qqrepeater_empty_items(success_func):
     assert repeater.current_iteration == 0
 
 
-def test_qqrepeater_multiple_handled_exceptions():
+def test_repeater_multiple_handled_exceptions():
     items = [1, 2, 3, 4]
 
     def func(x):
@@ -144,7 +144,7 @@ def test_qqrepeater_multiple_handled_exceptions():
             raise ValueError(f"bad {x}")
 
     handler = Mock()
-    repeater = QQRepeater(items, func)
+    repeater = Repeater(items, func)
     repeater.onException(ValueError, handler)
     repeater.run()
 

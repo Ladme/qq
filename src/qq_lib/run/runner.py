@@ -25,7 +25,7 @@ from qq_lib.core.error import (
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import Retryer
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.states import NaiveState
 
@@ -77,8 +77,8 @@ class QQRunner:
                 raise QQError("Job has no associated job id")
 
             # load the info file
-            self._informer: QQInformer = Retryer(
-                QQInformer.fromFile,
+            self._informer: Informer = Retryer(
+                Informer.fromFile,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
@@ -497,14 +497,14 @@ class QQRunner:
         """
         if retry:
             self._informer = Retryer(
-                QQInformer.fromFile,
+                Informer.fromFile,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
                 wait_seconds=CFG.runner.retry_wait,
             ).run()
         else:
-            self._informer = QQInformer.fromFile(self._info_file, self._input_machine)
+            self._informer = Informer.fromFile(self._info_file, self._input_machine)
 
     def _ensureMatchesJob(self, job_id: str) -> None:
         """

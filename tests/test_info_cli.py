@@ -24,7 +24,7 @@ def test_info_for_job_short_prints_short_info(tmp_path):
     presenter_mock.getShortInfo.return_value = short_info_mock
 
     with (
-        patch("qq_lib.info.cli.QQInformer.fromFile", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
         patch(
             "qq_lib.info.cli.QQPresenter", return_value=presenter_mock
         ) as presenter_cls,
@@ -50,7 +50,7 @@ def test_info_for_job_full_prints_full_info_panel(tmp_path):
     presenter_mock.createFullInfoPanel.return_value = panel_mock
 
     with (
-        patch("qq_lib.info.cli.QQInformer.fromFile", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
         patch(
             "qq_lib.info.cli.QQPresenter", return_value=presenter_mock
         ) as presenter_cls,
@@ -72,7 +72,7 @@ def test_info_for_job_raises_error_if_job_mismatch(tmp_path):
     informer_mock.matchesJob.return_value = False
 
     with (
-        patch("qq_lib.info.cli.QQInformer.fromFile", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
         pytest.raises(
             QQJobMismatchError,
             match="Info file for job 'job123' does not exist or is not reachable.",

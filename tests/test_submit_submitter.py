@@ -12,7 +12,7 @@ import pytest
 
 from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.error import QQError
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
@@ -299,7 +299,7 @@ def test_qqsubmitter_continues_loop_returns_true_for_valid_continuation(tmp_path
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(QQInformer, "fromFile", return_value=dummy_informer),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
     ):
         result = submitter.continuesLoop()
 
@@ -323,7 +323,7 @@ def test_qqsubmitter_continues_loop_returns_false_if_previous_not_finished(tmp_p
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(QQInformer, "fromFile", return_value=dummy_informer),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
     ):
         result = submitter.continuesLoop()
 
@@ -347,7 +347,7 @@ def test_qqsubmitter_continues_loop_returns_false_if_previous_cycle_mismatch(tmp
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(QQInformer, "fromFile", return_value=dummy_informer),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
     ):
         result = submitter.continuesLoop()
 
@@ -371,7 +371,7 @@ def test_qqsubmitter_continues_loop_returns_false_if_no_loop_info_in_past(tmp_pa
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(QQInformer, "fromFile", return_value=dummy_informer),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
     ):
         result = submitter.continuesLoop()
 
@@ -395,7 +395,7 @@ def test_qqsubmitter_continues_loop_returns_false_if_no_loop_info_current(tmp_pa
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(QQInformer, "fromFile", return_value=dummy_informer),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
     ):
         result = submitter.continuesLoop()
 
@@ -439,7 +439,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         patch.object(
             submitter._batch_system, "jobSubmit", return_value="jobid123"
         ) as mock_job_submit,
-        patch("qq_lib.submit.submitter.QQInformer") as mock_informer_class,
+        patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
         patch("qq_lib.__version__", "1.0"),
     ):
         mock_informer_instance = MagicMock()
@@ -487,7 +487,7 @@ def test_qq_submitter_submit(tmp_path):
         patch.object(
             submitter._batch_system, "jobSubmit", return_value="jobid123"
         ) as mock_job_submit,
-        patch("qq_lib.submit.submitter.QQInformer") as mock_informer_class,
+        patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
         patch("qq_lib.__version__", "1.0"),
         patch("getpass.getuser", return_value="testuser"),
         patch("socket.gethostname", return_value="host123"),
@@ -513,30 +513,30 @@ def test_qq_submitter_submit(tmp_path):
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
 
-    # capture the QQInfo passed to QQInformer
-    qqinfo_arg = mock_informer_class.call_args[0][0]
+    # capture the Info passed to Informer
+    info_arg = mock_informer_class.call_args[0][0]
 
-    assert qqinfo_arg.batch_system == submitter._batch_system
-    assert qqinfo_arg.qq_version == "1.0"
-    assert qqinfo_arg.username == "testuser"
-    assert qqinfo_arg.job_id == "jobid123"
-    assert qqinfo_arg.job_name == submitter._job_name
-    assert qqinfo_arg.script_name == submitter._script_name
-    assert qqinfo_arg.queue == submitter._queue
-    assert qqinfo_arg.account == submitter._account
-    assert qqinfo_arg.job_type == submitter._job_type
-    assert qqinfo_arg.input_machine == "host123"
-    assert qqinfo_arg.input_dir == submitter._input_dir
-    assert qqinfo_arg.job_state == NaiveState.QUEUED
-    assert qqinfo_arg.submission_time == datetime(2025, 10, 14, 12, 0, 0)
-    assert qqinfo_arg.stdout_file == str(
+    assert info_arg.batch_system == submitter._batch_system
+    assert info_arg.qq_version == "1.0"
+    assert info_arg.username == "testuser"
+    assert info_arg.job_id == "jobid123"
+    assert info_arg.job_name == submitter._job_name
+    assert info_arg.script_name == submitter._script_name
+    assert info_arg.queue == submitter._queue
+    assert info_arg.account == submitter._account
+    assert info_arg.job_type == submitter._job_type
+    assert info_arg.input_machine == "host123"
+    assert info_arg.input_dir == submitter._input_dir
+    assert info_arg.job_state == NaiveState.QUEUED
+    assert info_arg.submission_time == datetime(2025, 10, 14, 12, 0, 0)
+    assert info_arg.stdout_file == str(
         Path(submitter._job_name).with_suffix(CFG.suffixes.stdout)
     )
-    assert qqinfo_arg.stderr_file == str(
+    assert info_arg.stderr_file == str(
         Path(submitter._job_name).with_suffix(CFG.suffixes.stderr)
     )
-    assert qqinfo_arg.resources == submitter._resources
-    assert qqinfo_arg.loop_info == submitter._loop_info
-    assert qqinfo_arg.excluded_files == submitter._exclude
-    assert qqinfo_arg.command_line == submitter._command_line
-    assert qqinfo_arg.depend == submitter._depend
+    assert info_arg.resources == submitter._resources
+    assert info_arg.loop_info == submitter._loop_info
+    assert info_arg.excluded_files == submitter._exclude
+    assert info_arg.command_line == submitter._command_line
+    assert info_arg.depend == submitter._depend

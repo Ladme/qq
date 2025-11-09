@@ -9,7 +9,7 @@ from qq_lib.core.common import get_info_files, get_runtime_files
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
 
 logger = get_logger(__name__)
@@ -92,7 +92,7 @@ class Clearer:
         # iterate through info files
         for file in get_info_files(self._directory):
             try:
-                informer = QQInformer.fromFile(file)
+                informer = Informer.fromFile(file)
                 state = informer.getRealState()
                 logger.debug(f"Job state: {str(state)}.")
             except QQError:

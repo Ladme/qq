@@ -12,9 +12,9 @@ from rich.table import Table
 from rich.text import Text
 
 from qq_lib.batch.pbs import PBS
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import CFG, QQPresenter
-from qq_lib.properties.info import QQInfo
+from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState, RealState
@@ -33,7 +33,7 @@ def sample_resources():
 
 @pytest.fixture
 def sample_info(sample_resources):
-    return QQInfo(
+    return Info(
         batch_system=PBS,
         qq_version="0.1.0",
         username="fake_user",
@@ -85,7 +85,7 @@ def test_presenter_state_messages(
     if state == RealState.FAILED:
         sample_info.job_exit_code = 1
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
 
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
@@ -100,7 +100,7 @@ def test_presenter_state_messages_running_single_node(sample_info):
     sample_info.main_node = ["node1"]
     sample_info.all_nodes = ["node1"]
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
 
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
@@ -119,7 +119,7 @@ def test_presenter_state_messages_running_multiple_nodes(sample_info):
     sample_info.main_node = ["node1"]
     sample_info.all_nodes = ["node1", "node3", "node4", "node2"]
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
 
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
@@ -137,7 +137,7 @@ def test_presenter_state_messages_running_multiple_nodes(sample_info):
 def test_presenter_state_messages_exiting(sample_info, exit_code):
     sample_info.job_exit_code = exit_code
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     first_msg, second_msg = presenter._getStateMessages(
         RealState.EXITING, datetime.now(), datetime.now()
     )
@@ -152,9 +152,9 @@ def test_presenter_state_messages_exiting(sample_info, exit_code):
 
 
 def test_create_job_status_panel(sample_info):
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
 
-    with patch.object(QQInformer, "getRealState", return_value=RealState.RUNNING):
+    with patch.object(Informer, "getRealState", return_value=RealState.RUNNING):
         panel_group: Group = presenter.createJobStatusPanel()
 
     # group
@@ -181,7 +181,7 @@ def test_create_job_status_panel(sample_info):
 
 
 def test_create_basic_info_table(sample_info):
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     table = presenter._createBasicInfoTable()
 
     assert isinstance(table, Table)
@@ -209,7 +209,7 @@ def test_create_basic_info_table(sample_info):
 
 def test_create_basic_info_table_multiple_nodes(sample_info):
     sample_info.all_nodes = ["node01", "nod04", "node02", "node06"]
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     table = presenter._createBasicInfoTable()
 
     assert isinstance(table, Table)
@@ -239,7 +239,7 @@ def test_create_basic_info_table_no_working(sample_info):
     sample_info.main_node = None
     sample_info.work_dir = None
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     table = presenter._createBasicInfoTable()
 
     assert isinstance(table, Table)
@@ -264,7 +264,7 @@ def test_create_basic_info_table_no_working(sample_info):
 
 def test_create_resources_table(sample_info):
     console = Console(record=True)
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     table = presenter._createResourcesTable(term_width=console.size.width)
 
     assert isinstance(table, Table)
@@ -303,7 +303,7 @@ def test_create_job_history_table_with_times(sample_info, state, exit_code):
     sample_info.start_time = sample_info.submission_time + timedelta(minutes=10)
     sample_info.completion_time = sample_info.start_time + timedelta(minutes=30)
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     table = presenter._createJobHistoryTable(state, exit_code)
 
     assert isinstance(table, Table)
@@ -331,7 +331,7 @@ def test_create_job_history_table_submitted_only(sample_info):
     sample_info.start_time = None
     sample_info.completion_time = None
 
-    presenter = QQPresenter(QQInformer(sample_info))
+    presenter = QQPresenter(Informer(sample_info))
     table = presenter._createJobHistoryTable(RealState.QUEUED, None)
 
     console = Console(record=True)
@@ -358,7 +358,7 @@ def test_create_job_status_table_states(sample_info, state):
         sample_info.start_time = sample_info.submission_time + timedelta(seconds=10)
         sample_info.completion_time = sample_info.start_time + timedelta(seconds=20)
 
-    informer = QQInformer(sample_info)
+    informer = Informer(sample_info)
     informer.info.job_state = state
     presenter = QQPresenter(informer)
 
@@ -385,7 +385,7 @@ def test_create_job_status_table_states(sample_info, state):
     "state", [RealState.QUEUED, RealState.HELD, RealState.SUSPENDED, RealState.WAITING]
 )
 def test_create_job_status_table_with_estimated(sample_info, state):
-    informer = QQInformer(sample_info)
+    informer = Informer(sample_info)
     informer.info.job_state = state
     presenter = QQPresenter(informer)
 
@@ -417,7 +417,7 @@ def test_create_job_status_table_with_estimated(sample_info, state):
     "state", [RealState.QUEUED, RealState.HELD, RealState.SUSPENDED, RealState.WAITING]
 )
 def test_create_job_status_table_with_comment(sample_info, state):
-    informer = QQInformer(sample_info)
+    informer = Informer(sample_info)
     informer.info.job_state = state
     presenter = QQPresenter(informer)
 

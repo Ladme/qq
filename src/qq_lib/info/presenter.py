@@ -15,7 +15,7 @@ from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import RealState
 
-from .informer import QQInformer
+from .informer import Informer
 
 
 class QQPresenter:
@@ -23,12 +23,12 @@ class QQPresenter:
     Presentation layer for qq job information.
     """
 
-    def __init__(self, informer: QQInformer):
+    def __init__(self, informer: Informer):
         """
-        Initialize the presenter with a QQInformer.
+        Initialize the presenter with an Informer.
 
         Args:
-            informer (QQInformer): The informer object that provides
+            informer (Informer): The informer object that provides
                 access to qq job metadata and runtime details.
         """
         self._informer = informer

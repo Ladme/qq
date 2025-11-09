@@ -16,7 +16,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import QQPresenter
 
 logger = get_logger(__name__)
@@ -72,7 +72,7 @@ def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
     Raises:
         QQError: If the provided job ID does not match the job in the info file.
     """
-    informer = QQInformer.fromFile(info_file)
+    informer = Informer.fromFile(info_file)
 
     # if job id is provided on the command line,
     # we need to check that the info file actually corresponds to this job

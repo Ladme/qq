@@ -1172,7 +1172,7 @@ def test_log_fatal_error_and_exit_unknown_exception():
 
 
 @patch("qq_lib.run.runner.Retryer")
-@patch("qq_lib.run.runner.QQInformer")
+@patch("qq_lib.run.runner.Informer")
 def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
     mock_retryer = MagicMock()
     mock_informer = MagicMock()
@@ -1197,7 +1197,7 @@ def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
 
 
 @patch("qq_lib.run.runner.Retryer")
-@patch("qq_lib.run.runner.QQInformer")
+@patch("qq_lib.run.runner.Informer")
 def test_qq_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
     mock_informer = MagicMock()
     mock_informer_cls.fromFile.return_value = mock_informer

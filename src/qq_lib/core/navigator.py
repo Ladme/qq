@@ -18,7 +18,7 @@ class Navigator(Operator):
     Base class for performing operations with job's working directory.
 
     Attributes:
-        _informer (QQInformer): The underlying informer object that provides job details.
+        _informer (Informer): The underlying informer object that provides job details.
         _info_file (Path): The path to the qq info file associated with this job.
         _input_machine (str | None): Hostname of the machine on which the qq info file is stored.
         _batch_system (str): The batch system type as reported by the informer.

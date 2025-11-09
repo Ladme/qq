@@ -5,7 +5,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import QQPresenter
 
 
@@ -14,7 +14,7 @@ class Operator:
     Base class for performing operations with qq jobs.
 
     Attributes:
-        _informer (QQInformer): The underlying informer object that provides job details.
+        _informer (Informer): The underlying informer object that provides job details.
         _info_file (Path): The path to the qq info file associated with this job.
         _input_machine (str | None): Hostname of the machine on which the qq info file is stored.
         _batch_system (str): The batch system type as reported by the informer.
@@ -30,7 +30,7 @@ class Operator:
             host (str | None, optional): Optional hostname of a machine from
                 which to load job information. Defaults to None meaning 'current machine'.
         """
-        self._informer = QQInformer.fromFile(info_file, host)
+        self._informer = Informer.fromFile(info_file, host)
         self._info_file = info_file
         self._input_machine = host
         self._batch_system = self._informer.batch_system
@@ -40,15 +40,15 @@ class Operator:
         """
         Refresh the internal informer and job state from the qq info file.
         """
-        self._informer = QQInformer.fromFile(self._info_file, self._input_machine)
+        self._informer = Informer.fromFile(self._info_file, self._input_machine)
         self._state = self._informer.getRealState()
 
-    def getInformer(self) -> QQInformer:
+    def getInformer(self) -> Informer:
         """
-        Retrieve the underlying QQInformer instance.
+        Retrieve the underlying Informer instance.
 
         Returns:
-            QQInformer: The informer currently associated with this operator.
+            Informer: The informer currently associated with this operator.
         """
         return self._informer
 

@@ -4,5 +4,5 @@
 # ruff: noqa: F401
 
 from .cli import info
-from .informer import QQInformer
+from .informer import Informer
 from .presenter import QQPresenter

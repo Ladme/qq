@@ -28,13 +28,13 @@ Dumper: type[yaml.Dumper] = load_yaml_dumper()
 
 
 @dataclass
-class QQInfo:
+class Info:
     """
     Dataclass storing information about a qq job.
 
     Exposes only minimal functionality for loading, exporting, and basic access.
     More complex operations, such as transforming or combining the data
-    should be implemented in QQInformer.
+    should be implemented in Informer.
     """
 
     # The batch system class used
@@ -118,7 +118,7 @@ class QQInfo:
     @classmethod
     def fromFile(cls, file: Path, host: str | None = None) -> Self:
         """
-        Load a QQInfo instance from a YAML file, either locally or on a remote host.
+        Load an Info instance from a YAML file, either locally or on a remote host.
 
         If `host` is provided, the file will be read from the remote host using
         the batch system's `readRemoteFile` method. Otherwise, the file is read locally.
@@ -129,7 +129,7 @@ class QQInfo:
                 If None, the file is assumed to be local.
 
         Returns:
-            QQInfo: Instance constructed from the file.
+            Info: Instance constructed from the file.
 
         Raises:
             QQError: If the file does not exist, cannot be reached, cannot be parsed,
@@ -165,7 +165,7 @@ class QQInfo:
 
     def toFile(self, file: Path, host: str | None = None) -> None:
         """
-        Export this QQInfo instance to a YAML file, either locally or on a remote host.
+        Export this Info instance to a YAML file, either locally or on a remote host.
 
         If `host` is provided, the file will be written to the remote host using
         the batch system's `writeRemoteFile` method. Otherwise, the file is written locally.
@@ -195,10 +195,10 @@ class QQInfo:
 
     def _toYaml(self) -> str:
         """
-        Serialize the QQInfo instance to a YAML string.
+        Serialize the Info instance to a YAML string.
 
         Returns:
-            str: YAML representation of the QQInfo object.
+            str: YAML representation of the Info object.
         """
         return yaml.dump(
             self._toDict(), default_flow_style=False, sort_keys=False, Dumper=Dumper
@@ -206,7 +206,7 @@ class QQInfo:
 
     def _toDict(self) -> dict[str, object]:
         """
-        Convert the QQInfo instance into a dictionary of string-object pairs.
+        Convert the Info instance into a dictionary of string-object pairs.
         Fields that are None are ignored.
 
         Returns:
@@ -255,13 +255,13 @@ class QQInfo:
     @classmethod
     def _fromDict(cls, data: dict[str, object]) -> Self:
         """
-        Construct a QQInfo instance from a dictionary.
+        Construct an Info instance from a dictionary.
 
         Args:
             data: Dictionary containing field names and values.
 
         Returns:
-            QQInfo: A QQInfo instance.
+            Info: An Info instance.
 
         Raises:
             TypeError: If required fields are missing.

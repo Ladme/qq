@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 __all__ = [
-    "QQInfo",
+    "Info",
     "QQJobType",
     "QQLoopInfo",
     "QQResources",
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 _MODULES = {
-    "QQInfo": "info",
+    "Info": "info",
     "QQJobType": "job_type",
     "QQLoopInfo": "loop",
     "QQResources": "resources",

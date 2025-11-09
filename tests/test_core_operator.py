@@ -18,7 +18,7 @@ def test_operator_init_with_host(tmp_path):
     informer_mock.getRealState.return_value = RealState.RUNNING
 
     with patch(
-        "qq_lib.core.operator.QQInformer.fromFile", return_value=informer_mock
+        "qq_lib.core.operator.Informer.fromFile", return_value=informer_mock
     ) as from_file_mock:
         operator = Operator(info_file, host)
 
@@ -38,7 +38,7 @@ def test_operator_init_without_host(tmp_path):
     informer_mock.getRealState.return_value = RealState.RUNNING
 
     with patch(
-        "qq_lib.core.operator.QQInformer.fromFile", return_value=informer_mock
+        "qq_lib.core.operator.Informer.fromFile", return_value=informer_mock
     ) as from_file_mock:
         operator = Operator(info_file)
 
@@ -64,7 +64,7 @@ def test_operator_update(tmp_path):
     operator._input_machine = host
 
     with patch(
-        "qq_lib.core.operator.QQInformer.fromFile", return_value=new_informer
+        "qq_lib.core.operator.Informer.fromFile", return_value=new_informer
     ) as from_file_mock:
         operator.update()
 

@@ -13,9 +13,9 @@ from qq_lib.core.common import get_info_file, hhmmss_to_duration
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.info import QQInfo
+from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
@@ -32,7 +32,7 @@ class QQSubmitter:
         - Validate that the script exists and has a proper shebang.
         - Guard against multiple submissions from the same directory.
         - Set environment variables required for `qq run`.
-        - Create QQInfo files for tracking job state and metadata.
+        - Create a qq info file for tracking job state and metadata.
     """
 
     def __init__(
@@ -102,7 +102,7 @@ class QQSubmitter:
         Submit the script to the batch system.
 
         Sets required environment variables, calls the batch system's
-        job submission mechanism, and creates a QQInfo file with job metadata.
+        job submission mechanism, and creates an info file with job metadata.
 
         Returns:
             str: The job ID of the submitted job.
@@ -122,8 +122,8 @@ class QQSubmitter:
         )
 
         # create job qq info file
-        informer = QQInformer(
-            QQInfo(
+        informer = Informer(
+            Info(
                 batch_system=self._batch_system,
                 qq_version=qq_lib.__version__,
                 username=getpass.getuser(),
@@ -168,7 +168,7 @@ class QQSubmitter:
         try:
             # only one qq info file can be present
             info_file = get_info_file(self._input_dir)
-            informer = QQInformer.fromFile(info_file)
+            informer = Informer.fromFile(info_file)
 
             if (
                 informer.info.loop_info

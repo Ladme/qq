@@ -11,7 +11,7 @@ from click.testing import CliRunner
 from qq_lib.clear.clearer import CFG
 from qq_lib.clear.cli import Clearer, clear
 from qq_lib.core.error import QQError
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
 
 
@@ -65,7 +65,7 @@ def test_clearer_collect_excluded_files(tmp_path, state):
 
     with (
         patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
-        patch("qq_lib.info.informer.QQInformer.fromFile", return_value=mock_informer),
+        patch("qq_lib.info.informer.Informer.fromFile", return_value=mock_informer),
     ):
         result = clearer._collectExcludedFiles()
 
@@ -94,7 +94,7 @@ def test_clearer_collect_excluded_files_ignores_files_that_raise_qqerror(tmp_pat
 
     with (
         patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
-        patch.object(QQInformer, "fromFile", side_effect=QQError("cannot read file")),
+        patch.object(Informer, "fromFile", side_effect=QQError("cannot read file")),
     ):
         result = clearer._collectExcludedFiles()
 

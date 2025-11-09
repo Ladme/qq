@@ -10,7 +10,3 @@
 Read the [qq manual](https://ladme.github.io/qq-manual) for more information.
 
 **Designed for the specific needs of the [RoVa Research Group](https://vacha.ceitec.cz/).**
-
-***
-
-### **IMPORTANT: qq is currently in an early stage of development, very unstable and only supports PBS Pro!** 

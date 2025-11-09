@@ -24,7 +24,7 @@ from qq_lib.core.error import (
     QQRunFatalError,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.retryer import QQRetryer
+from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.job_type import QQJobType
 from qq_lib.properties.states import NaiveState
@@ -77,7 +77,7 @@ class QQRunner:
                 raise QQError("Job has no associated job id")
 
             # load the info file
-            self._informer: QQInformer = QQRetryer(
+            self._informer: QQInformer = Retryer(
                 QQInformer.fromFile,
                 self._info_file,
                 host=self._input_machine,
@@ -248,7 +248,7 @@ class QQRunner:
 
             if self._use_scratch:
                 # copy files back to the input (submission) directory
-                QQRetryer(
+                Retryer(
                     self._batch_system.syncWithExclusions,
                     self._work_dir,
                     self._input_dir,
@@ -299,7 +299,7 @@ class QQRunner:
         self._work_dir = self._input_dir
 
         # move to the working directory
-        QQRetryer(
+        Retryer(
             os.chdir,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -325,7 +325,7 @@ class QQRunner:
         # to affect the job execution or be copied back to input_dir
         self._work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
-        QQRetryer(
+        Retryer(
             Path.mkdir,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -333,7 +333,7 @@ class QQRunner:
         ).run()
 
         # move to the working directory
-        QQRetryer(
+        Retryer(
             os.chdir,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -346,7 +346,7 @@ class QQRunner:
             excluded.append(self._archiver._archive)
 
         # copy files to the working directory
-        QQRetryer(
+        Retryer(
             self._batch_system.syncWithExclusions,
             self._input_dir,
             self._work_dir,
@@ -364,7 +364,7 @@ class QQRunner:
         Used only after successful execution in scratch space.
         """
         logger.debug(f"Removing working directory '{self._work_dir}'.")
-        QQRetryer(
+        Retryer(
             shutil.rmtree,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -396,7 +396,7 @@ class QQRunner:
                 self._work_dir,
             )
 
-            QQRetryer(
+            Retryer(
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
@@ -422,7 +422,7 @@ class QQRunner:
 
         try:
             self._informer.setFinished(datetime.now())
-            QQRetryer(
+            Retryer(
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
@@ -451,7 +451,7 @@ class QQRunner:
 
         try:
             self._informer.setFailed(datetime.now(), return_code)
-            QQRetryer(
+            Retryer(
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
@@ -496,7 +496,7 @@ class QQRunner:
             QQError: If the qq info file cannot be reach or read after retrying.
         """
         if retry:
-            self._informer = QQRetryer(
+            self._informer = Retryer(
                 QQInformer.fromFile,
                 self._info_file,
                 host=self._input_machine,
@@ -576,7 +576,7 @@ class QQRunner:
             f"Resubmitting using the batch system '{str(self._batch_system)}'."
         )
 
-        QQRetryer(
+        Retryer(
             self._batch_system.resubmit,
             input_machine=self._informer.info.input_machine,
             input_dir=self._informer.info.input_dir,

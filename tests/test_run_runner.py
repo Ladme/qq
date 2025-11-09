@@ -30,7 +30,7 @@ def test_qq_runner_init_success():
         ) as mock_socket,
         patch("qq_lib.run.runner.qq_lib.__version__", "1.0.0"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
-        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         batch = MagicMock()
         batch.getJobId.return_value = "12345"
@@ -100,7 +100,7 @@ def test_qq_runner_init_raises_on_job_mismatch():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
-        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         batch = MagicMock()
         batch.getJobId.return_value = "12345"
@@ -127,7 +127,7 @@ def test_qq_runner_init_raises_on_batch_system_mismatch():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
-        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         batch = MagicMock()
         batch.getJobId.return_value = "12345"
@@ -154,7 +154,7 @@ def test_qq_runner_init_creates_archiver_when_loop_info_present():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
-        patch("qq_lib.run.runner.QQRetryer") as mock_retryer,
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
         patch("qq_lib.run.runner.Archiver") as mock_archiver,
     ):
         batch = MagicMock()
@@ -415,7 +415,7 @@ def test_qqrunner_resubmit_successful_resubmission():
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock) as mock_retryer,
+        patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as mock_retryer,
     ):
         runner._resubmit()
 
@@ -445,7 +445,7 @@ def test_qqrunner_resubmit_raises_qqerror():
     runner._should_resubmit = True
 
     with (
-        patch("qq_lib.run.runner.QQRetryer", side_effect=QQError("resubmit failed")),
+        patch("qq_lib.run.runner.Retryer", side_effect=QQError("resubmit failed")),
         patch("qq_lib.run.runner.logger"),
         pytest.raises(QQError, match="resubmit failed"),
     ):
@@ -509,7 +509,7 @@ def test_qqrunner_update_info_failed_success():
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.datetime") as datetime_mock,
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock) as retryer_cls,
+        patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as retryer_cls,
     ):
         now = datetime(2024, 1, 1)
         datetime_mock.now.return_value = now
@@ -561,7 +561,7 @@ def test_qqrunner_update_info_finished_success():
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.datetime") as datetime_mock,
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock) as retryer_cls,
+        patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as retryer_cls,
     ):
         now = datetime(2024, 1, 1)
         datetime_mock.now.return_value = now
@@ -617,7 +617,7 @@ def test_qqrunner_update_info_running_success():
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.datetime") as datetime_mock,
         patch("qq_lib.run.runner.socket.gethostname", return_value="host"),
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock) as retryer_cls,
+        patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as retryer_cls,
     ):
         now = datetime(2024, 1, 1)
         datetime_mock.now.return_value = now
@@ -683,7 +683,7 @@ def test_qqrunner_delete_work_dir_invokes_shutil_rmtree_with_retryer():
 
     retryer_mock = MagicMock()
     with (
-        patch("qq_lib.run.runner.QQRetryer", return_value=retryer_mock) as retryer_cls,
+        patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as retryer_cls,
         patch("qq_lib.run.runner.logger") as mock_logger,
     ):
         runner._deleteWorkDir()
@@ -715,7 +715,7 @@ def test_qqrunner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._batch_system.getScratchDir.return_value = scratch_dir
 
     with (
-        patch("qq_lib.run.runner.QQRetryer") as retryer_cls,
+        patch("qq_lib.run.runner.Retryer") as retryer_cls,
         patch("qq_lib.run.runner.logger"),
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
     ):
@@ -723,19 +723,19 @@ def test_qqrunner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
 
     work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
 
-    # first QQRetryer call: Path.mkdir
+    # first Retryer call: Path.mkdir
     mkdir_call = retryer_cls.call_args_list[0]
     assert mkdir_call.kwargs["max_tries"] == CFG.runner.retry_tries
     assert mkdir_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
     assert mkdir_call.args[0] == Path.mkdir
     assert mkdir_call.args[1] == work_dir
 
-    # second QQRetryer call: os.chdir
+    # second Retryer call: os.chdir
     chdir_call = retryer_cls.call_args_list[1]
     assert chdir_call.args[0] == os.chdir
     assert chdir_call.args[1] == work_dir
 
-    # third QQRetryer call: syncWithExclusions
+    # third Retryer call: syncWithExclusions
     sync_call = retryer_cls.call_args_list[2]
     expected_excluded = ["ignore.txt", runner._info_file]
     assert sync_call.args[0] == runner._batch_system.syncWithExclusions
@@ -767,16 +767,16 @@ def test_qqrunner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     runner._batch_system.getScratchDir.return_value = scratch_dir
 
     with (
-        patch("qq_lib.run.runner.QQRetryer") as retryer_cls,
+        patch("qq_lib.run.runner.Retryer") as retryer_cls,
         patch("qq_lib.run.runner.logger"),
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
     ):
         runner._setUpScratchDir()
 
-    # ensure QQRetryer was called three times
+    # ensure Retryer was called three times
     assert retryer_cls.call_count == 3
 
-    # verify that the third QQRetryer call (syncWithExclusions) included the archive in excluded
+    # verify that the third Retryer call (syncWithExclusions) included the archive in excluded
     sync_call_args = retryer_cls.call_args_list[2].args
     excluded_files = sync_call_args[5]
     assert Path("storage") in excluded_files
@@ -786,7 +786,7 @@ def test_qqrunner_set_up_shared_dir_calls_chdir_with_input_dir():
     runner = QQRunner.__new__(QQRunner)
     runner._input_dir = Path("/input")
 
-    with patch("qq_lib.run.runner.QQRetryer") as retryer_cls:
+    with patch("qq_lib.run.runner.Retryer") as retryer_cls:
         runner._setUpSharedDir()
 
     call_args = retryer_cls.call_args
@@ -857,7 +857,7 @@ def test_qqrunner_finalize_with_scratch_and_archiver():
     runner._updateInfoFinished = MagicMock()
 
     with (
-        patch("qq_lib.run.runner.QQRetryer") as retryer_mock,
+        patch("qq_lib.run.runner.Retryer") as retryer_mock,
         patch("socket.gethostname", return_value="host"),
     ):
         runner.finalize()
@@ -885,7 +885,7 @@ def test_qqrunner_finalize_with_scratch_and_without_archiver():
     runner._updateInfoFinished = MagicMock()
 
     with (
-        patch("qq_lib.run.runner.QQRetryer") as retryer_mock,
+        patch("qq_lib.run.runner.Retryer") as retryer_mock,
         patch("socket.gethostname", return_value="host"),
     ):
         runner.finalize()
@@ -958,7 +958,7 @@ def test_qqrunner_finalize_with_scratch_archiver_and_resubmit():
     runner._resubmit = MagicMock()
 
     with (
-        patch("qq_lib.run.runner.QQRetryer") as retryer_mock,
+        patch("qq_lib.run.runner.Retryer") as retryer_mock,
         patch("socket.gethostname", return_value="host"),
     ):
         runner.finalize()
@@ -1171,7 +1171,7 @@ def test_log_fatal_error_and_exit_unknown_exception():
     assert e.value.code == CFG.exit_codes.unexpected_error
 
 
-@patch("qq_lib.run.runner.QQRetryer")
+@patch("qq_lib.run.runner.Retryer")
 @patch("qq_lib.run.runner.QQInformer")
 def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
     mock_retryer = MagicMock()
@@ -1196,7 +1196,7 @@ def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
     assert runner._informer == mock_informer
 
 
-@patch("qq_lib.run.runner.QQRetryer")
+@patch("qq_lib.run.runner.Retryer")
 @patch("qq_lib.run.runner.QQInformer")
 def test_qq_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
     mock_informer = MagicMock()

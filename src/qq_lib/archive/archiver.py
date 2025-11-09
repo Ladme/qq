@@ -9,7 +9,7 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import is_printf_pattern, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
-from qq_lib.core.retryer import QQRetryer
+from qq_lib.core.retryer import Retryer
 
 logger = get_logger(__name__, show_time=True)
 
@@ -81,7 +81,7 @@ class Archiver:
 
         logger.debug(f"Files to fetch from archive: {files}.")
 
-        QQRetryer(
+        Retryer(
             self._batch_system.syncSelected,
             self._archive,
             dir,
@@ -112,7 +112,7 @@ class Archiver:
 
         logger.debug(f"Files to archive: {files}.")
 
-        QQRetryer(
+        Retryer(
             self._batch_system.syncSelected,
             dir,
             self._archive,
@@ -124,7 +124,7 @@ class Archiver:
         ).run()
 
         # remove the archived files
-        QQRetryer(
+        Retryer(
             self._removeFiles,
             files,
             max_tries=CFG.archiver.retry_tries,
@@ -170,7 +170,7 @@ class Archiver:
         logger.debug(f"qq runtime files to archive: {files}.")
         logger.debug(f"qq runtime files after moving: {moved_files}.")
 
-        QQRetryer(
+        Retryer(
             self._batch_system.moveRemoteFiles,
             self._input_machine,
             files,
@@ -222,7 +222,7 @@ class Archiver:
         # the directory must exist
         if host and host != socket.gethostname():
             # remote directory
-            available_files: list[Path] = QQRetryer(
+            available_files: list[Path] = Retryer(
                 self._batch_system.listRemoteDir,
                 host,
                 directory,

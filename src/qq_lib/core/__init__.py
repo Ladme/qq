@@ -11,4 +11,4 @@ from .common import (
 )
 from .error import QQError
 from .repeater import Repeater
-from .retryer import QQRetryer
+from .retryer import Retryer

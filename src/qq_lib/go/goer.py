@@ -11,7 +11,7 @@ from qq_lib.core.navigator import Navigator
 logger = get_logger(__name__)
 
 
-class QQGoer(Navigator):
+class Goer(Navigator):
     """
     Provides utilities to open a shell in the working directory of a qq job.
     """

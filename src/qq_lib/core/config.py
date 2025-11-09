@@ -77,7 +77,7 @@ class ArchiverSettings:
 
 @dataclass
 class GoerSettings:
-    """Settings for QQGoer operations."""
+    """Settings for Goer operations."""
 
     wait_time: int = 5
 

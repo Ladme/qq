@@ -25,7 +25,7 @@ from qq_lib.core.error_handlers import (
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
-from qq_lib.go.goer import QQGoer
+from qq_lib.go.goer import Goer
 
 logger = get_logger(__name__)
 console = Console()
@@ -90,7 +90,7 @@ def _go_to_job(info_file: Path, job: str | None) -> None:
                             has no working directory.
         QQError: If the navigation fails for a different reason.
     """
-    goer = QQGoer(info_file)
+    goer = Goer(info_file)
 
     # check thatthe info file in the goer corresponds
     # to the specified job

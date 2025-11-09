@@ -143,7 +143,7 @@ def test_navigator_is_in_work_dir_scratch_main_node_match():
         (RealState.RUNNING, False),
     ],
 )
-def test_qqgoer_is_queued(state, expected):
+def test_navigator_is_queued(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isQueued() is expected
@@ -159,7 +159,7 @@ def test_qqgoer_is_queued(state, expected):
         (RealState.FINISHED, None, False),
     ],
 )
-def test_qqgoer_is_killed(state, job_exit_code, expected):
+def test_navigator_is_killed(state, job_exit_code, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
     goer._informer = MagicMock()
@@ -174,7 +174,7 @@ def test_qqgoer_is_killed(state, job_exit_code, expected):
         (RealState.RUNNING, False),
     ],
 )
-def test_qqgoer_is_finished(state, expected):
+def test_navigator_is_finished(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isFinished() is expected
@@ -187,7 +187,7 @@ def test_qqgoer_is_finished(state, expected):
         (RealState.FINISHED, False),
     ],
 )
-def test_qqgoer_is_failed(state, expected):
+def test_navigator_is_failed(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isFailed() is expected
@@ -201,7 +201,7 @@ def test_qqgoer_is_failed(state, expected):
         (RealState.RUNNING, False),
     ],
 )
-def test_qqgoer_is_unknown_inconsistent(state, expected):
+def test_navigator_is_unknown_inconsistent(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
     assert goer._isUnknownInconsistent() is expected
@@ -217,7 +217,7 @@ def test_qqgoer_is_unknown_inconsistent(state, expected):
         (RealState.KILLED, 0, False),
     ],
 )
-def test_qqgoer_is_exiting_successfully(state, job_exit_code, expected):
+def test_navigator_is_exiting_successfully(state, job_exit_code, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
     goer._informer = MagicMock()

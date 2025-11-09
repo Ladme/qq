@@ -8,12 +8,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.core.error import QQError, QQNotSuitableError
-from qq_lib.go.goer import QQGoer
+from qq_lib.go.goer import Goer
 from qq_lib.properties.states import RealState
 
 
-def test_qqgoer_wait_queued():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_wait_queued():
+    goer = Goer.__new__(Goer)
     goer._isQueued = MagicMock(side_effect=[True, True, False])
     goer.update = MagicMock()
     goer.ensureSuitable = MagicMock()
@@ -27,8 +27,8 @@ def test_qqgoer_wait_queued():
         assert goer.ensureSuitable.call_count == 2
 
 
-def test_qqgoer_wait_queued_raises_not_suitable_error():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_wait_queued_raises_not_suitable_error():
+    goer = Goer.__new__(Goer)
     goer._isQueued = MagicMock(return_value=True)
     goer.update = MagicMock()
     goer.ensureSuitable = MagicMock(side_effect=QQNotSuitableError("not suitable"))
@@ -41,8 +41,8 @@ def test_qqgoer_wait_queued_raises_not_suitable_error():
         goer.update.assert_called_once()
 
 
-def test_qqgoer_ensure_suitable_raises_finished():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_ensure_suitable_raises_finished():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.FINISHED
 
     with pytest.raises(
@@ -52,8 +52,8 @@ def test_qqgoer_ensure_suitable_raises_finished():
         goer.ensureSuitable()
 
 
-def test_qqgoer_ensure_suitable_raises_exiting_successfully():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_ensure_suitable_raises_exiting_successfully():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.EXITING
     goer._informer = MagicMock()
     goer._informer.info.job_exit_code = 0
@@ -68,8 +68,8 @@ def test_qqgoer_ensure_suitable_raises_exiting_successfully():
 @pytest.mark.parametrize(
     "destination", [(None, "host"), (Path("some/path"), None), (None, None)]
 )
-def test_qqgoer_ensure_suitable_raises_killed_without_destination(destination):
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_ensure_suitable_raises_killed_without_destination(destination):
+    goer = Goer.__new__(Goer)
     goer._state = RealState.KILLED
     goer._work_dir, goer._main_node = destination
 
@@ -80,15 +80,15 @@ def test_qqgoer_ensure_suitable_raises_killed_without_destination(destination):
         goer.ensureSuitable()
 
 
-def test_qqgoer_ensure_suitable_passes_running():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_ensure_suitable_passes_running():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.RUNNING
 
     goer.ensureSuitable()  # should not raise
 
 
-def test_qqgoer_ensure_suitable_passes_killed_with_destination():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_ensure_suitable_passes_killed_with_destination():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.KILLED
     goer._work_dir = Path("/some/path")
     goer._main_node = "host"
@@ -96,8 +96,8 @@ def test_qqgoer_ensure_suitable_passes_killed_with_destination():
     goer.ensureSuitable()  # should not raise
 
 
-def test_qqgoer_go_already_in_work_dir_logs_info_and_returns():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_already_in_work_dir_logs_info_and_returns():
+    goer = Goer.__new__(Goer)
     goer._batch_system = MagicMock()
     goer._isInWorkDir = MagicMock(return_value=True)
 
@@ -109,8 +109,8 @@ def test_qqgoer_go_already_in_work_dir_logs_info_and_returns():
         goer._batch_system.navigateToDestination.assert_not_called()
 
 
-def test_qqgoer_go_killed_state_logs_warning_and_navigates():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_killed_state_logs_warning_and_navigates():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.KILLED
     goer._work_dir = Path("/dir")
     goer._main_node = "host"
@@ -127,8 +127,8 @@ def test_qqgoer_go_killed_state_logs_warning_and_navigates():
         )
 
 
-def test_qqgoer_go_failed_state_logs_warning_and_navigates():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_failed_state_logs_warning_and_navigates():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.FAILED
     goer._work_dir = Path("/dir")
     goer._main_node = "host"
@@ -148,8 +148,8 @@ def test_qqgoer_go_failed_state_logs_warning_and_navigates():
 @pytest.mark.parametrize(
     "state", [RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE]
 )
-def test_qqgoer_go_unknown_inconsistent_logs_warning_and_navigates(state):
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_unknown_inconsistent_logs_warning_and_navigates(state):
+    goer = Goer.__new__(Goer)
     goer._state = state
     goer._work_dir = Path("/dir")
     goer._main_node = "host"
@@ -169,8 +169,8 @@ def test_qqgoer_go_unknown_inconsistent_logs_warning_and_navigates(state):
 @pytest.mark.parametrize(
     "state", [RealState.QUEUED, RealState.BOOTING, RealState.HELD, RealState.WAITING]
 )
-def test_qqgoer_go_queued_state_in_work_dir_calls_waitqueued_and_logs_info(state):
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_queued_state_in_work_dir_calls_waitqueued_and_logs_info(state):
+    goer = Goer.__new__(Goer)
     goer._state = state
     goer._work_dir = Path("/dir")
     goer._main_node = "host"
@@ -188,8 +188,8 @@ def test_qqgoer_go_queued_state_in_work_dir_calls_waitqueued_and_logs_info(state
 @pytest.mark.parametrize(
     "state", [RealState.QUEUED, RealState.BOOTING, RealState.HELD, RealState.WAITING]
 )
-def test_qqgoer_go_queued_state_not_in_work_dir_navigates(state):
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_queued_state_not_in_work_dir_navigates(state):
+    goer = Goer.__new__(Goer)
     goer._state = state
     goer._work_dir = Path("/dir")
     goer._main_node = "host"
@@ -208,8 +208,8 @@ def test_qqgoer_go_queued_state_not_in_work_dir_navigates(state):
         )
 
 
-def test_qqgoer_go_no_destination_raises_error():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_no_destination_raises_error():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.RUNNING
     goer._work_dir = None
     goer._main_node = None
@@ -226,8 +226,8 @@ def test_qqgoer_go_no_destination_raises_error():
         goer.go()
 
 
-def test_qqgoer_go_navigates_when_suitable():
-    goer = QQGoer.__new__(QQGoer)
+def test_goer_go_navigates_when_suitable():
+    goer = Goer.__new__(Goer)
     goer._state = RealState.RUNNING
     goer._work_dir = Path("/dir")
     goer._main_node = "host"

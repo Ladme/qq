@@ -5,5 +5,5 @@
 
 from .job import SlurmJob
 from .node import SlurmNode
-from .qqslurm import QQSlurm
 from .queue import SlurmQueue
+from .slurm import Slurm

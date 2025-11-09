@@ -16,7 +16,7 @@ def test_nodes_command_prints_available_nodes():
     mock_node.isAvailableToUser.return_value = True
 
     with (
-        patch("qq_lib.nodes.cli.QQBatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
         patch("qq_lib.nodes.cli.QQNodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
@@ -42,7 +42,7 @@ def test_nodes_command_prints_all_nodes_with_flag():
     mock_node = MagicMock()
 
     with (
-        patch("qq_lib.nodes.cli.QQBatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
         patch("qq_lib.nodes.cli.QQNodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
@@ -69,7 +69,7 @@ def test_nodes_command_outputs_yaml_when_flag_set():
     mock_node.isAvailableToUser.return_value = True
 
     with (
-        patch("qq_lib.nodes.cli.QQBatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
         patch("qq_lib.nodes.cli.QQNodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
     ):
@@ -94,7 +94,7 @@ def test_nodes_command_handles_qqerror_and_exits_91():
 
     with (
         patch(
-            "qq_lib.nodes.cli.QQBatchMeta.fromEnvVarOrGuess",
+            "qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess",
             side_effect=QQError("error"),
         ),
         patch("qq_lib.nodes.cli.logger") as mock_logger,
@@ -110,7 +110,7 @@ def test_nodes_command_handles_unexpected_exception_and_exits_99():
 
     with (
         patch(
-            "qq_lib.nodes.cli.QQBatchMeta.fromEnvVarOrGuess",
+            "qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess",
             side_effect=RuntimeError("fatal"),
         ),
         patch("qq_lib.nodes.cli.logger") as mock_logger,

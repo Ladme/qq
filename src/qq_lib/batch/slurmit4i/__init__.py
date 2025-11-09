@@ -3,4 +3,4 @@
 
 # ruff: noqa: F401
 
-from .qqslurm import QQSlurmIT4I
+from .slurm import SlurmIT4I

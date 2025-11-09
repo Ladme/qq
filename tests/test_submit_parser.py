@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click_option_group import GroupedOption
 
-from qq_lib.batch.interface.interface import QQBatchInterface
-from qq_lib.batch.interface.meta import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.interface.interface import BatchInterface
+from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import QQJobType
@@ -283,9 +283,9 @@ def test_qqparser_get_batch_system_value():
     parser = QQParser.__new__(QQParser)
     parser._options = {"batch_system": "PBS"}
 
-    mock_class = MagicMock(spec=QQBatchInterface)
+    mock_class = MagicMock(spec=BatchInterface)
 
-    with patch.object(QQBatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
+    with patch.object(BatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
         result = parser.getBatchSystem()
 
     mock_from_str.assert_called_once_with("PBS")
@@ -570,7 +570,7 @@ exit 0
     parser.parse()
 
     batch_system = parser.getBatchSystem()
-    assert batch_system == QQPBS
+    assert batch_system == PBS
 
     assert parser.getQueue() == "default"
 

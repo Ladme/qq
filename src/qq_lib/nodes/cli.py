@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, NoReturn
 import click
 from rich.console import Console
 
-from qq_lib.batch.interface.meta import QQBatchMeta
+from qq_lib.batch.interface.meta import BatchMeta
 
 if TYPE_CHECKING:
     from qq_lib.batch.interface.node import BatchNodeInterface
@@ -39,7 +39,7 @@ If the `--all` flag is specified, display all nodes, including those not availab
 @click.option("--yaml", is_flag=True, help="Output node metadata in YAML format.")
 def nodes(all: bool, yaml: bool) -> NoReturn:
     try:
-        BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.fromEnvVarOrGuess()
         nodes: list[BatchNodeInterface] = BatchSystem.getNodes()
         user = getpass.getuser()
 

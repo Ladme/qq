@@ -21,7 +21,7 @@ from .queue import BatchQueueInterface
 logger = get_logger(__name__)
 
 
-class QQBatchInterface[
+class BatchInterface[
     TBatchJob: BatchJobInterface,
     TBatchQueue: BatchQueueInterface,
     TBatchNode: BatchNodeInterface,
@@ -40,8 +40,8 @@ class QQBatchInterface[
     # exit code of ssh if connection fails
     SSH_FAIL = 255
 
-    @staticmethod
-    def envName() -> str:
+    @classmethod
+    def envName(cls) -> str:
         """
         Return the name of the batch system environment.
 
@@ -49,11 +49,11 @@ class QQBatchInterface[
             str: The batch system name.
         """
         raise NotImplementedError(
-            "envName method is not implemented for this batch system implementation"
+            f"envName method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def isAvailable() -> bool:
+    @classmethod
+    def isAvailable(cls) -> bool:
         """
         Determine whether the batch system is available on the current host.
 
@@ -64,11 +64,11 @@ class QQBatchInterface[
             bool: True if the batch system is available, False otherwise.
         """
         raise NotImplementedError(
-            "isAvailable method is not implemented for this batch system implementation"
+            f"isAvailable method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getJobId() -> str | None:
+    @classmethod
+    def getJobId(cls) -> str | None:
         """
         Get the id of the current job from the corresponding batch system's environment variable.
 
@@ -76,11 +76,11 @@ class QQBatchInterface[
             str | None: Index of the job or None if the collective variable is not set.
         """
         raise NotImplementedError(
-            "getJobId method is not implemented for this batch system implementation"
+            f"getJobId method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getScratchDir(job_id: str) -> Path:
+    @classmethod
+    def getScratchDir(cls, job_id: str) -> Path:
         """
         Retrieve the scratch directory for a given job.
 
@@ -94,11 +94,12 @@ class QQBatchInterface[
             QQError: If there is no scratch directory available for this job.
         """
         raise NotImplementedError(
-            "getScratchDir method is not implemented for this batch system implementation"
+            f"getScratchDir method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
+    @classmethod
     def jobSubmit(
+        cls,
         res: QQResources,
         queue: str,
         script: Path,
@@ -128,11 +129,11 @@ class QQBatchInterface[
             QQError: If the job submission fails.
         """
         raise NotImplementedError(
-            "jobSubmit method is not implemented for this batch system implementation"
+            f"jobSubmit method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def jobKill(job_id: str) -> None:
+    @classmethod
+    def jobKill(cls, job_id: str) -> None:
         """
         Terminate a job gracefully. This assumes that job has time for cleanup.
 
@@ -143,11 +144,11 @@ class QQBatchInterface[
             QQError: If the job could not be killed.
         """
         raise NotImplementedError(
-            "jobKill method is not implemented for this batch system implementation"
+            f"jobKill method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def jobKillForce(job_id: str) -> None:
+    @classmethod
+    def jobKillForce(cls, job_id: str) -> None:
         """
         Forcefully terminate a job. This assumes that the job has no time for cleanup.
 
@@ -158,11 +159,11 @@ class QQBatchInterface[
             QQError: If the job could not be killed.
         """
         raise NotImplementedError(
-            "jobKillForce method is not implemented for this batch system implementation"
+            f"jobKillForce method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getBatchJob(job_id: str) -> TBatchJob:
+    @classmethod
+    def getBatchJob(cls, job_id: str) -> TBatchJob:
         """
         Retrieve information about a job from the batch system.
 
@@ -176,11 +177,11 @@ class QQBatchInterface[
             TBatchJob: Object containing the job's metadata and state.
         """
         raise NotImplementedError(
-            "getBatchJob method is not implemented for this batch system implementation"
+            f"getBatchJob method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getUnfinishedBatchJobs(user: str) -> list[TBatchJob]:
+    @classmethod
+    def getUnfinishedBatchJobs(cls, user: str) -> list[TBatchJob]:
         """
         Retrieve information about all unfinished jobs submitted by `user`.
 
@@ -193,11 +194,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing the user's unfinished jobs.
         """
         raise NotImplementedError(
-            "getUnfinishedBatchJobs method is not implemented for this batch system implementation"
+            f"getUnfinishedBatchJobs method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getBatchJobs(user: str) -> list[TBatchJob]:
+    @classmethod
+    def getBatchJobs(cls, user: str) -> list[TBatchJob]:
         """
         Retrieve information about all jobs submitted by a specific user (including finished jobs).
 
@@ -210,11 +211,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing all jobs of the user.
         """
         raise NotImplementedError(
-            "getBatchJobs method is not implemented for this batch system implementation"
+            f"getBatchJobs method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getAllUnfinishedBatchJobs() -> list[TBatchJob]:
+    @classmethod
+    def getAllUnfinishedBatchJobs(cls) -> list[TBatchJob]:
         """
         Retrieve information about unfinished jobs of all users.
 
@@ -224,11 +225,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing unfinished jobs of all users.
         """
         raise NotImplementedError(
-            "getAllUnfinishedBatchJobs method is not implemented for this batch system implementation"
+            f"getAllUnfinishedBatchJobs method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getAllBatchJobs() -> list[TBatchJob]:
+    @classmethod
+    def getAllBatchJobs(cls) -> list[TBatchJob]:
         """
         Retrieve information about all jobs of all users.
 
@@ -238,11 +239,11 @@ class QQBatchInterface[
             list[TBatchJob]: A list of job info objects representing all jobs of all users.
         """
         raise NotImplementedError(
-            "getAllBatchJobs method is not implemented for this batch system implementation"
+            f"getAllBatchJobs method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getQueues() -> list[TBatchQueue]:
+    @classmethod
+    def getQueues(cls) -> list[TBatchQueue]:
         """
         Retrieve all queues managed by the batch system.
 
@@ -250,23 +251,23 @@ class QQBatchInterface[
             list[TBatchQueue]: A list of queue objects existing in the batch system.
         """
         raise NotImplementedError(
-            "getQueues method is not implemented for this batch system implementation"
+            f"getQueues method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def getNodes() -> list[TBatchNode]:
-        """ "
+    @classmethod
+    def getNodes(cls) -> list[TBatchNode]:
+        """
         Retrieve all nodes managed by the batch system.
 
         Returns:
             list[TBatchNode]: A list of node objects existing in the batch system.
         """
         raise NotImplementedError(
-            "getNodes method is not implemented for this batch system implementations"
+            f"getNodes method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def navigateToDestination(host: str, directory: Path) -> None:
+    @classmethod
+    def navigateToDestination(cls, host: str, directory: Path) -> None:
         """
         Open a new terminal on the specified host and change the working directory
         to the given path, handing control over to the user.
@@ -288,11 +289,11 @@ class QQBatchInterface[
         """
         # if the directory is on the current host, we do not need to use ssh
         if host == socket.gethostname():
-            QQBatchInterface._navigateSameHost(directory)
+            cls._navigateSameHost(directory)
             return
 
         # the directory is on an another node
-        ssh_command = QQBatchInterface._translateSSHCommand(host, directory)
+        ssh_command = cls._translateSSHCommand(host, directory)
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
         result = subprocess.run(ssh_command)
 
@@ -302,17 +303,17 @@ class QQBatchInterface[
         # - the exit code of the last command the user runs in the interactive shell
         #
         # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
-        if result.returncode == QQBatchInterface.SSH_FAIL:
+        if result.returncode == cls.SSH_FAIL:
             raise QQError(
                 f"Could not reach '{host}:{str(directory)}': Could not connect to host."
             )
-        if result.returncode == QQBatchInterface.CD_FAIL:
+        if result.returncode == cls.CD_FAIL:
             raise QQError(
                 f"Could not reach '{host}:{str(directory)}': Could not change directory."
             )
 
-    @staticmethod
-    def readRemoteFile(host: str, file: Path) -> str:
+    @classmethod
+    def readRemoteFile(cls, host: str, file: Path) -> str:
         """
         Read the contents of a file on a remote host and return it as a string.
 
@@ -353,8 +354,8 @@ class QQBatchInterface[
             )
         return result.stdout
 
-    @staticmethod
-    def writeRemoteFile(host: str, file: Path, content: str) -> None:
+    @classmethod
+    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
         """
         Write the given content to a file on a remote host, overwriting it if it exists.
 
@@ -393,8 +394,8 @@ class QQBatchInterface[
                 f"Could not write to remote file '{file}' on '{host}': {result.stderr.strip()}."
             )
 
-    @staticmethod
-    def makeRemoteDir(host: str, directory: Path) -> None:
+    @classmethod
+    def makeRemoteDir(cls, host: str, directory: Path) -> None:
         """
         Create a directory at the specified path on a remote host.
 
@@ -431,8 +432,8 @@ class QQBatchInterface[
                 f"Could not make remote directory '{directory}' on '{host}': {result.stderr.strip()}."
             )
 
-    @staticmethod
-    def listRemoteDir(host: str, directory: Path) -> list[Path]:
+    @classmethod
+    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
         """
         List all files and directories (absolute paths) in the specified directory on a remote host.
 
@@ -479,8 +480,10 @@ class QQBatchInterface[
             if line.strip()
         ]
 
-    @staticmethod
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
+    @classmethod
+    def moveRemoteFiles(
+        cls, host: str, files: list[Path], moved_files: list[Path]
+    ) -> None:
         """
         Move files on a remote host from their current paths to new paths.
 
@@ -501,7 +504,7 @@ class QQBatchInterface[
             QQError: If the SSH command fails, the files cannot be moved or
                     the length of `files` does not match the length of `moved_files`.
         """
-        mv_command = QQBatchInterface._translateMoveCommand(files, moved_files)
+        mv_command = cls._translateMoveCommand(files, moved_files)
 
         result = subprocess.run(
             [
@@ -521,8 +524,9 @@ class QQBatchInterface[
                 f"Could not move files on a remote host '{host}': {result.stderr.strip()}."
             )
 
-    @staticmethod
+    @classmethod
     def syncWithExclusions(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -556,15 +560,16 @@ class QQBatchInterface[
             else []
         )
 
-        command = QQBatchInterface._translateRsyncExcludedCommand(
+        command = cls._translateRsyncExcludedCommand(
             src_dir, dest_dir, src_host, dest_host, relative_excluded
         )
         logger.debug(f"Rsync command: {command}.")
 
-        QQBatchInterface._runRsync(src_dir, dest_dir, src_host, dest_host, command)
+        cls._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
-    @staticmethod
+    @classmethod
     def syncSelected(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -599,15 +604,17 @@ class QQBatchInterface[
             else []
         )
 
-        command = QQBatchInterface._translateRsyncIncludedCommand(
+        command = cls._translateRsyncIncludedCommand(
             src_dir, dest_dir, src_host, dest_host, relative_included
         )
         logger.debug(f"Rsync command: {command}.")
 
-        QQBatchInterface._runRsync(src_dir, dest_dir, src_host, dest_host, command)
+        cls._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
-    @staticmethod
-    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
+    @classmethod
+    def transformResources(
+        cls, queue: str, provided_resources: QQResources
+    ) -> QQResources:
         """
         Transform user-provided QQResources into a batch system-specific QQResources instance.
 
@@ -627,11 +634,11 @@ class QQBatchInterface[
             QQError: If any of the provided parameters are invalid or inconsistent.
         """
         raise NotImplementedError(
-            "transformResources method is not implemented for this batch system implementation"
+            f"transformResources method is not implemented for {cls.__name__}"
         )
 
-    @staticmethod
-    def isShared(directory: Path) -> bool:
+    @classmethod
+    def isShared(cls, directory: Path) -> bool:
         """
         Determine whether a given directory resides on a shared filesystem.
 
@@ -650,8 +657,8 @@ class QQBatchInterface[
 
         return result.returncode != 0
 
-    @staticmethod
-    def resubmit(**kwargs) -> None:
+    @classmethod
+    def resubmit(cls, **kwargs) -> None:
         """
         Resubmit a job to the batch system.
 
@@ -701,8 +708,8 @@ class QQBatchInterface[
                 f"Could not resubmit the job on '{input_machine}': {result.stderr.strip()}."
             )
 
-    @staticmethod
-    def sortJobs(jobs: list[TBatchJob]) -> None:
+    @classmethod
+    def sortJobs(cls, jobs: list[TBatchJob]) -> None:
         """
         Sort a list of batch system jobs by a defined attribute.
 
@@ -716,12 +723,12 @@ class QQBatchInterface[
         """
         jobs.sort(key=lambda job: job.getId())
 
-    @staticmethod
-    def _translateSSHCommand(host: str, directory: Path) -> list[str]:
+    @classmethod
+    def _translateSSHCommand(cls, host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.
 
-        This is an internal method of `QQBatchInterface`; you typically should not override it.
+        This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
             host (str): The hostname of the remote machine.
@@ -737,15 +744,15 @@ class QQBatchInterface[
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
-            f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
+            f"cd {directory} || exit {cls.CD_FAIL} && exec bash -l",
         ]
 
-    @staticmethod
-    def _navigateSameHost(directory: Path) -> None:
+    @classmethod
+    def _navigateSameHost(cls, directory: Path) -> None:
         """
         Navigate to a directory on the current host using a subprocess.
 
-        This is an internal method of `QQBatchInterface`; you typically should not override it.
+        This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
             directory (Path): Directory to navigate to.
@@ -761,13 +768,13 @@ class QQBatchInterface[
         # if the directory exists, always report success,
         # no matter what the user does inside the terminal
 
-    @staticmethod
-    def _translateMoveCommand(files: list[Path], moved_files: list[Path]) -> str:
+    @classmethod
+    def _translateMoveCommand(cls, files: list[Path], moved_files: list[Path]) -> str:
         """
         Translate lists of source and destination file paths into a single shell
         command string for moving the files.
 
-        This is an internal method of `QQBatchInterface`; you typically should not override it.
+        This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
             files (list[Path]): A list of source file paths to be moved.
@@ -792,8 +799,9 @@ class QQBatchInterface[
 
         return " && ".join(mv_commands)
 
-    @staticmethod
+    @classmethod
     def _translateRsyncExcludedCommand(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -806,7 +814,7 @@ class QQBatchInterface[
         Both `src_host` and `dest_host` should not be set simultaneously,
         otherwise the resulting rsync command will be invalid.
 
-        This is an internal method of `QQBatchInterface`; you typically should not override it.
+        This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
             src_dir (Path): Source directory path.
@@ -843,8 +851,9 @@ class QQBatchInterface[
 
         return command
 
-    @staticmethod
+    @classmethod
     def _translateRsyncIncludedCommand(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -857,7 +866,7 @@ class QQBatchInterface[
         Both `src_host` and `dest_host` should not be set simultaneously,
         otherwise the resulting rsync command will be invalid.
 
-        This is an internal method of `QQBatchInterface`; you typically should not override it.
+        This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
             src_dir (Path): Source directory path.
@@ -890,8 +899,9 @@ class QQBatchInterface[
 
         return command
 
-    @staticmethod
+    @classmethod
     def _runRsync(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -901,7 +911,7 @@ class QQBatchInterface[
         """
         Execute an rsync command to synchronize files between source and destination.
 
-        This is an internal method of `QQBatchInterface`; you typically should not override it.
+        This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
             src_dir (Path): Source directory path.

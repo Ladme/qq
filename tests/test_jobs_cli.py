@@ -7,8 +7,8 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS, PBSJob
+from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.jobs import jobs
 from qq_lib.jobs.presenter import QQJobsPresenter
@@ -78,14 +78,14 @@ def test_jobs_command_unfinished_shows_jobs(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
-        patch.object(QQPBS, "sortJobs") as mock_sort,
+        patch.object(PBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)
 
@@ -103,14 +103,14 @@ def test_jobs_command_all_flag_shows_all_jobs(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getBatchJobs", return_value=parsed_jobs),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getBatchJobs", return_value=parsed_jobs),
         patch.object(
-            QQPBS,
+            PBS,
             "getUnfinishedBatchJobs",
             side_effect=Exception("getUnfinishedBatchJobs should not be called"),
         ),
-        patch.object(QQPBS, "sortJobs") as mock_sort,
+        patch.object(PBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, ["--all"], catch_exceptions=False)
 
@@ -128,14 +128,14 @@ def test_jobs_command_yaml_flag_outputs_yaml(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
-        patch.object(QQPBS, "sortJobs") as mock_sort,
+        patch.object(PBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, ["--yaml"], catch_exceptions=False)
 
@@ -155,14 +155,14 @@ def test_jobs_command_no_jobs():
     runner = CliRunner()
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getUnfinishedBatchJobs", return_value=[]),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getUnfinishedBatchJobs", return_value=[]),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
-        patch.object(QQPBS, "sortJobs") as mock_sort,
+        patch.object(PBS, "sortJobs") as mock_sort,
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)
 

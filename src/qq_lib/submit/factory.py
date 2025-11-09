@@ -6,7 +6,7 @@ from pathlib import Path
 
 from click import Parameter
 
-from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchMeta
 from qq_lib.core.common import split_files_list
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
@@ -75,7 +75,7 @@ class QQSubmitterFactory:
             self._getDepend(),
         )
 
-    def _getBatchSystem(self) -> type[QQBatchInterface]:
+    def _getBatchSystem(self) -> type[BatchInterface]:
         """
         Determine which batch system to use for the job submission.
 
@@ -86,11 +86,11 @@ class QQSubmitterFactory:
             4. Guessed batch system
 
         Returns:
-            type[QQBatchInterface]: The selected batch system class.
+            type[BatchInterface]: The selected batch system class.
         """
         if batch_system := self._kwargs.get("batch_system"):
-            return QQBatchMeta.fromStr(batch_system)
-        return self._parser.getBatchSystem() or QQBatchMeta.fromEnvVarOrGuess()
+            return BatchMeta.fromStr(batch_system)
+        return self._parser.getBatchSystem() or BatchMeta.fromEnvVarOrGuess()
 
     def _getJobType(self) -> QQJobType:
         """
@@ -127,7 +127,7 @@ class QQSubmitterFactory:
         return queue
 
     def _getResources(
-        self, BatchSystem: type[QQBatchInterface], queue: str
+        self, BatchSystem: type[BatchInterface], queue: str
     ) -> QQResources:
         """
         Get the resource requirements for the job by merging the requirements specified on the command
@@ -136,7 +136,7 @@ class QQSubmitterFactory:
         The resources are then further modified to conform to the provided `BatchSystem` and submission `queue`.
 
         Args:
-            BatchSystem (type[QQBatchInterface]): The batch system class to use.
+            BatchSystem (type[BatchInterface]): The batch system class to use.
             queue (str): The submission queue.
 
         Returns:

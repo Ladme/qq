@@ -9,7 +9,7 @@ from typing import NoReturn
 import click
 from rich.console import Console
 
-from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.interface import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -47,7 +47,7 @@ logger = get_logger(__name__)
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
 def jobs(user: str, extra: bool, all: bool, yaml: bool) -> NoReturn:
     try:
-        BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.fromEnvVarOrGuess()
         if not user:
             # use the current user, if `--user` is not specified
             user = getpass.getuser()

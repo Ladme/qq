@@ -7,13 +7,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.batch.interface.meta import QQBatchMeta, batch_system
-from qq_lib.batch.slurm import QQSlurm
-from qq_lib.batch.slurm.common import (
-    default_resources_from_dict,
-    parse_slurm_dump_to_dictionary,
-)
+from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface.meta import BatchMeta, batch_system
+from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurm.queue import SlurmQueue
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
@@ -25,14 +21,17 @@ logger = get_logger(__name__)
 
 
 @batch_system
-class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
-    def envName() -> str:
+class SlurmIT4I(Slurm, metaclass=BatchMeta):
+    @classmethod
+    def envName(cls) -> str:
         return "SlurmIT4I"
 
-    def isAvailable() -> bool:
+    @classmethod
+    def isAvailable(cls) -> bool:
         return shutil.which("it4ifree") is not None
 
-    def getScratchDir(job_id: str) -> Path:
+    @classmethod
+    def getScratchDir(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
@@ -48,13 +47,15 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
                 f"Could not create a scratch directory for job '{job_id}': {e}"
             ) from e
 
-    def navigateToDestination(host: str, directory: Path) -> None:
+    @classmethod
+    def navigateToDestination(cls, host: str, directory: Path) -> None:
         logger.info(
             f"Host '{host}' is not reachable in this environment. Navigating to '{directory}' on the current machine."
         )
-        QQBatchInterface._navigateSameHost(directory)
+        BatchInterface._navigateSameHost(directory)
 
-    def readRemoteFile(host: str, file: Path) -> str:
+    @classmethod
+    def readRemoteFile(cls, host: str, file: Path) -> str:
         # file is always on shared storage
         _ = host
         try:
@@ -62,7 +63,8 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not read file '{file}': {e}.") from e
 
-    def writeRemoteFile(host: str, file: Path, content: str) -> None:
+    @classmethod
+    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
         # file is always on shared storage
         _ = host
         try:
@@ -70,7 +72,8 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not write file '{file}': {e}.") from e
 
-    def makeRemoteDir(host: str, directory: Path) -> None:
+    @classmethod
+    def makeRemoteDir(cls, host: str, directory: Path) -> None:
         # directory is always on shared storage
         _ = host
         try:
@@ -78,7 +81,8 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not create a directory '{directory}': {e}.") from e
 
-    def listRemoteDir(host: str, directory: Path) -> list[Path]:
+    @classmethod
+    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
         # directory is always on shared storage
         _ = host
         try:
@@ -86,7 +90,10 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         except Exception as e:
             raise QQError(f"Could not list a directory '{directory}': {e}.") from e
 
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
+    @classmethod
+    def moveRemoteFiles(
+        cls, host: str, files: list[Path], moved_files: list[Path]
+    ) -> None:
         if len(files) != len(moved_files):
             raise QQError(
                 "The provided 'files' and 'moved_files' must have the same length."
@@ -97,7 +104,9 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         for src, dst in zip(files, moved_files):
             shutil.move(str(src), str(dst))
 
+    @classmethod
     def syncWithExclusions(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -107,11 +116,11 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         # always on shared storage
         _ = src_host
         _ = dest_host
-        QQBatchInterface.syncWithExclusions(
-            src_dir, dest_dir, None, None, exclude_files
-        )
+        BatchInterface.syncWithExclusions(src_dir, dest_dir, None, None, exclude_files)
 
+    @classmethod
     def syncSelected(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -121,13 +130,16 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         # always on shared storage
         _ = src_host
         _ = dest_host
-        QQBatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
+        BatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
 
-    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
+    @classmethod
+    def transformResources(
+        cls, queue: str, provided_resources: QQResources
+    ) -> QQResources:
         # default resources of the queue
         default_queue_resources = SlurmQueue(queue).getDefaultResources()
         # default server or hard-coded resources
-        default_batch_resources = QQSlurmIT4I._getDefaultServerResources()
+        default_batch_resources = cls._getDefaultServerResources()
 
         # fill in default parameters
         resources = QQResources.mergeResources(
@@ -149,16 +161,19 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
             and not equals_normalized(resources.work_dir, "job_dir")
         ):
             raise QQError(
-                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {QQSlurmIT4I.envName()} are: scratch input_dir job_dir."
+                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: scratch input_dir job_dir."
             )
 
         return resources
 
-    def isShared(directory: Path) -> bool:
+    @classmethod
+    def isShared(cls, directory: Path) -> bool:
+        _ = directory
         # always on shared storage
         return True
 
-    def resubmit(**kwargs) -> None:
+    @classmethod
+    def resubmit(cls, **kwargs) -> None:
         input_dir = kwargs["input_dir"]
         command_line = kwargs["command_line"]
 
@@ -185,31 +200,8 @@ class QQSlurmIT4I(QQSlurm, metaclass=QQBatchMeta):
         if result.returncode != 0:
             raise QQError(f"Could not resubmit the job: {result.stderr.strip()}.")
 
-    @staticmethod
-    def _getDefaultServerResources() -> QQResources:
-        command = "scontrol show config"
-
-        result = subprocess.run(
-            ["bash"],
-            input=command,
-            text=True,
-            check=False,
-            capture_output=True,
-            errors="replace",
-        )
-
-        if result.returncode != 0:
-            logger.debug("Could not get server resources. Ignoring.")
-            return QQResources()
-
-        info = parse_slurm_dump_to_dictionary(result.stdout, "\n")
-        server_resources = default_resources_from_dict(info)
-
-        return QQResources.mergeResources(
-            server_resources, QQSlurmIT4I._getDefaultResources()
-        )
-
-    def _getDefaultResources() -> QQResources:
+    @classmethod
+    def _getDefaultResources(cls) -> QQResources:
         return QQResources(
             nnodes=1,
             ncpus=128,

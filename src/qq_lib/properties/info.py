@@ -9,7 +9,7 @@ from typing import Self
 
 import yaml
 
-from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchMeta
 from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -38,7 +38,7 @@ class QQInfo:
     """
 
     # The batch system class used
-    batch_system: type[QQBatchInterface]
+    batch_system: type[BatchInterface]
 
     # Version of qq that submitted the job
     qq_version: str
@@ -140,7 +140,7 @@ class QQInfo:
                 # remote file
                 logger.debug(f"Loading qq info from '{file}' on '{host}'.")
 
-                BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+                BatchSystem = BatchMeta.fromEnvVarOrGuess()
                 data: dict[str, object] = yaml.load(
                     BatchSystem.readRemoteFile(host, file),
                     Loader=SafeLoader,
@@ -234,7 +234,7 @@ class QQInfo:
             # convert the state and the batch system
             elif (
                 f.type == NaiveState
-                or f.type == type[QQBatchInterface]
+                or f.type == type[BatchInterface]
                 or f.type == Path
                 or f.type == Path | None
             ):
@@ -288,8 +288,8 @@ class QQInfo:
             elif f.type == QQResources:
                 init_kwargs[name] = QQResources(**value)  # ty: ignore[invalid-argument-type]
             # convert the batch system
-            elif f.type == type[QQBatchInterface] and isinstance(value, str):
-                init_kwargs[name] = QQBatchMeta.fromStr(value)
+            elif f.type == type[BatchInterface] and isinstance(value, str):
+                init_kwargs[name] = BatchMeta.fromStr(value)
             # convert the job state
             elif f.type == NaiveState and isinstance(value, str):
                 init_kwargs[name] = (

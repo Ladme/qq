@@ -3,6 +3,6 @@
 
 # ruff: noqa: F401
 
-from .interface import QQBatchInterface
+from .interface import BatchInterface
 from .job import BatchJobInterface
-from .meta import QQBatchMeta
+from .meta import BatchMeta

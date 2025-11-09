@@ -9,10 +9,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.batch.pbs import QQPBS, PBSJob
+from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.node import PBSNode
-from qq_lib.batch.pbs.qqpbs import CFG
+from qq_lib.batch.pbs.pbs import CFG
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
@@ -28,13 +28,13 @@ def resources():
 
 def test_translate_kill_force():
     job_id = "123"
-    cmd = QQPBS._translateKillForce(job_id)
+    cmd = PBS._translateKillForce(job_id)
     assert cmd == f"qdel -W force {job_id}"
 
 
 def test_translate_kill():
     job_id = "123"
-    cmd = QQPBS._translateKill(job_id)
+    cmd = PBS._translateKill(job_id)
     assert cmd == f"qdel {job_id}"
 
 
@@ -42,7 +42,7 @@ def test_navigate_success(tmp_path):
     directory = tmp_path
 
     with patch("subprocess.run") as mock_run:
-        QQPBS.navigateToDestination("fake.host.org", directory)
+        PBS.navigateToDestination("fake.host.org", directory)
         # check that subprocess was called properly
         mock_run.assert_called_once_with(
             [
@@ -52,7 +52,7 @@ def test_navigate_success(tmp_path):
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "fake.host.org",
                 "-t",
-                f"cd {directory} || exit {QQBatchInterface.CD_FAIL} && exec bash -l",
+                f"cd {directory} || exit {BatchInterface.CD_FAIL} && exec bash -l",
             ]
         )
 
@@ -63,8 +63,8 @@ def test_shared_guard_sets_env_var():
     env_vars = {CFG.env_vars.guard: "true"}
 
     # patch isShared to return True
-    with patch.object(QQPBS, "isShared", return_value=True):
-        QQPBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
+    with patch.object(PBS, "isShared", return_value=True):
+        PBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
         assert env_vars[CFG.env_vars.shared_submit] == "true"
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -74,8 +74,8 @@ def test_shared_guard_does_not_set_env_var():
     env_vars = {CFG.env_vars.guard: "true"}
 
     # patch isShared to return False
-    with patch.object(QQPBS, "isShared", return_value=False):
-        QQPBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
+    with patch.object(PBS, "isShared", return_value=False):
+        PBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
         assert CFG.env_vars.shared_submit not in env_vars
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -86,8 +86,8 @@ def test_shared_guard_input_dir_does_not_raise(dir):
     env_vars = {}
 
     # patch isShared to return True
-    with patch.object(QQPBS, "isShared", return_value=True):
-        QQPBS._sharedGuard(QQResources(work_dir=dir), env_vars)
+    with patch.object(PBS, "isShared", return_value=True):
+        PBS._sharedGuard(QQResources(work_dir=dir), env_vars)
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
@@ -97,13 +97,13 @@ def test_shared_guard_input_dir_raises(dir):
 
     # patch isShared to return False
     with (
-        patch.object(QQPBS, "isShared", return_value=False),
+        patch.object(PBS, "isShared", return_value=False),
         pytest.raises(
             QQError,
             match="Job was requested to run directly in the submission directory",
         ),
     ):
-        QQPBS._sharedGuard(QQResources(work_dir=dir), env_vars)
+        PBS._sharedGuard(QQResources(work_dir=dir), env_vars)
         assert CFG.env_vars.shared_submit not in env_vars
 
 
@@ -114,8 +114,8 @@ def test_sync_with_exclusions_shared_storage_sets_local(monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    with patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync:
-        QQPBS.syncWithExclusions(src_dir, dest_dir, "host1", "host2", exclude_files)
+    with patch.object(BatchInterface, "syncWithExclusions") as mock_sync:
+        PBS.syncWithExclusions(src_dir, dest_dir, "host1", "host2", exclude_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
 
     monkeypatch.delenv(CFG.env_vars.shared_submit)
@@ -130,11 +130,11 @@ def test_sync_with_exclusions_local_src(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
+        patch.object(BatchInterface, "syncWithExclusions") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
         # source is local, destination is remote
-        QQPBS.syncWithExclusions(
+        PBS.syncWithExclusions(
             src_dir, dest_dir, local_host, "remotehost", exclude_files
         )
         mock_sync.assert_called_once_with(
@@ -151,11 +151,11 @@ def test_sync_with_exclusions_local_dest(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
+        patch.object(BatchInterface, "syncWithExclusions") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
         # destination is local, source is remote
-        QQPBS.syncWithExclusions(
+        PBS.syncWithExclusions(
             src_dir, dest_dir, "remotehost", local_host, exclude_files
         )
         mock_sync.assert_called_once_with(
@@ -172,11 +172,11 @@ def test_sync_with_exclusions_one_remote(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch.object(QQBatchInterface, "syncWithExclusions") as mock_sync,
+        patch.object(BatchInterface, "syncWithExclusions") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
         # source local, destination local -> uses None
-        QQPBS.syncWithExclusions(src_dir, dest_dir, None, local_host, exclude_files)
+        PBS.syncWithExclusions(src_dir, dest_dir, None, local_host, exclude_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, exclude_files)
 
 
@@ -192,7 +192,7 @@ def test_sync_with_exclusions_both_remote_raises(monkeypatch):
         pytest.raises(QQError, match="cannot be both remote"),
     ):
         # both source and destination are remote and job directory is not shared
-        QQPBS.syncWithExclusions(src_dir, dest_dir, "remote1", "remote2", exclude_files)
+        PBS.syncWithExclusions(src_dir, dest_dir, "remote1", "remote2", exclude_files)
 
 
 def test_sync_selected_shared_storage_sets_local(monkeypatch):
@@ -202,8 +202,8 @@ def test_sync_selected_shared_storage_sets_local(monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    with patch.object(QQBatchInterface, "syncSelected") as mock_sync:
-        QQPBS.syncSelected(src_dir, dest_dir, "host1", "host2", include_files)
+    with patch.object(BatchInterface, "syncSelected") as mock_sync:
+        PBS.syncSelected(src_dir, dest_dir, "host1", "host2", include_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, include_files)
 
     monkeypatch.delenv(CFG.env_vars.shared_submit)
@@ -218,10 +218,10 @@ def test_sync_selected_local_src(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch.object(QQBatchInterface, "syncSelected") as mock_sync,
+        patch.object(BatchInterface, "syncSelected") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
-        QQPBS.syncSelected(src_dir, dest_dir, local_host, "remotehost", include_files)
+        PBS.syncSelected(src_dir, dest_dir, local_host, "remotehost", include_files)
         mock_sync.assert_called_once_with(
             src_dir, dest_dir, None, "remotehost", include_files
         )
@@ -236,10 +236,10 @@ def test_sync_selected_local_dest(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch.object(QQBatchInterface, "syncSelected") as mock_sync,
+        patch.object(BatchInterface, "syncSelected") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
-        QQPBS.syncSelected(src_dir, dest_dir, "remotehost", local_host, include_files)
+        PBS.syncSelected(src_dir, dest_dir, "remotehost", local_host, include_files)
         mock_sync.assert_called_once_with(
             src_dir, dest_dir, "remotehost", None, include_files
         )
@@ -254,10 +254,10 @@ def test_sync_selected_one_remote(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch.object(QQBatchInterface, "syncSelected") as mock_sync,
+        patch.object(BatchInterface, "syncSelected") as mock_sync,
         patch("socket.gethostname", return_value=local_host),
     ):
-        QQPBS.syncSelected(src_dir, dest_dir, None, local_host, include_files)
+        PBS.syncSelected(src_dir, dest_dir, None, local_host, include_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, include_files)
 
 
@@ -272,7 +272,7 @@ def test_sync_selected_both_remote_raises(monkeypatch):
         patch("socket.gethostname", return_value="localhost"),
         pytest.raises(QQError, match="cannot be both remote"),
     ):
-        QQPBS.syncSelected(src_dir, dest_dir, "remote1", "remote2", include_files)
+        PBS.syncSelected(src_dir, dest_dir, "remote1", "remote2", include_files)
 
 
 def test_read_remote_file_shared_storage(tmp_path, monkeypatch):
@@ -282,7 +282,7 @@ def test_read_remote_file_shared_storage(tmp_path, monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    result = QQPBS.readRemoteFile("remotehost", file_path)
+    result = PBS.readRemoteFile("remotehost", file_path)
     assert result == content
 
     monkeypatch.delenv(CFG.env_vars.shared_submit)
@@ -294,7 +294,7 @@ def test_read_remote_file_shared_storage_file_missing(tmp_path, monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not read file"):
-        QQPBS.readRemoteFile("remotehost", file_path)
+        PBS.readRemoteFile("remotehost", file_path)
 
     monkeypatch.delenv(CFG.env_vars.shared_submit)
 
@@ -302,9 +302,9 @@ def test_read_remote_file_shared_storage_file_missing(tmp_path, monkeypatch):
 def test_read_remote_file_remote():
     file_path = Path("/remote/file.txt")
     with patch.object(
-        QQBatchInterface, "readRemoteFile", return_value="data"
+        BatchInterface, "readRemoteFile", return_value="data"
     ) as mock_read:
-        result = QQPBS.readRemoteFile("remotehost", file_path)
+        result = PBS.readRemoteFile("remotehost", file_path)
         mock_read.assert_called_once_with("remotehost", file_path)
         assert result == "data"
 
@@ -315,7 +315,7 @@ def test_write_remote_file_shared_storage(tmp_path, monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    QQPBS.writeRemoteFile("remotehost", file_path, content)
+    PBS.writeRemoteFile("remotehost", file_path, content)
     assert file_path.read_text() == content
 
 
@@ -327,15 +327,15 @@ def test_write_remote_file_shared_storage_exception(tmp_path, monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not write file"):
-        QQPBS.writeRemoteFile("remotehost", dir_path, "content")
+        PBS.writeRemoteFile("remotehost", dir_path, "content")
 
 
 def test_write_remote_file_remote():
     file_path = Path("/remote/output.txt")
     content = "data"
 
-    with patch.object(QQBatchInterface, "writeRemoteFile") as mock_write:
-        QQPBS.writeRemoteFile("remotehost", file_path, content)
+    with patch.object(BatchInterface, "writeRemoteFile") as mock_write:
+        PBS.writeRemoteFile("remotehost", file_path, content)
         mock_write.assert_called_once_with("remotehost", file_path, content)
 
 
@@ -344,7 +344,7 @@ def test_make_remote_dir_shared_storage(tmp_path, monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    QQPBS.makeRemoteDir("remotehost", dir_path)
+    PBS.makeRemoteDir("remotehost", dir_path)
 
     assert dir_path.exists() and dir_path.is_dir()
 
@@ -356,7 +356,7 @@ def test_make_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not create a directory"):
-        QQPBS.makeRemoteDir("remotehost", file_path)
+        PBS.makeRemoteDir("remotehost", file_path)
 
 
 def test_make_remote_dir_shared_storage_already_exists_ok(tmp_path, monkeypatch):
@@ -366,7 +366,7 @@ def test_make_remote_dir_shared_storage_already_exists_ok(tmp_path, monkeypatch)
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     # ignore that the directory already exists
-    QQPBS.makeRemoteDir("remotehost", dir_path)
+    PBS.makeRemoteDir("remotehost", dir_path)
 
     assert dir_path.exists() and dir_path.is_dir()
 
@@ -374,8 +374,8 @@ def test_make_remote_dir_shared_storage_already_exists_ok(tmp_path, monkeypatch)
 def test_make_remote_dir_remote():
     dir_path = Path("/remote/newdir")
 
-    with patch.object(QQBatchInterface, "makeRemoteDir") as mock_make:
-        QQPBS.makeRemoteDir("remotehost", dir_path)
+    with patch.object(BatchInterface, "makeRemoteDir") as mock_make:
+        PBS.makeRemoteDir("remotehost", dir_path)
         mock_make.assert_called_once_with("remotehost", dir_path)
 
 
@@ -386,7 +386,7 @@ def test_list_remote_dir_shared_storage(tmp_path, monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    result = QQPBS.listRemoteDir("remotehost", tmp_path)
+    result = PBS.listRemoteDir("remotehost", tmp_path)
 
     result_names = sorted([p.name for p in result])
     assert result_names == ["file1.txt", "file2.txt", "subdir"]
@@ -400,14 +400,14 @@ def test_list_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="Could not list a directory"):
-        QQPBS.listRemoteDir("remotehost", bad_path)
+        PBS.listRemoteDir("remotehost", bad_path)
 
 
 def test_list_remote_dir_remote():
     dir_path = Path("/remote/dir")
 
-    with patch.object(QQBatchInterface, "listRemoteDir") as mock_list:
-        QQPBS.listRemoteDir("remotehost", dir_path)
+    with patch.object(BatchInterface, "listRemoteDir") as mock_list:
+        PBS.listRemoteDir("remotehost", dir_path)
         mock_list.assert_called_once_with("remotehost", dir_path)
 
 
@@ -424,7 +424,7 @@ def test_move_remote_files_shared_storage(tmp_path, monkeypatch):
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    QQPBS.moveRemoteFiles("remotehost", [src1, src2], [dst1, dst2])
+    PBS.moveRemoteFiles("remotehost", [src1, src2], [dst1, dst2])
 
     # check that files were moved
     assert dst1.exists() and dst1.read_text() == "one"
@@ -445,7 +445,7 @@ def test_move_remote_files_shared_storage_exception(tmp_path, monkeypatch):
     (dst).write_text("dummy")
 
     with pytest.raises(Exception):
-        QQPBS.moveRemoteFiles("remotehost", [bad_src], [dst])
+        PBS.moveRemoteFiles("remotehost", [bad_src], [dst])
 
 
 def test_move_remote_files_length_mismatch(tmp_path, monkeypatch):
@@ -457,31 +457,31 @@ def test_move_remote_files_length_mismatch(tmp_path, monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     with pytest.raises(QQError, match="must have the same length"):
-        QQPBS.moveRemoteFiles("remotehost", [src], [dst1, dst2])
+        PBS.moveRemoteFiles("remotehost", [src], [dst1, dst2])
 
 
 def test_move_remote_files_remote():
     src = Path("/remote/file.txt")
     dst = Path("/remote/dest.txt")
 
-    with patch.object(QQBatchInterface, "moveRemoteFiles") as mock_move:
-        QQPBS.moveRemoteFiles("remotehost", [src], [dst])
+    with patch.object(BatchInterface, "moveRemoteFiles") as mock_move:
+        PBS.moveRemoteFiles("remotehost", [src], [dst])
         mock_move.assert_called_once_with("remotehost", [src], [dst])
 
 
 def test_translate_work_dir_input_dir_returns_none():
     res = QQResources(nnodes=1, work_dir="input_dir")
-    assert QQPBS._translateWorkDir(res) is None
+    assert PBS._translateWorkDir(res) is None
 
 
 def test_translate_work_dir_scratch_shm_returns_true_string():
     res = QQResources(nnodes=3, work_dir="scratch_shm")
-    assert QQPBS._translateWorkDir(res) == "scratch_shm=true"
+    assert PBS._translateWorkDir(res) == "scratch_shm=true"
 
 
 def test_translate_work_dir_work_size_divided_by_nnodes():
     res = QQResources(nnodes=2, work_dir="scratch_local", work_size="7mb")
-    result = QQPBS._translateWorkDir(res)
+    result = PBS._translateWorkDir(res)
     assert result == "scratch_local=3584kb"
 
 
@@ -489,63 +489,63 @@ def test_translate_work_dir_work_size_per_cpu_and_ncpus():
     res = QQResources(
         nnodes=4, ncpus=5, work_dir="scratch_local", work_size_per_cpu="3mb"
     )
-    result = QQPBS._translateWorkDir(res)
+    result = PBS._translateWorkDir(res)
     assert result == "scratch_local=3840kb"
 
 
 def test_translate_work_dir_missing_work_size_raises():
     res = QQResources(nnodes=2, ncpus=4, work_dir="scratch_local")
     with pytest.raises(QQError, match="work-size"):
-        QQPBS._translateWorkDir(res)
+        PBS._translateWorkDir(res)
 
 
 def test_translate_work_dir_missing_ncpus_with_work_size_per_cpu_raises():
     res = QQResources(nnodes=2, work_dir="scratch_local", work_size_per_cpu="3mb")
     with pytest.raises(QQError, match="work-size"):
-        QQPBS._translateWorkDir(res)
+        PBS._translateWorkDir(res)
 
 
 def test_translate_per_chunk_resources_nnones_missing_raises():
     res = QQResources(nnodes=None, ncpus=2, mem="4mb")
     with pytest.raises(QQError, match="nnodes"):
-        QQPBS._translatePerChunkResources(res)
+        PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_nnones_zero_raises():
     res = QQResources(nnodes=0, ncpus=2, mem="4mb")
     with pytest.raises(QQError, match="nnodes"):
-        QQPBS._translatePerChunkResources(res)
+        PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_ncpus_not_divisible_raises():
     res = QQResources(nnodes=3, ncpus=4, mem="4mb")
     with pytest.raises(QQError, match="ncpus"):
-        QQPBS._translatePerChunkResources(res)
+        PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_ngpus_not_divisible_raises():
     res = QQResources(nnodes=2, ncpus=2, ngpus=3, mem="4mb")
     with pytest.raises(QQError, match="ngpus"):
-        QQPBS._translatePerChunkResources(res)
+        PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_mem_division():
     res = QQResources(nnodes=2, ncpus=4, mem="7mb", work_dir="input_dir")
-    result = QQPBS._translatePerChunkResources(res)
+    result = PBS._translatePerChunkResources(res)
     assert "ncpus=2" in result
     assert "mem=3584kb" in result
 
 
 def test_translate_per_chunk_resources_mem_per_cpu_used():
     res = QQResources(nnodes=2, ncpus=4, mem_per_cpu="2mb", work_dir="input_dir")
-    result = QQPBS._translatePerChunkResources(res)
+    result = PBS._translatePerChunkResources(res)
     # 2mb * 4 / 2 = 4mb
     assert "mem=4096kb" in result
 
 
 def test_translate_per_chunk_resources_ngpus_included():
     res = QQResources(nnodes=3, ncpus=9, mem="8mb", ngpus=6, work_dir="input_dir")
-    result = QQPBS._translatePerChunkResources(res)
+    result = PBS._translatePerChunkResources(res)
     assert "ngpus=2" in result
 
 
@@ -553,20 +553,20 @@ def test_translate_per_chunk_resources_work_dir_translated():
     res = QQResources(
         nnodes=2, ncpus=4, mem="8mb", work_dir="scratch_local", work_size="1mb"
     )
-    result = QQPBS._translatePerChunkResources(res)
+    result = PBS._translatePerChunkResources(res)
     assert "scratch_local=512kb" in result
 
 
 def test_translate_per_chunk_resources_missing_memory_raises():
     res = QQResources(nnodes=2, ncpus=4)
     with pytest.raises(QQError, match="mem"):
-        QQPBS._translatePerChunkResources(res)
+        PBS._translatePerChunkResources(res)
 
 
 def test_translate_submit_minimal_fields():
     res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1048576kb script.sh"
     )
 
@@ -574,7 +574,7 @@ def test_translate_submit_minimal_fields():
 def test_translate_submit_with_env_vars():
     res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
-        QQPBS._translateSubmit(
+        PBS._translateSubmit(
             res,
             "gpu",
             Path("tmp"),
@@ -590,7 +590,7 @@ def test_translate_submit_with_env_vars():
 def test_translate_submit_multiple_nodes():
     res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=2:mem=262144kb -l place=vscatter script.sh"
     )
 
@@ -598,7 +598,7 @@ def test_translate_submit_multiple_nodes():
 def test_translate_submit_multiple_nodes_with_env_vars():
     res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
-        QQPBS._translateSubmit(
+        PBS._translateSubmit(
             res,
             "gpu",
             Path("tmp"),
@@ -616,7 +616,7 @@ def test_translate_submit_with_walltime():
         nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
-        QQPBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=2,mem=2097152kb -l walltime=24:26:01 script.sh"
     )
 
@@ -626,7 +626,7 @@ def test_translate_submit_with_walltime2():
         nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="input_dir"
     )
     assert (
-        QQPBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=2,mem=2097152kb -l walltime=12:30:15 script.sh"
     )
 
@@ -636,7 +636,7 @@ def test_translate_submit_with_walltime_and_env_vars():
         nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
-        QQPBS._translateSubmit(
+        PBS._translateSubmit(
             res,
             "queue",
             Path("tmp"),
@@ -652,7 +652,7 @@ def test_translate_submit_with_walltime_and_env_vars():
 def test_translate_submit_work_dir_scratch_shm():
     res = QQResources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=8388608kb,scratch_shm=true script.sh"
     )
 
@@ -662,7 +662,7 @@ def test_translate_submit_scratch_local_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_local", work_size="16gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mem=2097152kb:scratch_local=8388608kb -l place=vscatter script.sh"
     )
 
@@ -672,7 +672,7 @@ def test_translate_submit_scratch_ssd_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_ssd", work_size="16gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mem=2097152kb:scratch_ssd=8388608kb -l place=vscatter script.sh"
     )
 
@@ -682,7 +682,7 @@ def test_translate_submit_scratch_shared_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_shared", work_size="16gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mem=2097152kb:scratch_shared=8388608kb -l place=vscatter script.sh"
     )
 
@@ -692,7 +692,7 @@ def test_translate_submit_work_size_per_cpu():
         nnodes=1, ncpus=8, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=8,mem=4194304kb,scratch_local=16777216kb script.sh"
     )
 
@@ -702,7 +702,7 @@ def test_translate_submit_work_size_per_cpu_multiple_nodes():
         nnodes=3, ncpus=3, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=3:ncpus=1:mem=1398102kb:scratch_local=2097152kb -l place=vscatter script.sh"
     )
 
@@ -712,7 +712,7 @@ def test_translate_submit_mem_per_cpu():
         nnodes=1, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="10gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mem=8388608kb,scratch_local=10485760kb script.sh"
     )
 
@@ -722,7 +722,7 @@ def test_translate_submit_mem_per_cpu_multiple_nodes():
         nnodes=2, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="20gb"
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mem=4194304kb:scratch_local=10485760kb -l place=vscatter script.sh"
     )
 
@@ -736,7 +736,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
         work_size_per_cpu="5gb",
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mem=8388608kb,scratch_local=20971520kb script.sh"
     )
 
@@ -750,7 +750,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
         work_size_per_cpu="5gb",
     )
     assert (
-        QQPBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mem=4194304kb:scratch_local=10485760kb -l place=vscatter script.sh"
     )
 
@@ -764,7 +764,7 @@ def test_translate_submit_with_props():
         work_dir="input_dir",
     )
     assert (
-        QQPBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1048576kb,vnode=my_node,infiniband=true script.sh"
     )
 
@@ -778,7 +778,7 @@ def test_translate_submit_with_props_and_env_vars():
         work_dir="input_dir",
     )
     assert (
-        QQPBS._translateSubmit(
+        PBS._translateSubmit(
             res,
             "queue",
             Path("tmp"),
@@ -802,7 +802,7 @@ def test_translate_submit_complex_case():
         work_size_per_cpu="2gb",
         props={"cl_cluster": "true"},
     )
-    assert QQPBS._translateSubmit(
+    assert PBS._translateSubmit(
         res,
         "gpu",
         Path("tmp"),
@@ -825,7 +825,7 @@ def test_translate_submit_complex_case():
 def test_translate_submit_single_depend():
     res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [Depend(DependType.AFTER_START, ["123"])]
-    cmd = QQPBS._translateSubmit(
+    cmd = PBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
     )
     expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1048576kb -W depend=after:123 script.sh"
@@ -835,7 +835,7 @@ def test_translate_submit_single_depend():
 def test_translate_submit_multiple_jobs_depend():
     res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [Depend(DependType.AFTER_SUCCESS, ["1", "2"])]
-    cmd = QQPBS._translateSubmit(
+    cmd = PBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
     )
     expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1048576kb -W depend=afterok:1:2 script.sh"
@@ -848,7 +848,7 @@ def test_translate_submit_multiple_dependencies():
         Depend(DependType.AFTER_SUCCESS, ["1"]),
         Depend(DependType.AFTER_FAILURE, ["2"]),
     ]
-    cmd = QQPBS._translateSubmit(
+    cmd = PBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
     )
     expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1048576kb -W depend=afterok:1,afternotok:2 script.sh"
@@ -866,7 +866,7 @@ def test_translate_submit_complex_with_depend():
         props={"cl_cluster": "true"},
     )
     depend = [Depend(DependType.AFTER_COMPLETION, ["42", "43"])]
-    cmd = QQPBS._translateSubmit(
+    cmd = PBS._translateSubmit(
         res,
         "gpu",
         Path("tmp"),
@@ -893,11 +893,11 @@ def test_transform_resources_input_dir_warns_and_sets_work_dir():
     provided = QQResources(work_dir="input_dir", work_size="10gb")
     with (
         patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
-        patch("qq_lib.batch.pbs.qqpbs.logger.warning") as mock_warning,
+        patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
-        res = QQPBS.transformResources(
+        res = PBS.transformResources(
             "gpu", QQResources(work_dir="input_dir", work_size="10gb")
         )
 
@@ -912,11 +912,11 @@ def test_transform_resources_job_dir_warns_and_sets_work_dir():
     provided = QQResources(work_dir="input_dir", work_size="10gb")
     with (
         patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
-        patch("qq_lib.batch.pbs.qqpbs.logger.warning") as mock_warning,
+        patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
-        res = QQPBS.transformResources(
+        res = PBS.transformResources(
             "gpu", QQResources(work_dir="job_dir", work_size="10gb")
         )
 
@@ -931,11 +931,11 @@ def test_transform_resources_scratch_shm_warns_and_clears_work_size():
     provided = QQResources(work_dir="scratch_shm", work_size="10gb")
     with (
         patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
-        patch("qq_lib.batch.pbs.qqpbs.logger.warning") as mock_warning,
+        patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
-        res = QQPBS.transformResources(
+        res = PBS.transformResources(
             "gpu", QQResources(work_dir="scratch_shm", work_size="10gb")
         )
 
@@ -948,16 +948,14 @@ def test_transform_resources_scratch_shm_warns_and_clears_work_size():
 
 
 def test_transform_resources_supported_scratch():
-    for scratch in QQPBS.SUPPORTED_SCRATCHES:
+    for scratch in PBS.SUPPORTED_SCRATCHES:
         provided = QQResources(work_dir=scratch, work_size="10gb")
         with (
             patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-            patch.object(
-                QQPBS, "_getDefaultServerResources", return_value=QQResources()
-            ),
+            patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
             patch.object(QQResources, "mergeResources", return_value=provided),
         ):
-            res = QQPBS.transformResources(
+            res = PBS.transformResources(
                 "gpu", QQResources(work_dir=scratch, work_size="10gb")
             )
 
@@ -965,18 +963,16 @@ def test_transform_resources_supported_scratch():
 
 
 def test_transform_resources_supported_scratch_unnormalized():
-    for scratch in QQPBS.SUPPORTED_SCRATCHES:
+    for scratch in PBS.SUPPORTED_SCRATCHES:
         provided = QQResources(
             work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
         )
         with (
             patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-            patch.object(
-                QQPBS, "_getDefaultServerResources", return_value=QQResources()
-            ),
+            patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
             patch.object(QQResources, "mergeResources", return_value=provided),
         ):
-            res = QQPBS.transformResources(
+            res = PBS.transformResources(
                 "gpu",
                 QQResources(
                     work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
@@ -990,24 +986,24 @@ def test_transform_resources_unknown_work_dir_raises():
     provided = QQResources(work_dir="unknown_scratch")
     with (
         patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         pytest.raises(QQError, match="Unknown working directory type specified"),
     ):
-        QQPBS.transformResources("gpu", QQResources(work_dir="unknown_scratch"))
+        PBS.transformResources("gpu", QQResources(work_dir="unknown_scratch"))
 
 
 def test_transform_resources_missing_work_dir_raises():
     provided = QQResources(work_dir=None)
     with (
         patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(QQPBS, "_getDefaultServerResources", return_value=QQResources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
         patch.object(QQResources, "mergeResources", return_value=provided),
         pytest.raises(
             QQError, match="Work-dir is not set after filling in default attributes"
         ),
     ):
-        QQPBS.transformResources("gpu", QQResources())
+        PBS.transformResources("gpu", QQResources())
 
 
 @pytest.fixture
@@ -1044,7 +1040,7 @@ def test_get_jobs_info_using_command_success(sample_multi_dump_file):
             returncode=0, stdout=sample_multi_dump_file, stderr=""
         )
 
-        jobs = QQPBS._getBatchJobsUsingCommand("fake command - unused")
+        jobs = PBS._getBatchJobsUsingCommand("fake command - unused")
 
         assert len(jobs) == 3
         assert all(isinstance(job, PBSJob) for job in jobs)
@@ -1086,7 +1082,7 @@ def test_get_jobs_info_using_command_nonzero_returncode():
             QQError,
             match="Could not retrieve information about jobs: Some error occurred",
         ):
-            QQPBS._getBatchJobsUsingCommand("will not be used")
+            PBS._getBatchJobsUsingCommand("will not be used")
 
 
 @pytest.mark.parametrize(
@@ -1106,12 +1102,12 @@ def test_get_jobs_info_using_command_nonzero_returncode():
     ],
 )
 def test_translate_dependencies_various_cases(depend_list, expected):
-    result = QQPBS._translateDependencies(depend_list)
+    result = PBS._translateDependencies(depend_list)
     assert result == expected
 
 
 def test_collect_ams_env_vars(monkeypatch):
-    from qq_lib.batch.pbs.qqpbs import QQPBS
+    from qq_lib.batch.pbs.pbs import PBS
 
     # mock environment with a mix of AMS and non-AMS vars
     env_vars = {
@@ -1123,7 +1119,7 @@ def test_collect_ams_env_vars(monkeypatch):
     }
     monkeypatch.setattr(os, "environ", env_vars)
 
-    result = QQPBS._collectAMSEnvVars()
+    result = PBS._collectAMSEnvVars()
 
     # assert that only AMS variables were collected
     expected = {
@@ -1134,20 +1130,20 @@ def test_collect_ams_env_vars(monkeypatch):
     assert result == expected
 
 
-@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
-def test_qqpbs_get_queues_returns_list(mock_run):
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_queues_returns_list(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
 
     with (
         patch(
-            "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
+            "qq_lib.batch.pbs.pbs.parse_multi_pbs_dump_to_dictionaries",
             return_value=[({"key": "value"}, "queue1")],
         ) as mock_parse,
         patch(
-            "qq_lib.batch.pbs.qqpbs.PBSQueue.fromDict", return_value="mock_queue"
+            "qq_lib.batch.pbs.pbs.PBSQueue.fromDict", return_value="mock_queue"
         ) as mock_from_dict,
     ):
-        result = QQPBS.getQueues()
+        result = PBS.getQueues()
 
     mock_run.assert_called_once_with(
         ["bash"],
@@ -1164,32 +1160,32 @@ def test_qqpbs_get_queues_returns_list(mock_run):
     assert result == ["mock_queue"]
 
 
-@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
-def test_qqpbs_get_queues_raises_on_failure(mock_run):
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_queues_raises_on_failure(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error_message")
 
     with pytest.raises(QQError, match="error_message"):
-        QQPBS.getQueues()
+        PBS.getQueues()
 
 
-@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
-def test_qqpbs_get_queues_multiple_queues(mock_run):
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_queues_multiple_queues(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
 
     with (
         patch(
-            "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
+            "qq_lib.batch.pbs.pbs.parse_multi_pbs_dump_to_dictionaries",
             return_value=[
                 ({"data1": "value1"}, "queue1"),
                 ({"data2": "value2"}, "queue2"),
             ],
         ) as mock_parse,
         patch(
-            "qq_lib.batch.pbs.qqpbs.PBSQueue.fromDict",
+            "qq_lib.batch.pbs.pbs.PBSQueue.fromDict",
             side_effect=["queue_obj1", "queue_obj2"],
         ) as mock_from_dict,
     ):
-        result = QQPBS.getQueues()
+        result = PBS.getQueues()
 
     mock_parse.assert_called_once_with("mock_stdout", "Queue")
     assert mock_from_dict.call_count == 2
@@ -1197,14 +1193,14 @@ def test_qqpbs_get_queues_multiple_queues(mock_run):
     assert result == ["queue_obj1", "queue_obj2"]
 
 
-@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
-def test_qqpbs_get_nodes_returns_list(mock_run):
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_nodes_returns_list(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
     with patch(
-        "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
+        "qq_lib.batch.pbs.pbs.parse_multi_pbs_dump_to_dictionaries",
         return_value=[({"key": "value"}, "node1")],
     ) as mock_parse:
-        result = QQPBS.getNodes()
+        result = PBS.getNodes()
 
     mock_run.assert_called_once_with(
         ["bash"],
@@ -1222,24 +1218,24 @@ def test_qqpbs_get_nodes_returns_list(mock_run):
     assert result[0]._info == {"key": "value"}
 
 
-@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
-def test_qqpbs_get_nodes_raises_on_failure(mock_run):
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_nodes_raises_on_failure(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error_message")
     with pytest.raises(QQError, match="error_message"):
-        QQPBS.getNodes()
+        PBS.getNodes()
 
 
-@patch("qq_lib.batch.pbs.qqpbs.subprocess.run")
-def test_qqpbs_get_nodes_multiple_nodes(mock_run):
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_nodes_multiple_nodes(mock_run):
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
     with patch(
-        "qq_lib.batch.pbs.qqpbs.parse_multi_pbs_dump_to_dictionaries",
+        "qq_lib.batch.pbs.pbs.parse_multi_pbs_dump_to_dictionaries",
         return_value=[
             ({"data1": "value1"}, "node1"),
             ({"data2": "value2"}, "node2"),
         ],
     ) as mock_parse:
-        result = QQPBS.getNodes()
+        result = PBS.getNodes()
 
     mock_parse.assert_called_once_with("mock_stdout", None)
     assert isinstance(result, list)
@@ -1248,15 +1244,15 @@ def test_qqpbs_get_nodes_multiple_nodes(mock_run):
     assert {n._name for n in result} == {"node1", "node2"}
 
 
-def test_qqpbs_get_job_id_returns_value():
+def test_pbs_get_job_id_returns_value():
     with patch.dict(os.environ, {"PBS_JOBID": "12345.random.server.org"}):
-        result = QQPBS.getJobId()
+        result = PBS.getJobId()
     assert result == "12345.random.server.org"
 
 
-def test_qqpbs_get_job_id_returns_none_when_missing():
+def test_pbs_get_job_id_returns_none_when_missing():
     with patch.dict(os.environ, {}, clear=True):
-        result = QQPBS.getJobId()
+        result = PBS.getJobId()
     assert result is None
 
 
@@ -1267,20 +1263,20 @@ def test_qqpbs_get_job_id_returns_none_when_missing():
         (["10.server", "2.server", "1.server"], ["1.server", "2.server", "10.server"]),
     ],
 )
-def test_qq_pbs_sort_jobs_sorts_by_id_int(ids, expected_order):
+def test_pbs_sort_jobs_sorts_by_id_int(ids, expected_order):
     jobs = []
     for job_id in ids:
         job = PBSJob.__new__(PBSJob)
         job._job_id = job_id
         jobs.append(job)
 
-    QQPBS.sortJobs(jobs)
+    PBS.sortJobs(jobs)
 
     result = [job.getId() for job in jobs]
     assert result == expected_order
 
 
-def test_qq_pbs_sort_jobs_handles_none_values(monkeypatch):
+def test_pbs_sort_jobs_handles_none_values(monkeypatch):
     # jobs returning None from getIdInt should sort to the beginning
     job_valid = PBSJob.__new__(PBSJob)
     job_valid._job_id = "1.server"
@@ -1289,7 +1285,7 @@ def test_qq_pbs_sort_jobs_handles_none_values(monkeypatch):
     monkeypatch.setattr(job_none, "getIdInt", lambda: None)
 
     jobs = [job_valid, job_none]
-    QQPBS.sortJobs(jobs)
+    PBS.sortJobs(jobs)
 
     result = [job.getId() for job in jobs]
     assert result == ["abc", "1.server"]

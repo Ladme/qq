@@ -9,69 +9,69 @@ import pytest
 
 from qq_lib.batch.slurm.job import SlurmJob
 from qq_lib.batch.slurm.node import SlurmNode
-from qq_lib.batch.slurm.qqslurm import QQSlurm
+from qq_lib.batch.slurm.slurm import Slurm
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.size import Size
 
 
-def test_qqslurm_env_name_returns_slurm():
-    assert QQSlurm.envName() == "Slurm"
+def test_slurm_env_name_returns_slurm():
+    assert Slurm.envName() == "Slurm"
 
 
 @patch(
-    "qq_lib.batch.slurm.qqslurm.shutil.which",
+    "qq_lib.batch.slurm.slurm.shutil.which",
     side_effect=lambda x: "/usr/bin/sbatch" if x == "sbatch" else None,
 )
-def test_qqslurm_is_available_returns_true_when_sbatch_present(
+def test_slurm_is_available_returns_true_when_sbatch_present(
     mock_which,
 ):
-    result = QQSlurm.isAvailable()
+    result = Slurm.isAvailable()
     assert result is True
     mock_which.assert_any_call("sbatch")
 
 
 @patch(
-    "qq_lib.batch.slurm.qqslurm.shutil.which",
+    "qq_lib.batch.slurm.slurm.shutil.which",
     side_effect=lambda _: None,
 )
-def test_qqslurm_is_available_returns_false_when_sbatch_missing(mock_which):
-    result = QQSlurm.isAvailable()
+def test_slurm_is_available_returns_false_when_sbatch_missing(mock_which):
+    result = Slurm.isAvailable()
     assert result is False
     mock_which.assert_any_call("sbatch")
 
 
 @patch(
-    "qq_lib.batch.slurm.qqslurm.shutil.which",
+    "qq_lib.batch.slurm.slurm.shutil.which",
     side_effect=lambda x: "/usr/bin/sbatch" if x == "sbatch" else "/usr/bin/it4ifree",
 )
-def test_qqslurm_is_available_returns_false_when_it4ifree_present(mock_which):
-    result = QQSlurm.isAvailable()
+def test_slurm_is_available_returns_false_when_it4ifree_present(mock_which):
+    result = Slurm.isAvailable()
     assert result is False
     mock_which.assert_any_call("sbatch")
     mock_which.assert_any_call("it4ifree")
 
 
-@patch.dict("qq_lib.batch.slurm.qqslurm.os.environ", {"SLURM_JOB_ID": "12345"})
-def test_qqslurm_get_job_id_returns_value_from_env():
-    assert QQSlurm.getJobId() == "12345"
+@patch.dict("qq_lib.batch.slurm.slurm.os.environ", {"SLURM_JOB_ID": "12345"})
+def test_slurm_get_job_id_returns_value_from_env():
+    assert Slurm.getJobId() == "12345"
 
 
-@patch.dict("qq_lib.batch.slurm.qqslurm.os.environ", {}, clear=True)
-def test_qqslurm_get_job_id_returns_none_when_missing():
-    assert QQSlurm.getJobId() is None
+@patch.dict("qq_lib.batch.slurm.slurm.os.environ", {}, clear=True)
+def test_slurm_get_job_id_returns_none_when_missing():
+    assert Slurm.getJobId() is None
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.SlurmJob")
-def test_qqslurm_get_batch_jobs_calls_slurmjob(mock_job, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.SlurmJob")
+def test_slurm_get_batch_jobs_calls_slurmjob(mock_job, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "111\n222\n333\n"
     mock_run.return_value = mock_result
 
-    jobs = QQSlurm._getBatchJobsUsingSqueueCommand("squeue -u user")
+    jobs = Slurm._getBatchJobsUsingSqueueCommand("squeue -u user")
 
     mock_run.assert_called_once()
     assert len(jobs) == 3
@@ -80,28 +80,28 @@ def test_qqslurm_get_batch_jobs_calls_slurmjob(mock_job, mock_run):
     mock_job.assert_any_call("333")
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_batch_jobs_raises_on_error(mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_batch_jobs_raises_on_error(mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 1
     mock_result.stderr = "error"
     mock_run.return_value = mock_result
 
     with pytest.raises(QQError):
-        QQSlurm._getBatchJobsUsingSqueueCommand("squeue -u user")
+        Slurm._getBatchJobsUsingSqueueCommand("squeue -u user")
 
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.SlurmJob")
-def test_qqslurm_get_batch_jobs_skips_empty_lines(mock_job, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.SlurmJob")
+def test_slurm_get_batch_jobs_skips_empty_lines(mock_job, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "111\n\n222\n"
     mock_run.return_value = mock_result
 
-    jobs = QQSlurm._getBatchJobsUsingSqueueCommand("squeue -u user")
+    jobs = Slurm._getBatchJobsUsingSqueueCommand("squeue -u user")
 
     assert len(jobs) == 2
     mock_job.assert_any_call("111")
@@ -109,15 +109,15 @@ def test_qqslurm_get_batch_jobs_skips_empty_lines(mock_job, mock_run):
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.SlurmJob.fromSacctString")
-def test_qqslurm_get_batch_jobs_sacct_calls_fromsacctstring(mock_from_sacct, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.SlurmJob.fromSacctString")
+def test_slurm_get_batch_jobs_sacct_calls_fromsacctstring(mock_from_sacct, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "job1|info\njob2|info\n"
     mock_run.return_value = mock_result
 
-    jobs = QQSlurm._getBatchJobsUsingSacctCommand("sacct -u user")
+    jobs = Slurm._getBatchJobsUsingSacctCommand("sacct -u user")
 
     mock_run.assert_called_once()
     assert len(jobs) == 2
@@ -125,28 +125,28 @@ def test_qqslurm_get_batch_jobs_sacct_calls_fromsacctstring(mock_from_sacct, moc
     mock_from_sacct.assert_any_call("job2|info")
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_batch_jobs_sacct_raises_on_error(mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_batch_jobs_sacct_raises_on_error(mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 1
     mock_result.stderr = "error"
     mock_run.return_value = mock_result
 
     with pytest.raises(QQError):
-        QQSlurm._getBatchJobsUsingSacctCommand("sacct -u user")
+        Slurm._getBatchJobsUsingSacctCommand("sacct -u user")
 
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.SlurmJob.fromSacctString")
-def test_qqslurm_get_batch_jobs_sacct_skips_empty_lines(mock_from_sacct, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.SlurmJob.fromSacctString")
+def test_slurm_get_batch_jobs_sacct_skips_empty_lines(mock_from_sacct, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "job1|info\n\njob2|info\n"
     mock_run.return_value = mock_result
 
-    jobs = QQSlurm._getBatchJobsUsingSacctCommand("sacct -u user")
+    jobs = Slurm._getBatchJobsUsingSacctCommand("sacct -u user")
 
     assert len(jobs) == 2
     mock_from_sacct.assert_any_call("job1|info")
@@ -154,12 +154,12 @@ def test_qqslurm_get_batch_jobs_sacct_skips_empty_lines(mock_from_sacct, mock_ru
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQResources.mergeResources")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getDefaultResources")
-@patch("qq_lib.batch.slurm.qqslurm.default_resources_from_dict")
-@patch("qq_lib.batch.slurm.qqslurm.parse_slurm_dump_to_dictionary")
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_default_server_resources_merges_parsed_and_defaults(
+@patch("qq_lib.batch.slurm.slurm.QQResources.mergeResources")
+@patch("qq_lib.batch.slurm.slurm.Slurm._getDefaultResources")
+@patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
+@patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_default_server_resources_merges_parsed_and_defaults(
     mock_run, mock_parse, mock_from_dict, mock_get_defaults, mock_merge
 ):
     mock_run.return_value = MagicMock(
@@ -173,7 +173,7 @@ def test_qqslurm_get_default_server_resources_merges_parsed_and_defaults(
     mock_get_defaults.return_value = default_res
     mock_merge.return_value = merged_res
 
-    result = QQSlurm._getDefaultServerResources()
+    result = Slurm._getDefaultServerResources()
 
     mock_run.assert_called_once()
     mock_parse.assert_called_once_with("DefaultTime=2-00:00:00\nDefMemPerCPU=4G", "\n")
@@ -185,17 +185,17 @@ def test_qqslurm_get_default_server_resources_merges_parsed_and_defaults(
     assert result is merged_res
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQResources.mergeResources")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getDefaultResources")
-@patch("qq_lib.batch.slurm.qqslurm.default_resources_from_dict")
-@patch("qq_lib.batch.slurm.qqslurm.parse_slurm_dump_to_dictionary")
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_default_server_resources_returns_empty_on_failure(
+@patch("qq_lib.batch.slurm.slurm.QQResources.mergeResources")
+@patch("qq_lib.batch.slurm.slurm.Slurm._getDefaultResources")
+@patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
+@patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_default_server_resources_returns_empty_on_failure(
     mock_run, mock_parse, mock_from_dict, mock_get_defaults, mock_merge
 ):
     mock_run.return_value = MagicMock(returncode=1, stderr="err")
 
-    result = QQSlurm._getDefaultServerResources()
+    result = Slurm._getDefaultServerResources()
 
     mock_run.assert_called_once()
     mock_parse.assert_not_called()
@@ -206,74 +206,74 @@ def test_qqslurm_get_default_server_resources_returns_empty_on_failure(
     assert result == QQResources()
 
 
-def test_qqslurm_translate_dependencies_returns_none_for_empty_list():
-    assert QQSlurm._translateDependencies([]) is None
+def test_slurm_translate_dependencies_returns_none_for_empty_list():
+    assert Slurm._translateDependencies([]) is None
 
 
-def test_qqslurm_translate_dependencies_returns_single_dependency_string():
+def test_slurm_translate_dependencies_returns_single_dependency_string():
     depend = Depend(DependType.AFTER_START, ["123"])
-    result = QQSlurm._translateDependencies([depend])
+    result = Slurm._translateDependencies([depend])
     assert result == "after:123"
 
 
-def test_qqslurm_translate_dependencies_returns_multiple_dependency_string():
+def test_slurm_translate_dependencies_returns_multiple_dependency_string():
     depend1 = Depend(DependType.AFTER_SUCCESS, ["111", "222"])
     depend2 = Depend(DependType.AFTER_FAILURE, ["333"])
-    result = QQSlurm._translateDependencies([depend1, depend2])
+    result = Slurm._translateDependencies([depend1, depend2])
     assert result == "afterok:111:222,afternotok:333"
 
 
-def test_qqslurm_translate_per_chunk_resources_two_nodes():
+def test_slurm_translate_per_chunk_resources_two_nodes():
     res = QQResources()
     res.nnodes = 2
     res.ncpus = 8
     res.mem = Size(32, "gb")
     res.ngpus = 4
-    result = QQSlurm._translatePerChunkResources(res)
+    result = Slurm._translatePerChunkResources(res)
     assert "--ntasks-per-node=1" in result
     assert "--cpus-per-task=4" in result
     assert f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}" in result
     assert "--gpus-per-node=2" in result
 
 
-def test_qqslurm_translate_per_chunk_resources_single_node():
+def test_slurm_translate_per_chunk_resources_single_node():
     res = QQResources()
     res.nnodes = 1
     res.ncpus = 4
     res.mem = Size(16, "gb")
     res.ngpus = 2
-    result = QQSlurm._translatePerChunkResources(res)
+    result = Slurm._translatePerChunkResources(res)
     assert "--ntasks-per-node=1" in result
     assert "--cpus-per-task=4" in result
     assert f"--mem={res.mem.toStrExactSlurm()}" in result
     assert "--gpus-per-node=2" in result
 
 
-def test_qqslurm_translate_per_chunk_resources_multiple_nodes():
+def test_slurm_translate_per_chunk_resources_multiple_nodes():
     res = QQResources()
     res.nnodes = 5
     res.ncpus = 10
     res.mem = Size(50, "gb")
     res.ngpus = 5
-    result = QQSlurm._translatePerChunkResources(res)
+    result = Slurm._translatePerChunkResources(res)
     assert "--ntasks-per-node=1" in result
     assert "--cpus-per-task=2" in result
     assert f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}" in result
     assert "--gpus-per-node=1" in result
 
 
-def test_qqslurm_translate_per_chunk_resources_uses_mem_per_cpu():
+def test_slurm_translate_per_chunk_resources_uses_mem_per_cpu():
     res = QQResources()
     res.nnodes = 2
     res.ncpus = 8
     res.mem = None
     res.mem_per_cpu = Size(4, "gb")
     res.ngpus = 0
-    result = QQSlurm._translatePerChunkResources(res)
+    result = Slurm._translatePerChunkResources(res)
     assert f"--mem-per-cpu={res.mem_per_cpu.toStrExactSlurm()}" in result
 
 
-def test_qqslurm_translate_per_chunk_resources_raises_when_mem_missing():
+def test_slurm_translate_per_chunk_resources_raises_when_mem_missing():
     res = QQResources()
     res.nnodes = 1
     res.mem = None
@@ -281,55 +281,55 @@ def test_qqslurm_translate_per_chunk_resources_raises_when_mem_missing():
     with pytest.raises(
         QQError, match="Attribute 'mem' and attribute 'mem-per-cpu' are not defined."
     ):
-        QQSlurm._translatePerChunkResources(res)
+        Slurm._translatePerChunkResources(res)
 
 
 @pytest.mark.parametrize("nnodes", [None, 0])
-def test_qqslurm_translate_per_chunk_resources_invalid_nnodes(nnodes):
+def test_slurm_translate_per_chunk_resources_invalid_nnodes(nnodes):
     res = QQResources()
     res.nnodes = nnodes
     res.mem = Size(16, "gb")
     with pytest.raises(QQError, match="Attribute 'nnodes'"):
-        QQSlurm._translatePerChunkResources(res)
+        Slurm._translatePerChunkResources(res)
 
 
-def test_qqslurm_translate_per_chunk_resources_invalid_divisibility_cpu():
+def test_slurm_translate_per_chunk_resources_invalid_divisibility_cpu():
     res = QQResources()
     res.nnodes = 3
     res.ncpus = 10
     res.mem = Size(30, "gb")
     with pytest.raises(QQError, match="must be divisible by 'nnodes'"):
-        QQSlurm._translatePerChunkResources(res)
+        Slurm._translatePerChunkResources(res)
 
 
-def test_qqslurm_translate_per_chunk_resources_invalid_divisibility_gpu():
+def test_slurm_translate_per_chunk_resources_invalid_divisibility_gpu():
     res = QQResources()
     res.nnodes = 3
     res.ncpus = 12
     res.ngpus = 7
     res.mem = Size(30, "gb")
     with pytest.raises(QQError, match="must be divisible by 'nnodes'"):
-        QQSlurm._translatePerChunkResources(res)
+        Slurm._translatePerChunkResources(res)
 
 
-def test_qqslurm_translate_env_vars_returns_comma_separated_string():
+def test_slurm_translate_env_vars_returns_comma_separated_string():
     env = {"VAR1": "value1", "VAR2": "value2"}
-    result = QQSlurm._translateEnvVars(env)
+    result = Slurm._translateEnvVars(env)
     assert result == 'VAR1="value1",VAR2="value2"'
 
 
-def test_qqslurm_translate_env_vars_single_variable():
+def test_slurm_translate_env_vars_single_variable():
     env = {"VAR": "123"}
-    result = QQSlurm._translateEnvVars(env)
+    result = Slurm._translateEnvVars(env)
     assert result == 'VAR="123"'
 
 
-def test_qqslurm_translate_env_vars_empty_dict_returns_empty_string():
-    result = QQSlurm._translateEnvVars({})
+def test_slurm_translate_env_vars_empty_dict_returns_empty_string():
+    result = Slurm._translateEnvVars({})
     assert result == ""
 
 
-def test_qqslurm_translate_submit_basic_command():
+def test_slurm_translate_submit_basic_command():
     res = QQResources()
     res.nnodes = 2
     res.ncpus = 8
@@ -346,7 +346,7 @@ def test_qqslurm_translate_submit_basic_command():
     env_vars = {}
     account = None
 
-    command = QQSlurm._translateSubmit(
+    command = Slurm._translateSubmit(
         res, queue, input_dir, script, job_name, depend, env_vars, account
     )
 
@@ -364,7 +364,7 @@ def test_qqslurm_translate_submit_basic_command():
     assert command.endswith(script)
 
 
-def test_qqslurm_translate_submit_with_account_and_env_vars():
+def test_slurm_translate_submit_with_account_and_env_vars():
     res = QQResources()
     res.nnodes = 1
     res.ncpus = 4
@@ -380,7 +380,7 @@ def test_qqslurm_translate_submit_with_account_and_env_vars():
     env_vars = {"VAR1": "A", "VAR2": "B"}
     account = "project123"
 
-    command = QQSlurm._translateSubmit(
+    command = Slurm._translateSubmit(
         res, queue, input_dir, script, job_name, depend, env_vars, account
     )
 
@@ -389,7 +389,7 @@ def test_qqslurm_translate_submit_with_account_and_env_vars():
     assert command.endswith(script)
 
 
-def test_qqslurm_translate_submit_with_dependencies():
+def test_slurm_translate_submit_with_dependencies():
     res = QQResources()
     res.nnodes = 1
     res.ncpus = 2
@@ -403,7 +403,7 @@ def test_qqslurm_translate_submit_with_dependencies():
     env_vars = {}
     account = None
 
-    command = QQSlurm._translateSubmit(
+    command = Slurm._translateSubmit(
         res, queue, input_dir, script, job_name, depend, env_vars, account
     )
 
@@ -411,7 +411,7 @@ def test_qqslurm_translate_submit_with_dependencies():
     assert command.endswith(script)
 
 
-def test_qqslurm_translate_submit_with_props_true_only():
+def test_slurm_translate_submit_with_props_true_only():
     res = QQResources()
     res.nnodes = 1
     res.ncpus = 4
@@ -425,7 +425,7 @@ def test_qqslurm_translate_submit_with_props_true_only():
     env_vars = {}
     account = None
 
-    command = QQSlurm._translateSubmit(
+    command = Slurm._translateSubmit(
         res, queue, input_dir, script, job_name, depend, env_vars, account
     )
 
@@ -433,7 +433,7 @@ def test_qqslurm_translate_submit_with_props_true_only():
     assert command.endswith(script)
 
 
-def test_qqslurm_translate_submit_raises_on_invalid_prop_value():
+def test_slurm_translate_submit_raises_on_invalid_prop_value():
     res = QQResources()
     res.nnodes = 1
     res.ncpus = 2
@@ -450,34 +450,38 @@ def test_qqslurm_translate_submit_raises_on_invalid_prop_value():
     with pytest.raises(
         QQError, match="Slurm only supports properties with a value of 'true'"
     ):
-        QQSlurm._translateSubmit(
+        Slurm._translateSubmit(
             res, queue, input_dir, script, job_name, depend, env_vars, account
         )
 
 
-def test_qqslurm_translate_kill_returns_correct_command():
+def test_slurm_translate_kill_returns_correct_command():
     job_id = "12345"
-    result = QQSlurm._translateKill(job_id)
+    result = Slurm._translateKill(job_id)
     assert result == f"scancel {job_id}"
 
 
-def test_qqslurm_translate_kill_force_returns_correct_command():
+def test_slurm_translate_kill_force_returns_correct_command():
     job_id = "67890"
-    result = QQSlurm._translateKillForce(job_id)
+    result = Slurm._translateKillForce(job_id)
     assert result == f"scancel --signal=KILL {job_id}"
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQBatchInterface.isShared", return_value=True)
-def test_qqslurm_is_shared_delegates_to_interface(mock_is_shared):
+@patch("qq_lib.batch.slurm.slurm.BatchInterface.isShared", return_value=True)
+def test_slurm_is_shared_delegates_to_interface(mock_is_shared):
     directory = Path("/tmp/testdir")
-    result = QQSlurm.isShared(directory)
+    result = Slurm.isShared(directory)
     mock_is_shared.assert_called_once_with(directory)
     assert result is True
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQBatchInterface.resubmit")
-def test_qqslurm_resubmit_delegates_to_interface(mock_resubmit):
-    QQSlurm.resubmit("machine1", "/work/job", ["-q gpu", "--account fake-account"])
+@patch("qq_lib.batch.slurm.slurm.BatchInterface.resubmit")
+def test_slurm_resubmit_delegates_to_interface(mock_resubmit):
+    Slurm.resubmit(
+        input_machine="machine1",
+        input_dir="/work/job",
+        command_line=["-q gpu", "--account fake-account"],
+    )
     mock_resubmit.assert_called_once_with(
         input_machine="machine1",
         input_dir="/work/job",
@@ -485,44 +489,44 @@ def test_qqslurm_resubmit_delegates_to_interface(mock_resubmit):
     )
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS.readRemoteFile", return_value="content")
-def test_qqslurm_read_remote_file_delegates(mock_read):
-    result = QQSlurm.readRemoteFile("host1", Path("/tmp/file.txt"))
+@patch("qq_lib.batch.slurm.slurm.PBS.readRemoteFile", return_value="content")
+def test_slurm_read_remote_file_delegates(mock_read):
+    result = Slurm.readRemoteFile("host1", Path("/tmp/file.txt"))
     mock_read.assert_called_once_with("host1", Path("/tmp/file.txt"))
     assert result == "content"
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS.writeRemoteFile")
-def test_qqslurm_write_remote_file_delegates(mock_write):
-    QQSlurm.writeRemoteFile("host2", Path("/tmp/file.txt"), "data")
+@patch("qq_lib.batch.slurm.slurm.PBS.writeRemoteFile")
+def test_slurm_write_remote_file_delegates(mock_write):
+    Slurm.writeRemoteFile("host2", Path("/tmp/file.txt"), "data")
     mock_write.assert_called_once_with("host2", Path("/tmp/file.txt"), "data")
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS.makeRemoteDir")
-def test_qqslurm_make_remote_dir_delegates(mock_make):
-    QQSlurm.makeRemoteDir("host3", Path("/tmp/dir"))
+@patch("qq_lib.batch.slurm.slurm.PBS.makeRemoteDir")
+def test_slurm_make_remote_dir_delegates(mock_make):
+    Slurm.makeRemoteDir("host3", Path("/tmp/dir"))
     mock_make.assert_called_once_with("host3", Path("/tmp/dir"))
 
 
 @patch(
-    "qq_lib.batch.slurm.qqslurm.QQPBS.listRemoteDir",
+    "qq_lib.batch.slurm.slurm.PBS.listRemoteDir",
     return_value=[Path("/tmp/a"), Path("/tmp/b")],
 )
-def test_qqslurm_list_remote_dir_delegates(mock_list):
-    result = QQSlurm.listRemoteDir("host4", Path("/tmp"))
+def test_slurm_list_remote_dir_delegates(mock_list):
+    result = Slurm.listRemoteDir("host4", Path("/tmp"))
     mock_list.assert_called_once_with("host4", Path("/tmp"))
     assert result == [Path("/tmp/a"), Path("/tmp/b")]
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS.moveRemoteFiles")
-def test_qqslurm_move_remote_files_delegates(mock_move):
-    QQSlurm.moveRemoteFiles("host5", [Path("/tmp/a")], [Path("/tmp/b")])
+@patch("qq_lib.batch.slurm.slurm.PBS.moveRemoteFiles")
+def test_slurm_move_remote_files_delegates(mock_move):
+    Slurm.moveRemoteFiles("host5", [Path("/tmp/a")], [Path("/tmp/b")])
     mock_move.assert_called_once_with("host5", [Path("/tmp/a")], [Path("/tmp/b")])
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS.syncWithExclusions")
-def test_qqslurm_sync_with_exclusions_delegates(mock_sync):
-    QQSlurm.syncWithExclusions(
+@patch("qq_lib.batch.slurm.slurm.PBS.syncWithExclusions")
+def test_slurm_sync_with_exclusions_delegates(mock_sync):
+    Slurm.syncWithExclusions(
         Path("/src"), Path("/dest"), "src_host", "dest_host", [Path("ignore.txt")]
     )
     mock_sync.assert_called_once_with(
@@ -530,9 +534,9 @@ def test_qqslurm_sync_with_exclusions_delegates(mock_sync):
     )
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS.syncSelected")
-def test_qqslurm_sync_selected_delegates(mock_sync):
-    QQSlurm.syncSelected(
+@patch("qq_lib.batch.slurm.slurm.PBS.syncSelected")
+def test_slurm_sync_selected_delegates(mock_sync):
+    Slurm.syncSelected(
         Path("/src"), Path("/dest"), "src_host", "dest_host", [Path("include.txt")]
     )
     mock_sync.assert_called_once_with(
@@ -540,23 +544,23 @@ def test_qqslurm_sync_selected_delegates(mock_sync):
     )
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_unfinished_batch_jobs(mock_squeue):
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSqueueCommand")
+def test_slurm_get_unfinished_batch_jobs(mock_squeue):
     mock_job1 = MagicMock()
     mock_job2 = MagicMock()
     mock_job1.getId.return_value = "2"
     mock_job2.getId.return_value = "1"
     mock_squeue.return_value = [mock_job1, mock_job2]
 
-    result = QQSlurm.getUnfinishedBatchJobs("user1")
+    result = Slurm.getUnfinishedBatchJobs("user1")
 
     mock_squeue.assert_called_once_with('squeue -u user1 -t PENDING,RUNNING -h -o "%i"')
     assert set(result) == {mock_job1, mock_job2}
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSacctCommand")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_batch_jobs(mock_squeue, mock_sacct):
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSacctCommand")
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSqueueCommand")
+def test_slurm_get_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct_job = MagicMock()
     mock_sacct_job.getId.return_value = "2"
     mock_squeue_job = MagicMock()
@@ -564,7 +568,7 @@ def test_qqslurm_get_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct.return_value = [mock_sacct_job, mock_squeue_job]
     mock_squeue.return_value = [mock_squeue_job]
 
-    result = QQSlurm.getBatchJobs("user2")
+    result = Slurm.getBatchJobs("user2")
 
     mock_sacct.assert_called_once()
     mock_squeue.assert_called_once()
@@ -572,23 +576,23 @@ def test_qqslurm_get_batch_jobs(mock_squeue, mock_sacct):
     assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_all_unfinished_batch_jobs(mock_squeue):
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSqueueCommand")
+def test_slurm_get_all_unfinished_batch_jobs(mock_squeue):
     mock_job1 = MagicMock()
     mock_job2 = MagicMock()
     mock_job1.getId.return_value = "3"
     mock_job2.getId.return_value = "1"
     mock_squeue.return_value = [mock_job1, mock_job2]
 
-    result = QQSlurm.getAllUnfinishedBatchJobs()
+    result = Slurm.getAllUnfinishedBatchJobs()
 
     mock_squeue.assert_called_once_with('squeue -t PENDING,RUNNING -h -o "%i"')
     assert set(result) == {mock_job1, mock_job2}
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSacctCommand")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._getBatchJobsUsingSqueueCommand")
-def test_qqslurm_get_all_batch_jobs(mock_squeue, mock_sacct):
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSacctCommand")
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSqueueCommand")
+def test_slurm_get_all_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct_job = MagicMock()
     mock_sacct_job.getId.return_value = "5"
     mock_squeue_job = MagicMock()
@@ -596,7 +600,7 @@ def test_qqslurm_get_all_batch_jobs(mock_squeue, mock_sacct):
     mock_sacct.return_value = [mock_sacct_job]
     mock_squeue.return_value = [mock_squeue_job, mock_sacct_job]
 
-    result = QQSlurm.getAllBatchJobs()
+    result = Slurm.getAllBatchJobs()
 
     mock_sacct.assert_called_once()
     mock_squeue.assert_called_once()
@@ -604,73 +608,73 @@ def test_qqslurm_get_all_batch_jobs(mock_squeue, mock_sacct):
     assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._translateKill", return_value="scancel 123")
-def test_qqslurm_job_kill_runs_successfully(mock_translate, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.Slurm._translateKill", return_value="scancel 123")
+def test_slurm_job_kill_runs_successfully(mock_translate, mock_run):
     mock_run.return_value = MagicMock(returncode=0)
-    QQSlurm.jobKill("123")
+    Slurm.jobKill("123")
     mock_translate.assert_called_once_with("123")
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._translateKill", return_value="scancel 999")
-def test_qqslurm_job_kill_raises_on_error(mock_translate, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.Slurm._translateKill", return_value="scancel 999")
+def test_slurm_job_kill_raises_on_error(mock_translate, mock_run):
     mock_run.return_value = MagicMock(returncode=1, stderr="error")
     with pytest.raises(QQError, match="Failed to kill job"):
-        QQSlurm.jobKill("999")
+        Slurm.jobKill("999")
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
 @patch(
-    "qq_lib.batch.slurm.qqslurm.QQSlurm._translateKillForce",
+    "qq_lib.batch.slurm.slurm.Slurm._translateKillForce",
     return_value="scancel --signal=KILL 123",
 )
-def test_qqslurm_job_kill_force_runs_successfully(mock_translate, mock_run):
+def test_slurm_job_kill_force_runs_successfully(mock_translate, mock_run):
     mock_run.return_value = MagicMock(returncode=0)
-    QQSlurm.jobKillForce("123")
+    Slurm.jobKillForce("123")
     mock_translate.assert_called_once_with("123")
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
 @patch(
-    "qq_lib.batch.slurm.qqslurm.QQSlurm._translateKillForce",
+    "qq_lib.batch.slurm.slurm.Slurm._translateKillForce",
     return_value="scancel --signal=KILL 999",
 )
-def test_qqslurm_job_kill_force_raises_on_error(mock_translate, mock_run):
+def test_slurm_job_kill_force_raises_on_error(mock_translate, mock_run):
     mock_run.return_value = MagicMock(returncode=1, stderr="fail")
     with pytest.raises(QQError, match="Failed to kill job"):
-        QQSlurm.jobKillForce("999")
+        Slurm.jobKillForce("999")
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.QQBatchInterface.navigateToDestination")
-def test_qqslurm_navigate_to_destination_delegates(mock_nav):
-    QQSlurm.navigateToDestination("host1", Path("/data"))
+@patch("qq_lib.batch.slurm.slurm.BatchInterface.navigateToDestination")
+def test_slurm_navigate_to_destination_delegates(mock_nav):
+    Slurm.navigateToDestination("host1", Path("/data"))
     mock_nav.assert_called_once_with("host1", Path("/data"))
 
 
-@patch("qq_lib.batch.slurm.qqslurm.SlurmJob")
-def test_qqslurm_get_batch_job_creates_slurmjob(mock_job):
-    QQSlurm.getBatchJob("1234")
+@patch("qq_lib.batch.slurm.slurm.SlurmJob")
+def test_slurm_get_batch_job_creates_slurmjob(mock_job):
+    Slurm.getBatchJob("1234")
     mock_job.assert_called_once_with("1234")
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.QQSlurm._translateSubmit", return_value="sbatch cmd")
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS._sharedGuard")
-def test_qqslurm_job_submit_success(mock_guard, mock_translate, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.Slurm._translateSubmit", return_value="sbatch cmd")
+@patch("qq_lib.batch.slurm.slurm.PBS._sharedGuard")
+def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
     res = QQResources()
     script = Path("/tmp/job.sh")
     mock_run.return_value = MagicMock(
         returncode=0, stdout="Submitted batch job 56789\n"
     )
 
-    result = QQSlurm.jobSubmit(res, "qgpu", script, "job1", [], {}, "acc")
+    result = Slurm.jobSubmit(res, "qgpu", script, "job1", [], {}, "acc")
 
     mock_guard.assert_called_once_with(res, {})
     mock_translate.assert_called_once()
@@ -678,18 +682,16 @@ def test_qqslurm_job_submit_success(mock_guard, mock_translate, mock_run):
     assert result == "56789"
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch(
-    "qq_lib.batch.slurm.qqslurm.QQSlurm._translateSubmit", return_value="sbatch fail"
-)
-@patch("qq_lib.batch.slurm.qqslurm.QQPBS._sharedGuard")
-def test_qqslurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.Slurm._translateSubmit", return_value="sbatch fail")
+@patch("qq_lib.batch.slurm.slurm.PBS._sharedGuard")
+def test_slurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
     res = QQResources()
     script = Path("/tmp/fail.sh")
     mock_run.return_value = MagicMock(returncode=1, stderr="error text")
 
     with pytest.raises(QQError, match="Failed to submit script"):
-        QQSlurm.jobSubmit(res, "qgpu", script, "fail_job", [], {}, None)
+        Slurm.jobSubmit(res, "qgpu", script, "fail_job", [], {}, None)
 
     mock_guard.assert_called_once_with(res, {})
     mock_translate.assert_called_once()
@@ -711,7 +713,7 @@ def test_qq_slurm_sort_jobs_sorts_by_ids_for_sorting(ids, expected_order):
         job._job_id = job_id
         jobs.append(job)
 
-    QQSlurm.sortJobs(jobs)
+    Slurm.sortJobs(jobs)
 
     result = [job.getId() for job in jobs]
     assert result == expected_order
@@ -724,16 +726,16 @@ def test_qq_slurm_sort_jobs_handles_zero_sort_keys():
     job_invalid._job_id = "abc"
 
     jobs = [job_valid, job_invalid]
-    QQSlurm.sortJobs(jobs)
+    Slurm.sortJobs(jobs)
 
     result = [job.getId() for job in jobs]
     assert result == ["abc", "1"]
 
 
-@patch("qq_lib.batch.slurm.qqslurm.SlurmQueue.fromDict")
-@patch("qq_lib.batch.slurm.qqslurm.parse_slurm_dump_to_dictionary")
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_queues(mock_run, mock_parse, mock_fromdict):
+@patch("qq_lib.batch.slurm.slurm.SlurmQueue.fromDict")
+@patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_queues(mock_run, mock_parse, mock_fromdict):
     mock_run.return_value = MagicMock(
         returncode=0,
         stdout="PartitionName=default AllowGroups=ALL\nPartitionName=cpu AllowGroups=ALL",
@@ -749,7 +751,7 @@ def test_qqslurm_get_queues(mock_run, mock_parse, mock_fromdict):
         ),
         MagicMock(_name="cpu", _info={"PartitionName": "cpu", "AllowGroups": "ALL"}),
     ]
-    result = QQSlurm.getQueues()
+    result = Slurm.getQueues()
     assert len(result) == 2
     assert result[0]._name == "default"
     assert result[1]._name == "cpu"
@@ -765,17 +767,17 @@ def test_qqslurm_get_queues(mock_run, mock_parse, mock_fromdict):
     assert mock_fromdict.call_count == 2
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_queues_scontrol_fails(mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_queues_scontrol_fails(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="some error")
     with pytest.raises(QQError, match="Could not retrieve information about queues"):
-        QQSlurm.getQueues()
+        Slurm.getQueues()
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-@patch("qq_lib.batch.slurm.qqslurm.parse_slurm_dump_to_dictionary")
-@patch("qq_lib.batch.slurm.qqslurm.SlurmNode.fromDict")
-def test_qqslurm_get_nodes_success(mock_from_dict, mock_parser, mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.slurm.SlurmNode.fromDict")
+def test_slurm_get_nodes_success(mock_from_dict, mock_parser, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
     mock_result.stdout = "NodeName=node1 Arch=x86_64\nNodeName=node2 Arch=x86_64"
@@ -790,7 +792,7 @@ def test_qqslurm_get_nodes_success(mock_from_dict, mock_parser, mock_run):
     mock_node2 = MagicMock(spec=SlurmNode)
     mock_from_dict.side_effect = [mock_node1, mock_node2]
 
-    result = QQSlurm.getNodes()
+    result = Slurm.getNodes()
 
     mock_run.assert_called_once_with(
         ["bash"],
@@ -808,8 +810,8 @@ def test_qqslurm_get_nodes_success(mock_from_dict, mock_parser, mock_run):
     assert result == [mock_node1, mock_node2]
 
 
-@patch("qq_lib.batch.slurm.qqslurm.subprocess.run")
-def test_qqslurm_get_nodes_failure_raises_qqerror(mock_run):
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+def test_slurm_get_nodes_failure_raises_qqerror(mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 1
     mock_result.stderr = "some error"
@@ -818,4 +820,4 @@ def test_qqslurm_get_nodes_failure_raises_qqerror(mock_run):
     with pytest.raises(
         QQError, match="Could not retrieve information about nodes: some error."
     ):
-        QQSlurm.getNodes()
+        Slurm.getNodes()

@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.pbs import PBS
 from qq_lib.info.informer import QQInformer
 from qq_lib.info.presenter import CFG, QQPresenter
 from qq_lib.properties.info import QQInfo
@@ -34,7 +34,7 @@ def sample_resources():
 @pytest.fixture
 def sample_info(sample_resources):
     return QQInfo(
-        batch_system=QQPBS,
+        batch_system=PBS,
         qq_version="0.1.0",
         username="fake_user",
         job_id="12345.fake.server.com",

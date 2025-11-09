@@ -11,7 +11,7 @@ from typing import NoReturn
 import click
 
 from qq_lib.batch.interface.job import BatchJobInterface
-from qq_lib.batch.interface.meta import QQBatchMeta
+from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import yes_or_no_prompt
 from qq_lib.core.config import CFG
@@ -41,7 +41,7 @@ This command is only able to terminate qq jobs, all other jobs are not affected 
 )
 def killall(yes: bool = False, force: bool = False) -> NoReturn:
     try:
-        BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.fromEnvVarOrGuess()
         jobs = BatchSystem.getUnfinishedBatchJobs(getpass.getuser())
         if not jobs:
             logger.info("You have no active jobs. Nothing to kill.")

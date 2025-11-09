@@ -8,7 +8,7 @@ from pathlib import Path
 from click import Parameter
 from click_option_group import GroupedOption
 
-from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchMeta
 from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -105,15 +105,15 @@ class QQParser:
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")
 
-    def getBatchSystem(self) -> type[QQBatchInterface] | None:
+    def getBatchSystem(self) -> type[BatchInterface] | None:
         """
         Return the batch system class specified in the script.
 
         Returns:
-            type[QQBatchInterface] | None: The batch system class if specified, otherwise None.
+            type[BatchInterface] | None: The batch system class if specified, otherwise None.
         """
         if isinstance(batch_system := self._options.get("batch_system"), str):
-            return QQBatchMeta.fromStr(batch_system)
+            return BatchMeta.fromStr(batch_system)
 
         return None
 

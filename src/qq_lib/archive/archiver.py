@@ -5,7 +5,7 @@ import re
 import socket
 from pathlib import Path
 
-from qq_lib.batch.interface import QQBatchInterface
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import is_printf_pattern, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
@@ -25,7 +25,7 @@ class QQArchiver:
         archive_format: str,
         input_machine: str,
         input_dir: Path,
-        batch_system: type[QQBatchInterface],
+        batch_system: type[BatchInterface],
     ):
         """
         Initialize the QQArchiver.
@@ -35,7 +35,7 @@ class QQArchiver:
             archive_format (str): The pattern describing which files to archive.
             input_machine (str): The hostname from which the job was submitted.
             input_dir (Path): The directory from which the job was submitted.
-            batch_system (type[QQBatchInterface]): The batch system used to run the qq job.
+            batch_system (type[BatchInterface]): The batch system used to run the qq job.
         """
         self._batch_system = batch_system
         self._archive = archive

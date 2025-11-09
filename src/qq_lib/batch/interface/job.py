@@ -18,7 +18,7 @@ class BatchJobInterface(ABC):
     Must support situations where the job information no longer exists.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `QQBatchInterface.getBatchJob`.
+    be used inside the corresponding implementation of `BatchInterface.getBatchJob`.
     """
 
     @abstractmethod

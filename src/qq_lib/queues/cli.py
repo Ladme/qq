@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, NoReturn
 import click
 from rich.console import Console
 
-from qq_lib.batch.interface.meta import QQBatchMeta
+from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.config import CFG
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ If the `--all` flag is specified, display all queues, including those not availa
 @click.option("--yaml", is_flag=True, help="Output queue metadata in YAML format.")
 def queues(all: bool, yaml: bool) -> NoReturn:
     try:
-        BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.fromEnvVarOrGuess()
         queues: list[BatchQueueInterface] = BatchSystem.getQueues()
         user = getpass.getuser()
 

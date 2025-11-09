@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Self
 
-from qq_lib.batch.interface import BatchJobInterface, QQBatchInterface
+from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.info import QQInfo
 from qq_lib.properties.states import BatchState, NaiveState, RealState
@@ -29,13 +29,12 @@ class QQInformer:
         self._batch_info: BatchJobInterface | None = None
 
     @property
-    def batch_system(self) -> type[QQBatchInterface]:
+    def batch_system(self) -> type[BatchInterface]:
         """
         Return the batch system class used for this job.
 
         Returns:
-            type[QQBatchInterface]: The batch system class
-            associated with the job.
+            type[BatchInterface]: The batch system class associated with the job.
         """
         return self.info.batch_system
 

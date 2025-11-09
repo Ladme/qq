@@ -11,7 +11,7 @@ class BatchNodeInterface(ABC):
     Abstract base class for obtaining information about compute nodes.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `QQBatchInterface.getNodes`.
+    be used inside the corresponding implementation of `BatchInterface.getNodes`.
     """
 
     @abstractmethod

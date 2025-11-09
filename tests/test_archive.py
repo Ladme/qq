@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from qq_lib.archive.archiver import CFG, QQArchiver
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.pbs import PBS
 
 
 def test_remove_files(tmp_path):
@@ -94,7 +94,7 @@ def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir)
         archive_format="job%04d",
         input_machine="fake_host",
         input_dir=input_dir,
-        batch_system=QQPBS,
+        batch_system=PBS,
     )
 
     assert not archive_dir.exists()
@@ -113,7 +113,7 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
         archive_format="job%04d",
         input_machine="fake_host",
         input_dir=input_dir,
-        batch_system=QQPBS,
+        batch_system=PBS,
     )
 
     archiver.makeArchiveDir()
@@ -128,7 +128,7 @@ def archiver(input_dir, archive_dir):
         archive_format="job%04d",
         input_machine="fake_host",
         input_dir=input_dir,
-        batch_system=QQPBS,
+        batch_system=PBS,
     )
 
 

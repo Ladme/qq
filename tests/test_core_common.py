@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
-from qq_lib.batch.interface.meta import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS, PBSJob
+from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
     convert_absolute_to_relative,
@@ -743,9 +743,9 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
 
 def test_get_info_file_from_job_id_success():
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJob",
             return_value=_make_jobinfo_with_info(
                 {
@@ -759,9 +759,9 @@ def test_get_info_file_from_job_id_success():
 
 def test_get_info_file_from_job_id_no_info():
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJob",
             return_value=_make_jobinfo_with_info(
                 {
@@ -776,9 +776,9 @@ def test_get_info_file_from_job_id_no_info():
 
 def test_get_info_file_from_job_id_nonexistent_job():
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJob",
             return_value=_make_jobinfo_with_info({}),
         ),

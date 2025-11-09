@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.pbs.qqpbs import QQPBS
+from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import QQInformer
 from qq_lib.properties.depend import Depend, DependType
@@ -30,7 +30,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
         patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
     ):
         submitter = QQSubmitter(
-            batch_system=QQPBS,
+            batch_system=PBS,
             queue="default",
             account=None,
             script=script,
@@ -39,7 +39,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
             command_line=["-q", "default", str(script)],
         )
 
-        assert submitter._batch_system == QQPBS
+        assert submitter._batch_system == PBS
         assert submitter._job_type == QQJobType.STANDARD
         assert submitter._queue == "default"
         assert submitter._account is None
@@ -59,7 +59,7 @@ def test_qqsubmitter_init_raises_error_if_script_does_not_exist(tmp_path):
 
     with pytest.raises(QQError, match="does not exist"):
         QQSubmitter(
-            batch_system=QQPBS,
+            batch_system=PBS,
             queue="default",
             account=None,
             script=script,
@@ -79,7 +79,7 @@ def test_qqsubmitter_init_raises_error_if_invalid_shebang(tmp_path):
         pytest.raises(QQError, match="invalid shebang"),
     ):
         QQSubmitter(
-            batch_system=QQPBS,
+            batch_system=PBS,
             queue="default",
             account="fake-account",
             script=script,
@@ -105,7 +105,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
     ):
         submitter = QQSubmitter(
-            batch_system=QQPBS,
+            batch_system=PBS,
             queue="long",
             account="fake-account",
             script=script,
@@ -117,7 +117,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
             depend=depend_jobs,
         )
 
-        assert submitter._batch_system == QQPBS
+        assert submitter._batch_system == PBS
         assert submitter._job_type == QQJobType.LOOP
         assert submitter._queue == "long"
         assert submitter._account == "fake-account"
@@ -206,7 +206,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
 
     submitter = QQSubmitter.__new__(QQSubmitter)
     submitter._info_file = tmp_path / "job.qqinfo"
-    submitter._batch_system = QQPBS
+    submitter._batch_system = PBS
     submitter._loop_info = None
     submitter._input_dir = tmp_path
     submitter._resources = QQResources(nnodes=2, ncpus=8, ngpus=2, walltime="1d")

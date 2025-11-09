@@ -13,7 +13,7 @@ class BatchQueueInterface(ABC):
     from a batch scheduling system.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `QQBatchInterface.getQueues`.
+    be used inside the corresponding implementation of `BatchInterface.getQueues`.
     """
 
     @abstractmethod

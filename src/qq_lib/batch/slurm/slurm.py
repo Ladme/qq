@@ -6,9 +6,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.batch.interface.meta import QQBatchMeta, batch_system
-from qq_lib.batch.pbs.qqpbs import QQPBS
+from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface.meta import BatchMeta, batch_system
+from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -28,22 +28,22 @@ logger = get_logger(__name__)
 
 
 @batch_system
-class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBatchMeta):
-    def envName() -> str:
+class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta):
+    @classmethod
+    def envName(cls) -> str:
         return "Slurm"
 
-    def isAvailable() -> bool:
+    @classmethod
+    def isAvailable(cls) -> bool:
         return shutil.which("sbatch") is not None and shutil.which("it4ifree") is None
 
-    def getJobId() -> str | None:
+    @classmethod
+    def getJobId(cls) -> str | None:
         return os.environ.get("SLURM_JOB_ID")
 
-    def getScratchDir(job_id: str) -> Path:
-        raise NotImplementedError(
-            "getScratchDir method is not implemented for this batch system implementation"
-        )
-
+    @classmethod
     def jobSubmit(
+        cls,
         res: QQResources,
         queue: str,
         script: Path,
@@ -52,10 +52,10 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         env_vars: dict[str, str],
         account: str | None = None,
     ) -> str:
-        # intentionally using QQPBS
-        QQPBS._sharedGuard(res, env_vars)
+        # intentionally using PBS
+        PBS._sharedGuard(res, env_vars)
 
-        command = QQSlurm._translateSubmit(
+        command = cls._translateSubmit(
             res, queue, script.parent, str(script), job_name, depend, env_vars, account
         )
         logger.debug(command)
@@ -77,8 +77,9 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return result.stdout.split()[-1]
 
-    def jobKill(job_id: str) -> None:
-        command = QQSlurm._translateKill(job_id)
+    @classmethod
+    def jobKill(cls, job_id: str) -> None:
+        command = cls._translateKill(job_id)
         logger.debug(command)
 
         # run the kill command
@@ -94,8 +95,9 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         if result.returncode != 0:
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def jobKillForce(job_id: str) -> None:
-        command = QQSlurm._translateKillForce(job_id)
+    @classmethod
+    def jobKillForce(cls, job_id: str) -> None:
+        command = cls._translateKillForce(job_id)
         logger.debug(command)
 
         # run the kill command
@@ -111,59 +113,62 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         if result.returncode != 0:
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def navigateToDestination(host: str, directory: Path) -> None:
-        QQBatchInterface.navigateToDestination(host, directory)
-
-    def getBatchJob(job_id: str) -> SlurmJob:
+    @classmethod
+    def getBatchJob(cls, job_id: str) -> SlurmJob:
         return SlurmJob(job_id)  # ty: ignore[invalid-return-type]
 
-    def getUnfinishedBatchJobs(user: str) -> list[SlurmJob]:
+    @classmethod
+    def getUnfinishedBatchJobs(cls, user: str) -> list[SlurmJob]:
         command = f'squeue -u {user} -t PENDING,RUNNING -h -o "%i"'
         logger.debug(command)
 
-        return QQSlurm._getBatchJobsUsingSqueueCommand(command)
+        return cls._getBatchJobsUsingSqueueCommand(command)
 
-    def getBatchJobs(user: str) -> list[SlurmJob]:
+    @classmethod
+    def getBatchJobs(cls, user: str) -> list[SlurmJob]:
         # get all jobs, except pending which are not available from sacct
         command = f"sacct -u {user} --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        sacct_jobs = QQSlurm._getBatchJobsUsingSacctCommand(command)
+        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
 
         # get pending jobs using squeue
         command = f'squeue -u {user} -t PENDING -h -o "%i"'
         logger.debug(command)
 
-        squeue_jobs = QQSlurm._getBatchJobsUsingSqueueCommand(command)
+        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
 
         # filter out duplicate jobs
         merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
         return list(merged.values())
 
-    def getAllUnfinishedBatchJobs() -> list[SlurmJob]:
+    @classmethod
+    def getAllUnfinishedBatchJobs(cls) -> list[SlurmJob]:
         command = 'squeue -t PENDING,RUNNING -h -o "%i"'
         logger.debug(command)
 
-        return QQSlurm._getBatchJobsUsingSqueueCommand(command)
+        return cls._getBatchJobsUsingSqueueCommand(command)
 
-    def getAllBatchJobs() -> list[SlurmJob]:
+    @classmethod
+    def getAllBatchJobs(cls) -> list[SlurmJob]:
         # get all jobs, except pending which are not available from sacct
         command = f"sacct --allusers --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        sacct_jobs = QQSlurm._getBatchJobsUsingSacctCommand(command)
+        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
 
         # get pending jobs using squeue
         command = 'squeue -t PENDING -h -o "%i"'
         logger.debug(command)
 
-        squeue_jobs = QQSlurm._getBatchJobsUsingSqueueCommand(command)
+        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
 
         # filter out duplicate jobs
         merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
         return list(merged.values())
 
-    def getQueues() -> list[SlurmQueue]:
+    @classmethod
+    def getQueues(cls) -> list[SlurmQueue]:
         command = "scontrol show partition -o"
         logger.debug(command)
 
@@ -188,7 +193,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return queues
 
-    def getNodes() -> list[SlurmNode]:
+    @classmethod
+    def getNodes(cls) -> list[SlurmNode]:
         command = "scontrol show node -o"
         logger.debug(command)
 
@@ -213,57 +219,56 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return nodes
 
-    def readRemoteFile(host: str, file: Path) -> str:
-        return QQPBS.readRemoteFile(host, file)
+    @classmethod
+    def readRemoteFile(cls, host: str, file: Path) -> str:
+        return PBS.readRemoteFile(host, file)
 
-    def writeRemoteFile(host: str, file: Path, content: str) -> None:
-        QQPBS.writeRemoteFile(host, file, content)
+    @classmethod
+    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
+        PBS.writeRemoteFile(host, file, content)
 
-    def makeRemoteDir(host: str, directory: Path) -> None:
-        QQPBS.makeRemoteDir(host, directory)
+    @classmethod
+    def makeRemoteDir(cls, host: str, directory: Path) -> None:
+        PBS.makeRemoteDir(host, directory)
 
-    def listRemoteDir(host: str, directory: Path) -> list[Path]:
-        return QQPBS.listRemoteDir(host, directory)
+    @classmethod
+    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
+        return PBS.listRemoteDir(host, directory)
 
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
-        QQPBS.moveRemoteFiles(host, files, moved_files)
+    @classmethod
+    def moveRemoteFiles(
+        cls, host: str, files: list[Path], moved_files: list[Path]
+    ) -> None:
+        PBS.moveRemoteFiles(host, files, moved_files)
 
+    @classmethod
     def syncWithExclusions(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
         dest_host: str | None,
         exclude_files: list[Path] | None = None,
     ) -> None:
-        QQPBS.syncWithExclusions(src_dir, dest_dir, src_host, dest_host, exclude_files)
+        PBS.syncWithExclusions(src_dir, dest_dir, src_host, dest_host, exclude_files)
 
+    @classmethod
     def syncSelected(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
         dest_host: str | None,
         include_files: list[Path] | None = None,
     ) -> None:
-        QQPBS.syncSelected(src_dir, dest_dir, src_host, dest_host, include_files)
+        PBS.syncSelected(src_dir, dest_dir, src_host, dest_host, include_files)
 
-    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
-        raise NotImplementedError(
-            "transformResources method is not implemented for this batch system implementations"
-        )
-
-    def isShared(directory: Path) -> bool:
-        return QQBatchInterface.isShared(directory)
-
-    def resubmit(input_machine: str, input_dir: str, command_line: list[str]) -> None:
-        QQBatchInterface.resubmit(
-            input_machine=input_machine, input_dir=input_dir, command_line=command_line
-        )
-
-    def sortJobs(jobs: list[SlurmJob]) -> None:
+    @classmethod
+    def sortJobs(cls, jobs: list[SlurmJob]) -> None:
         jobs.sort(key=lambda job: job.getIdsForSorting())
 
-    @staticmethod
-    def _translateKill(job_id: str) -> str:
+    @classmethod
+    def _translateKill(cls, job_id: str) -> str:
         """
         Generate the Slurm kill command for a job using SIGTERM.
 
@@ -275,8 +280,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         """
         return f"scancel {job_id}"
 
-    @staticmethod
-    def _translateKillForce(job_id: str) -> str:
+    @classmethod
+    def _translateKillForce(cls, job_id: str) -> str:
         """
         Generate the Slurm kill command for a job using SIGKILL.
 
@@ -288,8 +293,9 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         """
         return f"scancel --signal=KILL {job_id}"
 
-    @staticmethod
+    @classmethod
     def _translateSubmit(
+        cls,
         res: QQResources,
         queue: str,
         input_dir: Path,
@@ -323,13 +329,13 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         # translate environment variables
         if env_vars:
-            command += f"--export ALL,{QQSlurm._translateEnvVars(env_vars)} "
+            command += f"--export ALL,{cls._translateEnvVars(env_vars)} "
 
         # handle number of nodes
         command += f"--nodes {res.nnodes} "
 
         # handle per-chunk resources
-        translated = QQSlurm._translatePerChunkResources(res)
+        translated = cls._translatePerChunkResources(res)
         command += " ".join(translated) + " "
 
         # handle properties
@@ -349,7 +355,7 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
             command += f"--time={res.walltime} "
 
         # handle dependencies
-        if converted_depend := QQSlurm._translateDependencies(depend):
+        if converted_depend := cls._translateDependencies(depend):
             command += f"--dependency={converted_depend} "
 
         # add script
@@ -357,8 +363,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return command
 
-    @staticmethod
-    def _translateEnvVars(env_vars: dict[str, str]) -> str:
+    @classmethod
+    def _translateEnvVars(cls, env_vars: dict[str, str]) -> str:
         """
         Convert a dictionary of environment variables into a formatted string.
 
@@ -376,8 +382,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return ",".join(converted)
 
-    @staticmethod
-    def _translatePerChunkResources(res: QQResources) -> list[str]:
+    @classmethod
+    def _translatePerChunkResources(cls, res: QQResources) -> list[str]:
         """
         Convert a QQResources object into a list of per-node resource specifications.
 
@@ -437,8 +443,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return trans_res
 
-    @staticmethod
-    def _translateDependencies(depend: list[Depend]) -> str | None:
+    @classmethod
+    def _translateDependencies(cls, depend: list[Depend]) -> str | None:
         """
         Convert a list of `Depend` objects into a Slurm-compatible dependency string.
 
@@ -454,8 +460,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return ",".join(Depend.toStr(x).replace("=", ":") for x in depend)
 
-    @staticmethod
-    def _getDefaultServerResources() -> QQResources:
+    @classmethod
+    def _getDefaultServerResources(cls) -> QQResources:
         """
         Return a QQResources object representing the default resources for a batch job.
 
@@ -480,12 +486,10 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
         info = parse_slurm_dump_to_dictionary(result.stdout, "\n")
         server_resources = default_resources_from_dict(info)
 
-        return QQResources.mergeResources(
-            server_resources, QQSlurm._getDefaultResources()
-        )
+        return QQResources.mergeResources(server_resources, cls._getDefaultResources())
 
-    @staticmethod
-    def _getDefaultResources() -> QQResources:
+    @classmethod
+    def _getDefaultResources(cls) -> QQResources:
         """
         Return a QQResources object representing the default, hard-coded resources for a batch job.
         """
@@ -498,8 +502,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
             walltime="1d",
         )
 
-    @staticmethod
-    def _getBatchJobsUsingSacctCommand(command: str) -> list[SlurmJob]:
+    @classmethod
+    def _getBatchJobsUsingSacctCommand(cls, command: str) -> list[SlurmJob]:
         """
         Execute `sacct` to retrieve information about Slurm jobs and parse it.
 
@@ -538,8 +542,8 @@ class QQSlurm(QQBatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=QQBat
 
         return jobs
 
-    @staticmethod
-    def _getBatchJobsUsingSqueueCommand(command: str) -> list[SlurmJob]:
+    @classmethod
+    def _getBatchJobsUsingSqueueCommand(cls, command: str) -> list[SlurmJob]:
         """
         Execute `squeue` and `scontrol show job` to retrieve information about Slurm jobs.
 

@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.interface.interface import QQBatchInterface
+from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import QQJobType
@@ -278,15 +278,15 @@ def test_qqsubmitter_factory_get_job_type_defaults_to_standard_if_missing():
 
 def test_qqsubmitter_factory_get_batch_system_uses_cli_over_parser_and_env():
     mock_parser = MagicMock()
-    parser_batch = MagicMock(spec=QQBatchInterface)
+    parser_batch = MagicMock(spec=BatchInterface)
     mock_parser.getBatchSystem.return_value = parser_batch
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"batch_system": "PBS"}
 
-    mock_class = MagicMock(spec=QQBatchInterface)
-    with patch.object(QQBatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
+    mock_class = MagicMock(spec=BatchInterface)
+    with patch.object(BatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
         result = factory._getBatchSystem()
 
     mock_from_str.assert_called_once_with("PBS")
@@ -295,7 +295,7 @@ def test_qqsubmitter_factory_get_batch_system_uses_cli_over_parser_and_env():
 
 def test_qqsubmitter_factory_get_batch_system_uses_parser_if_no_cli():
     mock_parser = MagicMock()
-    parser_batch = MagicMock(spec=QQBatchInterface)
+    parser_batch = MagicMock(spec=BatchInterface)
     mock_parser.getBatchSystem.return_value = parser_batch
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
@@ -314,9 +314,9 @@ def test_qqsubmitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI
 
-    mock_guess = MagicMock(spec=QQBatchInterface)
+    mock_guess = MagicMock(spec=BatchInterface)
     with patch.object(
-        QQBatchMeta, "fromEnvVarOrGuess", return_value=mock_guess
+        BatchMeta, "fromEnvVarOrGuess", return_value=mock_guess
     ) as mock_method:
         result = factory._getBatchSystem()
 

@@ -9,8 +9,8 @@ from typing import Any
 import pytest
 import yaml
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.info import CFG, QQInfo
 from qq_lib.properties.job_type import QQJobType
@@ -20,7 +20,7 @@ from qq_lib.properties.states import NaiveState
 
 @pytest.fixture(autouse=True)
 def register():
-    QQBatchMeta.register(QQPBS)
+    BatchMeta.register(PBS)
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def sample_resources():
 @pytest.fixture
 def sample_info(sample_resources):
     return QQInfo(
-        batch_system=QQPBS,
+        batch_system=PBS,
         qq_version="0.1.0",
         username="fake_user",
         job_id="12345.fake.server.com",

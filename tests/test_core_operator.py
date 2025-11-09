@@ -4,7 +4,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from qq_lib.batch.pbs.qqpbs import QQPBS
+from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.operator import QQOperator
 from qq_lib.properties.states import RealState
 
@@ -14,7 +14,7 @@ def test_qqoperator_init_with_host(tmp_path):
     host = "example.host.org"
 
     informer_mock = MagicMock()
-    informer_mock.batch_system = QQPBS
+    informer_mock.batch_system = PBS
     informer_mock.getRealState.return_value = RealState.RUNNING
 
     with patch(
@@ -26,7 +26,7 @@ def test_qqoperator_init_with_host(tmp_path):
     assert operator._informer == informer_mock
     assert operator._info_file == info_file
     assert operator._input_machine == host
-    assert operator._batch_system is QQPBS
+    assert operator._batch_system is PBS
     assert operator._state == RealState.RUNNING
 
 
@@ -34,7 +34,7 @@ def test_qqoperator_init_without_host(tmp_path):
     info_file = tmp_path / "job.qqinfo"
 
     informer_mock = MagicMock()
-    informer_mock.batch_system = QQPBS
+    informer_mock.batch_system = PBS
     informer_mock.getRealState.return_value = RealState.RUNNING
 
     with patch(
@@ -46,7 +46,7 @@ def test_qqoperator_init_without_host(tmp_path):
     assert operator._informer == informer_mock
     assert operator._info_file == info_file
     assert operator._input_machine is None
-    assert operator._batch_system is QQPBS
+    assert operator._batch_system is PBS
     assert operator._state == RealState.RUNNING
 
 

@@ -5,5 +5,5 @@
 
 from .job import PBSJob
 from .node import PBSNode
-from .qqpbs import QQPBS
+from .pbs import PBS
 from .queue import PBSQueue

@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 import qq_lib
-from qq_lib.batch.interface import QQBatchInterface
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import get_info_file, hhmmss_to_duration
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -37,7 +37,7 @@ class QQSubmitter:
 
     def __init__(
         self,
-        batch_system: type[QQBatchInterface],
+        batch_system: type[BatchInterface],
         queue: str,
         account: str | None,
         script: Path,

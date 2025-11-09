@@ -14,7 +14,7 @@ from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.info import CFG, Info
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
 
 
@@ -25,7 +25,7 @@ def register():
 
 @pytest.fixture
 def sample_resources():
-    return QQResources(ncpus=8, work_dir="scratch_local")
+    return Resources(ncpus=8, work_dir="scratch_local")
 
 
 @pytest.fixture
@@ -192,7 +192,7 @@ def test_from_dict_roundtrip(sample_info):
         )
 
     # resources
-    assert isinstance(reconstructed.resources, QQResources)
+    assert isinstance(reconstructed.resources, Resources)
     assert reconstructed.resources.ncpus == sample_info.resources.ncpus
     assert reconstructed.resources.work_dir == sample_info.resources.work_dir
 

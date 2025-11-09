@@ -16,13 +16,13 @@ from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import CFG, Presenter
 from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState, RealState
 
 
 @pytest.fixture
 def sample_resources():
-    return QQResources(
+    return Resources(
         nnodes=1,
         ncpus=8,
         work_dir="scratch_local",

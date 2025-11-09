@@ -14,7 +14,7 @@ from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -140,18 +140,16 @@ class QQParser:
 
         return None
 
-    def getResources(self) -> QQResources:
+    def getResources(self) -> Resources:
         """
         Return the job resource specifications parsed from the script.
 
         Returns:
-            QQResources: Resource requirements for the job.
+            Resources: Resource requirements for the job.
         """
-        field_names = {f.name for f in fields(QQResources)}
-        # only select fields that are part of QQResources
-        return QQResources(
-            **{k: v for k, v in self._options.items() if k in field_names}
-        )
+        field_names = {f.name for f in fields(Resources)}
+        # only select fields that are part of Resources
+        return Resources(**{k: v for k, v in self._options.items() if k in field_names})
 
     def getExclude(self) -> list[Path]:
         """

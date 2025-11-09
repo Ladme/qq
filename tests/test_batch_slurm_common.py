@@ -7,7 +7,7 @@ from qq_lib.batch.slurm.common import (
     default_resources_from_dict,
     parse_slurm_dump_to_dictionary,
 )
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 
 
@@ -52,7 +52,7 @@ def test_default_resources_from_dict_converts_and_filters_fields():
         "ExtraField": "ignored",
     }
     result = default_resources_from_dict(input_dict)
-    assert isinstance(result, QQResources)
+    assert isinstance(result, Resources)
     assert result.mem_per_cpu == Size.fromString("4gb")
     assert result.walltime == "2d 00:00:00"
     assert not hasattr(result, "ExtraField")
@@ -63,7 +63,7 @@ def test_default_resources_from_dict_def_mem_per_cpu_numeric():
         "DefMemPerCPU": "4096",
     }
     result = default_resources_from_dict(input_dict)
-    assert isinstance(result, QQResources)
+    assert isinstance(result, Resources)
     assert result.mem_per_cpu == Size.fromString("4096mb")
 
 
@@ -73,7 +73,7 @@ def test_default_resources_from_dict_ignores_unlimited_values():
         "DefaultTime": "UNLIMITED",
     }
     result = default_resources_from_dict(input_dict)
-    assert isinstance(result, QQResources)
-    for f in fields(QQResources):
+    assert isinstance(result, Resources)
+    for f in fields(Resources):
         value = getattr(result, f.name)
         assert value is None

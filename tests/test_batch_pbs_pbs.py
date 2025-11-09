@@ -16,12 +16,12 @@ from qq_lib.batch.pbs.pbs import CFG
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 
 @pytest.fixture
 def resources():
-    return QQResources(
+    return Resources(
         nnodes=1, mem_per_cpu="1gb", ncpus=4, work_dir="scratch_local", work_size="16gb"
     )
 
@@ -64,7 +64,7 @@ def test_shared_guard_sets_env_var():
 
     # patch isShared to return True
     with patch.object(PBS, "isShared", return_value=True):
-        PBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
+        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars)
         assert env_vars[CFG.env_vars.shared_submit] == "true"
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -75,7 +75,7 @@ def test_shared_guard_does_not_set_env_var():
 
     # patch isShared to return False
     with patch.object(PBS, "isShared", return_value=False):
-        PBS._sharedGuard(QQResources(work_dir="scratch_local"), env_vars)
+        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars)
         assert CFG.env_vars.shared_submit not in env_vars
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -87,7 +87,7 @@ def test_shared_guard_input_dir_does_not_raise(dir):
 
     # patch isShared to return True
     with patch.object(PBS, "isShared", return_value=True):
-        PBS._sharedGuard(QQResources(work_dir=dir), env_vars)
+        PBS._sharedGuard(Resources(work_dir=dir), env_vars)
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
@@ -103,7 +103,7 @@ def test_shared_guard_input_dir_raises(dir):
             match="Job was requested to run directly in the submission directory",
         ),
     ):
-        PBS._sharedGuard(QQResources(work_dir=dir), env_vars)
+        PBS._sharedGuard(Resources(work_dir=dir), env_vars)
         assert CFG.env_vars.shared_submit not in env_vars
 
 
@@ -470,23 +470,23 @@ def test_move_remote_files_remote():
 
 
 def test_translate_work_dir_input_dir_returns_none():
-    res = QQResources(nnodes=1, work_dir="input_dir")
+    res = Resources(nnodes=1, work_dir="input_dir")
     assert PBS._translateWorkDir(res) is None
 
 
 def test_translate_work_dir_scratch_shm_returns_true_string():
-    res = QQResources(nnodes=3, work_dir="scratch_shm")
+    res = Resources(nnodes=3, work_dir="scratch_shm")
     assert PBS._translateWorkDir(res) == "scratch_shm=true"
 
 
 def test_translate_work_dir_work_size_divided_by_nnodes():
-    res = QQResources(nnodes=2, work_dir="scratch_local", work_size="7mb")
+    res = Resources(nnodes=2, work_dir="scratch_local", work_size="7mb")
     result = PBS._translateWorkDir(res)
     assert result == "scratch_local=3584kb"
 
 
 def test_translate_work_dir_work_size_per_cpu_and_ncpus():
-    res = QQResources(
+    res = Resources(
         nnodes=4, ncpus=5, work_dir="scratch_local", work_size_per_cpu="3mb"
     )
     result = PBS._translateWorkDir(res)
@@ -494,63 +494,63 @@ def test_translate_work_dir_work_size_per_cpu_and_ncpus():
 
 
 def test_translate_work_dir_missing_work_size_raises():
-    res = QQResources(nnodes=2, ncpus=4, work_dir="scratch_local")
+    res = Resources(nnodes=2, ncpus=4, work_dir="scratch_local")
     with pytest.raises(QQError, match="work-size"):
         PBS._translateWorkDir(res)
 
 
 def test_translate_work_dir_missing_ncpus_with_work_size_per_cpu_raises():
-    res = QQResources(nnodes=2, work_dir="scratch_local", work_size_per_cpu="3mb")
+    res = Resources(nnodes=2, work_dir="scratch_local", work_size_per_cpu="3mb")
     with pytest.raises(QQError, match="work-size"):
         PBS._translateWorkDir(res)
 
 
 def test_translate_per_chunk_resources_nnones_missing_raises():
-    res = QQResources(nnodes=None, ncpus=2, mem="4mb")
+    res = Resources(nnodes=None, ncpus=2, mem="4mb")
     with pytest.raises(QQError, match="nnodes"):
         PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_nnones_zero_raises():
-    res = QQResources(nnodes=0, ncpus=2, mem="4mb")
+    res = Resources(nnodes=0, ncpus=2, mem="4mb")
     with pytest.raises(QQError, match="nnodes"):
         PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_ncpus_not_divisible_raises():
-    res = QQResources(nnodes=3, ncpus=4, mem="4mb")
+    res = Resources(nnodes=3, ncpus=4, mem="4mb")
     with pytest.raises(QQError, match="ncpus"):
         PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_ngpus_not_divisible_raises():
-    res = QQResources(nnodes=2, ncpus=2, ngpus=3, mem="4mb")
+    res = Resources(nnodes=2, ncpus=2, ngpus=3, mem="4mb")
     with pytest.raises(QQError, match="ngpus"):
         PBS._translatePerChunkResources(res)
 
 
 def test_translate_per_chunk_resources_mem_division():
-    res = QQResources(nnodes=2, ncpus=4, mem="7mb", work_dir="input_dir")
+    res = Resources(nnodes=2, ncpus=4, mem="7mb", work_dir="input_dir")
     result = PBS._translatePerChunkResources(res)
     assert "ncpus=2" in result
     assert "mem=3584kb" in result
 
 
 def test_translate_per_chunk_resources_mem_per_cpu_used():
-    res = QQResources(nnodes=2, ncpus=4, mem_per_cpu="2mb", work_dir="input_dir")
+    res = Resources(nnodes=2, ncpus=4, mem_per_cpu="2mb", work_dir="input_dir")
     result = PBS._translatePerChunkResources(res)
     # 2mb * 4 / 2 = 4mb
     assert "mem=4096kb" in result
 
 
 def test_translate_per_chunk_resources_ngpus_included():
-    res = QQResources(nnodes=3, ncpus=9, mem="8mb", ngpus=6, work_dir="input_dir")
+    res = Resources(nnodes=3, ncpus=9, mem="8mb", ngpus=6, work_dir="input_dir")
     result = PBS._translatePerChunkResources(res)
     assert "ngpus=2" in result
 
 
 def test_translate_per_chunk_resources_work_dir_translated():
-    res = QQResources(
+    res = Resources(
         nnodes=2, ncpus=4, mem="8mb", work_dir="scratch_local", work_size="1mb"
     )
     result = PBS._translatePerChunkResources(res)
@@ -558,13 +558,13 @@ def test_translate_per_chunk_resources_work_dir_translated():
 
 
 def test_translate_per_chunk_resources_missing_memory_raises():
-    res = QQResources(nnodes=2, ncpus=4)
+    res = Resources(nnodes=2, ncpus=4)
     with pytest.raises(QQError, match="mem"):
         PBS._translatePerChunkResources(res)
 
 
 def test_translate_submit_minimal_fields():
-    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
         PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=1048576kb script.sh"
@@ -572,7 +572,7 @@ def test_translate_submit_minimal_fields():
 
 
 def test_translate_submit_with_env_vars():
-    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
         PBS._translateSubmit(
             res,
@@ -588,7 +588,7 @@ def test_translate_submit_with_env_vars():
 
 
 def test_translate_submit_multiple_nodes():
-    res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
         PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=2:mem=262144kb -l place=vscatter script.sh"
@@ -596,7 +596,7 @@ def test_translate_submit_multiple_nodes():
 
 
 def test_translate_submit_multiple_nodes_with_env_vars():
-    res = QQResources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
         PBS._translateSubmit(
             res,
@@ -612,7 +612,7 @@ def test_translate_submit_multiple_nodes_with_env_vars():
 
 
 def test_translate_submit_with_walltime():
-    res = QQResources(
+    res = Resources(
         nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
@@ -622,7 +622,7 @@ def test_translate_submit_with_walltime():
 
 
 def test_translate_submit_with_walltime2():
-    res = QQResources(
+    res = Resources(
         nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="input_dir"
     )
     assert (
@@ -632,7 +632,7 @@ def test_translate_submit_with_walltime2():
 
 
 def test_translate_submit_with_walltime_and_env_vars():
-    res = QQResources(
+    res = Resources(
         nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
@@ -650,7 +650,7 @@ def test_translate_submit_with_walltime_and_env_vars():
 
 
 def test_translate_submit_work_dir_scratch_shm():
-    res = QQResources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
+    res = Resources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
     assert (
         PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mem=8388608kb,scratch_shm=true script.sh"
@@ -658,7 +658,7 @@ def test_translate_submit_work_dir_scratch_shm():
 
 
 def test_translate_submit_scratch_local_work_size():
-    res = QQResources(
+    res = Resources(
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_local", work_size="16gb"
     )
     assert (
@@ -668,7 +668,7 @@ def test_translate_submit_scratch_local_work_size():
 
 
 def test_translate_submit_scratch_ssd_work_size():
-    res = QQResources(
+    res = Resources(
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_ssd", work_size="16gb"
     )
     assert (
@@ -678,7 +678,7 @@ def test_translate_submit_scratch_ssd_work_size():
 
 
 def test_translate_submit_scratch_shared_work_size():
-    res = QQResources(
+    res = Resources(
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_shared", work_size="16gb"
     )
     assert (
@@ -688,7 +688,7 @@ def test_translate_submit_scratch_shared_work_size():
 
 
 def test_translate_submit_work_size_per_cpu():
-    res = QQResources(
+    res = Resources(
         nnodes=1, ncpus=8, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
@@ -698,7 +698,7 @@ def test_translate_submit_work_size_per_cpu():
 
 
 def test_translate_submit_work_size_per_cpu_multiple_nodes():
-    res = QQResources(
+    res = Resources(
         nnodes=3, ncpus=3, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
@@ -708,7 +708,7 @@ def test_translate_submit_work_size_per_cpu_multiple_nodes():
 
 
 def test_translate_submit_mem_per_cpu():
-    res = QQResources(
+    res = Resources(
         nnodes=1, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="10gb"
     )
     assert (
@@ -718,7 +718,7 @@ def test_translate_submit_mem_per_cpu():
 
 
 def test_translate_submit_mem_per_cpu_multiple_nodes():
-    res = QQResources(
+    res = Resources(
         nnodes=2, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="20gb"
     )
     assert (
@@ -728,7 +728,7 @@ def test_translate_submit_mem_per_cpu_multiple_nodes():
 
 
 def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
-    res = QQResources(
+    res = Resources(
         nnodes=1,
         ncpus=4,
         mem_per_cpu="2gb",
@@ -742,7 +742,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
 
 
 def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
-    res = QQResources(
+    res = Resources(
         nnodes=2,
         ncpus=4,
         mem_per_cpu="2gb",
@@ -756,7 +756,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
 
 
 def test_translate_submit_with_props():
-    res = QQResources(
+    res = Resources(
         nnodes=1,
         ncpus=1,
         mem="1gb",
@@ -770,7 +770,7 @@ def test_translate_submit_with_props():
 
 
 def test_translate_submit_with_props_and_env_vars():
-    res = QQResources(
+    res = Resources(
         nnodes=1,
         ncpus=1,
         mem="1gb",
@@ -792,7 +792,7 @@ def test_translate_submit_with_props_and_env_vars():
 
 
 def test_translate_submit_complex_case():
-    res = QQResources(
+    res = Resources(
         nnodes=3,
         ncpus=6,
         mem="5gb",
@@ -823,7 +823,7 @@ def test_translate_submit_complex_case():
 
 
 def test_translate_submit_single_depend():
-    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [Depend(DependType.AFTER_START, ["123"])]
     cmd = PBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
@@ -833,7 +833,7 @@ def test_translate_submit_single_depend():
 
 
 def test_translate_submit_multiple_jobs_depend():
-    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [Depend(DependType.AFTER_SUCCESS, ["1", "2"])]
     cmd = PBS._translateSubmit(
         res, "queue", Path("tmp"), "script.sh", "job", depend, {}
@@ -843,7 +843,7 @@ def test_translate_submit_multiple_jobs_depend():
 
 
 def test_translate_submit_multiple_dependencies():
-    res = QQResources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [
         Depend(DependType.AFTER_SUCCESS, ["1"]),
         Depend(DependType.AFTER_FAILURE, ["2"]),
@@ -856,7 +856,7 @@ def test_translate_submit_multiple_dependencies():
 
 
 def test_translate_submit_complex_with_depend():
-    res = QQResources(
+    res = Resources(
         nnodes=2,
         ncpus=4,
         mem="4gb",
@@ -890,15 +890,15 @@ def test_translate_submit_complex_with_depend():
 
 
 def test_transform_resources_input_dir_warns_and_sets_work_dir():
-    provided = QQResources(work_dir="input_dir", work_size="10gb")
+    provided = Resources(work_dir="input_dir", work_size="10gb")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+        patch.object(Resources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
         res = PBS.transformResources(
-            "gpu", QQResources(work_dir="input_dir", work_size="10gb")
+            "gpu", Resources(work_dir="input_dir", work_size="10gb")
         )
 
     assert res.work_dir == "input_dir"
@@ -909,15 +909,15 @@ def test_transform_resources_input_dir_warns_and_sets_work_dir():
 
 
 def test_transform_resources_job_dir_warns_and_sets_work_dir():
-    provided = QQResources(work_dir="input_dir", work_size="10gb")
+    provided = Resources(work_dir="input_dir", work_size="10gb")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+        patch.object(Resources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
         res = PBS.transformResources(
-            "gpu", QQResources(work_dir="job_dir", work_size="10gb")
+            "gpu", Resources(work_dir="job_dir", work_size="10gb")
         )
 
     assert res.work_dir == "input_dir"
@@ -928,15 +928,15 @@ def test_transform_resources_job_dir_warns_and_sets_work_dir():
 
 
 def test_transform_resources_scratch_shm_warns_and_clears_work_size():
-    provided = QQResources(work_dir="scratch_shm", work_size="10gb")
+    provided = Resources(work_dir="scratch_shm", work_size="10gb")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+        patch.object(Resources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
         res = PBS.transformResources(
-            "gpu", QQResources(work_dir="scratch_shm", work_size="10gb")
+            "gpu", Resources(work_dir="scratch_shm", work_size="10gb")
         )
 
     assert res.work_dir == "scratch_shm"
@@ -949,14 +949,14 @@ def test_transform_resources_scratch_shm_warns_and_clears_work_size():
 
 def test_transform_resources_supported_scratch():
     for scratch in PBS.SUPPORTED_SCRATCHES:
-        provided = QQResources(work_dir=scratch, work_size="10gb")
+        provided = Resources(work_dir=scratch, work_size="10gb")
         with (
-            patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-            patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-            patch.object(QQResources, "mergeResources", return_value=provided),
+            patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+            patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+            patch.object(Resources, "mergeResources", return_value=provided),
         ):
             res = PBS.transformResources(
-                "gpu", QQResources(work_dir=scratch, work_size="10gb")
+                "gpu", Resources(work_dir=scratch, work_size="10gb")
             )
 
         assert res.work_dir == scratch
@@ -964,46 +964,44 @@ def test_transform_resources_supported_scratch():
 
 def test_transform_resources_supported_scratch_unnormalized():
     for scratch in PBS.SUPPORTED_SCRATCHES:
-        provided = QQResources(
+        provided = Resources(
             work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
         )
         with (
-            patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-            patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-            patch.object(QQResources, "mergeResources", return_value=provided),
+            patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+            patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+            patch.object(Resources, "mergeResources", return_value=provided),
         ):
             res = PBS.transformResources(
                 "gpu",
-                QQResources(
-                    work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
-                ),
+                Resources(work_dir=scratch.upper().replace("_", "-"), work_size="10gb"),
             )
 
         assert res.work_dir == scratch
 
 
 def test_transform_resources_unknown_work_dir_raises():
-    provided = QQResources(work_dir="unknown_scratch")
+    provided = Resources(work_dir="unknown_scratch")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+        patch.object(Resources, "mergeResources", return_value=provided),
         pytest.raises(QQError, match="Unknown working directory type specified"),
     ):
-        PBS.transformResources("gpu", QQResources(work_dir="unknown_scratch"))
+        PBS.transformResources("gpu", Resources(work_dir="unknown_scratch"))
 
 
 def test_transform_resources_missing_work_dir_raises():
-    provided = QQResources(work_dir=None)
+    provided = Resources(work_dir=None)
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=QQResources()),
-        patch.object(PBS, "_getDefaultServerResources", return_value=QQResources()),
-        patch.object(QQResources, "mergeResources", return_value=provided),
+        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+        patch.object(Resources, "mergeResources", return_value=provided),
         pytest.raises(
             QQError, match="Work-dir is not set after filling in default attributes"
         ),
     ):
-        PBS.transformResources("gpu", QQResources())
+        PBS.transformResources("gpu", Resources())
 
 
 @pytest.fixture

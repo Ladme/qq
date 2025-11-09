@@ -15,7 +15,7 @@ from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 from qq_lib.submit import submit
 from qq_lib.submit.parser import QQParser
@@ -212,24 +212,24 @@ def test_qqparser_get_exclude_calls_split_files_list():
     assert result == mock_split_result
 
 
-def test_qqparser_get_resources_returns_empty_qqresources_if_no_matching_options():
+def test_qqparser_get_resources_returns_empty_resources_if_no_matching_options():
     parser = QQParser.__new__(QQParser)
-    parser._options = {"foo": "bar"}  # not a QQResources field
+    parser._options = {"foo": "bar"}  # not a Resources field
 
     result = parser.getResources()
 
-    assert isinstance(result, QQResources)
-    for f in fields(QQResources):
+    assert isinstance(result, Resources)
+    for f in fields(Resources):
         assert getattr(result, f.name) == f.default or getattr(result, f.name) is None
 
 
-def test_qqparser_get_resources_returns_qqresources_with_matching_fields():
+def test_qqparser_get_resources_returns_resources_with_matching_fields():
     parser = QQParser.__new__(QQParser)
     parser._options = {"ncpus": 4, "mem": "4gb", "foo": "bar"}
 
     result = parser.getResources()
 
-    assert isinstance(result, QQResources)
+    assert isinstance(result, Resources)
     assert getattr(result, "ncpus") == 4
     assert getattr(result, "mem") == Size(4, "gb")
 

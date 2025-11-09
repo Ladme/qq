@@ -12,7 +12,7 @@ from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 from .parser import QQParser
 from .submitter import QQSubmitter
@@ -126,9 +126,7 @@ class QQSubmitterFactory:
             raise QQError("Submission queue not specified.")
         return queue
 
-    def _getResources(
-        self, BatchSystem: type[BatchInterface], queue: str
-    ) -> QQResources:
+    def _getResources(self, BatchSystem: type[BatchInterface], queue: str) -> Resources:
         """
         Get the resource requirements for the job by merging the requirements specified on the command
         line with requirements specified inside the submitted script.
@@ -140,16 +138,16 @@ class QQSubmitterFactory:
             queue (str): The submission queue.
 
         Returns:
-            QQResources: A merged QQResources object containing the final resource requirements.
+            Resources: A merged Resources object containing the final resource requirements.
         """
-        field_names = {f.name for f in fields(QQResources)}
-        command_line_resources = QQResources(
+        field_names = {f.name for f in fields(Resources)}
+        command_line_resources = Resources(
             **{k: v for k, v in self._kwargs.items() if k in field_names}
         )
 
         return BatchSystem.transformResources(
             queue,
-            QQResources.mergeResources(
+            Resources.mergeResources(
                 command_line_resources, self._parser.getResources()
             ),
         )

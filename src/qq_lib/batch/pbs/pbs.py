@@ -19,7 +19,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 from .job import PBSJob
 
@@ -58,7 +58,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
     @classmethod
     def jobSubmit(
         cls,
-        res: QQResources,
+        res: Resources,
         queue: str,
         script: Path,
         job_name: str,
@@ -339,16 +339,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         )
 
     @classmethod
-    def transformResources(
-        cls, queue: str, provided_resources: QQResources
-    ) -> QQResources:
+    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
         # default resources of the queue
         default_queue_resources = PBSQueue(queue).getDefaultResources()
         # default hard-coded resources
         default_batch_resources = cls._getDefaultServerResources()
 
         # fill in default parameters
-        resources = QQResources.mergeResources(
+        resources = Resources.mergeResources(
             provided_resources, default_queue_resources, default_batch_resources
         )
         if not resources.work_dir:
@@ -417,7 +415,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         jobs.sort(key=lambda job: job.getIdInt() or 0)
 
     @classmethod
-    def _sharedGuard(cls, res: QQResources, env_vars: dict[str, str]) -> None:
+    def _sharedGuard(cls, res: Resources, env_vars: dict[str, str]) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
 
@@ -429,7 +427,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
         Args:
-            res (QQResources): The job's resource configuration.
+            res (Resources): The job's resource configuration.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
 
         Raises:
@@ -447,7 +445,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
     @classmethod
     def _translateSubmit(
         cls,
-        res: QQResources,
+        res: Resources,
         queue: str,
         input_dir: Path,
         script: str,
@@ -459,7 +457,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         Generate the PBS submission command for a job.
 
         Args:
-            res (QQResources): The resources requested for the job.
+            res (Resources): The resources requested for the job.
             queue (str): The queue name to submit to.
             input_dir (Path): The directory from which the job is being submitted.
             script (str): Path to the job script.
@@ -530,15 +528,15 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return ",".join(converted)
 
     @classmethod
-    def _translatePerChunkResources(cls, res: QQResources) -> list[str]:
+    def _translatePerChunkResources(cls, res: Resources) -> list[str]:
         """
-        Convert a QQResources object into a list of per-node resource specifications.
+        Convert a Resources object into a list of per-node resource specifications.
 
         Each resource that can be divided by the number of nodes (nnodes) is split
         accordingly.
 
         Args:
-            res (QQResources): The resource specification for the job.
+            res (Resources): The resource specification for the job.
 
         Returns:
             list[str]: A list of per-node resource strings suitable for inclusion
@@ -593,12 +591,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return trans_res
 
     @classmethod
-    def _translateWorkDir(cls, res: QQResources) -> str | None:
+    def _translateWorkDir(cls, res: Resources) -> str | None:
         """
         Translate the working directory and its requested size into a PBS resource string.
 
         Args:
-            res (QQResources): The resources requested for the job.
+            res (Resources): The resources requested for the job.
 
         Returns:
             str | None: Resource string specifying the working directory, or None if input_dir is used.
@@ -670,14 +668,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return ams_vars
 
     @classmethod
-    def _getDefaultServerResources(cls) -> QQResources:
+    def _getDefaultServerResources(cls) -> Resources:
         """
-        Return a QQResources object representing the default resources for a batch job.
+        Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            QQResources: Default batch job resources with predefined settings.
+            Resources: Default batch job resources with predefined settings.
         """
-        return QQResources(
+        return Resources(
             nnodes=1,
             ncpus=1,
             mem_per_cpu="1gb",

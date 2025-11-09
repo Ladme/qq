@@ -16,7 +16,7 @@ from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
 from qq_lib.submit.submitter import CFG, QQSubmitter
 
@@ -35,7 +35,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
             account=None,
             script=script,
             job_type=JobType.STANDARD,
-            resources=QQResources(),
+            resources=Resources(),
             command_line=["-q", "default", str(script)],
         )
 
@@ -48,7 +48,7 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._input_dir == tmp_path
         assert submitter._job_name == "job1"
         assert submitter._info_file == tmp_path / f"job1{CFG.suffixes.qq_info}"
-        assert submitter._resources == QQResources()
+        assert submitter._resources == Resources()
         assert submitter._exclude == []
         assert submitter._command_line == ["-q", "default", str(script)]
         assert submitter._depend == []
@@ -64,7 +64,7 @@ def test_qqsubmitter_init_raises_error_if_script_does_not_exist(tmp_path):
             account=None,
             script=script,
             job_type=JobType.STANDARD,
-            resources=QQResources(),
+            resources=Resources(),
             command_line=["-q", "default", str(script)],
         )
 
@@ -84,7 +84,7 @@ def test_qqsubmitter_init_raises_error_if_invalid_shebang(tmp_path):
             account="fake-account",
             script=script,
             job_type=JobType.STANDARD,
-            resources=QQResources(),
+            resources=Resources(),
             command_line=["-q", "default", str(script)],
         )
 
@@ -110,7 +110,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
             account="fake-account",
             script=script,
             job_type=JobType.LOOP,
-            resources=QQResources(),
+            resources=Resources(),
             command_line=["-q", "long", str(script)],
             loop_info=loop_info,
             exclude=exclude_files,
@@ -127,7 +127,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._script_name == script.name
         assert submitter._job_name == "job"
         assert submitter._info_file == tmp_path / f"job{CFG.suffixes.qq_info}"
-        assert submitter._resources == QQResources()
+        assert submitter._resources == Resources()
         assert submitter._exclude == exclude_files
         assert submitter._command_line == ["-q", "long", str(script)]
         assert submitter._depend == depend_jobs
@@ -209,7 +209,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
     submitter._batch_system = PBS
     submitter._loop_info = None
     submitter._input_dir = tmp_path
-    submitter._resources = QQResources(nnodes=2, ncpus=8, ngpus=2, walltime="1d")
+    submitter._resources = Resources(nnodes=2, ncpus=8, ngpus=2, walltime="1d")
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
@@ -248,7 +248,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mo
     submitter._batch_system = "BatchSystem"
     submitter._loop_info = DummyLoop()
     submitter._input_dir = tmp_path
-    submitter._resources = QQResources()
+    submitter._resources = Resources()
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
@@ -417,7 +417,7 @@ def test_qqsubmitter_continues_loop_returns_false_on_qqerror(tmp_path):
 def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter = QQSubmitter.__new__(QQSubmitter)
     submitter._batch_system = MagicMock()
-    submitter._resources = QQResources()
+    submitter._resources = Resources()
     submitter._queue = "default"
     submitter._account = None
     submitter._script = tmp_path / "script.sh"
@@ -465,7 +465,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
 def test_qq_submitter_submit(tmp_path):
     submitter = QQSubmitter.__new__(QQSubmitter)
     submitter._batch_system = MagicMock()
-    submitter._resources = QQResources()
+    submitter._resources = Resources()
     submitter._queue = "default"
     submitter._account = "fake-account"
     submitter._script = tmp_path / "script.sh"

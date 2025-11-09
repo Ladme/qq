@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 from datetime import timedelta
 
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 
 class BatchQueueInterface(ABC):
@@ -153,11 +153,11 @@ class BatchQueueInterface(ABC):
         pass
 
     @abstractmethod
-    def getDefaultResources(self) -> QQResources:
+    def getDefaultResources(self) -> Resources:
         """
         Return the default resource definitions for this queue.
 
         Returns:
-            QQResources: Default resources allocated for jobs submitted to this queue.
+            Resources: Default resources allocated for jobs submitted to this queue.
         """
         pass

@@ -5,7 +5,7 @@ from dataclasses import fields
 
 from qq_lib.core.common import dhhmmss_to_duration, format_duration_wdhhmmss
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -35,7 +35,7 @@ def parse_slurm_dump_to_dictionary(
     return result
 
 
-def default_resources_from_dict(res: dict[str, str]) -> QQResources:
+def default_resources_from_dict(res: dict[str, str]) -> Resources:
     """
     Extract and convert default resource settings from a parsed Slurm info dump.
 
@@ -44,7 +44,7 @@ def default_resources_from_dict(res: dict[str, str]) -> QQResources:
             parsed from Slurm info dump.
 
     Returns:
-        QQResources: An instance representing the default resource settings.
+        Resources: An instance representing the default resource settings.
     """
 
     converter = {
@@ -53,8 +53,8 @@ def default_resources_from_dict(res: dict[str, str]) -> QQResources:
     }
     logger.debug(f"Raw dictionary for default resources: {res}.")
 
-    # only select fields that are part of QQResources
-    field_names = {f.name for f in fields(QQResources)}
+    # only select fields that are part of Resources
+    field_names = {f.name for f in fields(Resources)}
 
     converted_resources = {}
     for key, value in res.items():
@@ -71,4 +71,4 @@ def default_resources_from_dict(res: dict[str, str]) -> QQResources:
                 value = format_duration_wdhhmmss(dhhmmss_to_duration(value))
             converted_resources[converted_key] = value
 
-    return QQResources(**converted_resources)
+    return Resources(**converted_resources)

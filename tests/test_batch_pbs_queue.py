@@ -10,7 +10,7 @@ import yaml
 
 from qq_lib.batch.pbs.queue import ACLData, PBSQueue
 from qq_lib.core.error import QQError
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 
 def test_acldata_get_groups_or_init_cached():
@@ -473,7 +473,7 @@ def test_pbsqueue_get_default_resources_filters_correct_fields():
         "resources_max.walltime": "24:00:00",
     }
 
-    expected = QQResources(
+    expected = Resources(
         mem="8gb",
         ncpus=4,
         ngpus=1,
@@ -492,4 +492,4 @@ def test_pbsqueue_get_default_resources_returns_empty_when_no_defaults():
         "comment": "No default resources here",
     }
 
-    assert queue.getDefaultResources() == QQResources()
+    assert queue.getDefaultResources() == Resources()

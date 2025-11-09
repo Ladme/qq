@@ -13,7 +13,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 from .common import (
     SACCT_FIELDS,
@@ -44,7 +44,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     @classmethod
     def jobSubmit(
         cls,
-        res: QQResources,
+        res: Resources,
         queue: str,
         script: Path,
         job_name: str,
@@ -296,7 +296,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     @classmethod
     def _translateSubmit(
         cls,
-        res: QQResources,
+        res: Resources,
         queue: str,
         input_dir: Path,
         script: str,
@@ -309,7 +309,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         Generate the Slurm submission command for a job.
 
         Args:
-            res (QQResources): The resources requested for the job.
+            res (Resources): The resources requested for the job.
             queue (str): The queue name to submit to.
             input_dir (Path): The directory from which the job is being submitted.
             script (str): Path to the job script.
@@ -383,15 +383,15 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return ",".join(converted)
 
     @classmethod
-    def _translatePerChunkResources(cls, res: QQResources) -> list[str]:
+    def _translatePerChunkResources(cls, res: Resources) -> list[str]:
         """
-        Convert a QQResources object into a list of per-node resource specifications.
+        Convert a Resources object into a list of per-node resource specifications.
 
         Each resource that can be divided by the number of nodes (nnodes) is split
         accordingly.
 
         Args:
-            res (QQResources): The resource specification for the job.
+            res (Resources): The resource specification for the job.
 
         Returns:
             list[str]: A list of per-node resource strings suitable for inclusion
@@ -461,12 +461,12 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return ",".join(Depend.toStr(x).replace("=", ":") for x in depend)
 
     @classmethod
-    def _getDefaultServerResources(cls) -> QQResources:
+    def _getDefaultServerResources(cls) -> Resources:
         """
-        Return a QQResources object representing the default resources for a batch job.
+        Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            QQResources: Default batch job resources obtained from `slurm.conf`.
+            Resources: Default batch job resources obtained from `slurm.conf`.
         """
         command = "scontrol show config"
 
@@ -481,19 +481,19 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
         if result.returncode != 0:
             logger.debug("Could not get server resources. Ignoring.")
-            return QQResources()
+            return Resources()
 
         info = parse_slurm_dump_to_dictionary(result.stdout, "\n")
         server_resources = default_resources_from_dict(info)
 
-        return QQResources.mergeResources(server_resources, cls._getDefaultResources())
+        return Resources.mergeResources(server_resources, cls._getDefaultResources())
 
     @classmethod
-    def _getDefaultResources(cls) -> QQResources:
+    def _getDefaultResources(cls) -> Resources:
         """
-        Return a QQResources object representing the default, hard-coded resources for a batch job.
+        Return a Resources object representing the default, hard-coded resources for a batch job.
         """
-        return QQResources(
+        return Resources(
             nnodes=1,
             ncpus=1,
             mem_per_cpu="1gb",

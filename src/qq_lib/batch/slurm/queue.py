@@ -15,7 +15,7 @@ from qq_lib.batch.slurm.common import (
 from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -209,7 +209,7 @@ class SlurmQueue(BatchQueueInterface):
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getDefaultResources(self) -> QQResources:
+    def getDefaultResources(self) -> Resources:
         return default_resources_from_dict(self._info)
 
     @classmethod

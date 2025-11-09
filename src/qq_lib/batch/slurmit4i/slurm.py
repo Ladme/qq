@@ -15,7 +15,7 @@ from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -133,16 +133,14 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         BatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
 
     @classmethod
-    def transformResources(
-        cls, queue: str, provided_resources: QQResources
-    ) -> QQResources:
+    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
         # default resources of the queue
         default_queue_resources = SlurmQueue(queue).getDefaultResources()
         # default server or hard-coded resources
         default_batch_resources = cls._getDefaultServerResources()
 
         # fill in default parameters
-        resources = QQResources.mergeResources(
+        resources = Resources.mergeResources(
             provided_resources, default_queue_resources, default_batch_resources
         )
         if not resources.work_dir:
@@ -201,8 +199,8 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not resubmit the job: {result.stderr.strip()}.")
 
     @classmethod
-    def _getDefaultResources(cls) -> QQResources:
-        return QQResources(
+    def _getDefaultResources(cls) -> Resources:
+        return Resources(
             nnodes=1,
             ncpus=128,
             mem_per_cpu="1gb",

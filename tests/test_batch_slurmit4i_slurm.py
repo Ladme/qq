@@ -10,7 +10,7 @@ import pytest
 
 from qq_lib.batch.slurmit4i.slurm import SlurmIT4I
 from qq_lib.core.error import QQError
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 
 
@@ -30,7 +30,7 @@ def test_slurmit4i_is_available_returns_false(mock_which):
     mock_which.assert_called_once_with("it4ifree")
 
 
-@patch("qq_lib.batch.slurm.slurm.QQResources.mergeResources")
+@patch("qq_lib.batch.slurm.slurm.Resources.mergeResources")
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultResources")
 @patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
 @patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
@@ -42,9 +42,9 @@ def test_slurmit4i_get_default_server_resources_merges_parsed_and_defaults(
         returncode=0, stdout="DefaultTime=2-00:00:00\nDefMemPerCPU=4G"
     )
     mock_parse.return_value = {"DefaultTime": "2-00:00:00", "DefMemPerCPU": "4G"}
-    server_res = QQResources()
-    default_res = QQResources()
-    merged_res = QQResources()
+    server_res = Resources()
+    default_res = Resources()
+    merged_res = Resources()
     mock_from_dict.return_value = server_res
     mock_get_defaults.return_value = default_res
     mock_merge.return_value = merged_res
@@ -61,7 +61,7 @@ def test_slurmit4i_get_default_server_resources_merges_parsed_and_defaults(
     assert result is merged_res
 
 
-@patch("qq_lib.batch.slurm.slurm.QQResources.mergeResources")
+@patch("qq_lib.batch.slurm.slurm.Resources.mergeResources")
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultResources")
 @patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
 @patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
@@ -78,8 +78,8 @@ def test_slurmit4i_get_default_server_resources_returns_empty_on_failure(
     mock_from_dict.assert_not_called()
     mock_get_defaults.assert_not_called()
     mock_merge.assert_not_called()
-    assert isinstance(result, QQResources)
-    assert result == QQResources()
+    assert isinstance(result, Resources)
+    assert result == Resources()
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.subprocess.run")
@@ -120,16 +120,16 @@ def test_slurmit4i_is_shared_returns_true():
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
-    return_value=QQResources(),
+    return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_valid_work_dir_scratch(
     mock_get_defaults, mock_queue
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = QQResources()
+    mock_instance.getDefaultResources.return_value = Resources()
 
-    provided = QQResources(work_dir="scratch")
+    provided = Resources(work_dir="scratch")
     result = SlurmIT4I.transformResources("default", provided)
 
     mock_get_defaults.assert_called_once()
@@ -141,16 +141,16 @@ def test_slurmit4i_transform_resources_valid_work_dir_scratch(
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
-    return_value=QQResources(),
+    return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_raises_when_no_work_dir(
     mock_get_defaults, mock_queue
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = QQResources()
+    mock_instance.getDefaultResources.return_value = Resources()
 
-    provided = QQResources()
+    provided = Resources()
     with pytest.raises(
         QQError, match="Work-dir is not set after filling in default attributes"
     ):
@@ -165,16 +165,16 @@ def test_slurmit4i_transform_resources_raises_when_no_work_dir(
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
-    return_value=QQResources(),
+    return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_warns_when_work_size_set(
     mock_get_defaults, mock_queue, mock_warn
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = QQResources()
+    mock_instance.getDefaultResources.return_value = Resources()
 
-    provided = QQResources(work_dir="scratch", work_size=Size(10, "gb"))
+    provided = Resources(work_dir="scratch", work_size=Size(10, "gb"))
     SlurmIT4I.transformResources("default", provided)
 
     mock_warn.assert_called_once()
@@ -186,16 +186,16 @@ def test_slurmit4i_transform_resources_warns_when_work_size_set(
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
     "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
-    return_value=QQResources(),
+    return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_raises_for_unknown_work_dir(
     mock_get_defaults, mock_queue
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = QQResources()
+    mock_instance.getDefaultResources.return_value = Resources()
 
-    provided = QQResources(work_dir="nonsense")
+    provided = Resources(work_dir="nonsense")
     with pytest.raises(
         QQError, match="Unknown working directory type specified: work-dir"
     ):

@@ -12,7 +12,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 from .job import BatchJobInterface
 from .node import BatchNodeInterface
@@ -100,7 +100,7 @@ class BatchInterface[
     @classmethod
     def jobSubmit(
         cls,
-        res: QQResources,
+        res: Resources,
         queue: str,
         script: Path,
         job_name: str,
@@ -114,7 +114,7 @@ class BatchInterface[
         Can also perform additional validation of the job's resources.
 
         Args:
-            res (QQResources): Resources required for the job.
+            res (Resources): Resources required for the job.
             queue (str): Target queue for the job submission.
             script (Path): Path to the script to execute.
             job_name (str): Name of the job to use.
@@ -612,22 +612,20 @@ class BatchInterface[
         cls._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @classmethod
-    def transformResources(
-        cls, queue: str, provided_resources: QQResources
-    ) -> QQResources:
+    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
         """
-        Transform user-provided QQResources into a batch system-specific QQResources instance.
+        Transform user-provided Resources into a batch system-specific Resources instance.
 
         This method takes the resources provided during submission and returns a new
-        QQResources object with any necessary modifications or defaults applied for
+        Resources object with any necessary modifications or defaults applied for
         the target batch system. The original `provided_resources` object is not modified.
 
         Args:
             queue (str): The name of the queue for which the resources are being adapted.
-            provided_resources (QQResources): The raw resources specified by the user.
+            provided_resources (Resources): The raw resources specified by the user.
 
         Returns:
-            QQResources: A new QQResources instance with batch system-specific adjustments,
+            Resources: A new Resources instance with batch system-specific adjustments,
                         fully constructed and validated.
 
         Raises:

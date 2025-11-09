@@ -12,7 +12,7 @@ from qq_lib.batch.slurm.node import SlurmNode
 from qq_lib.batch.slurm.slurm import Slurm
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 
 
@@ -154,7 +154,7 @@ def test_slurm_get_batch_jobs_sacct_skips_empty_lines(mock_from_sacct, mock_run)
     mock_run.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.slurm.QQResources.mergeResources")
+@patch("qq_lib.batch.slurm.slurm.Resources.mergeResources")
 @patch("qq_lib.batch.slurm.slurm.Slurm._getDefaultResources")
 @patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
 @patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
@@ -166,9 +166,9 @@ def test_slurm_get_default_server_resources_merges_parsed_and_defaults(
         returncode=0, stdout="DefaultTime=2-00:00:00\nDefMemPerCPU=4G"
     )
     mock_parse.return_value = {"DefaultTime": "2-00:00:00", "DefMemPerCPU": "4G"}
-    server_res = QQResources()
-    default_res = QQResources()
-    merged_res = QQResources()
+    server_res = Resources()
+    default_res = Resources()
+    merged_res = Resources()
     mock_from_dict.return_value = server_res
     mock_get_defaults.return_value = default_res
     mock_merge.return_value = merged_res
@@ -185,7 +185,7 @@ def test_slurm_get_default_server_resources_merges_parsed_and_defaults(
     assert result is merged_res
 
 
-@patch("qq_lib.batch.slurm.slurm.QQResources.mergeResources")
+@patch("qq_lib.batch.slurm.slurm.Resources.mergeResources")
 @patch("qq_lib.batch.slurm.slurm.Slurm._getDefaultResources")
 @patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
 @patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
@@ -202,8 +202,8 @@ def test_slurm_get_default_server_resources_returns_empty_on_failure(
     mock_from_dict.assert_not_called()
     mock_get_defaults.assert_not_called()
     mock_merge.assert_not_called()
-    assert isinstance(result, QQResources)
-    assert result == QQResources()
+    assert isinstance(result, Resources)
+    assert result == Resources()
 
 
 def test_slurm_translate_dependencies_returns_none_for_empty_list():
@@ -224,7 +224,7 @@ def test_slurm_translate_dependencies_returns_multiple_dependency_string():
 
 
 def test_slurm_translate_per_chunk_resources_two_nodes():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 2
     res.ncpus = 8
     res.mem = Size(32, "gb")
@@ -237,7 +237,7 @@ def test_slurm_translate_per_chunk_resources_two_nodes():
 
 
 def test_slurm_translate_per_chunk_resources_single_node():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 1
     res.ncpus = 4
     res.mem = Size(16, "gb")
@@ -250,7 +250,7 @@ def test_slurm_translate_per_chunk_resources_single_node():
 
 
 def test_slurm_translate_per_chunk_resources_multiple_nodes():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 5
     res.ncpus = 10
     res.mem = Size(50, "gb")
@@ -263,7 +263,7 @@ def test_slurm_translate_per_chunk_resources_multiple_nodes():
 
 
 def test_slurm_translate_per_chunk_resources_uses_mem_per_cpu():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 2
     res.ncpus = 8
     res.mem = None
@@ -274,7 +274,7 @@ def test_slurm_translate_per_chunk_resources_uses_mem_per_cpu():
 
 
 def test_slurm_translate_per_chunk_resources_raises_when_mem_missing():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 1
     res.mem = None
     res.mem_per_cpu = None
@@ -286,7 +286,7 @@ def test_slurm_translate_per_chunk_resources_raises_when_mem_missing():
 
 @pytest.mark.parametrize("nnodes", [None, 0])
 def test_slurm_translate_per_chunk_resources_invalid_nnodes(nnodes):
-    res = QQResources()
+    res = Resources()
     res.nnodes = nnodes
     res.mem = Size(16, "gb")
     with pytest.raises(QQError, match="Attribute 'nnodes'"):
@@ -294,7 +294,7 @@ def test_slurm_translate_per_chunk_resources_invalid_nnodes(nnodes):
 
 
 def test_slurm_translate_per_chunk_resources_invalid_divisibility_cpu():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 3
     res.ncpus = 10
     res.mem = Size(30, "gb")
@@ -303,7 +303,7 @@ def test_slurm_translate_per_chunk_resources_invalid_divisibility_cpu():
 
 
 def test_slurm_translate_per_chunk_resources_invalid_divisibility_gpu():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 3
     res.ncpus = 12
     res.ngpus = 7
@@ -330,7 +330,7 @@ def test_slurm_translate_env_vars_empty_dict_returns_empty_string():
 
 
 def test_slurm_translate_submit_basic_command():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 2
     res.ncpus = 8
     res.mem = Size(32, "gb")
@@ -365,7 +365,7 @@ def test_slurm_translate_submit_basic_command():
 
 
 def test_slurm_translate_submit_with_account_and_env_vars():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 1
     res.ncpus = 4
     res.mem = Size(16, "gb")
@@ -390,7 +390,7 @@ def test_slurm_translate_submit_with_account_and_env_vars():
 
 
 def test_slurm_translate_submit_with_dependencies():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 1
     res.ncpus = 2
     res.mem = Size(8, "gb")
@@ -412,7 +412,7 @@ def test_slurm_translate_submit_with_dependencies():
 
 
 def test_slurm_translate_submit_with_props_true_only():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 1
     res.ncpus = 4
     res.mem = Size(8, "gb")
@@ -434,7 +434,7 @@ def test_slurm_translate_submit_with_props_true_only():
 
 
 def test_slurm_translate_submit_raises_on_invalid_prop_value():
-    res = QQResources()
+    res = Resources()
     res.nnodes = 1
     res.ncpus = 2
     res.mem = Size(4, "gb")
@@ -668,7 +668,7 @@ def test_slurm_get_batch_job_creates_slurmjob(mock_job):
 @patch("qq_lib.batch.slurm.slurm.Slurm._translateSubmit", return_value="sbatch cmd")
 @patch("qq_lib.batch.slurm.slurm.PBS._sharedGuard")
 def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
-    res = QQResources()
+    res = Resources()
     script = Path("/tmp/job.sh")
     mock_run.return_value = MagicMock(
         returncode=0, stdout="Submitted batch job 56789\n"
@@ -686,7 +686,7 @@ def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
 @patch("qq_lib.batch.slurm.slurm.Slurm._translateSubmit", return_value="sbatch fail")
 @patch("qq_lib.batch.slurm.slurm.PBS._sharedGuard")
 def test_slurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
-    res = QQResources()
+    res = Resources()
     script = Path("/tmp/fail.sh")
     mock_run.return_value = MagicMock(returncode=1, stderr="error text")
 

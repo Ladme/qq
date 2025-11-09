@@ -12,7 +12,7 @@ from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 from qq_lib.submit.factory import QQSubmitterFactory
 
@@ -149,7 +149,7 @@ def test_qqsubmitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
 
 def test_qqsubmitter_factory_get_resources():
     mock_parser = MagicMock()
-    parser_resources = QQResources(ncpus=4, mem="4gb")
+    parser_resources = Resources(ncpus=4, mem="4gb")
     mock_parser.getResources.return_value = parser_resources
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
@@ -158,7 +158,7 @@ def test_qqsubmitter_factory_get_resources():
 
     mock_batch_system = MagicMock()
 
-    transformed_resources = QQResources(ncpus=999, mem="999gb")
+    transformed_resources = Resources(ncpus=999, mem="999gb")
     mock_batch_system.transformResources.return_value = transformed_resources
 
     result = factory._getResources(mock_batch_system, "default")
@@ -328,7 +328,7 @@ def test_qqsubmitter_factory_make_submitter_standard_job():
     mock_parser = MagicMock()
     mock_parser.parse = MagicMock()
     mock_parser.getJobType.return_value = JobType.STANDARD
-    resources = QQResources()
+    resources = Resources()
     excludes = [Path("/tmp/file1")]
     depends = []
     account = "fake-account"
@@ -387,7 +387,7 @@ def test_qqsubmitter_factory_make_submitter_loop_job():
     mock_parser = MagicMock()
     mock_parser.parse = MagicMock()
     mock_parser.getJobType.return_value = JobType.LOOP
-    resources = QQResources()
+    resources = Resources()
     excludes = [Path("/tmp/file1")]
     depends = []
     account = None

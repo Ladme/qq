@@ -14,7 +14,7 @@ from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
 from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -193,7 +193,7 @@ class PBSQueue(BatchQueueInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getDefaultResources(self) -> QQResources:
+    def getDefaultResources(self) -> Resources:
         default_resources = {}
 
         for key, value in self._info.items():
@@ -201,9 +201,9 @@ class PBSQueue(BatchQueueInterface):
                 resource = key.split(".")[-1]
                 default_resources[resource.strip()] = value.strip()
 
-        # filter resources that are part of QQResources
-        field_names = {f.name for f in fields(QQResources)}
-        return QQResources(
+        # filter resources that are part of Resources
+        field_names = {f.name for f in fields(Resources)}
+        return Resources(
             **{k: v for k, v in default_resources.items() if k in field_names}
         )
 

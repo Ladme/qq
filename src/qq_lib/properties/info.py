@@ -18,7 +18,7 @@ from qq_lib.properties.depend import Depend
 
 from .job_type import JobType
 from .loop import LoopInfo
-from .resources import QQResources
+from .resources import Resources
 from .states import NaiveState
 
 logger = get_logger(__name__)
@@ -80,7 +80,7 @@ class Info:
     stderr_file: str
 
     # Resources allocated to the job
-    resources: QQResources
+    resources: Resources
 
     # Command line arguments and options provided when submitting.
     command_line: list[str]
@@ -229,7 +229,7 @@ class Info:
             if f.type == JobType:
                 result[f.name] = str(value)
             # convert resources
-            elif f.type == QQResources or f.type == LoopInfo | None:
+            elif f.type == Resources or f.type == LoopInfo | None:
                 result[f.name] = value.toDict()
             # convert the state and the batch system
             elif (
@@ -285,8 +285,8 @@ class Info:
                     **{k: Path(v) if k == "archive" else v for k, v in value.items()}
                 )
             # convert resources
-            elif f.type == QQResources:
-                init_kwargs[name] = QQResources(**value)  # ty: ignore[invalid-argument-type]
+            elif f.type == Resources:
+                init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]
             # convert the batch system
             elif f.type == type[BatchInterface] and isinstance(value, str):
                 init_kwargs[name] = BatchMeta.fromStr(value)

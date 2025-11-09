@@ -22,7 +22,7 @@ logger = get_logger(__name__)
     # if work_size is set, ignore work_size_per_cpu
     FieldCoupling(dominant="work_size", recessive="work_size_per_cpu"),
 )
-class QQResources(HasCouplingMethods):
+class Resources(HasCouplingMethods):
     """
     Dataclass representing computational resources requested for a qq job.
     """
@@ -71,10 +71,10 @@ class QQResources(HasCouplingMethods):
         props: dict[str, str] | str | None = None,
     ):
         # convert sizes
-        mem = QQResources._parseSize(mem)
-        mem_per_cpu = QQResources._parseSize(mem_per_cpu)
-        work_size = QQResources._parseSize(work_size)
-        work_size_per_cpu = QQResources._parseSize(work_size_per_cpu)
+        mem = Resources._parseSize(mem)
+        mem_per_cpu = Resources._parseSize(mem_per_cpu)
+        work_size = Resources._parseSize(work_size)
+        work_size_per_cpu = Resources._parseSize(work_size_per_cpu)
 
         # convert walltime
         if isinstance(walltime, str) and ":" not in walltime:
@@ -82,7 +82,7 @@ class QQResources(HasCouplingMethods):
 
         # convert properties to dictionary
         if isinstance(props, str):
-            props = QQResources._parseProps(props)
+            props = Resources._parseProps(props)
 
         # convert nnodes, ncpus, and ngpus to integer
         if isinstance(nnodes, str):
@@ -107,7 +107,7 @@ class QQResources(HasCouplingMethods):
         # enforce coupling rules
         self.__post_init__()  # ty: ignore[unresolved-attribute]
 
-        logger.debug(f"QQResources: {self}")
+        logger.debug(f"Resources: {self}")
 
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""
@@ -125,9 +125,9 @@ class QQResources(HasCouplingMethods):
         ) and not equals_normalized(str(self.work_dir), "input_dir")
 
     @staticmethod
-    def mergeResources(*resources: "QQResources") -> "QQResources":
+    def mergeResources(*resources: "Resources") -> "Resources":
         """
-        Merge multiple QQResources objects.
+        Merge multiple Resources objects.
 
         Earlier resources take precedence over later ones. Properties are merged.
 
@@ -138,15 +138,15 @@ class QQResources(HasCouplingMethods):
         even though `mem` is a dominant attribute and `mem-per-cpu` is recessive.)
 
         Args:
-            *resources (QQResources): One or more QQResources objects, in order of precedence.
+            *resources (Resources): One or more Resources objects, in order of precedence.
 
         Returns:
-            QQResources: A new QQResources object with merged fields.
+            Resources: A new Resources object with merged fields.
         """
         merged_data = {}
         processed_couplings: set[FieldCoupling] = set()
 
-        for f in fields(QQResources):
+        for f in fields(Resources):
             # handle props
             if f.name == "props":
                 # merge all props dictionaries; first occurence of each key wins
@@ -161,7 +161,7 @@ class QQResources(HasCouplingMethods):
                 continue
 
             # check if this field is part of a coupling
-            if coupling := QQResources.getCouplingForField(f.name):
+            if coupling := Resources.getCouplingForField(f.name):
                 # skip if coupling already processed
                 if coupling in processed_couplings:
                     continue
@@ -194,7 +194,7 @@ class QQResources(HasCouplingMethods):
                 None,
             )
 
-        return QQResources(**merged_data)
+        return Resources(**merged_data)
 
     @staticmethod
     def _parseSize(value: object) -> Size | None:

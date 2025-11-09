@@ -15,7 +15,7 @@ from qq_lib.batch.pbs import PBS
 from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import CFG, Presenter
 from qq_lib.properties.info import Info
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState, RealState
 
@@ -41,7 +41,7 @@ def sample_info(sample_resources):
         job_name="script.sh+025",
         queue="default",
         script_name="script.sh",
-        job_type=QQJobType.STANDARD,
+        job_type=JobType.STANDARD,
         input_machine="fake.machine.com",
         input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,

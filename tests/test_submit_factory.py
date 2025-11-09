@@ -10,7 +10,7 @@ from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.size import Size
@@ -235,7 +235,7 @@ def test_qqsubmitter_factory_get_account_uses_parser_if_no_cli():
 
 def test_qqsubmitter_factory_get_job_type_uses_cli_over_parser():
     mock_parser = MagicMock()
-    parser_job_type = QQJobType.LOOP
+    parser_job_type = JobType.LOOP
     mock_parser.getJobType.return_value = parser_job_type
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
@@ -243,17 +243,17 @@ def test_qqsubmitter_factory_get_job_type_uses_cli_over_parser():
     factory._kwargs = {"job_type": "standard"}
 
     with patch.object(
-        QQJobType, "fromStr", return_value=QQJobType.STANDARD
+        JobType, "fromStr", return_value=JobType.STANDARD
     ) as mock_from_str:
         result = factory._getJobType()
 
     mock_from_str.assert_called_once_with("standard")
-    assert result == QQJobType.STANDARD
+    assert result == JobType.STANDARD
 
 
 def test_qqsubmitter_factory_get_job_type_uses_parser_if_no_cli():
     mock_parser = MagicMock()
-    parser_job_type = QQJobType.LOOP
+    parser_job_type = JobType.LOOP
     mock_parser.getJobType.return_value = parser_job_type
 
     factory = QQSubmitterFactory.__new__(QQSubmitterFactory)
@@ -273,7 +273,7 @@ def test_qqsubmitter_factory_get_job_type_defaults_to_standard_if_missing():
     factory._kwargs = {}
 
     result = factory._getJobType()
-    assert result == QQJobType.STANDARD
+    assert result == JobType.STANDARD
 
 
 def test_qqsubmitter_factory_get_batch_system_uses_cli_over_parser_and_env():
@@ -327,7 +327,7 @@ def test_qqsubmitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser
 def test_qqsubmitter_factory_make_submitter_standard_job():
     mock_parser = MagicMock()
     mock_parser.parse = MagicMock()
-    mock_parser.getJobType.return_value = QQJobType.STANDARD
+    mock_parser.getJobType.return_value = JobType.STANDARD
     resources = QQResources()
     excludes = [Path("/tmp/file1")]
     depends = []
@@ -373,7 +373,7 @@ def test_qqsubmitter_factory_make_submitter_standard_job():
         queue,
         account,
         factory._script,
-        QQJobType.STANDARD,
+        JobType.STANDARD,
         resources,
         factory._command_line,
         None,  # loop_info is None for STANDARD job
@@ -386,7 +386,7 @@ def test_qqsubmitter_factory_make_submitter_standard_job():
 def test_qqsubmitter_factory_make_submitter_loop_job():
     mock_parser = MagicMock()
     mock_parser.parse = MagicMock()
-    mock_parser.getJobType.return_value = QQJobType.LOOP
+    mock_parser.getJobType.return_value = JobType.LOOP
     resources = QQResources()
     excludes = [Path("/tmp/file1")]
     depends = []
@@ -433,7 +433,7 @@ def test_qqsubmitter_factory_make_submitter_loop_job():
         queue,
         account,
         factory._script,
-        QQJobType.LOOP,
+        JobType.LOOP,
         resources,
         factory._command_line,
         loop_info,

@@ -16,7 +16,7 @@ from qq_lib.core.error import (
     QQRunCommunicationError,
     QQRunFatalError,
 )
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.run.runner import CFG, QQRunner, log_fatal_error_and_exit
 
@@ -851,7 +851,7 @@ def test_qqrunner_finalize_with_scratch_and_archiver():
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
-    runner._informer.info.job_type = QQJobType.STANDARD
+    runner._informer.info.job_type = JobType.STANDARD
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -879,7 +879,7 @@ def test_qqrunner_finalize_with_scratch_and_without_archiver():
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
-    runner._informer.info.job_type = QQJobType.STANDARD
+    runner._informer.info.job_type = JobType.STANDARD
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -906,7 +906,7 @@ def test_qqrunner_finalize_without_scratch_and_with_archiver():
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
-    runner._informer.info.job_type = QQJobType.STANDARD
+    runner._informer.info.job_type = JobType.STANDARD
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -929,7 +929,7 @@ def test_qqrunner_finalize_without_scratch_and_without_archiver():
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
-    runner._informer.info.job_type = QQJobType.STANDARD
+    runner._informer.info.job_type = JobType.STANDARD
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -951,7 +951,7 @@ def test_qqrunner_finalize_with_scratch_archiver_and_resubmit():
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
-    runner._informer.info.job_type = QQJobType.LOOP
+    runner._informer.info.job_type = JobType.LOOP
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()

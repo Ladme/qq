@@ -3,7 +3,7 @@
 
 __all__ = [
     "Info",
-    "QQJobType",
+    "JobType",
     "QQLoopInfo",
     "QQResources",
     "Size",
@@ -14,7 +14,7 @@ __all__ = [
 
 _MODULES = {
     "Info": "info",
-    "QQJobType": "job_type",
+    "JobType": "job_type",
     "QQLoopInfo": "loop",
     "QQResources": "resources",
     "Size": "size",

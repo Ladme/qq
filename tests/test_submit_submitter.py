@@ -14,7 +14,7 @@ from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
@@ -34,13 +34,13 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
             queue="default",
             account=None,
             script=script,
-            job_type=QQJobType.STANDARD,
+            job_type=JobType.STANDARD,
             resources=QQResources(),
             command_line=["-q", "default", str(script)],
         )
 
         assert submitter._batch_system == PBS
-        assert submitter._job_type == QQJobType.STANDARD
+        assert submitter._job_type == JobType.STANDARD
         assert submitter._queue == "default"
         assert submitter._account is None
         assert submitter._loop_info is None
@@ -63,7 +63,7 @@ def test_qqsubmitter_init_raises_error_if_script_does_not_exist(tmp_path):
             queue="default",
             account=None,
             script=script,
-            job_type=QQJobType.STANDARD,
+            job_type=JobType.STANDARD,
             resources=QQResources(),
             command_line=["-q", "default", str(script)],
         )
@@ -83,7 +83,7 @@ def test_qqsubmitter_init_raises_error_if_invalid_shebang(tmp_path):
             queue="default",
             account="fake-account",
             script=script,
-            job_type=QQJobType.STANDARD,
+            job_type=JobType.STANDARD,
             resources=QQResources(),
             command_line=["-q", "default", str(script)],
         )
@@ -109,7 +109,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
             queue="long",
             account="fake-account",
             script=script,
-            job_type=QQJobType.LOOP,
+            job_type=JobType.LOOP,
             resources=QQResources(),
             command_line=["-q", "long", str(script)],
             loop_info=loop_info,
@@ -118,7 +118,7 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         )
 
         assert submitter._batch_system == PBS
-        assert submitter._job_type == QQJobType.LOOP
+        assert submitter._job_type == JobType.LOOP
         assert submitter._queue == "long"
         assert submitter._account == "fake-account"
         assert submitter._loop_info == loop_info
@@ -423,7 +423,7 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._script = tmp_path / "script.sh"
     submitter._job_name = "job1"
     submitter._script_name = "script.sh"
-    submitter._job_type = QQJobType.STANDARD
+    submitter._job_type = JobType.STANDARD
     submitter._input_dir = tmp_path
     submitter._loop_info = None
     submitter._exclude = []
@@ -471,7 +471,7 @@ def test_qq_submitter_submit(tmp_path):
     submitter._script = tmp_path / "script.sh"
     submitter._job_name = "job1"
     submitter._script_name = "script.sh"
-    submitter._job_type = QQJobType.STANDARD
+    submitter._job_type = JobType.STANDARD
     submitter._input_dir = tmp_path
     submitter._loop_info = None
     submitter._exclude = ["exclude1"]

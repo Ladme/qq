@@ -16,7 +16,7 @@ from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import Info
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.states import NaiveState
@@ -41,7 +41,7 @@ class QQSubmitter:
         queue: str,
         account: str | None,
         script: Path,
-        job_type: QQJobType,
+        job_type: JobType,
         resources: QQResources,
         command_line: list[str],
         loop_info: QQLoopInfo | None = None,
@@ -57,7 +57,7 @@ class QQSubmitter:
             queue (str): The name of the batch system queue to which the job will be submitted.
             account (str | None): The name of the account to use for the job.
             script (Path): Path to the job script to submit.
-            job_type (QQJobType): Type of the job to submit (e.g. standard, loop).
+            job_type (JobType): Type of the job to submit (e.g. standard, loop).
             resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
             command_line (list[str]): List of all arguments and options provided on the command line.
             loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.

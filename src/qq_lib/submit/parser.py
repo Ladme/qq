@@ -13,7 +13,7 @@ from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import QQResources
 
 logger = get_logger(__name__)
@@ -128,15 +128,15 @@ class QQParser:
             return None
         return queue
 
-    def getJobType(self) -> QQJobType | None:
+    def getJobType(self) -> JobType | None:
         """
         Return the job type specified in the script.
 
         Returns:
-            QQJobType | None: Enum value representing the job type, or None if not set.
+            JobType | None: Enum value representing the job type, or None if not set.
         """
         if isinstance(job_type := self._options.get("job_type"), str):
-            return QQJobType.fromStr(job_type)
+            return JobType.fromStr(job_type)
 
         return None
 

@@ -26,7 +26,7 @@ from qq_lib.core.error import (
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 
 logger = get_logger(__name__, show_time=True)
@@ -266,7 +266,7 @@ class QQRunner:
             self._updateInfoFinished()
 
             # if this is a loop job
-            if self._informer.info.job_type == QQJobType.LOOP:
+            if self._informer.info.job_type == JobType.LOOP:
                 self._resubmit()
         else:
             # only update the qqinfo file

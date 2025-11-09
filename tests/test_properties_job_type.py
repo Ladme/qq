@@ -5,27 +5,27 @@
 import pytest
 
 from qq_lib.core.error import QQError
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 
 
 def test_str_method():
-    assert str(QQJobType.STANDARD) == "standard"
-    assert str(QQJobType.LOOP) == "loop"
+    assert str(JobType.STANDARD) == "standard"
+    assert str(JobType.LOOP) == "loop"
 
 
 @pytest.mark.parametrize(
     "input_str,expected",
     [
-        ("standard", QQJobType.STANDARD),
-        ("STANDARD", QQJobType.STANDARD),
-        ("sTaNdArD", QQJobType.STANDARD),
-        ("loop", QQJobType.LOOP),
-        ("LOOP", QQJobType.LOOP),
-        ("LoOp", QQJobType.LOOP),
+        ("standard", JobType.STANDARD),
+        ("STANDARD", JobType.STANDARD),
+        ("sTaNdArD", JobType.STANDARD),
+        ("loop", JobType.LOOP),
+        ("LOOP", JobType.LOOP),
+        ("LoOp", JobType.LOOP),
     ],
 )
 def test_fromStr_valid(input_str, expected):
-    assert QQJobType.fromStr(input_str) == expected
+    assert JobType.fromStr(input_str) == expected
 
 
 @pytest.mark.parametrize(
@@ -41,5 +41,5 @@ def test_fromStr_valid(input_str, expected):
 )
 def test_fromStr_invalid_raises_QQError(invalid_str):
     with pytest.raises(QQError) as excinfo:
-        QQJobType.fromStr(invalid_str)
+        JobType.fromStr(invalid_str)
     assert invalid_str in str(excinfo.value)

@@ -14,7 +14,7 @@ from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import QQResources
 from qq_lib.properties.size import Size
 from qq_lib.submit import submit
@@ -246,9 +246,9 @@ def test_qqparser_get_job_type_calls_from_str():
     parser = QQParser.__new__(QQParser)
     parser._options = {"job_type": "standard"}
 
-    mock_enum = QQJobType.STANDARD
+    mock_enum = JobType.STANDARD
 
-    with patch.object(QQJobType, "fromStr", return_value=mock_enum) as mock_from_str:
+    with patch.object(JobType, "fromStr", return_value=mock_enum) as mock_from_str:
         result = parser.getJobType()
 
     mock_from_str.assert_called_once_with("standard")
@@ -575,7 +575,7 @@ exit 0
     assert parser.getQueue() == "default"
 
     job_type = parser.getJobType()
-    assert job_type == QQJobType.STANDARD
+    assert job_type == JobType.STANDARD
 
     resources = parser.getResources()
     assert resources.ncpus == 8

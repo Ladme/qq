@@ -16,7 +16,7 @@ from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 
-from .job_type import QQJobType
+from .job_type import JobType
 from .loop import QQLoopInfo
 from .resources import QQResources
 from .states import NaiveState
@@ -59,7 +59,7 @@ class Info:
     queue: str
 
     # Type of the qq job
-    job_type: QQJobType
+    job_type: JobType
 
     # Host from which the job was submitted
     input_machine: str
@@ -226,7 +226,7 @@ class Info:
                 continue
 
             # convert job type
-            if f.type == QQJobType:
+            if f.type == JobType:
                 result[f.name] = str(value)
             # convert resources
             elif f.type == QQResources or f.type == QQLoopInfo | None:
@@ -276,8 +276,8 @@ class Info:
             value = data[name]
 
             # convert job type
-            if f.type == QQJobType and isinstance(value, str):
-                init_kwargs[name] = QQJobType.fromStr(value)
+            if f.type == JobType and isinstance(value, str):
+                init_kwargs[name] = JobType.fromStr(value)
             # convert optional loop job info
             elif f.type == QQLoopInfo | None and isinstance(value, dict):
                 # 'archive' must be converted to Path

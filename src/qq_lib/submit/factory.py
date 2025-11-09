@@ -10,7 +10,7 @@ from qq_lib.batch.interface import BatchInterface, BatchMeta
 from qq_lib.core.common import split_files_list
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import QQLoopInfo
 from qq_lib.properties.resources import QQResources
 
@@ -57,7 +57,7 @@ class QQSubmitterFactory:
         BatchSystem = self._getBatchSystem()
         queue = self._getQueue()
 
-        if (job_type := self._getJobType()) == QQJobType.LOOP:
+        if (job_type := self._getJobType()) == JobType.LOOP:
             loop_info = self._getLoopInfo()
         else:
             loop_info = None
@@ -92,21 +92,21 @@ class QQSubmitterFactory:
             return BatchMeta.fromStr(batch_system)
         return self._parser.getBatchSystem() or BatchMeta.fromEnvVarOrGuess()
 
-    def _getJobType(self) -> QQJobType:
+    def _getJobType(self) -> JobType:
         """
         Determine the type of job to submit.
 
         Priority:
             1. Command-line specification
             2. Job type specified in the script
-            3. Default to `QQJobType.STANDARD`
+            3. Default to `JobType.STANDARD`
 
         Returns:
-            QQJobType: The determined job type.
+            JobType: The determined job type.
         """
         if job_type := self._kwargs.get("job_type"):
-            return QQJobType.fromStr(job_type)
-        return self._parser.getJobType() or QQJobType.STANDARD
+            return JobType.fromStr(job_type)
+        return self._parser.getJobType() or JobType.STANDARD
 
     def _getQueue(self) -> str:
         """

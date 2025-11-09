@@ -146,7 +146,7 @@ class JobsPresenterSettings:
 
 @dataclass
 class QueuesPresenterSettings:
-    """Settings for QQQueuesPresenter."""
+    """Settings for QueuesPresenter."""
 
     max_width: int | None = None
     min_width: int | None = 80

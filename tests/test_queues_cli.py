@@ -17,7 +17,7 @@ def test_queues_command_prints_available_queues():
 
     with (
         patch("qq_lib.queues.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
-        patch("qq_lib.queues.cli.QQQueuesPresenter") as mock_presenter_cls,
+        patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.Console"),
         patch("qq_lib.queues.cli.getpass.getuser", return_value="user"),
     ):
@@ -43,7 +43,7 @@ def test_queues_command_prints_all_queues_with_flag():
 
     with (
         patch("qq_lib.queues.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
-        patch("qq_lib.queues.cli.QQQueuesPresenter") as mock_presenter_cls,
+        patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.Console"),
         patch("qq_lib.queues.cli.getpass.getuser", return_value="testuser"),
     ):
@@ -68,7 +68,7 @@ def test_queues_command_outputs_yaml_when_flag_set():
 
     with (
         patch("qq_lib.queues.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
-        patch("qq_lib.queues.cli.QQQueuesPresenter") as mock_presenter_cls,
+        patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.getpass.getuser", return_value="testuser"),
     ):
         mock_batch = MagicMock()

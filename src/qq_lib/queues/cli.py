@@ -18,7 +18,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
-from .presenter import QQQueuesPresenter
+from .presenter import QueuesPresenter
 
 logger = get_logger(__name__)
 
@@ -47,7 +47,7 @@ def queues(all: bool, yaml: bool) -> NoReturn:
         if not all:
             queues = [q for q in queues if q.isAvailableToUser(user)]
 
-        presenter = QQQueuesPresenter(queues, user, all)
+        presenter = QueuesPresenter(queues, user, all)
         if yaml:
             presenter.dumpYaml()
         else:

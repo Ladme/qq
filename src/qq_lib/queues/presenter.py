@@ -12,7 +12,7 @@ from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
 
 
-class QQQueuesPresenter:
+class QueuesPresenter:
     """
     Present information about queues of the batch system.
     """
@@ -144,7 +144,7 @@ class QQQueuesPresenter:
             if queue.fromRouteOnly():
                 continue
 
-            QQQueuesPresenter._addQueueRow(queue, table, self._user)
+            QueuesPresenter._addQueueRow(queue, table, self._user)
             visited_queues.add(queue)
 
             # print all reroutings
@@ -152,7 +152,7 @@ class QQQueuesPresenter:
                 destinations = [q for q in self._queues if q.getName() in dest_names]
 
                 for rerouted in destinations:
-                    QQQueuesPresenter._addQueueRow(
+                    QueuesPresenter._addQueueRow(
                         rerouted,
                         table,
                         self._user,
@@ -172,7 +172,7 @@ class QQQueuesPresenter:
                 Text("?", style=f"{CFG.queues_presenter.dangling_mark_style} bold")
             )
             for queue in unvisited_queues:
-                QQQueuesPresenter._addQueueRow(
+                QueuesPresenter._addQueueRow(
                     queue, table, self._user, from_route=True, dangling=True
                 )
 
@@ -229,7 +229,7 @@ class QQQueuesPresenter:
             Text(str(queue.getQueuedJobs()), style=CFG.state_colors.queued),
             Text(str(queue.getOtherJobs()), style=CFG.state_colors.other),
             Text(str(queue.getTotalJobs()), style=CFG.state_colors.sum),
-            QQQueuesPresenter._formatWalltime(queue, text_style),
+            QueuesPresenter._formatWalltime(queue, text_style),
             Text(queue.getComment(), style=text_style),
         )
 

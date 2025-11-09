@@ -4,4 +4,4 @@
 # ruff: noqa: F401
 
 from .cli import sync
-from .syncer import QQSyncer
+from .syncer import Syncer

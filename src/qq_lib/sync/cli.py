@@ -25,7 +25,7 @@ from qq_lib.core.error_handlers import (
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
 
-from .syncer import QQSyncer
+from .syncer import Syncer
 
 logger = get_logger(__name__)
 console = Console()
@@ -114,7 +114,7 @@ def _sync_job(info_file: Path, job: str | None, files: list[str] | None) -> None
         QQError: If an error occurs during synchronization setup or execution.
     """
 
-    syncer = QQSyncer(info_file)
+    syncer = Syncer(info_file)
 
     # check that the info file in the killer corresponds
     # to the specified job

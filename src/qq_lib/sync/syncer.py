@@ -8,7 +8,7 @@ from qq_lib.core.navigator import Navigator
 logger = get_logger(__name__)
 
 
-class QQSyncer(Navigator):
+class Syncer(Navigator):
     """
     Handle synchronization of job files between a remote working directory
     (on a compute node or cluster) and the local input directory.

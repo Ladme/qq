@@ -18,7 +18,7 @@ def test_sync_job(tmp_path):
     syncer_mock = MagicMock()
     syncer_mock.matchesJob.return_value = True
 
-    with patch("qq_lib.sync.cli.QQSyncer", return_value=syncer_mock):
+    with patch("qq_lib.sync.cli.Syncer", return_value=syncer_mock):
         _sync_job(dummy_file, job="12345", files=["a.txt", "b.txt"])
 
     syncer_mock.matchesJob.assert_called_once_with("12345")
@@ -35,7 +35,7 @@ def test_sync_job_raises_job_mismatch(tmp_path):
     syncer_mock.matchesJob.return_value = False
 
     with (
-        patch("qq_lib.sync.cli.QQSyncer", return_value=syncer_mock),
+        patch("qq_lib.sync.cli.Syncer", return_value=syncer_mock),
         pytest.raises(
             QQJobMismatchError, match="Info file for job '12345' does not exist."
         ),
@@ -50,7 +50,7 @@ def test_sync_job_calls_sync_without_files(tmp_path):
     syncer_mock = MagicMock()
     syncer_mock.matchesJob.return_value = True
 
-    with patch("qq_lib.sync.cli.QQSyncer", return_value=syncer_mock):
+    with patch("qq_lib.sync.cli.Syncer", return_value=syncer_mock):
         _sync_job(dummy_file, job=None, files=None)
 
     syncer_mock.sync.assert_called_once_with(None)

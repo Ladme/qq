@@ -16,7 +16,7 @@ from rich.text import Text
 
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.core.config import CFG
-from qq_lib.nodes.presenter import NodeGroup, NodeGroupStats, QQNodesPresenter
+from qq_lib.nodes.presenter import NodeGroup, NodeGroupStats, NodesPresenter
 from qq_lib.properties.size import Size
 
 
@@ -184,19 +184,19 @@ def test_node_group_should_show_properties_returns_false_if_all_shared():
 
 
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatNodeProperties",
+    "qq_lib.nodes.presenter.NodesPresenter._formatNodeProperties",
     return_value=Text("props"),
 )
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatSizeProperty",
+    "qq_lib.nodes.presenter.NodesPresenter._formatSizeProperty",
     return_value=Text("mem"),
 )
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatProcessingUnits",
+    "qq_lib.nodes.presenter.NodesPresenter._formatProcessingUnits",
     return_value=Text("cpus"),
 )
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatStateMark",
+    "qq_lib.nodes.presenter.NodesPresenter._formatStateMark",
     return_value=Text("state"),
 )
 def test_node_group_add_node_row_all_shows(
@@ -247,19 +247,19 @@ def test_node_group_add_node_row_all_shows(
 
 
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatNodeProperties",
+    "qq_lib.nodes.presenter.NodesPresenter._formatNodeProperties",
     return_value=Text("props"),
 )
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatSizeProperty",
+    "qq_lib.nodes.presenter.NodesPresenter._formatSizeProperty",
     return_value=Text("mem"),
 )
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatProcessingUnits",
+    "qq_lib.nodes.presenter.NodesPresenter._formatProcessingUnits",
     return_value=Text("cpus"),
 )
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatStateMark",
+    "qq_lib.nodes.presenter.NodesPresenter._formatStateMark",
     return_value=Text("state"),
 )
 def test_node_group_add_node_row_all_shows_false(
@@ -392,7 +392,7 @@ def test_node_group_sort_nodes_handles_dash_and_number_sequences():
 
 
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatMetadataTable",
+    "qq_lib.nodes.presenter.NodesPresenter._formatMetadataTable",
     return_value="mock_table",
 )
 def test_node_group_create_metadata_table_calls_formatter(mock_format):
@@ -646,12 +646,12 @@ def test_node_group_stats_create_stats_table_excludes_gpu_columns_when_none(
 
 
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._createNodeGroups",
+    "qq_lib.nodes.presenter.NodesPresenter._createNodeGroups",
     return_value=["group1", "group2"],
 )
-def test_qq_nodes_presenter_init(mock_create_groups):
+def test_nodes_presenter_init(mock_create_groups):
     nodes = [MagicMock(), MagicMock()]
-    presenter = QQNodesPresenter(nodes, "user1", True)
+    presenter = NodesPresenter(nodes, "user1", True)
 
     assert presenter._nodes == nodes
     assert presenter._user == "user1"
@@ -661,14 +661,14 @@ def test_qq_nodes_presenter_init(mock_create_groups):
 
 
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatPropertiesSection",
+    "qq_lib.nodes.presenter.NodesPresenter._formatPropertiesSection",
     return_value="props_section",
 )
-def test_qq_nodes_presenter_format_metadata_table_creates_table(mock_props_section):
+def test_nodes_presenter_format_metadata_table_creates_table(mock_props_section):
     stats = MagicMock()
     stats.createStatsTable.return_value = "stats_table"
 
-    result = QQNodesPresenter._formatMetadataTable(["gpu", "fast"], "Shared", stats)
+    result = NodesPresenter._formatMetadataTable(["gpu", "fast"], "Shared", stats)
 
     mock_props_section.assert_called_once_with(["gpu", "fast"], "Shared")
     stats.createStatsTable.assert_called_once_with()
@@ -678,11 +678,11 @@ def test_qq_nodes_presenter_format_metadata_table_creates_table(mock_props_secti
     assert result.columns[0].max_width == CFG.nodes_presenter.max_props_panel_width
 
 
-def test_qq_nodes_presenter_format_properties_section_returns_expected_text():
+def test_nodes_presenter_format_properties_section_returns_expected_text():
     props = ["gpu", "fast", "linux"]
     title = "Shared properties"
 
-    result = QQNodesPresenter._formatPropertiesSection(props, title)
+    result = NodesPresenter._formatPropertiesSection(props, title)
 
     assert isinstance(result, Text)
     assert result.plain.startswith("Shared properties:")
@@ -704,10 +704,10 @@ def test_qq_nodes_presenter_format_properties_section_returns_expected_text():
         (0, 8, 0, 1, True, CFG.nodes_presenter.busy_node_style),
     ],
 )
-def test_qq_nodes_presenter_format_state_mark_returns_correct_style(
+def test_nodes_presenter_format_state_mark_returns_correct_style(
     free_cpus, total_cpus, free_gpus, total_gpus, available, expected_style
 ):
-    result = QQNodesPresenter._formatStateMark(
+    result = NodesPresenter._formatStateMark(
         free_cpus, total_cpus, free_gpus, total_gpus, available
     )
 
@@ -716,36 +716,36 @@ def test_qq_nodes_presenter_format_state_mark_returns_correct_style(
     assert result.style == expected_style
 
 
-def test_qq_nodes_presenter_format_node_properties():
+def test_nodes_presenter_format_node_properties():
     props = ["gpu", "fast", "linux"]
     shared = ["linux"]
     style = "bold"
 
-    result = QQNodesPresenter._formatNodeProperties(props, shared, style)
+    result = NodesPresenter._formatNodeProperties(props, shared, style)
 
     assert isinstance(result, Text)
     assert result.plain == "gpu, fast"
     assert result.style == "bold"
 
 
-def test_qq_nodes_presenter_format_node_properties_all_shared():
+def test_nodes_presenter_format_node_properties_all_shared():
     props = ["gpu", "fast"]
     shared = ["gpu", "fast"]
     style = "bold"
 
-    result = QQNodesPresenter._formatNodeProperties(props, shared, style)
+    result = NodesPresenter._formatNodeProperties(props, shared, style)
 
     assert isinstance(result, Text)
     assert result.plain == ""
     assert result.style == "bold"
 
 
-def test_qq_nodes_presenter_format_size_property():
+def test_nodes_presenter_format_size_property():
     free = Size(8, "gb")
     total = Size(32, "gb")
     style = "bright_green"
 
-    result = QQNodesPresenter._formatSizeProperty(free, total, style)
+    result = NodesPresenter._formatSizeProperty(free, total, style)
 
     assert isinstance(result, Text)
     assert result.plain == "8gb / 32gb"
@@ -763,21 +763,21 @@ def test_qq_nodes_presenter_format_size_property():
         (0, 8, True, CFG.nodes_presenter.busy_node_style),
     ],
 )
-def test_qq_nodes_presenter_format_processing_units_returns_correct_style(
+def test_nodes_presenter_format_processing_units_returns_correct_style(
     free, total, available, expected_style
 ):
-    result = QQNodesPresenter._formatProcessingUnits(free, total, available)
+    result = NodesPresenter._formatProcessingUnits(free, total, available)
 
     assert isinstance(result, Text)
     assert result.plain == f"{free} / {total}"
     assert result.style == expected_style
 
 
-def test_qq_nodes_presenter_interleave():
+def test_nodes_presenter_interleave():
     sections = [Group("a"), Group("b"), Group("c")]
     seps = [Group("-"), Group("="), Group("*")]
 
-    result = QQNodesPresenter._interleave(sections, seps)
+    result = NodesPresenter._interleave(sections, seps)
 
     assert result == [
         sections[0],
@@ -789,9 +789,9 @@ def test_qq_nodes_presenter_interleave():
     ]
 
 
-def test_qq_nodes_presenter_create_separator_returns_expected_group():
+def test_nodes_presenter_create_separator_returns_expected_group():
     title = "GPU Nodes"
-    result = QQNodesPresenter._createSeparator(title)
+    result = NodesPresenter._createSeparator(title)
 
     assert isinstance(result, Group)
     assert len(result.renderables) == 3
@@ -805,7 +805,7 @@ def test_qq_nodes_presenter_create_separator_returns_expected_group():
 
 
 @patch("qq_lib.nodes.presenter.NodeGroup")
-def test_qq_nodes_presenter_create_node_groups_creates_group_for_common_prefix(
+def test_nodes_presenter_create_node_groups_creates_group_for_common_prefix(
     mock_nodegroup,
 ):
     node1 = MagicMock()
@@ -817,7 +817,7 @@ def test_qq_nodes_presenter_create_node_groups_creates_group_for_common_prefix(
     node3.getName.return_value = "node3"
     node4.getName.return_value = "misc1"
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2, node3, node4]
     presenter._user = "user1"
 
@@ -831,7 +831,7 @@ def test_qq_nodes_presenter_create_node_groups_creates_group_for_common_prefix(
 
 
 @patch("qq_lib.nodes.presenter.NodeGroup")
-def test_qq_nodes_presenter_create_node_groups_assigns_all_to_all_nodes_when_no_prefix(
+def test_nodes_presenter_create_node_groups_assigns_all_to_all_nodes_when_no_prefix(
     mock_nodegroup,
 ):
     node1 = MagicMock()
@@ -839,7 +839,7 @@ def test_qq_nodes_presenter_create_node_groups_assigns_all_to_all_nodes_when_no_
     node1.getName.return_value = "x1"
     node2.getName.return_value = "y2"
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2]
     presenter._user = "user1"
 
@@ -852,7 +852,7 @@ def test_qq_nodes_presenter_create_node_groups_assigns_all_to_all_nodes_when_no_
 
 
 @patch("qq_lib.nodes.presenter.NodeGroup")
-def test_qq_nodes_presenter_create_node_groups_two_groups(mock_nodegroup):
+def test_nodes_presenter_create_node_groups_two_groups(mock_nodegroup):
     node1 = MagicMock()
     node2 = MagicMock()
     node3 = MagicMock()
@@ -867,7 +867,7 @@ def test_qq_nodes_presenter_create_node_groups_two_groups(mock_nodegroup):
     node5.getName.return_value = "beta2"
     node6.getName.return_value = "beta3"
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2, node3, node4, node5, node6]
     presenter._user = "userA"
 
@@ -881,7 +881,7 @@ def test_qq_nodes_presenter_create_node_groups_two_groups(mock_nodegroup):
 
 
 @patch("qq_lib.nodes.presenter.NodeGroup")
-def test_qq_nodes_presenter_create_node_groups_merges_small_groups_together(
+def test_nodes_presenter_create_node_groups_merges_small_groups_together(
     mock_nodegroup,
 ):
     node1 = MagicMock()
@@ -895,7 +895,7 @@ def test_qq_nodes_presenter_create_node_groups_merges_small_groups_together(
     node4.getName.return_value = "beta1"
     node5.getName.return_value = "gamma1"
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2, node3, node4, node5]
     presenter._user = "userB"
 
@@ -919,11 +919,11 @@ def test_qq_nodes_presenter_create_node_groups_merges_small_groups_together(
 
 
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._formatMetadataTable",
+    "qq_lib.nodes.presenter.NodesPresenter._formatMetadataTable",
     return_value="formatted_metadata",
 )
 @patch("qq_lib.nodes.presenter.NodeGroupStats.sumStats")
-def test_qq_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_table):
+def test_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_table):
     mock_stats = MagicMock()
     mock_stats.properties = {"gpu", "fast"}
     mock_sum_stats.return_value = mock_stats
@@ -933,7 +933,7 @@ def test_qq_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_ta
     group1.stats = MagicMock()
     group2.stats = MagicMock()
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group1, group2]
 
     result = presenter._createMetadataPanel()
@@ -957,10 +957,10 @@ def test_qq_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_ta
 
 @patch("qq_lib.nodes.presenter.get_panel_width", return_value=120)
 @patch(
-    "qq_lib.nodes.presenter.QQNodesPresenter._createMetadataPanel",
+    "qq_lib.nodes.presenter.NodesPresenter._createMetadataPanel",
     return_value=Group("meta"),
 )
-def test_qq_nodes_presenter_create_nodes_info_panel_multiple_groups(
+def test_nodes_presenter_create_nodes_info_panel_multiple_groups(
     mock_metadata, mock_width
 ):
     group1 = MagicMock()
@@ -970,7 +970,7 @@ def test_qq_nodes_presenter_create_nodes_info_panel_multiple_groups(
     group1.createFullInfoPanel.return_value = Group("panel_alpha")
     group2.createFullInfoPanel.return_value = Group("panel_beta")
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group1, group2]
 
     result = presenter.createNodesInfoPanel()
@@ -988,15 +988,15 @@ def test_qq_nodes_presenter_create_nodes_info_panel_multiple_groups(
 
 
 @patch("qq_lib.nodes.presenter.get_panel_width", return_value=100)
-@patch("qq_lib.nodes.presenter.QQNodesPresenter._createMetadataPanel")
-def test_qq_nodes_presenter_create_nodes_info_panel_single_group(
+@patch("qq_lib.nodes.presenter.NodesPresenter._createMetadataPanel")
+def test_nodes_presenter_create_nodes_info_panel_single_group(
     mock_metadata, mock_width
 ):
     group = MagicMock()
     group.name = "solo"
     group.createFullInfoPanel.return_value = Group("panel_solo")
 
-    presenter = QQNodesPresenter.__new__(QQNodesPresenter)
+    presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group]
 
     result = presenter.createNodesInfoPanel()
@@ -1012,7 +1012,7 @@ def test_qq_nodes_presenter_create_nodes_info_panel_single_group(
     assert result.renderables[1].border_style == CFG.nodes_presenter.border_style
 
 
-def test_qq_nodes_presenter_dump_yaml_roundtrip():
+def test_nodes_presenter_dump_yaml_roundtrip():
     info_gpu = {
         "Node": "zero21",
         "Mom": "zero21.cluster.local",
@@ -1053,7 +1053,7 @@ def test_qq_nodes_presenter_dump_yaml_roundtrip():
     gpu_node = PBSNode.fromDict("zero21", info_gpu)
     cpu_node = PBSNode.fromDict("three3", info_cpu)
 
-    presenter = QQNodesPresenter([gpu_node, cpu_node], user="testuser", all=True)
+    presenter = NodesPresenter([gpu_node, cpu_node], user="testuser", all=True)
 
     captured = StringIO()
     sys.stdout = captured

@@ -167,7 +167,7 @@ class QueuesPresenterSettings:
 
 @dataclass
 class NodesPresenterSettings:
-    """Settings for QQNodesPresenter."""
+    """Settings for NodesPresenter."""
 
     max_width: int | None = None
     min_width: int | None = 80

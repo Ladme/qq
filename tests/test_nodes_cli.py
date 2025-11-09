@@ -17,7 +17,7 @@ def test_nodes_command_prints_available_nodes():
 
     with (
         patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
-        patch("qq_lib.nodes.cli.QQNodesPresenter") as mock_presenter_cls,
+        patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
     ):
@@ -43,7 +43,7 @@ def test_nodes_command_prints_all_nodes_with_flag():
 
     with (
         patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
-        patch("qq_lib.nodes.cli.QQNodesPresenter") as mock_presenter_cls,
+        patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
     ):
@@ -70,7 +70,7 @@ def test_nodes_command_outputs_yaml_when_flag_set():
 
     with (
         patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
-        patch("qq_lib.nodes.cli.QQNodesPresenter") as mock_presenter_cls,
+        patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
     ):
         mock_batch = MagicMock()

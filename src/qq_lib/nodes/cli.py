@@ -17,7 +17,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.nodes.presenter import QQNodesPresenter
+from qq_lib.nodes.presenter import NodesPresenter
 
 logger = get_logger(__name__)
 
@@ -46,7 +46,7 @@ def nodes(all: bool, yaml: bool) -> NoReturn:
         if not all:
             nodes = [n for n in nodes if n.isAvailableToUser(user)]
 
-        presenter = QQNodesPresenter(nodes, user, all)
+        presenter = NodesPresenter(nodes, user, all)
         if yaml:
             presenter.dumpYaml()
         else:

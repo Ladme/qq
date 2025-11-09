@@ -18,10 +18,10 @@ from qq_lib.core.error import (
 )
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
-from qq_lib.run.runner import CFG, QQRunner, log_fatal_error_and_exit
+from qq_lib.run.runner import CFG, Runner, log_fatal_error_and_exit
 
 
-def test_qq_runner_init_success():
+def test_runner_init_success():
     with (
         patch("qq_lib.run.runner.signal.signal") as mock_signal,
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -49,7 +49,7 @@ def test_qq_runner_init_success():
         retryer.run.return_value = informer
         mock_retryer.return_value = retryer
 
-        runner = QQRunner(Path("job.qqinfo"), "input_host")
+        runner = Runner(Path("job.qqinfo"), "input_host")
 
         mock_signal.assert_called_once()
         mock_batchmeta.assert_called_once()
@@ -68,7 +68,7 @@ def test_qq_runner_init_success():
         assert runner._process is None
 
 
-def test_qqrunner_init_raises_when_get_job_id_missing():
+def test_runner_init_raises_when_get_job_id_missing():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_meta,
@@ -78,13 +78,13 @@ def test_qqrunner_init_raises_when_get_job_id_missing():
         mock_meta.return_value = batch
 
         with pytest.raises(QQRunFatalError, match="Job has no associated job id"):
-            QQRunner(Path("job.qqinfo"), "host")
+            Runner(Path("job.qqinfo"), "host")
 
         mock_meta.assert_called_once()
         batch.getJobId.assert_called_once()
 
 
-def test_qq_runner_init_raises_on_batchmeta_failure():
+def test_runner_init_raises_on_batchmeta_failure():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch(
@@ -93,10 +93,10 @@ def test_qq_runner_init_raises_on_batchmeta_failure():
         ),
         pytest.raises(QQRunFatalError, match="Unable to load valid qq info file"),
     ):
-        QQRunner(Path("job.qqinfo"), "host")
+        Runner(Path("job.qqinfo"), "host")
 
 
-def test_qq_runner_init_raises_on_job_mismatch():
+def test_runner_init_raises_on_job_mismatch():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
@@ -116,14 +116,14 @@ def test_qq_runner_init_raises_on_job_mismatch():
         mock_retryer.return_value = retryer
 
         with pytest.raises(QQRunFatalError, match="Info file does not correspond"):
-            QQRunner(Path("job.qqinfo"), "host")
+            Runner(Path("job.qqinfo"), "host")
 
         mock_batchmeta.assert_called_once()
         mock_retryer.assert_called_once()
         retryer.run.assert_called_once()
 
 
-def test_qq_runner_init_raises_on_batch_system_mismatch():
+def test_runner_init_raises_on_batch_system_mismatch():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
@@ -143,14 +143,14 @@ def test_qq_runner_init_raises_on_batch_system_mismatch():
         mock_retryer.return_value = retryer
 
         with pytest.raises(QQRunFatalError, match="Batch system mismatch"):
-            QQRunner(Path("job.qqinfo"), "host")
+            Runner(Path("job.qqinfo"), "host")
 
         mock_batchmeta.assert_called_once()
         mock_retryer.assert_called_once()
         retryer.run.assert_called_once()
 
 
-def test_qq_runner_init_creates_archiver_when_loop_info_present():
+def test_runner_init_creates_archiver_when_loop_info_present():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
@@ -175,7 +175,7 @@ def test_qq_runner_init_creates_archiver_when_loop_info_present():
         retryer.run.return_value = informer
         mock_retryer.return_value = retryer
 
-        runner = QQRunner(Path("job.qqinfo"), "host")
+        runner = Runner(Path("job.qqinfo"), "host")
 
         mock_archiver.assert_called_once_with(
             loop_info.archive,
@@ -195,8 +195,8 @@ def test_qq_runner_init_creates_archiver_when_loop_info_present():
         assert runner._informer == informer
 
 
-def test_qqrunner_handle_sigterm_performs_cleanup_and_exits():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_handle_sigterm_performs_cleanup_and_exits():
+    runner = Runner.__new__(Runner)
     runner._cleanup = MagicMock()
 
     with (
@@ -213,8 +213,8 @@ def test_qqrunner_handle_sigterm_performs_cleanup_and_exits():
     assert exc_info.value.code == 143  # ty: ignore[unresolved-attribute]
 
 
-def test_qqrunner_cleanup_with_running_process():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_cleanup_with_running_process():
+    runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
     process_mock = MagicMock()
     process_mock.poll.return_value = None
@@ -240,8 +240,8 @@ def test_qqrunner_cleanup_with_running_process():
     process_mock.kill.assert_not_called()
 
 
-def test_qqrunner_cleanup_with_timeout():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_cleanup_with_timeout():
+    runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
     process_mock = MagicMock()
     process_mock.poll.return_value = None
@@ -260,8 +260,8 @@ def test_qqrunner_cleanup_with_timeout():
     process_mock.kill.assert_called_once()
 
 
-def test_qqrunner_cleanup_without_running_process():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_cleanup_without_running_process():
+    runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
     process_mock = MagicMock()
     process_mock.poll.return_value = 0
@@ -275,7 +275,7 @@ def test_qqrunner_cleanup_without_running_process():
     process_mock.kill.assert_not_called()
 
 
-def test_qqrunner_prepare_command_line_for_resubmit_inline_depend():
+def test_runner_prepare_command_line_for_resubmit_inline_depend():
     informer_mock = MagicMock()
     informer_mock.info.command_line = [
         "script.sh",
@@ -284,7 +284,7 @@ def test_qqrunner_prepare_command_line_for_resubmit_inline_depend():
         "gpu",
     ]
     informer_mock.info.job_id = "99999"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
 
     result = runner._prepareCommandLineForResubmit()
@@ -293,7 +293,7 @@ def test_qqrunner_prepare_command_line_for_resubmit_inline_depend():
     assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
 
 
-def test_qqrunner_prepare_command_line_for_resubmit_separate_depend_argument():
+def test_runner_prepare_command_line_for_resubmit_separate_depend_argument():
     informer_mock = MagicMock()
     informer_mock.info.command_line = [
         "script.sh",
@@ -303,7 +303,7 @@ def test_qqrunner_prepare_command_line_for_resubmit_separate_depend_argument():
         "gpu",
     ]
     informer_mock.info.job_id = "99999"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
 
     result = runner._prepareCommandLineForResubmit()
@@ -313,7 +313,7 @@ def test_qqrunner_prepare_command_line_for_resubmit_separate_depend_argument():
     assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
 
 
-def test_qqrunner_prepare_command_line_for_resubmit_multiple_depends():
+def test_runner_prepare_command_line_for_resubmit_multiple_depends():
     informer_mock = MagicMock()
     informer_mock.info.command_line = [
         "script.sh",
@@ -325,7 +325,7 @@ def test_qqrunner_prepare_command_line_for_resubmit_multiple_depends():
         "gpu",
     ]
     informer_mock.info.job_id = "99999"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
 
     result = runner._prepareCommandLineForResubmit()
@@ -338,11 +338,11 @@ def test_qqrunner_prepare_command_line_for_resubmit_multiple_depends():
     assert "script.sh" in result
 
 
-def test_qqrunner_prepare_command_line_for_resubmit_depend_last_arg():
+def test_runner_prepare_command_line_for_resubmit_depend_last_arg():
     informer_mock = MagicMock()
     informer_mock.info.command_line = ["script.sh", "--depend"]
     informer_mock.info.job_id = "99999"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
 
     result = runner._prepareCommandLineForResubmit()
@@ -351,11 +351,11 @@ def test_qqrunner_prepare_command_line_for_resubmit_depend_last_arg():
     assert result == ["script.sh", "--depend=afterok=99999"]
 
 
-def test_qqrunner_prepare_command_line_for_resubmit_only_depend():
+def test_runner_prepare_command_line_for_resubmit_only_depend():
     informer_mock = MagicMock()
     informer_mock.info.command_line = ["--depend=afterok=11111"]
     informer_mock.info.job_id = "99999"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
 
     result = runner._prepareCommandLineForResubmit()
@@ -363,12 +363,12 @@ def test_qqrunner_prepare_command_line_for_resubmit_only_depend():
     assert result == ["--depend=afterok=99999"]
 
 
-def test_qqrunner_resubmit_final_cycle():
+def test_runner_resubmit_final_cycle():
     informer_mock = MagicMock()
     informer_mock.info.loop_info.current = 5
     informer_mock.info.loop_info.end = 5
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._should_resubmit = True
 
@@ -380,12 +380,12 @@ def test_qqrunner_resubmit_final_cycle():
     )
 
 
-def test_qqrunner_resubmit_should_resubmit_is_false():
+def test_runner_resubmit_should_resubmit_is_false():
     informer_mock = MagicMock()
     informer_mock.info.loop_info.current = 5
     informer_mock.info.loop_info.end = 9999
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._should_resubmit = False
 
@@ -397,14 +397,14 @@ def test_qqrunner_resubmit_should_resubmit_is_false():
     )
 
 
-def test_qqrunner_resubmit_successful_resubmission():
+def test_runner_resubmit_successful_resubmission():
     informer_mock = MagicMock()
     informer_mock.info.loop_info.current = 1
     informer_mock.info.loop_info.end = 5
     informer_mock.info.input_machine = "random.host.org"
     informer_mock.info.input_dir = "/dir"
     informer_mock.info.job_id = "123"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._batch_system = MagicMock()
     runner._prepareCommandLineForResubmit = MagicMock(return_value=["cmd"])
@@ -432,13 +432,13 @@ def test_qqrunner_resubmit_successful_resubmission():
     mock_logger.info.assert_any_call("Job successfully resubmitted.")
 
 
-def test_qqrunner_resubmit_raises_qqerror():
+def test_runner_resubmit_raises_qqerror():
     informer_mock = MagicMock()
     informer_mock.info.loop_info.current = 1
     informer_mock.info.loop_info.end = 5
     informer_mock.info.input_machine = "random.host.org"
     informer_mock.info.input_dir = "/dir"
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._batch_system = MagicMock()
     runner._prepareCommandLineForResubmit = MagicMock(return_value=["cmd"])
@@ -452,9 +452,9 @@ def test_qqrunner_resubmit_raises_qqerror():
         runner._resubmit()
 
 
-def test_qqrunner_update_info_killed_success():
+def test_runner_update_info_killed_success():
     informer_mock = MagicMock()
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -477,11 +477,11 @@ def test_qqrunner_update_info_killed_success():
     mock_logger.warning.assert_not_called()
 
 
-def test_qqrunner_update_info_killed_logs_warning_on_failure():
+def test_runner_update_info_killed_logs_warning_on_failure():
     informer_mock = MagicMock()
     informer_mock.setKilled.side_effect = Exception("fail")
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -495,12 +495,12 @@ def test_qqrunner_update_info_killed_logs_warning_on_failure():
     mock_logger.warning.assert_called_once()
 
 
-def test_qqrunner_update_info_failed_success():
+def test_runner_update_info_failed_success():
     informer_mock = MagicMock()
     retryer_mock = MagicMock()
     retryer_mock.run.return_value = None
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -529,11 +529,11 @@ def test_qqrunner_update_info_failed_success():
     mock_logger.warning.assert_not_called()
 
 
-def test_qqrunner_update_info_failed_logs_warning_on_failure():
+def test_runner_update_info_failed_logs_warning_on_failure():
     informer_mock = MagicMock()
     informer_mock.setFailed.side_effect = Exception("fail")
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -547,12 +547,12 @@ def test_qqrunner_update_info_failed_logs_warning_on_failure():
     mock_logger.warning.assert_called_once()
 
 
-def test_qqrunner_update_info_finished_success():
+def test_runner_update_info_finished_success():
     informer_mock = MagicMock()
     retryer_mock = MagicMock()
     retryer_mock.run.return_value = None
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -581,11 +581,11 @@ def test_qqrunner_update_info_finished_success():
     mock_logger.warning.assert_not_called()
 
 
-def test_qqrunner_update_info_finished_logs_warning_on_failure():
+def test_runner_update_info_finished_logs_warning_on_failure():
     informer_mock = MagicMock()
     informer_mock.setFinished.side_effect = Exception("fail")
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -599,14 +599,14 @@ def test_qqrunner_update_info_finished_logs_warning_on_failure():
     mock_logger.warning.assert_called_once()
 
 
-def test_qqrunner_update_info_running_success():
+def test_runner_update_info_running_success():
     informer_mock = MagicMock()
     retryer_mock = MagicMock()
     retryer_mock.run.return_value = None
     nodes = ["node1", "node2"]
     informer_mock.getNodes.return_value = nodes
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -639,11 +639,11 @@ def test_qqrunner_update_info_running_success():
     mock_logger.debug.assert_called_once()
 
 
-def test_qqrunner_update_info_running_raises_qqerror_on_failure():
+def test_runner_update_info_running_raises_qqerror_on_failure():
     informer_mock = MagicMock()
     informer_mock.setRunning.side_effect = Exception("fail")
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -657,11 +657,11 @@ def test_qqrunner_update_info_running_raises_qqerror_on_failure():
         runner._updateInfoRunning()
 
 
-def test_qqrunner_update_info_running_raises_on_empty_node_list():
+def test_runner_update_info_running_raises_on_empty_node_list():
     informer_mock = MagicMock()
     informer_mock.getNodes.return_value = []
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._info_file = Path("job.qqinfo")
     runner._input_machine = "random.host.org"
@@ -677,8 +677,8 @@ def test_qqrunner_update_info_running_raises_on_empty_node_list():
         runner._updateInfoRunning()
 
 
-def test_qqrunner_delete_work_dir_invokes_shutil_rmtree_with_retryer():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_delete_work_dir_invokes_shutil_rmtree_with_retryer():
+    runner = Runner.__new__(Runner)
     runner._work_dir = Path("/scratch/workdir")
 
     retryer_mock = MagicMock()
@@ -700,8 +700,8 @@ def test_qqrunner_delete_work_dir_invokes_shutil_rmtree_with_retryer():
     )
 
 
-def test_qqrunner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
+    runner = Runner.__new__(Runner)
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._info_file = Path("job.qqinfo")
@@ -748,8 +748,8 @@ def test_qqrunner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     assert sync_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
 
 
-def test_qqrunner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
+    runner = Runner.__new__(Runner)
     runner._batch_system = MagicMock()
     runner._informer = MagicMock()
     runner._info_file = Path("job.qqinfo")
@@ -782,8 +782,8 @@ def test_qqrunner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     assert Path("storage") in excluded_files
 
 
-def test_qqrunner_set_up_shared_dir_calls_chdir_with_input_dir():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_set_up_shared_dir_calls_chdir_with_input_dir():
+    runner = Runner.__new__(Runner)
     runner._input_dir = Path("/input")
 
     with patch("qq_lib.run.runner.Retryer") as retryer_cls:
@@ -798,8 +798,8 @@ def test_qqrunner_set_up_shared_dir_calls_chdir_with_input_dir():
     assert runner._work_dir == runner._input_dir
 
 
-def test_qqrunner_log_failure_and_exit_calls_update_and_exits():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_log_failure_and_exit_calls_update_and_exits():
+    runner = Runner.__new__(Runner)
     runner._updateInfoFailed = MagicMock()
     exc = RuntimeError("fatal error")
     exc.exit_code = 42  # ty: ignore[unresolved-attribute]
@@ -815,8 +815,8 @@ def test_qqrunner_log_failure_and_exit_calls_update_and_exits():
     mock_exit.assert_called_once_with(42)
 
 
-def test_qqrunner_log_failure_and_exit_calls_fallback_on_exception():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_log_failure_and_exit_calls_fallback_on_exception():
+    runner = Runner.__new__(Runner)
     runner._updateInfoFailed = MagicMock(side_effect=Exception("update failed"))
     exc = RuntimeError("fatal error")
     exc.exit_code = 42  # ty: ignore[unresolved-attribute]
@@ -828,8 +828,8 @@ def test_qqrunner_log_failure_and_exit_calls_fallback_on_exception():
     mock_fatal.assert_called_once()
 
 
-def test_qqrunner_finalize_failure_updates_info_failed():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_finalize_failure_updates_info_failed():
+    runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 91
     runner._use_scratch = True
@@ -840,8 +840,8 @@ def test_qqrunner_finalize_failure_updates_info_failed():
     runner._updateInfoFailed.assert_called_once_with(91)
 
 
-def test_qqrunner_finalize_with_scratch_and_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_finalize_with_scratch_and_archiver():
+    runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
     runner._archiver = MagicMock()
@@ -868,8 +868,8 @@ def test_qqrunner_finalize_with_scratch_and_archiver():
     runner._updateInfoFinished.assert_called_once()
 
 
-def test_qqrunner_finalize_with_scratch_and_without_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_finalize_with_scratch_and_without_archiver():
+    runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
     runner._archiver = None
@@ -895,8 +895,8 @@ def test_qqrunner_finalize_with_scratch_and_without_archiver():
     runner._updateInfoFinished.assert_called_once()
 
 
-def test_qqrunner_finalize_without_scratch_and_with_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_finalize_without_scratch_and_with_archiver():
+    runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
     runner._archiver = MagicMock()
@@ -918,8 +918,8 @@ def test_qqrunner_finalize_without_scratch_and_with_archiver():
     runner._updateInfoFinished.assert_called_once()
 
 
-def test_qqrunner_finalize_without_scratch_and_without_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_finalize_without_scratch_and_without_archiver():
+    runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
     runner._archiver = None
@@ -940,8 +940,8 @@ def test_qqrunner_finalize_without_scratch_and_without_archiver():
     runner._updateInfoFinished.assert_called_once()
 
 
-def test_qqrunner_finalize_with_scratch_archiver_and_resubmit():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_finalize_with_scratch_archiver_and_resubmit():
+    runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
     runner._archiver = MagicMock()
@@ -969,14 +969,14 @@ def test_qqrunner_finalize_with_scratch_archiver_and_resubmit():
     runner._resubmit.assert_called_once()
 
 
-def test_qqrunner_execute_updates_info_and_runs_script(tmp_path):
+def test_runner_execute_updates_info_and_runs_script(tmp_path):
     script_file = tmp_path / "script.sh"
     script_file.write_text("#!/bin/bash\necho Hello\n")
 
     stdout_file = tmp_path / "stdout.log"
     stderr_file = tmp_path / "stderr.log"
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._updateInfoRunning = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.script_name = str(script_file)
@@ -1014,14 +1014,14 @@ def test_qqrunner_execute_updates_info_and_runs_script(tmp_path):
     assert retcode == 0
 
 
-def test_qqrunner_execute_handles_no_resubmit_exit_code(tmp_path):
+def test_runner_execute_handles_no_resubmit_exit_code(tmp_path):
     script_file = tmp_path / "script.sh"
     script_file.write_text("#!/bin/bash\necho Hello\n")
 
     stdout_file = tmp_path / "stdout.log"
     stderr_file = tmp_path / "stderr.log"
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._updateInfoRunning = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.script_name = str(script_file)
@@ -1062,8 +1062,8 @@ def test_qqrunner_execute_handles_no_resubmit_exit_code(tmp_path):
     assert retcode == 0
 
 
-def test_qqrunner_prepare_with_scratch_and_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_prepare_with_scratch_and_archiver():
+    runner = Runner.__new__(Runner)
     runner._use_scratch = True
     runner._archiver = MagicMock()
     runner._setUpScratchDir = MagicMock()
@@ -1088,8 +1088,8 @@ def test_qqrunner_prepare_with_scratch_and_archiver():
     mock_logger.debug.assert_any_call("Archiving run time files from cycle 1.")
 
 
-def test_qqrunner_prepare_with_scratch_and_without_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_prepare_with_scratch_and_without_archiver():
+    runner = Runner.__new__(Runner)
     runner._use_scratch = True
     runner._archiver = None
     runner._setUpScratchDir = MagicMock()
@@ -1101,8 +1101,8 @@ def test_qqrunner_prepare_with_scratch_and_without_archiver():
     runner._setUpSharedDir.assert_not_called()
 
 
-def test_qqrunner_prepare_without_scratch_and_with_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_prepare_without_scratch_and_with_archiver():
+    runner = Runner.__new__(Runner)
     runner._use_scratch = False
     runner._archiver = MagicMock()
     runner._setUpScratchDir = MagicMock()
@@ -1125,8 +1125,8 @@ def test_qqrunner_prepare_without_scratch_and_with_archiver():
     runner._setUpScratchDir.assert_not_called()
 
 
-def test_qqrunner_prepare_without_scratch_and_without_archiver():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_prepare_without_scratch_and_without_archiver():
+    runner = Runner.__new__(Runner)
     runner._use_scratch = False
     runner._archiver = None
     runner._setUpScratchDir = MagicMock()
@@ -1173,13 +1173,13 @@ def test_log_fatal_error_and_exit_unknown_exception():
 
 @patch("qq_lib.run.runner.Retryer")
 @patch("qq_lib.run.runner.Informer")
-def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
+def test_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
     mock_retryer = MagicMock()
     mock_informer = MagicMock()
     mock_retryer.run.return_value = mock_informer
     mock_retryer_cls.return_value = mock_retryer
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._info_file = "job.qqinfo"
     runner._input_machine = "host"
 
@@ -1198,11 +1198,11 @@ def test_qq_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
 
 @patch("qq_lib.run.runner.Retryer")
 @patch("qq_lib.run.runner.Informer")
-def test_qq_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
+def test_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
     mock_informer = MagicMock()
     mock_informer_cls.fromFile.return_value = mock_informer
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._info_file = "job.qqinfo"
     runner._input_machine = "host"
 
@@ -1213,28 +1213,28 @@ def test_qq_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls
     assert runner._informer == mock_informer
 
 
-def test_qq_runner_ensure_matches_job_with_matching_numeric_id():
+def test_runner_ensure_matches_job_with_matching_numeric_id():
     informer = MagicMock()
     informer.info.job_id = "12345.cluster.domain"
     informer.matchesJob = (
         lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
     )
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._info_file = "job.qqinfo"
 
     runner._ensureMatchesJob("12345")
 
 
-def test_qq_runner_ensure_matches_job_with_different_numeric_id_raises():
+def test_runner_ensure_matches_job_with_different_numeric_id_raises():
     informer = MagicMock()
     informer.info.job_id = "99999.cluster.domain"
     informer.matchesJob = (
         lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
     )
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._info_file = "job.qqinfo"
 
@@ -1242,25 +1242,25 @@ def test_qq_runner_ensure_matches_job_with_different_numeric_id_raises():
         runner._ensureMatchesJob("12345")
 
 
-def test_qq_runner_ensure_matches_job_with_partial_suffix_matching():
+def test_runner_ensure_matches_job_with_partial_suffix_matching():
     informer = MagicMock()
     informer.info.job_id = "5678.random.server.org"
     informer.matchesJob = (
         lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
     )
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._info_file = "job.qqinfo"
 
     runner._ensureMatchesJob("5678")
 
 
-def test_qq_runner_ensure_not_killed_passes_when_not_killed():
+def test_runner_ensure_not_killed_passes_when_not_killed():
     informer = MagicMock()
     informer.info.job_state = NaiveState.RUNNING
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer
 
     runner._ensureNotKilled()
@@ -1268,19 +1268,19 @@ def test_qq_runner_ensure_not_killed_passes_when_not_killed():
     assert informer.info.job_state == NaiveState.RUNNING
 
 
-def test_qq_runner_ensure_not_killed_raises_when_killed():
+def test_runner_ensure_not_killed_raises_when_killed():
     informer = MagicMock()
     informer.info.job_state = NaiveState.KILLED
 
-    runner = QQRunner.__new__(QQRunner)
+    runner = Runner.__new__(Runner)
     runner._informer = informer
 
     with pytest.raises(QQRunCommunicationError, match="Job has been killed"):
         runner._ensureNotKilled()
 
 
-def test_qq_runner_reload_info_and_ensure_valid_calls_all_methods():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_reload_info_and_ensure_valid_calls_all_methods():
+    runner = Runner.__new__(Runner)
     runner._informer = MagicMock()
     runner._informer.info.job_id = "12345"
 
@@ -1295,8 +1295,8 @@ def test_qq_runner_reload_info_and_ensure_valid_calls_all_methods():
     runner._ensureNotKilled.assert_called_once()
 
 
-def test_qq_runner_reload_info_and_ensure_valid_raises_on_job_mismatch():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_reload_info_and_ensure_valid_raises_on_job_mismatch():
+    runner = Runner.__new__(Runner)
     runner._informer = MagicMock()
     runner._informer.info.job_id = "12345"
 
@@ -1311,8 +1311,8 @@ def test_qq_runner_reload_info_and_ensure_valid_raises_on_job_mismatch():
     runner._ensureNotKilled.assert_not_called()
 
 
-def test_qq_runner_reload_info_and_ensure_valid_raises_on_killed_state():
-    runner = QQRunner.__new__(QQRunner)
+def test_runner_reload_info_and_ensure_valid_raises_on_killed_state():
+    runner = Runner.__new__(Runner)
     runner._informer = MagicMock()
     runner._informer.info.job_id = "12345"
 

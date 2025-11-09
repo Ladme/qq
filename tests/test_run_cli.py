@@ -9,10 +9,10 @@ from click.testing import CliRunner
 
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
 from qq_lib.run.cli import CFG, ensureQQEnv, run
-from qq_lib.run.runner import QQRunner
+from qq_lib.run.runner import Runner
 
 
-def test_ensureQQEnv_raises_if_guard_missing(monkeypatch):
+def test_ensure_qq_env_raises_if_guard_missing(monkeypatch):
     # remove CFG.env_vars.guard from environment
     monkeypatch.delenv(CFG.env_vars.guard, raising=False)
 
@@ -20,7 +20,7 @@ def test_ensureQQEnv_raises_if_guard_missing(monkeypatch):
         ensureQQEnv()
 
 
-def test_ensureQQEnv_passes_if_guard_present(monkeypatch):
+def test_ensure_qq_env_passes_if_guard_present(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.guard, "1")
 
     # should not raise
@@ -76,7 +76,7 @@ def test_run_executes_and_exits_with_script_code(monkeypatch):
     dummy_runner.prepare = MagicMock()
     dummy_runner.finalize = MagicMock()
 
-    with patch("qq_lib.run.cli.QQRunner", return_value=dummy_runner):
+    with patch("qq_lib.run.cli.Runner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
     dummy_runner.prepare.assert_called_once()
@@ -97,9 +97,9 @@ def test_run_exits_91_on_standard_qqerror(monkeypatch):
     dummy_runner.execute.side_effect = QQError("standard qq error")
     dummy_runner.prepare = MagicMock()
     dummy_runner.finalize = MagicMock()
-    dummy_runner.logFailureAndExit = QQRunner.logFailureAndExit.__get__(dummy_runner)
+    dummy_runner.logFailureAndExit = Runner.logFailureAndExit.__get__(dummy_runner)
 
-    with patch("qq_lib.run.cli.QQRunner", return_value=dummy_runner):
+    with patch("qq_lib.run.cli.Runner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.default
@@ -113,8 +113,8 @@ def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.info_file, "dummy.qqinfo")
     monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
-    # simulate QQRunner raising QQRunFatalError during initialization
-    with patch("qq_lib.run.cli.QQRunner", side_effect=QQRunFatalError("fatal error")):
+    # simulate Runner raising QQRunFatalError during initialization
+    with patch("qq_lib.run.cli.Runner", side_effect=QQRunFatalError("fatal error")):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
@@ -128,14 +128,14 @@ def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.info_file, "dummy.qqinfo")
     monkeypatch.setenv(CFG.env_vars.input_machine, "random.host.org")
 
-    # simulate QQRunner.execute raising QQRunCommunicationError
+    # simulate Runner.execute raising QQRunCommunicationError
     dummy_runner = MagicMock()
     dummy_runner.execute.side_effect = QQRunCommunicationError("comm error")
     dummy_runner.prepare = MagicMock()
     dummy_runner.finalize = MagicMock()
-    dummy_runner.logFailureAndExit = QQRunner.logFailureAndExit.__get__(dummy_runner)
+    dummy_runner.logFailureAndExit = Runner.logFailureAndExit.__get__(dummy_runner)
 
-    with patch("qq_lib.run.cli.QQRunner", return_value=dummy_runner):
+    with patch("qq_lib.run.cli.Runner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.qq_run_communication

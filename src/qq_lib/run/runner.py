@@ -32,11 +32,11 @@ from qq_lib.properties.states import NaiveState
 logger = get_logger(__name__, show_time=True)
 
 
-class QQRunner:
+class Runner:
     """
     Manages the setup, execution, and cleanup of scripts within the qq batch environment.
 
-    The QQRunner class is responsible for:
+    The Runner class is responsible for:
       - Preparing a working directory (shared or scratch space)
       - Executing a provided job script
       - Updating the job info file with run state, success, or failure
@@ -45,7 +45,7 @@ class QQRunner:
 
     def __init__(self, info_file: Path, host: str):
         """
-        Initialize a new QQRunner instance.
+        Initialize a new Runner instance.
 
         Args:
             info_file (Path): Path to the qq info file that contains job metadata.
@@ -376,7 +376,7 @@ class QQRunner:
         Update the qq info file to mark the job as running.
 
         Raises:
-            QQRunCommunicationError: If the job was killed without informing QQRunner.
+            QQRunCommunicationError: If the job was killed without informing Runner.
             QQError: If the info file cannot be updated.
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
@@ -415,7 +415,7 @@ class QQRunner:
         Logs errors as warnings if updating fails.
 
         Raises:
-            QQRunCommunicationError: If the job was killed without informing QQRunner.
+            QQRunCommunicationError: If the job was killed without informing Runner.
         """
         logger.debug(f"Updating '{self._info_file}' at job completion.")
         self._reloadInfoAndEnsureValid()
@@ -444,7 +444,7 @@ class QQRunner:
         Logs errors as warnings if updating fails.
 
         Raises:
-            QQRunCommunicationError: If the job was killed without informing QQRunner.
+            QQRunCommunicationError: If the job was killed without informing Runner.
         """
         logger.debug(f"Updating '{self._info_file}' at job failure.")
         self._reloadInfoAndEnsureValid()

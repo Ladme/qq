@@ -58,7 +58,7 @@ class TimeoutSettings:
 
 @dataclass
 class RunnerSettings:
-    """Settings for QQRunner operations."""
+    """Settings for Runner operations."""
 
     retry_tries: int = 3
     retry_wait: int = 300

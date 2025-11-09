@@ -19,7 +19,7 @@ from qq_lib.properties.resources import Resources
 logger = get_logger(__name__)
 
 
-class QQParser:
+class Parser:
     """
     Parser for qq job submission options specified in a script.
     """
@@ -36,7 +36,7 @@ class QQParser:
         self._script = script
         self._known_options = {p.name for p in params if isinstance(p, GroupedOption)}
         logger.debug(
-            f"Known options for QQParser: {self._known_options} ({len(self._known_options)} options)."
+            f"Known options for Parser: {self._known_options} ({len(self._known_options)} options)."
         )
 
         self._options: dict[str, object] = {}
@@ -66,19 +66,19 @@ class QQParser:
             for line in f:
                 stripped = line.strip()
                 if stripped == "":
-                    logger.debug("QQParser: skipping empty line.")
+                    logger.debug("Parser: skipping empty line.")
                     continue  # skip empty lines
 
                 # check whether this is a qq command
                 if not re.match(r"#\s*qq", stripped, re.IGNORECASE):
                     if stripped.startswith("#"):
-                        logger.debug(f"QQParser: skipping commented line '{line}'.")
+                        logger.debug(f"Parser: skipping commented line '{line}'.")
                         continue  # skip commented lines
-                    logger.debug(f"QQParser: ending parsing at line '{line}'.")
+                    logger.debug(f"Parser: ending parsing at line '{line}'.")
                     break  # stop parsing at other lines
 
                 # remove the leading '# qq' and split by whitespace or '='
-                parts = QQParser._stripAndSplit(line)
+                parts = Parser._stripAndSplit(line)
                 if len(parts) < 2:
                     raise QQError(
                         f"Invalid qq submit option line in '{str(self._script)}': {line}."

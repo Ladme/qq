@@ -19,7 +19,7 @@ from qq_lib.submit.factory import SubmitterFactory
 logger = get_logger(__name__)
 
 
-# Note that all options must be part of an optgroup otherwise QQParser breaks.
+# Note that all options must be part of an optgroup otherwise Parser breaks.
 @click.command(
     short_help="Submit a job to the batch system.",
     help=f"""

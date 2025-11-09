@@ -9,5 +9,5 @@ This module manages submission of qq jobs using the QQSubmitter class.
 
 from .cli import submit
 from .factory import SubmitterFactory
-from .parser import QQParser
+from .parser import Parser
 from .submitter import QQSubmitter

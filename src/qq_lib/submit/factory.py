@@ -14,7 +14,7 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 
-from .parser import QQParser
+from .parser import Parser
 from .submitter import QQSubmitter
 
 
@@ -36,7 +36,7 @@ class SubmitterFactory:
             command_line (list[str]): All the arguments and options specified on the command line.
             **kwargs: Keyword arguments from the command line.
         """
-        self._parser = QQParser(script, params)
+        self._parser = Parser(script, params)
         self._script = script
         self._input_dir = script.parent
         self._kwargs = kwargs

@@ -23,7 +23,7 @@ def test_submitter_factory_init(tmp_path):
     command_line = ["-q", "default", str(script)]
     kwargs = {"queue": "default"}
 
-    with patch("qq_lib.submit.factory.QQParser") as mock_parser_class:
+    with patch("qq_lib.submit.factory.Parser") as mock_parser_class:
         mock_parser_instance = MagicMock()
         mock_parser_class.return_value = mock_parser_instance
 

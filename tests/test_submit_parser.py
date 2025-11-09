@@ -18,12 +18,12 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 from qq_lib.submit import submit
-from qq_lib.submit.parser import QQParser
+from qq_lib.submit.parser import Parser
 
 # ruff: noqa: W293
 
 
-def test_qqparser_init(tmp_path):
+def test_parser_init(tmp_path):
     script = tmp_path / "script.sh"
 
     param1 = MagicMock(spec=GroupedOption)
@@ -33,7 +33,7 @@ def test_qqparser_init(tmp_path):
     param3 = MagicMock(spec=GroupedOption)
     param3.name = "opt3"
 
-    parser = QQParser(script, [param1, param2, param3])
+    parser = Parser(script, [param1, param2, param3])
     assert parser._known_options == {"opt1", "opt3"}
     assert parser._options == {}
 
@@ -82,20 +82,20 @@ def test_qqparser_init(tmp_path):
         ("", [""]),
     ],
 )
-def test_qqparser_strip_and_split(input_line, expected):
-    assert QQParser._stripAndSplit(input_line) == expected
+def test_parser_strip_and_split(input_line, expected):
+    assert Parser._stripAndSplit(input_line) == expected
 
 
-def test_qqparser_get_depend_empty_list():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_depend_empty_list():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getDepend()
     assert result == []
 
 
-def test_qqparser_get_depend_calls_multi_from_str():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_depend_calls_multi_from_str():
+    parser = Parser.__new__(Parser)
     parser._options = {"depend": "afterok=1234,after=2345"}
 
     mock_depend_list = [MagicMock(), MagicMock()]
@@ -109,96 +109,96 @@ def test_qqparser_get_depend_calls_multi_from_str():
     assert result == mock_depend_list
 
 
-def test_qqparser_get_archive_format_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_archive_format_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getArchiveFormat()
     assert result is None
 
 
-def test_qqparser_get_archive_format_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_archive_format_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"archive_format": "job%04d"}
 
     result = parser.getArchiveFormat()
     assert result == "job%04d"
 
 
-def test_qqparser_get_archive_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_archive_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getArchive()
     assert result is None
 
 
-def test_qqparser_get_archive_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_archive_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"archive": "storage"}
 
     result = parser.getArchive()
     assert result == Path("storage")
 
 
-def test_qqparser_get_loop_end_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_loop_end_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getLoopEnd()
     assert result is None
 
 
-def test_qqparser_get_loop_end_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_loop_end_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"loop_end": 10}
 
     result = parser.getLoopEnd()
     assert result == 10
 
 
-def test_qqparser_get_loop_start_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_loop_start_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getLoopStart()
     assert result is None
 
 
-def test_qqparser_get_loop_start_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_loop_start_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"loop_start": 2}
 
     result = parser.getLoopStart()
     assert result == 2
 
 
-def test_qqparser_get_account_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_account_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"account": "parser_account"}
 
     result = parser.getAccount()
     assert result == "parser_account"
 
 
-def test_qqparser_get_account_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_account_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getAccount()
     assert result is None
 
 
-def test_qqparser_get_exclude_empty_list():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_exclude_empty_list():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getExclude()
     assert result == []
 
 
-def test_qqparser_get_exclude_calls_split_files_list():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_exclude_calls_split_files_list():
+    parser = Parser.__new__(Parser)
     parser._options = {"exclude": "file1,file2"}
 
     mock_split_result = [Path("file1"), Path("file2")]
@@ -212,8 +212,8 @@ def test_qqparser_get_exclude_calls_split_files_list():
     assert result == mock_split_result
 
 
-def test_qqparser_get_resources_returns_empty_resources_if_no_matching_options():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_resources_returns_empty_resources_if_no_matching_options():
+    parser = Parser.__new__(Parser)
     parser._options = {"foo": "bar"}  # not a Resources field
 
     result = parser.getResources()
@@ -223,8 +223,8 @@ def test_qqparser_get_resources_returns_empty_resources_if_no_matching_options()
         assert getattr(result, f.name) == f.default or getattr(result, f.name) is None
 
 
-def test_qqparser_get_resources_returns_resources_with_matching_fields():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_resources_returns_resources_with_matching_fields():
+    parser = Parser.__new__(Parser)
     parser._options = {"ncpus": 4, "mem": "4gb", "foo": "bar"}
 
     result = parser.getResources()
@@ -234,16 +234,16 @@ def test_qqparser_get_resources_returns_resources_with_matching_fields():
     assert getattr(result, "mem") == Size(4, "gb")
 
 
-def test_qqparser_get_job_type_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_job_type_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getJobType()
     assert result is None
 
 
-def test_qqparser_get_job_type_calls_from_str():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_job_type_calls_from_str():
+    parser = Parser.__new__(Parser)
     parser._options = {"job_type": "standard"}
 
     mock_enum = JobType.STANDARD
@@ -255,32 +255,32 @@ def test_qqparser_get_job_type_calls_from_str():
     assert result == mock_enum
 
 
-def test_qqparser_get_queue_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_queue_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getQueue()
     assert result is None
 
 
-def test_qqparser_get_queue_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_queue_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"queue": "default"}
 
     result = parser.getQueue()
     assert result == "default"
 
 
-def test_qqparser_get_batch_system_none():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_batch_system_none():
+    parser = Parser.__new__(Parser)
     parser._options = {}
 
     result = parser.getBatchSystem()
     assert result is None
 
 
-def test_qqparser_get_batch_system_value():
-    parser = QQParser.__new__(QQParser)
+def test_parser_get_batch_system_value():
+    parser = Parser.__new__(Parser)
     parser._options = {"batch_system": "PBS"}
 
     mock_class = MagicMock(spec=BatchInterface)
@@ -302,7 +302,7 @@ def temp_script_file():
         tmp_file_path.unlink()
 
 
-def test_qqparser_parse_integration_happy_path(temp_script_file):
+def test_parser_parse_integration_happy_path(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 
@@ -324,7 +324,7 @@ command run here # parsing ends here
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -342,7 +342,7 @@ command run here # parsing ends here
     assert opts["mem_per_cpu"] == "1gb"
 
 
-def test_qqparser_parse_integration_works_with_key_value_separator_equals(
+def test_parser_parse_integration_works_with_key_value_separator_equals(
     temp_script_file,
 ):
     tmp_file, path = temp_script_file
@@ -352,7 +352,7 @@ def test_qqparser_parse_integration_works_with_key_value_separator_equals(
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -360,31 +360,31 @@ def test_qqparser_parse_integration_works_with_key_value_separator_equals(
     assert opts["work_dir"] == "scratch_ssd"
 
 
-def test_qqparser_parse_integration_raises_for_malformed_line(temp_script_file):
+def test_parser_parse_integration_raises_for_malformed_line(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     with pytest.raises(QQError, match="Invalid qq submit option line"):
         parser.parse()
 
 
-def test_qqparser_parse_integration_raises_for_unknown_option(temp_script_file):
+def test_parser_parse_integration_raises_for_unknown_option(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq unknown_option=42
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     with pytest.raises(QQError, match="Unknown qq submit option"):
         parser.parse()
 
 
-def test_qqparser_parse_integration_stops_at_first_non_qq_line(temp_script_file):
+def test_parser_parse_integration_stops_at_first_non_qq_line(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus 8
@@ -393,7 +393,7 @@ qq command that should stop parsing
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -402,7 +402,7 @@ qq command that should stop parsing
     assert "work_dir" not in opts
 
 
-def test_qqparser_parse_integration_skips_empty_lines(temp_script_file):
+def test_parser_parse_integration_skips_empty_lines(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus 8
@@ -411,7 +411,7 @@ def test_qqparser_parse_integration_skips_empty_lines(temp_script_file):
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -419,7 +419,7 @@ def test_qqparser_parse_integration_skips_empty_lines(temp_script_file):
     assert opts["work_dir"] == "scratch_local"
 
 
-def test_qqparser_parse_integration_skips_empty_lines_at_start(temp_script_file):
+def test_parser_parse_integration_skips_empty_lines_at_start(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
   
@@ -433,7 +433,7 @@ def test_qqparser_parse_integration_skips_empty_lines_at_start(temp_script_file)
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -441,7 +441,7 @@ def test_qqparser_parse_integration_skips_empty_lines_at_start(temp_script_file)
     assert opts["work_dir"] == "scratch_local"
 
 
-def test_qqparser_parse_integration_skips_commented_lines(temp_script_file):
+def test_parser_parse_integration_skips_commented_lines(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus 8
@@ -450,7 +450,7 @@ def test_qqparser_parse_integration_skips_commented_lines(temp_script_file):
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -458,7 +458,7 @@ def test_qqparser_parse_integration_skips_commented_lines(temp_script_file):
     assert opts["work_dir"] == "scratch_local"
 
 
-def test_qqparser_parse_integration_commented_out_qq_command(temp_script_file):
+def test_parser_parse_integration_commented_out_qq_command(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus 8
@@ -466,7 +466,7 @@ def test_qqparser_parse_integration_commented_out_qq_command(temp_script_file):
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -474,7 +474,7 @@ def test_qqparser_parse_integration_commented_out_qq_command(temp_script_file):
     assert "work_dir" not in opts
 
 
-def test_qqparser_parse_integration_normalizes_keys_and_integer_conversion(
+def test_parser_parse_integration_normalizes_keys_and_integer_conversion(
     temp_script_file,
 ):
     tmp_file, path = temp_script_file
@@ -486,7 +486,7 @@ def test_qqparser_parse_integration_normalizes_keys_and_integer_conversion(
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -498,7 +498,7 @@ def test_qqparser_parse_integration_normalizes_keys_and_integer_conversion(
     assert opts["ngpus"] == 4
 
 
-def test_qqparser_parse_integration_inline_comments_are_ignored(temp_script_file):
+def test_parser_parse_integration_inline_comments_are_ignored(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 # qq ncpus 8  # inline comments are also allowed
@@ -506,7 +506,7 @@ def test_qqparser_parse_integration_inline_comments_are_ignored(temp_script_file
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     opts = parser._options
@@ -514,7 +514,7 @@ def test_qqparser_parse_integration_inline_comments_are_ignored(temp_script_file
     assert opts["work_dir"] == "scratch_local"
 
 
-def test_qqparser_parse_integration_no_qq_lines(temp_script_file):
+def test_parser_parse_integration_no_qq_lines(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
 random_command
@@ -523,13 +523,13 @@ another_random_command
 """)
     tmp_file.flush()
 
-    parser = QQParser(path, submit.params)
+    parser = Parser(path, submit.params)
     parser.parse()
 
     assert parser._options == {}
 
 
-def test_qqparser_integration():
+def test_parser_integration():
     script_content = """#!/usr/bin/env -S qq run
 # Qq   BatchSystem=PBS
 # qq queue  default
@@ -566,7 +566,7 @@ exit 0
         tmp_file.write(script_content)
         tmp_file_path = Path(tmp_file.name)
 
-    parser = QQParser(tmp_file_path, submit.params)
+    parser = Parser(tmp_file_path, submit.params)
     parser.parse()
 
     batch_system = parser.getBatchSystem()
@@ -600,7 +600,7 @@ exit 0
     tmp_file_path.unlink()
 
 
-def test_qqparser_integration_nonexistent_script_raises():
-    parser = QQParser(Path("non_existent.sh"), submit.params)
+def test_parser_integration_nonexistent_script_raises():
+    parser = Parser(Path("non_existent.sh"), submit.params)
     with pytest.raises(QQError, match="Could not open"):
         parser.parse()

@@ -9,7 +9,7 @@ from qq_lib.info.informer import QQInformer
 from qq_lib.info.presenter import QQPresenter
 
 
-class QQOperator:
+class Operator:
     """
     Base class for performing operations with qq jobs.
 
@@ -23,7 +23,7 @@ class QQOperator:
 
     def __init__(self, info_file: Path, host: str | None = None):
         """
-        Initialize a QQOperator instance from a qq info file.
+        Initialize an Operator instance from a qq info file.
 
         Args:
             info_file (Path): Path to the qq info file describing the job.

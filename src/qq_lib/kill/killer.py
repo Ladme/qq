@@ -7,13 +7,13 @@ from pathlib import Path
 
 from qq_lib.core.error import QQNotSuitableError
 from qq_lib.core.logger import get_logger
-from qq_lib.core.operator import QQOperator
+from qq_lib.core.operator import Operator
 from qq_lib.properties.states import RealState
 
 logger = get_logger(__name__)
 
 
-class QQKiller(QQOperator):
+class QQKiller(Operator):
     """
     Class to manage the termination of a qq job.
     """

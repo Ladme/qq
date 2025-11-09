@@ -8,12 +8,12 @@ from pathlib import Path
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.states import RealState
 
-from .operator import QQOperator
+from .operator import Operator
 
 logger = get_logger(__name__)
 
 
-class QQNavigator(QQOperator):
+class QQNavigator(Operator):
     """
     Base class for performing operations with job's working directory.
 

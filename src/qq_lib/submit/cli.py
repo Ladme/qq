@@ -14,7 +14,7 @@ from qq_lib.core.common import get_runtime_files
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.submit.factory import QQSubmitterFactory
+from qq_lib.submit.factory import SubmitterFactory
 
 logger = get_logger(__name__)
 
@@ -171,7 +171,7 @@ def submit(script: str, **kwargs) -> NoReturn:
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
         # parse options from the command line and from the script itself
-        factory = QQSubmitterFactory(
+        factory = SubmitterFactory(
             script_path.resolve(), submit.params, sys.argv[2:], **kwargs
         )
         submitter = factory.makeSubmitter()

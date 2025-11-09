@@ -18,9 +18,9 @@ from .parser import QQParser
 from .submitter import QQSubmitter
 
 
-class QQSubmitterFactory:
+class SubmitterFactory:
     """
-    Factory class to construct a QQSubmitter instance based on parameters from
+    Factory class to construct a Submitter instance based on parameters from
     the command-line and from the script itself.
     """
 

@@ -15,7 +15,7 @@ from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 
 from .parser import Parser
-from .submitter import QQSubmitter
+from .submitter import Submitter
 
 
 class SubmitterFactory:
@@ -42,12 +42,12 @@ class SubmitterFactory:
         self._kwargs = kwargs
         self._command_line = command_line
 
-    def makeSubmitter(self) -> QQSubmitter:
+    def makeSubmitter(self) -> Submitter:
         """
-        Construct and return a QQSubmitter instance.
+        Construct and return a Submitter instance.
 
         Returns:
-            QQSubmitter: A fully initialized submitter object ready to submit a job.
+            Submitter: A fully initialized submitter object ready to submit a job.
 
         Raises:
             QQError: If required information, such as the submission queue, is missing.
@@ -62,7 +62,7 @@ class SubmitterFactory:
         else:
             loop_info = None
 
-        return QQSubmitter(
+        return Submitter(
             BatchSystem,
             queue,
             self._getAccount(),

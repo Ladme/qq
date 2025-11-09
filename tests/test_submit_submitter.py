@@ -18,18 +18,18 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
-from qq_lib.submit.submitter import CFG, QQSubmitter
+from qq_lib.submit.submitter import CFG, Submitter
 
 
-def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
+def test_submitter_init_sets_all_attributes_correctly(tmp_path):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
     with (
-        patch.object(QQSubmitter, "_constructJobName", return_value="job1"),
-        patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+        patch.object(Submitter, "_constructJobName", return_value="job1"),
+        patch.object(Submitter, "_hasValidShebang", return_value=True),
     ):
-        submitter = QQSubmitter(
+        submitter = Submitter(
             batch_system=PBS,
             queue="default",
             account=None,
@@ -54,11 +54,11 @@ def test_qqsubmitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._depend == []
 
 
-def test_qqsubmitter_init_raises_error_if_script_does_not_exist(tmp_path):
+def test_submitter_init_raises_error_if_script_does_not_exist(tmp_path):
     script = tmp_path / "nonexistent.sh"
 
     with pytest.raises(QQError, match="does not exist"):
-        QQSubmitter(
+        Submitter(
             batch_system=PBS,
             queue="default",
             account=None,
@@ -69,16 +69,16 @@ def test_qqsubmitter_init_raises_error_if_script_does_not_exist(tmp_path):
         )
 
 
-def test_qqsubmitter_init_raises_error_if_invalid_shebang(tmp_path):
+def test_submitter_init_raises_error_if_invalid_shebang(tmp_path):
     script = tmp_path / "bad_script.sh"
     script.write_text("invalid shebang\n")
 
     with (
-        patch.object(QQSubmitter, "_constructJobName", return_value="job1"),
-        patch.object(QQSubmitter, "_hasValidShebang", return_value=False),
+        patch.object(Submitter, "_constructJobName", return_value="job1"),
+        patch.object(Submitter, "_hasValidShebang", return_value=False),
         pytest.raises(QQError, match="invalid shebang"),
     ):
-        QQSubmitter(
+        Submitter(
             batch_system=PBS,
             queue="default",
             account="fake-account",
@@ -89,7 +89,7 @@ def test_qqsubmitter_init_raises_error_if_invalid_shebang(tmp_path):
         )
 
 
-def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
+def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
@@ -101,10 +101,10 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
     ]
 
     with (
-        patch.object(QQSubmitter, "_constructJobName", return_value="job"),
-        patch.object(QQSubmitter, "_hasValidShebang", return_value=True),
+        patch.object(Submitter, "_constructJobName", return_value="job"),
+        patch.object(Submitter, "_hasValidShebang", return_value=True),
     ):
-        submitter = QQSubmitter(
+        submitter = Submitter(
             batch_system=PBS,
             queue="long",
             account="fake-account",
@@ -133,12 +133,12 @@ def test_qqsubmitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._depend == depend_jobs
 
 
-def test_qqsubmitter_construct_job_name_returns_script_name_for_standard_job(
+def test_submitter_construct_job_name_returns_script_name_for_standard_job(
     tmp_path,
 ):
     script = tmp_path / "job.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     submitter._script_name = "job.sh"
     submitter._loop_info = None
 
@@ -147,12 +147,12 @@ def test_qqsubmitter_construct_job_name_returns_script_name_for_standard_job(
     assert result == "job.sh"
 
 
-def test_qqsubmitter_construct_job_name_returns_name_with_cycle_number_for_loop_job(
+def test_submitter_construct_job_name_returns_name_with_cycle_number_for_loop_job(
     tmp_path,
 ):
     script = tmp_path / "job.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     submitter._script_name = "job.sh"
 
     class DummyLoopInfo:
@@ -165,46 +165,46 @@ def test_qqsubmitter_construct_job_name_returns_name_with_cycle_number_for_loop_
     assert result == f"job.sh{CFG.loop_jobs.pattern % 3}"
 
 
-def test_qqsubmitter_has_valid_shebang_returns_true_for_valid_shebang(tmp_path):
+def test_submitter_has_valid_shebang_returns_true_for_valid_shebang(tmp_path):
     script = tmp_path / "valid_script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     result = submitter._hasValidShebang(script)
 
     assert result is True
 
 
-def test_qqsubmitter_has_valid_shebang_returns_false_if_not_ending_with_qq_run(
+def test_submitter_has_valid_shebang_returns_false_if_not_ending_with_qq_run(
     tmp_path,
 ):
     script = tmp_path / "wrong_end.sh"
     script.write_text("#!/usr/bin/env python\n")
 
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     result = submitter._hasValidShebang(script)
 
     assert result is False
 
 
-def test_qqsubmitter__has_valid_shebang_returns_false_when_no_shebang_line(tmp_path):
+def test_submitter__has_valid_shebang_returns_false_when_no_shebang_line(tmp_path):
     script = tmp_path / "random_command.sh"
     script.write_text("echo 'hello world'\n")
 
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     result = submitter._hasValidShebang(script)
 
     assert result is False
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
-def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
+def test_submitter_create_env_vars_dict_sets_all_required_variables(
     tmp_path, debug_mode
 ):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     submitter._info_file = tmp_path / "job.qqinfo"
     submitter._batch_system = PBS
     submitter._loop_info = None
@@ -233,7 +233,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_all_required_variables(
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
-def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode):
+def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")
 
@@ -243,7 +243,7 @@ def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mo
         end = 5
         archive_format = "zip"
 
-    submitter = QQSubmitter.__new__(QQSubmitter)
+    submitter = Submitter.__new__(Submitter)
     submitter._info_file = tmp_path / "job.qqinfo"
     submitter._batch_system = "BatchSystem"
     submitter._loop_info = DummyLoop()
@@ -273,8 +273,8 @@ def test_qqsubmitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mo
         assert CFG.env_vars.debug_mode not in env
 
 
-def test_qqsubmitter_get_input_dir_returns_correct_path(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_get_input_dir_returns_correct_path(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._input_dir = tmp_path
 
     result = submitter.getInputDir()
@@ -282,8 +282,8 @@ def test_qqsubmitter_get_input_dir_returns_correct_path(tmp_path):
     assert result == tmp_path
 
 
-def test_qqsubmitter_continues_loop_returns_true_for_valid_continuation(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_continues_loop_returns_true_for_valid_continuation(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=2)
     submitter._input_dir = tmp_path
 
@@ -306,8 +306,8 @@ def test_qqsubmitter_continues_loop_returns_true_for_valid_continuation(tmp_path
     assert result is True
 
 
-def test_qqsubmitter_continues_loop_returns_false_if_previous_not_finished(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_continues_loop_returns_false_if_previous_not_finished(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=2)
     submitter._input_dir = tmp_path
 
@@ -330,8 +330,8 @@ def test_qqsubmitter_continues_loop_returns_false_if_previous_not_finished(tmp_p
     assert result is False
 
 
-def test_qqsubmitter_continues_loop_returns_false_if_previous_cycle_mismatch(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_continues_loop_returns_false_if_previous_cycle_mismatch(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=5)
     submitter._input_dir = tmp_path
 
@@ -354,8 +354,8 @@ def test_qqsubmitter_continues_loop_returns_false_if_previous_cycle_mismatch(tmp
     assert result is False
 
 
-def test_qqsubmitter_continues_loop_returns_false_if_no_loop_info_in_past(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_continues_loop_returns_false_if_no_loop_info_in_past(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=3)
     submitter._input_dir = tmp_path
 
@@ -378,8 +378,8 @@ def test_qqsubmitter_continues_loop_returns_false_if_no_loop_info_in_past(tmp_pa
     assert result is False
 
 
-def test_qqsubmitter_continues_loop_returns_false_if_no_loop_info_current(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_continues_loop_returns_false_if_no_loop_info_current(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._loop_info = None
     submitter._input_dir = tmp_path
 
@@ -402,8 +402,8 @@ def test_qqsubmitter_continues_loop_returns_false_if_no_loop_info_current(tmp_pa
     assert result is False
 
 
-def test_qqsubmitter_continues_loop_returns_false_on_qqerror(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_continues_loop_returns_false_on_qqerror(tmp_path):
+    submitter = Submitter.__new__(Submitter)
 
     submitter._loop_info = MagicMock(current=2)
     submitter._input_dir = tmp_path
@@ -414,8 +414,8 @@ def test_qqsubmitter_continues_loop_returns_false_on_qqerror(tmp_path):
     assert result is False
 
 
-def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._batch_system = MagicMock()
     submitter._resources = Resources()
     submitter._queue = "default"
@@ -462,8 +462,8 @@ def test_qq_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     assert result == "jobid123"
 
 
-def test_qq_submitter_submit(tmp_path):
-    submitter = QQSubmitter.__new__(QQSubmitter)
+def test_submitter_submit(tmp_path):
+    submitter = Submitter.__new__(Submitter)
     submitter._batch_system = MagicMock()
     submitter._resources = Resources()
     submitter._queue = "default"

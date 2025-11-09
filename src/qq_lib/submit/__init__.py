@@ -4,10 +4,10 @@
 # ruff: noqa: F401
 
 """
-This module manages submission of qq jobs using the QQSubmitter class.
+This module manages submission of qq jobs using the Submitter class.
 """
 
 from .cli import submit
 from .factory import SubmitterFactory
 from .parser import Parser
-from .submitter import QQSubmitter
+from .submitter import Submitter

@@ -352,7 +352,7 @@ def test_submitter_factory_make_submitter_standard_job():
         patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
-        patch("qq_lib.submit.factory.QQSubmitter") as mock_submitter_class,
+        patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
         mock_submitter_class.return_value = mock_submit_instance
@@ -412,7 +412,7 @@ def test_submitter_factory_make_submitter_loop_job():
         patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
-        patch("qq_lib.submit.factory.QQSubmitter") as mock_submitter_class,
+        patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
         mock_submitter_class.return_value = mock_submit_instance

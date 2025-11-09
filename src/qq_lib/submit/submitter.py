@@ -24,7 +24,7 @@ from qq_lib.properties.states import NaiveState
 logger = get_logger(__name__)
 
 
-class QQSubmitter:
+class Submitter:
     """
     Class to submit jobs to a batch system.
 
@@ -49,7 +49,7 @@ class QQSubmitter:
         depend: list[Depend] | None = None,
     ):
         """
-        Initialize a QQSubmitter instance.
+        Initialize a Submitter instance.
 
         Args:
             batch_system (type[BatchInterface]): The batch system class implementing

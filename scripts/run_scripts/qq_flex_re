@@ -144,8 +144,8 @@ if [[ -n "${HREX}" ]]; then
 fi
 
 if [[ -z "${MAX_TIME}" ]]; then
-    # maximum run time is automatically set to 97% of the job's walltime
-    MAX_TIME=$(echo "scale=3; (${QQ_WALLTIME} * 0.97) / 1" | bc)
+    # maximum run time is automatically set to 95% of the job's walltime
+    MAX_TIME=$(echo "scale=3; (${QQ_WALLTIME} * 0.95) / 1" | bc)
 fi
 echo "[QQ_FLEX_RE]    INFO    Setting the maximum Gromacs runtime to ${MAX_TIME} hours."
 

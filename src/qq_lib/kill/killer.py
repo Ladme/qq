@@ -13,7 +13,7 @@ from qq_lib.properties.states import RealState
 logger = get_logger(__name__)
 
 
-class QQKiller(Operator):
+class Killer(Operator):
     """
     Class to manage the termination of a qq job.
     """

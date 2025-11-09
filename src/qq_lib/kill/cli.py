@@ -26,7 +26,7 @@ from qq_lib.core.error_handlers import (
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
-from qq_lib.kill.killer import QQKiller
+from qq_lib.kill.killer import Killer
 
 logger = get_logger(__name__)
 console = Console()
@@ -122,7 +122,7 @@ def kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
         QQNotSuitableError: If the job is not suitable for termination.
         QQError: If the job cannot be killed or the qq info file cannot be updated.
     """
-    killer = QQKiller(info_file)
+    killer = Killer(info_file)
 
     # check that the info file in the killer corresponds
     # to the specified job

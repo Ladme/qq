@@ -13,7 +13,6 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.pbs import CFG
-from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import Resources
@@ -892,11 +891,15 @@ def test_translate_submit_complex_with_depend():
 def test_transform_resources_input_dir_warns_and_sets_work_dir():
     provided = Resources(work_dir="input_dir", work_size="10gb")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
         patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
         patch.object(Resources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
+        mock_instance = MagicMock()
+        mock_queue.return_value = mock_instance
+        mock_instance.getDefaultResources.return_value = Resources()
+
         res = PBS.transformResources(
             "gpu", Resources(work_dir="input_dir", work_size="10gb")
         )
@@ -911,11 +914,15 @@ def test_transform_resources_input_dir_warns_and_sets_work_dir():
 def test_transform_resources_job_dir_warns_and_sets_work_dir():
     provided = Resources(work_dir="input_dir", work_size="10gb")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
         patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
         patch.object(Resources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
+        mock_instance = MagicMock()
+        mock_queue.return_value = mock_instance
+        mock_instance.getDefaultResources.return_value = Resources()
+
         res = PBS.transformResources(
             "gpu", Resources(work_dir="job_dir", work_size="10gb")
         )
@@ -930,11 +937,15 @@ def test_transform_resources_job_dir_warns_and_sets_work_dir():
 def test_transform_resources_scratch_shm_warns_and_clears_work_size():
     provided = Resources(work_dir="scratch_shm", work_size="10gb")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
         patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
         patch.object(Resources, "mergeResources", return_value=provided),
         patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
     ):
+        mock_instance = MagicMock()
+        mock_queue.return_value = mock_instance
+        mock_instance.getDefaultResources.return_value = Resources()
+
         res = PBS.transformResources(
             "gpu", Resources(work_dir="scratch_shm", work_size="10gb")
         )
@@ -951,10 +962,14 @@ def test_transform_resources_supported_scratch():
     for scratch in PBS.SUPPORTED_SCRATCHES:
         provided = Resources(work_dir=scratch, work_size="10gb")
         with (
-            patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+            patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
             patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
             patch.object(Resources, "mergeResources", return_value=provided),
         ):
+            mock_instance = MagicMock()
+            mock_queue.return_value = mock_instance
+            mock_instance.getDefaultResources.return_value = Resources()
+
             res = PBS.transformResources(
                 "gpu", Resources(work_dir=scratch, work_size="10gb")
             )
@@ -968,10 +983,14 @@ def test_transform_resources_supported_scratch_unnormalized():
             work_dir=scratch.upper().replace("_", "-"), work_size="10gb"
         )
         with (
-            patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+            patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
             patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
             patch.object(Resources, "mergeResources", return_value=provided),
         ):
+            mock_instance = MagicMock()
+            mock_queue.return_value = mock_instance
+            mock_instance.getDefaultResources.return_value = Resources()
+
             res = PBS.transformResources(
                 "gpu",
                 Resources(work_dir=scratch.upper().replace("_", "-"), work_size="10gb"),
@@ -983,24 +1002,32 @@ def test_transform_resources_supported_scratch_unnormalized():
 def test_transform_resources_unknown_work_dir_raises():
     provided = Resources(work_dir="unknown_scratch")
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
         patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
         patch.object(Resources, "mergeResources", return_value=provided),
         pytest.raises(QQError, match="Unknown working directory type specified"),
     ):
+        mock_instance = MagicMock()
+        mock_queue.return_value = mock_instance
+        mock_instance.getDefaultResources.return_value = Resources()
+
         PBS.transformResources("gpu", Resources(work_dir="unknown_scratch"))
 
 
 def test_transform_resources_missing_work_dir_raises():
     provided = Resources(work_dir=None)
     with (
-        patch.object(PBSQueue, "getDefaultResources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
         patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
         patch.object(Resources, "mergeResources", return_value=provided),
         pytest.raises(
             QQError, match="Work-dir is not set after filling in default attributes"
         ),
     ):
+        mock_instance = MagicMock()
+        mock_queue.return_value = mock_instance
+        mock_instance.getDefaultResources.return_value = Resources()
+
         PBS.transformResources("gpu", Resources())
 
 

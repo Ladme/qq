@@ -21,8 +21,7 @@ jobs:
     
     - name: Install dependencies and pyinstaller
       run: |
-        uv sync
-        uv pip install pyinstaller
+        uv sync --all-groups
     
     - name: Get version
       id: get_version

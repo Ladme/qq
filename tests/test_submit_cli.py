@@ -26,7 +26,7 @@ def test_submit_successful(tmp_path):
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
         patch(
-            "qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock
+            "qq_lib.submit.cli.SubmitterFactory", return_value=factory_mock
         ) as mock_factory_class,
         patch("qq_lib.submit.cli.get_runtime_files", return_value=[]),
         patch("qq_lib.submit.cli.logger") as mock_logger,
@@ -68,7 +68,7 @@ def test_submit_detects_runtime_files_and_aborts(tmp_path):
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
-        patch("qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock),
+        patch("qq_lib.submit.cli.SubmitterFactory", return_value=factory_mock),
         patch(
             "qq_lib.submit.cli.get_runtime_files",
             return_value=[tmp_path / "file.qqout"],
@@ -99,7 +99,7 @@ def test_submit_continues_loop_even_with_runtime_files(tmp_path):
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
-        patch("qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock),
+        patch("qq_lib.submit.cli.SubmitterFactory", return_value=factory_mock),
         patch(
             "qq_lib.submit.cli.get_runtime_files",
             return_value=[tmp_path / "file.qqout"],
@@ -127,7 +127,7 @@ def test_submit_generic_exception_results_in_critical_log(tmp_path):
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
-        patch("qq_lib.submit.cli.QQSubmitterFactory", return_value=factory_mock),
+        patch("qq_lib.submit.cli.SubmitterFactory", return_value=factory_mock),
         patch("qq_lib.submit.cli.logger") as mock_logger,
     ):
         result = runner.invoke(submit, [str(script)])

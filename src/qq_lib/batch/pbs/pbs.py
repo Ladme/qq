@@ -9,9 +9,9 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchMeta
 from qq_lib.batch.interface.meta import batch_system
-from qq_lib.batch.pbs.common import parseMultiPBSDumpToDictionaries
+from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.common import equals_normalized
@@ -19,7 +19,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 from .job import PBSJob
 
@@ -27,45 +27,55 @@ logger = get_logger(__name__)
 
 
 @batch_system
-class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
+class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
     """
-    Implementation of QQBatchInterface for PBS Pro batch system.
+    Implementation of BatchInterface for PBS Pro batch system.
     """
 
     # all standard scratch directory (excl. in RAM scratch) types supported by PBS
     SUPPORTED_SCRATCHES = ["scratch_local", "scratch_ssd", "scratch_shared"]
 
-    def envName() -> str:
+    @classmethod
+    def envName(cls) -> str:
         return "PBS"
 
-    def isAvailable() -> bool:
+    @classmethod
+    def isAvailable(cls) -> bool:
         return shutil.which("qsub") is not None
 
-    def getJobId() -> str | None:
+    @classmethod
+    def getJobId(cls) -> str | None:
         return os.environ.get("PBS_JOBID")
 
-    def getScratchDir(job_id: str) -> Path:
+    @classmethod
+    def getScratchDir(cls, job_id: str) -> Path:
         scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
         if not scratch_dir:
             raise QQError(f"Scratch directory for job '{job_id}' is undefined")
 
         return Path(scratch_dir)
 
+    @classmethod
     def jobSubmit(
-        res: QQResources,
+        cls,
+        res: Resources,
         queue: str,
         script: Path,
         job_name: str,
         depend: list[Depend],
         env_vars: dict[str, str],
+        account: str | None = None,
     ) -> str:
-        QQPBS._sharedGuard(res, env_vars)
+        # account unused
+        _ = account
+
+        cls._sharedGuard(res, env_vars)
 
         # set env vars required for Infinity modules
-        env_vars.update(QQPBS._collectAMSEnvVars())
+        env_vars.update(cls._collectAMSEnvVars())
 
         # get the submission command
-        command = QQPBS._translateSubmit(
+        command = cls._translateSubmit(
             res,
             queue,
             script.parent,
@@ -93,8 +103,9 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
         return result.stdout.strip()
 
-    def jobKill(job_id: str) -> None:
-        command = QQPBS._translateKill(job_id)
+    @classmethod
+    def jobKill(cls, job_id: str) -> None:
+        command = cls._translateKill(job_id)
         logger.debug(command)
 
         # run the kill command
@@ -110,8 +121,9 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         if result.returncode != 0:
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def jobKillForce(job_id: str) -> None:
-        command = QQPBS._translateKillForce(job_id)
+    @classmethod
+    def jobKillForce(cls, job_id: str) -> None:
+        command = cls._translateKillForce(job_id)
         logger.debug(command)
 
         # run the kill command
@@ -127,33 +139,36 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         if result.returncode != 0:
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
-    def navigateToDestination(host: str, directory: Path) -> None:
-        QQBatchInterface.navigateToDestination(host, directory)
-
-    def getBatchJob(job_id: str) -> PBSJob:
+    @classmethod
+    def getBatchJob(cls, job_id: str) -> PBSJob:
         return PBSJob(job_id)  # ty: ignore[invalid-return-type]
 
-    def getUnfinishedBatchJobs(user: str) -> list[PBSJob]:
+    @classmethod
+    def getUnfinishedBatchJobs(cls, user: str) -> list[PBSJob]:
         command = f"qstat -fwu {user}"
         logger.debug(command)
-        return QQPBS._getBatchJobsUsingCommand(command)
+        return cls._getBatchJobsUsingCommand(command)
 
-    def getBatchJobs(user: str) -> list[PBSJob]:
+    @classmethod
+    def getBatchJobs(cls, user: str) -> list[PBSJob]:
         command = f"qstat -fwxu {user}"
         logger.debug(command)
-        return QQPBS._getBatchJobsUsingCommand(command)
+        return cls._getBatchJobsUsingCommand(command)
 
-    def getAllUnfinishedBatchJobs() -> list[PBSJob]:
+    @classmethod
+    def getAllUnfinishedBatchJobs(cls) -> list[PBSJob]:
         command = "qstat -fw"
         logger.debug(command)
-        return QQPBS._getBatchJobsUsingCommand(command)
+        return cls._getBatchJobsUsingCommand(command)
 
-    def getAllBatchJobs() -> list[PBSJob]:
+    @classmethod
+    def getAllBatchJobs(cls) -> list[PBSJob]:
         command = "qstat -fxw"
         logger.debug(command)
-        return QQPBS._getBatchJobsUsingCommand(command)
+        return cls._getBatchJobsUsingCommand(command)
 
-    def getQueues() -> list[PBSQueue]:
+    @classmethod
+    def getQueues(cls) -> list[PBSQueue]:
         command = "qstat -Qfw"
         logger.debug(command)
 
@@ -172,14 +187,15 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             )
 
         queues = []
-        for data, name in parseMultiPBSDumpToDictionaries(
+        for data, name in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Queue"
         ):
             queues.append(PBSQueue.fromDict(name, data))
 
         return queues
 
-    def getNodes() -> list[PBSNode]:
+    @classmethod
+    def getNodes(cls) -> list[PBSNode]:
         command = "pbsnodes -a"
         logger.debug(command)
 
@@ -198,12 +214,15 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             )
 
         queues = []
-        for data, name in parseMultiPBSDumpToDictionaries(result.stdout.strip(), None):
+        for data, name in parse_multi_pbs_dump_to_dictionaries(
+            result.stdout.strip(), None
+        ):
             queues.append(PBSNode.fromDict(name, data))
 
         return queues
 
-    def readRemoteFile(host: str, file: Path) -> str:
+    @classmethod
+    def readRemoteFile(cls, host: str, file: Path) -> str:
         if os.environ.get(CFG.env_vars.shared_submit):
             # file is on shared storage, we can read it directly
             # this assumes that this method is only used to read files in input_dir
@@ -215,9 +234,10 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         else:
             # otherwise, we fall back to the default implementation
             logger.debug(f"Reading a remote file '{file}' on '{host}'.")
-            return QQBatchInterface.readRemoteFile(host, file)
+            return super().readRemoteFile(host, file)
 
-    def writeRemoteFile(host: str, file: Path, content: str) -> None:
+    @classmethod
+    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
         if os.environ.get(CFG.env_vars.shared_submit):
             # file should be written to shared storage
             # this assumes that the method is only used to write files into input_dir
@@ -229,9 +249,10 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         else:
             # otherwise, we fall back to the default implementation
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
-            QQBatchInterface.writeRemoteFile(host, file, content)
+            super().writeRemoteFile(host, file, content)
 
-    def makeRemoteDir(host: str, directory: Path) -> None:
+    @classmethod
+    def makeRemoteDir(cls, host: str, directory: Path) -> None:
         if os.environ.get(CFG.env_vars.shared_submit):
             # assuming the directory is created in input_dir
             logger.debug(f"Creating a directory '{directory}' on shared storage.")
@@ -244,9 +265,10 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Creating a directory '{directory}' on '{host}'.")
-            QQBatchInterface.makeRemoteDir(host, directory)
+            super().makeRemoteDir(host, directory)
 
-    def listRemoteDir(host: str, directory: Path) -> list[Path]:
+    @classmethod
+    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
         if os.environ.get(CFG.env_vars.shared_submit):
             # assuming we are listing input_dir or another directory on shared storage
             logger.debug(f"Listing a directory '{directory}' on shared storage.")
@@ -257,9 +279,12 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Listing a directory '{directory}' on '{host}'.")
-            return QQBatchInterface.listRemoteDir(host, directory)
+            return super().listRemoteDir(host, directory)
 
-    def moveRemoteFiles(host: str, files: list[Path], moved_files: list[Path]) -> None:
+    @classmethod
+    def moveRemoteFiles(
+        cls, host: str, files: list[Path], moved_files: list[Path]
+    ) -> None:
         if len(files) != len(moved_files):
             raise QQError(
                 "The provided 'files' and 'moved_files' must have the same length."
@@ -275,48 +300,53 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Moving files '{files}' -> '{moved_files}' on '{host}'.")
-            QQBatchInterface.moveRemoteFiles(host, files, moved_files)
+            super().moveRemoteFiles(host, files, moved_files)
 
+    @classmethod
     def syncWithExclusions(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
         dest_host: str | None,
         exclude_files: list[Path] | None = None,
     ) -> None:
-        QQPBS._syncDirectories(
+        cls._syncDirectories(
             src_dir,
             dest_dir,
             src_host,
             dest_host,
             exclude_files,
-            QQBatchInterface.syncWithExclusions,
+            super().syncWithExclusions,
         )
 
+    @classmethod
     def syncSelected(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
         dest_host: str | None,
         include_files: list[Path] | None = None,
     ) -> None:
-        QQPBS._syncDirectories(
+        cls._syncDirectories(
             src_dir,
             dest_dir,
             src_host,
             dest_host,
             include_files,
-            QQBatchInterface.syncSelected,
+            super().syncSelected,
         )
 
-    def transformResources(queue: str, provided_resources: QQResources) -> QQResources:
+    @classmethod
+    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
         # default resources of the queue
-        default_queue_resources = QQPBS._getDefaultQueueResources(queue)
+        default_queue_resources = PBSQueue(queue).getDefaultResources()
         # default hard-coded resources
-        default_batch_resources = QQPBS._getDefaultServerResources()
+        default_batch_resources = cls._getDefaultServerResources()
 
         # fill in default parameters
-        resources = QQResources.mergeResources(
+        resources = Resources.mergeResources(
             provided_resources, default_queue_resources, default_batch_resources
         )
         if not resources.work_dir:
@@ -337,6 +367,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
                 )
 
             resources.work_dir = "input_dir"
+            resources.work_size = None
+            resources.work_size_per_cpu = None
             return resources
 
         # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
@@ -351,13 +383,14 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
             resources.work_dir = "scratch_shm"
             resources.work_size = None
+            resources.work_size_per_cpu = None
             return resources
 
         # if work-dir matches any of the "standard" scratches supported by PBS
         if match := next(
             (
                 x
-                for x in QQPBS.SUPPORTED_SCRATCHES
+                for x in cls.SUPPORTED_SCRATCHES
                 if equals_normalized(x, resources.work_dir)
             ),
             None,
@@ -366,25 +399,23 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             return resources
 
         # unknown work-dir type
-        supported_types = QQPBS.SUPPORTED_SCRATCHES + [
+        supported_types = cls.SUPPORTED_SCRATCHES + [
             "scratch_shm",
             "job_dir",
             "input_dir",  # same as job_dir
         ]
         raise QQError(
-            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for PBS are: '{' '.join(supported_types)}'."
+            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: '{' '.join(supported_types)}'."
         )
 
-    def isShared(directory: Path) -> bool:
-        return QQBatchInterface.isShared(directory)
+    @classmethod
+    def sortJobs(cls, jobs: list[PBSJob]) -> None:
+        # jobs with invalid ID get assigned an ID of 0 for sorting => they are sorted to the start
+        # and therefore are displayed at the top in the qq jobs / qq stat output
+        jobs.sort(key=lambda job: job.getIdInt() or 0)
 
-    def resubmit(input_machine: str, input_dir: str, command_line: list[str]) -> None:
-        QQBatchInterface.resubmit(
-            input_machine=input_machine, input_dir=input_dir, command_line=command_line
-        )
-
-    @staticmethod
-    def _sharedGuard(res: QQResources, env_vars: dict[str, str]) -> None:
+    @classmethod
+    def _sharedGuard(cls, res: Resources, env_vars: dict[str, str]) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
 
@@ -396,14 +427,14 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
         Args:
-            res (QQResources): The job's resource configuration.
+            res (Resources): The job's resource configuration.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
 
         Raises:
             QQError: If the job is set to run directly in the submission
                     directory while submission is from a non-shared filesystem.
         """
-        if QQPBS.isShared(Path()):
+        if cls.isShared(Path()):
             env_vars[CFG.env_vars.shared_submit] = "true"
         elif not res.usesScratch():
             # if job directory is used as working directory, it must always be shared
@@ -411,9 +442,10 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
                 "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem."
             )
 
-    @staticmethod
+    @classmethod
     def _translateSubmit(
-        res: QQResources,
+        cls,
+        res: Resources,
         queue: str,
         input_dir: Path,
         script: str,
@@ -425,7 +457,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         Generate the PBS submission command for a job.
 
         Args:
-            res (QQResources): The resources requested for the job.
+            res (Resources): The resources requested for the job.
             queue (str): The queue name to submit to.
             input_dir (Path): The directory from which the job is being submitted.
             script (str): Path to the job script.
@@ -440,10 +472,10 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
         # translate environment variables
         if env_vars:
-            command += f"-v {QQPBS._translateEnvVars(env_vars)} "
+            command += f"-v {cls._translateEnvVars(env_vars)} "
 
         # handle per-chunk resources, incl. workdir
-        translated = QQPBS._translatePerChunkResources(res)
+        translated = cls._translatePerChunkResources(res)
 
         # handle properties
         if res.props:
@@ -468,7 +500,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             command += "-l place=vscatter "
 
         # handle dependencies
-        if converted_depend := QQPBS._translateDependencies(depend):
+        if converted_depend := cls._translateDependencies(depend):
             command += f"-W depend={converted_depend} "
 
         # add script
@@ -476,24 +508,35 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
         return command
 
-    @staticmethod
-    def _translateEnvVars(env_vars: dict[str, str]) -> str:
+    @classmethod
+    def _translateEnvVars(cls, env_vars: dict[str, str]) -> str:
+        """
+        Convert a dictionary of environment variables into a formatted string.
+
+        Args:
+            env_vars (dict[str, str]): A mapping of environment variable names
+                to their corresponding values.
+
+        Returns:
+            str: A comma-separated string of environment variable assignments,
+                suitable for inclusion in the qsub command.
+        """
         converted = []
         for key, value in env_vars.items():
             converted.append(f"\"{key}='{value}'\"")
 
         return ",".join(converted)
 
-    @staticmethod
-    def _translatePerChunkResources(res: QQResources) -> list[str]:
+    @classmethod
+    def _translatePerChunkResources(cls, res: Resources) -> list[str]:
         """
-        Convert a QQResources object into a list of per-node resource specifications.
+        Convert a Resources object into a list of per-node resource specifications.
 
         Each resource that can be divided by the number of nodes (nnodes) is split
         accordingly.
 
         Args:
-            res (QQResources): The resource specification for the job.
+            res (Resources): The resource specification for the job.
 
         Returns:
             list[str]: A list of per-node resource strings suitable for inclusion
@@ -542,17 +585,18 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             trans_res.append(f"ngpus={res.ngpus // res.nnodes}")
 
         # translate work-dir
-        if workdir := QQPBS._translateWorkDir(res):
+        if workdir := cls._translateWorkDir(res):
             trans_res.append(workdir)
 
         return trans_res
 
-    def _translateWorkDir(res: QQResources) -> str | None:
+    @classmethod
+    def _translateWorkDir(cls, res: Resources) -> str | None:
         """
         Translate the working directory and its requested size into a PBS resource string.
 
         Args:
-            res (QQResources): The resources requested for the job.
+            res (Resources): The resources requested for the job.
 
         Returns:
             str | None: Resource string specifying the working directory, or None if input_dir is used.
@@ -575,8 +619,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             "Attribute 'work-size' or attributes 'work-size-per-cpu' and 'ncpus' are not defined."
         )
 
-    @staticmethod
-    def _translateDependencies(depend: list[Depend]) -> str | None:
+    @classmethod
+    def _translateDependencies(cls, depend: list[Depend]) -> str | None:
         """
         Convert a list of `Depend` objects into a PBS-compatible dependency string.
 
@@ -592,8 +636,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
         return ",".join(Depend.toStr(x).replace("=", ":") for x in depend)
 
-    @staticmethod
-    def _collectAMSEnvVars() -> dict[str, str]:
+    @classmethod
+    def _collectAMSEnvVars(cls) -> dict[str, str]:
         """
         Collect environment variables for Infinity AMS.
         This allows importing Infinity AMS modules in qq jobs.
@@ -623,15 +667,15 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
 
         return ams_vars
 
-    @staticmethod
-    def _getDefaultServerResources() -> QQResources:
+    @classmethod
+    def _getDefaultServerResources(cls) -> Resources:
         """
-        Return a QQResources object representing the default resources for a batch job.
+        Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            QQResources: Default batch job resources with predefined settings.
+            Resources: Default batch job resources with predefined settings.
         """
-        return QQResources(
+        return Resources(
             nnodes=1,
             ncpus=1,
             mem_per_cpu="1gb",
@@ -640,22 +684,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             walltime="1d",
         )
 
-    @staticmethod
-    def _getDefaultQueueResources(queue: str) -> QQResources:
-        """
-        Query PBS for the default resources of a given queue.
-
-        Args:
-            queue (str): The name of the PBS queue to query.
-
-        Returns:
-            QQResources: A QQResources object populated with the queue's default resources.
-                        If the queue cannot be queried or an error occurs, returns an empty QQResources object.
-        """
-        return QQResources(**PBSQueue(queue).getDefaultResources())
-
-    @staticmethod
-    def _translateKillForce(job_id: str) -> str:
+    @classmethod
+    def _translateKillForce(cls, job_id: str) -> str:
         """
         Generate the PBS force kill command for a job.
 
@@ -667,8 +697,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         """
         return f"qdel -W force {job_id}"
 
-    @staticmethod
-    def _translateKill(job_id: str) -> str:
+    @classmethod
+    def _translateKill(cls, job_id: str) -> str:
         """
         Generate the standard PBS kill command for a job.
 
@@ -680,8 +710,9 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
         """
         return f"qdel {job_id}"
 
-    @staticmethod
+    @classmethod
     def _syncDirectories(
+        cls,
         src_dir: Path,
         dest_dir: Path,
         src_host: str | None,
@@ -726,8 +757,8 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
                     f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
                 )
 
-    @staticmethod
-    def _getBatchJobsUsingCommand(command: str) -> list[PBSJob]:
+    @classmethod
+    def _getBatchJobsUsingCommand(cls, command: str) -> list[PBSJob]:
         """
         Execute a shell command to retrieve information about PBS jobs and parse it.
 
@@ -758,7 +789,7 @@ class QQPBS(QQBatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=QQBatchMeta):
             )
 
         jobs = []
-        for data, job_id in parseMultiPBSDumpToDictionaries(
+        for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
             jobs.append(PBSJob.fromDict(job_id, data))

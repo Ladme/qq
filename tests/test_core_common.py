@@ -3,6 +3,7 @@
 
 import re
 import tempfile
+import types
 from datetime import timedelta
 from pathlib import Path
 from time import sleep
@@ -11,11 +12,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
-from qq_lib.batch.interface.meta import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS, PBSJob
+from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
     convert_absolute_to_relative,
+    dhhmmss_to_duration,
     equals_normalized,
     format_duration,
     format_duration_wdhhmmss,
@@ -29,6 +31,8 @@ from qq_lib.core.common import (
     hhmmss_to_duration,
     hhmmss_to_wdhms,
     is_printf_pattern,
+    load_yaml_dumper,
+    load_yaml_loader,
     printf_to_regex,
     split_files_list,
     to_snake_case,
@@ -660,6 +664,64 @@ def test_hhmmss_to_duration_invalid_format(timestr):
 
 
 @pytest.mark.parametrize(
+    "timestr, expected",
+    [
+        # basic HH:MM:SS
+        ("00:00:00", timedelta(0)),
+        ("0:00:00", timedelta(0)),
+        ("0000:00:00", timedelta(0)),
+        ("00:00:01", timedelta(seconds=1)),
+        ("00:01:00", timedelta(minutes=1)),
+        ("01:00:00", timedelta(hours=1)),
+        ("12:34:56", timedelta(hours=12, minutes=34, seconds=56)),
+        ("36:15:00", timedelta(hours=36, minutes=15)),
+        ("100:00:05", timedelta(hours=100, seconds=5)),
+        ("999:59:59", timedelta(hours=999, minutes=59, seconds=59)),
+        ("1:2:3", timedelta(hours=1, minutes=2, seconds=3)),
+        ("36:15:00 ", timedelta(hours=36, minutes=15)),
+        (" 36:15:00", timedelta(hours=36, minutes=15)),
+        (" 36:15:00 ", timedelta(hours=36, minutes=15)),
+        # day-prefixed
+        ("1-00:00:00", timedelta(days=1)),
+        ("2-12:34:56", timedelta(days=2, hours=12, minutes=34, seconds=56)),
+        ("10-0:00:00", timedelta(days=10)),
+        ("0-1:00:00", timedelta(hours=1)),
+        ("3-36:15:00", timedelta(days=3, hours=36, minutes=15)),
+        ("7-999:59:59", timedelta(days=7, hours=999, minutes=59, seconds=59)),
+        (" 2-12:34:56 ", timedelta(days=2, hours=12, minutes=34, seconds=56)),
+    ],
+)
+def test_dhhmmss_to_duration_valid(timestr, expected):
+    assert dhhmmss_to_duration(timestr) == expected
+
+
+@pytest.mark.parametrize(
+    "timestr",
+    [
+        "24:00",
+        "12:34:56:78",
+        "12-34-56",
+        "abc",
+        "1h23m45s",
+        "",
+        "   ",
+        "1--12:00:00",
+        "-12:00:00",
+        "1-12:60:00",
+        "1-12:34:60",
+        "1-:12:00",
+        "1 -12:00:00",
+        "1 - 12:00:00",
+        "1--12:34:56",
+        "x-12:34:56",
+    ],
+)
+def test_dhhmmss_to_duration_invalid_format(timestr):
+    with pytest.raises(QQError):
+        dhhmmss_to_duration(timestr)
+
+
+@pytest.mark.parametrize(
     "timestr",
     [
         "12:60:00",
@@ -681,9 +743,9 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
 
 def test_get_info_file_from_job_id_success():
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJob",
             return_value=_make_jobinfo_with_info(
                 {
@@ -697,9 +759,9 @@ def test_get_info_file_from_job_id_success():
 
 def test_get_info_file_from_job_id_no_info():
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJob",
             return_value=_make_jobinfo_with_info(
                 {
@@ -714,9 +776,9 @@ def test_get_info_file_from_job_id_no_info():
 
 def test_get_info_file_from_job_id_nonexistent_job():
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
         patch.object(
-            QQPBS,
+            PBS,
             "getBatchJob",
             return_value=_make_jobinfo_with_info({}),
         ),
@@ -860,3 +922,85 @@ def test_get_panel_width_with_min_and_max(
 
     result = get_panel_width(console, factor, min_width, max_width)
     assert result == expected
+
+
+def test_load_yaml_dumper_cdumper_available():
+    fake_yaml = types.SimpleNamespace(CDumper="CDumperMock")
+
+    load_yaml_dumper.cache_clear()
+
+    with patch("builtins.__import__", return_value=fake_yaml):
+        result = load_yaml_dumper()
+
+    assert result == "CDumperMock"
+
+
+def test_load_yaml_dumper_fallback_to_dumper():
+    fake_yaml = types.SimpleNamespace(Dumper="DumperMock")
+
+    load_yaml_dumper.cache_clear()
+
+    def fake_import(name, *args, **kwargs):  # noqa: ARG001
+        if "CDumper" in name:
+            raise ImportError
+        return fake_yaml
+
+    with patch("builtins.__import__", side_effect=fake_import):
+        result = load_yaml_dumper()
+
+    assert result == "DumperMock"
+
+
+def test_common_load_yaml_dumper_cache_hits():
+    fake_yaml = types.SimpleNamespace(CDumper="CDumperMock")
+
+    load_yaml_dumper.cache_clear()
+
+    with patch("builtins.__import__", return_value=fake_yaml) as imp:
+        first = load_yaml_dumper()
+        second = load_yaml_dumper()
+
+    assert first == "CDumperMock"
+    assert second == "CDumperMock"
+    assert imp.call_count == 1
+
+
+def test_load_yaml_loader_csafe_loader_available():
+    fake_yaml = types.SimpleNamespace(CSafeLoader="CSafeLoaderMock")
+
+    load_yaml_loader.cache_clear()
+
+    with patch("builtins.__import__", return_value=fake_yaml):
+        result = load_yaml_loader()
+
+    assert result == "CSafeLoaderMock"
+
+
+def test_load_yaml_loader_fallback_to_safe_loader():
+    fake_yaml = types.SimpleNamespace(SafeLoader="SafeLoaderMock")
+
+    load_yaml_loader.cache_clear()
+
+    def fake_import(name, *args, **kwargs):  # noqa: ARG001
+        if "CSafeLoader" in name:
+            raise ImportError
+        return fake_yaml
+
+    with patch("builtins.__import__", side_effect=fake_import):
+        result = load_yaml_loader()
+
+    assert result == "SafeLoaderMock"
+
+
+def test_common_load_yaml_loader_cache_hits():
+    fake_yaml = types.SimpleNamespace(CSafeLoader="CSafeLoaderMock")
+
+    load_yaml_loader.cache_clear()
+
+    with patch("builtins.__import__", return_value=fake_yaml) as imp:
+        first = load_yaml_loader()
+        second = load_yaml_loader()
+
+    assert first == "CSafeLoaderMock"
+    assert second == "CSafeLoaderMock"
+    assert imp.call_count == 1

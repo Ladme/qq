@@ -8,18 +8,18 @@ from pathlib import Path
 from click import Parameter
 from click_option_group import GroupedOption
 
-from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchMeta
 from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.job_type import QQJobType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.job_type import JobType
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
 
-class QQParser:
+class Parser:
     """
     Parser for qq job submission options specified in a script.
     """
@@ -36,7 +36,7 @@ class QQParser:
         self._script = script
         self._known_options = {p.name for p in params if isinstance(p, GroupedOption)}
         logger.debug(
-            f"Known options for QQParser: {self._known_options} ({len(self._known_options)} options)."
+            f"Known options for Parser: {self._known_options} ({len(self._known_options)} options)."
         )
 
         self._options: dict[str, object] = {}
@@ -66,19 +66,19 @@ class QQParser:
             for line in f:
                 stripped = line.strip()
                 if stripped == "":
-                    logger.debug("QQParser: skipping empty line.")
+                    logger.debug("Parser: skipping empty line.")
                     continue  # skip empty lines
 
                 # check whether this is a qq command
                 if not re.match(r"#\s*qq", stripped, re.IGNORECASE):
                     if stripped.startswith("#"):
-                        logger.debug(f"QQParser: skipping commented line '{line}'.")
+                        logger.debug(f"Parser: skipping commented line '{line}'.")
                         continue  # skip commented lines
-                    logger.debug(f"QQParser: ending parsing at line '{line}'.")
+                    logger.debug(f"Parser: ending parsing at line '{line}'.")
                     break  # stop parsing at other lines
 
                 # remove the leading '# qq' and split by whitespace or '='
-                parts = QQParser._stripAndSplit(line)
+                parts = Parser._stripAndSplit(line)
                 if len(parts) < 2:
                     raise QQError(
                         f"Invalid qq submit option line in '{str(self._script)}': {line}."
@@ -105,15 +105,15 @@ class QQParser:
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")
 
-    def getBatchSystem(self) -> type[QQBatchInterface] | None:
+    def getBatchSystem(self) -> type[BatchInterface] | None:
         """
         Return the batch system class specified in the script.
 
         Returns:
-            type[QQBatchInterface] | None: The batch system class if specified, otherwise None.
+            type[BatchInterface] | None: The batch system class if specified, otherwise None.
         """
         if isinstance(batch_system := self._options.get("batch_system"), str):
-            return QQBatchMeta.fromStr(batch_system)
+            return BatchMeta.fromStr(batch_system)
 
         return None
 
@@ -128,30 +128,28 @@ class QQParser:
             return None
         return queue
 
-    def getJobType(self) -> QQJobType | None:
+    def getJobType(self) -> JobType | None:
         """
         Return the job type specified in the script.
 
         Returns:
-            QQJobType | None: Enum value representing the job type, or None if not set.
+            JobType | None: Enum value representing the job type, or None if not set.
         """
         if isinstance(job_type := self._options.get("job_type"), str):
-            return QQJobType.fromStr(job_type)
+            return JobType.fromStr(job_type)
 
         return None
 
-    def getResources(self) -> QQResources:
+    def getResources(self) -> Resources:
         """
         Return the job resource specifications parsed from the script.
 
         Returns:
-            QQResources: Resource requirements for the job.
+            Resources: Resource requirements for the job.
         """
-        field_names = {f.name for f in fields(QQResources)}
-        # only select fields that are part of QQResources
-        return QQResources(
-            **{k: v for k, v in self._options.items() if k in field_names}
-        )
+        field_names = {f.name for f in fields(Resources)}
+        # only select fields that are part of Resources
+        return Resources(**{k: v for k, v in self._options.items() if k in field_names})
 
     def getExclude(self) -> list[Path]:
         """
@@ -221,6 +219,18 @@ class QQParser:
             return Depend.multiFromStr(raw)
 
         return []
+
+    def getAccount(self) -> str | None:
+        """
+        Get the account name to use for the job.
+
+        Returns:
+            str | None: The account name or None if not defined.
+        """
+        if isinstance(account := self._options.get("account"), str):
+            return account
+
+        return None
 
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:

@@ -3,5 +3,5 @@
 
 # ruff: noqa: F401
 
-from .cder import QQCder
+from .cder import Cder
 from .cli import cd

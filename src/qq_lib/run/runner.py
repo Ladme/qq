@@ -14,8 +14,8 @@ from types import FrameType
 from typing import NoReturn
 
 import qq_lib
-from qq_lib.archive.archiver import QQArchiver
-from qq_lib.batch.interface.meta import QQBatchMeta
+from qq_lib.archive.archiver import Archiver
+from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -24,19 +24,19 @@ from qq_lib.core.error import (
     QQRunFatalError,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.retryer import QQRetryer
-from qq_lib.info.informer import QQInformer
-from qq_lib.properties.job_type import QQJobType
+from qq_lib.core.retryer import Retryer
+from qq_lib.info.informer import Informer
+from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 
 logger = get_logger(__name__, show_time=True)
 
 
-class QQRunner:
+class Runner:
     """
     Manages the setup, execution, and cleanup of scripts within the qq batch environment.
 
-    The QQRunner class is responsible for:
+    The Runner class is responsible for:
       - Preparing a working directory (shared or scratch space)
       - Executing a provided job script
       - Updating the job info file with run state, success, or failure
@@ -45,7 +45,7 @@ class QQRunner:
 
     def __init__(self, info_file: Path, host: str):
         """
-        Initialize a new QQRunner instance.
+        Initialize a new Runner instance.
 
         Args:
             info_file (Path): Path to the qq info file that contains job metadata.
@@ -69,7 +69,7 @@ class QQRunner:
         # load the info file or raise a fatal qq error if this fails
         try:
             # get the batch system from the environment variable (or guess it)
-            self._batch_system = QQBatchMeta.fromEnvVarOrGuess()
+            self._batch_system = BatchMeta.fromEnvVarOrGuess()
             logger.debug(f"Batch system: {str(self._batch_system)}.")
 
             # get the id of the job from the batch system
@@ -77,8 +77,8 @@ class QQRunner:
                 raise QQError("Job has no associated job id")
 
             # load the info file
-            self._informer: QQInformer = QQRetryer(
-                QQInformer.fromFile,
+            self._informer: Informer = Retryer(
+                Informer.fromFile,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
@@ -117,7 +117,7 @@ class QQRunner:
 
         # initialize archiver, if this is a loop job
         if loop_info := self._informer.info.loop_info:
-            self._archiver = QQArchiver(
+            self._archiver = Archiver(
                 loop_info.archive,
                 loop_info.archive_format,
                 self._informer.info.input_machine,
@@ -248,7 +248,7 @@ class QQRunner:
 
             if self._use_scratch:
                 # copy files back to the input (submission) directory
-                QQRetryer(
+                Retryer(
                     self._batch_system.syncWithExclusions,
                     self._work_dir,
                     self._input_dir,
@@ -266,7 +266,7 @@ class QQRunner:
             self._updateInfoFinished()
 
             # if this is a loop job
-            if self._informer.info.job_type == QQJobType.LOOP:
+            if self._informer.info.job_type == JobType.LOOP:
                 self._resubmit()
         else:
             # only update the qqinfo file
@@ -299,7 +299,7 @@ class QQRunner:
         self._work_dir = self._input_dir
 
         # move to the working directory
-        QQRetryer(
+        Retryer(
             os.chdir,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -325,7 +325,7 @@ class QQRunner:
         # to affect the job execution or be copied back to input_dir
         self._work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
         logger.info(f"Setting up working directory in '{self._work_dir}'.")
-        QQRetryer(
+        Retryer(
             Path.mkdir,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -333,7 +333,7 @@ class QQRunner:
         ).run()
 
         # move to the working directory
-        QQRetryer(
+        Retryer(
             os.chdir,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -341,12 +341,15 @@ class QQRunner:
         ).run()
 
         # files excluded from copying to the working directory
-        excluded = self._informer.info.excluded_files + [self._info_file]
+        qq_out = (
+            self._informer.info.input_dir / self._informer.info.job_name
+        ).with_suffix(CFG.suffixes.qq_out)
+        excluded = self._informer.info.excluded_files + [self._info_file, qq_out]
         if self._archiver:
             excluded.append(self._archiver._archive)
 
         # copy files to the working directory
-        QQRetryer(
+        Retryer(
             self._batch_system.syncWithExclusions,
             self._input_dir,
             self._work_dir,
@@ -364,7 +367,7 @@ class QQRunner:
         Used only after successful execution in scratch space.
         """
         logger.debug(f"Removing working directory '{self._work_dir}'.")
-        QQRetryer(
+        Retryer(
             shutil.rmtree,
             self._work_dir,
             max_tries=CFG.runner.retry_tries,
@@ -376,7 +379,7 @@ class QQRunner:
         Update the qq info file to mark the job as running.
 
         Raises:
-            QQRunCommunicationError: If the job was killed without informing QQRunner.
+            QQRunCommunicationError: If the job was killed without informing Runner.
             QQError: If the info file cannot be updated.
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
@@ -396,7 +399,7 @@ class QQRunner:
                 self._work_dir,
             )
 
-            QQRetryer(
+            Retryer(
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
@@ -415,14 +418,14 @@ class QQRunner:
         Logs errors as warnings if updating fails.
 
         Raises:
-            QQRunCommunicationError: If the job was killed without informing QQRunner.
+            QQRunCommunicationError: If the job was killed without informing Runner.
         """
         logger.debug(f"Updating '{self._info_file}' at job completion.")
         self._reloadInfoAndEnsureValid()
 
         try:
             self._informer.setFinished(datetime.now())
-            QQRetryer(
+            Retryer(
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
@@ -444,14 +447,14 @@ class QQRunner:
         Logs errors as warnings if updating fails.
 
         Raises:
-            QQRunCommunicationError: If the job was killed without informing QQRunner.
+            QQRunCommunicationError: If the job was killed without informing Runner.
         """
         logger.debug(f"Updating '{self._info_file}' at job failure.")
         self._reloadInfoAndEnsureValid()
 
         try:
             self._informer.setFailed(datetime.now(), return_code)
-            QQRetryer(
+            Retryer(
                 self._informer.toFile,
                 self._info_file,
                 host=self._input_machine,
@@ -496,15 +499,15 @@ class QQRunner:
             QQError: If the qq info file cannot be reach or read after retrying.
         """
         if retry:
-            self._informer = QQRetryer(
-                QQInformer.fromFile,
+            self._informer = Retryer(
+                Informer.fromFile,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
                 wait_seconds=CFG.runner.retry_wait,
             ).run()
         else:
-            self._informer = QQInformer.fromFile(self._info_file, self._input_machine)
+            self._informer = Informer.fromFile(self._info_file, self._input_machine)
 
     def _ensureMatchesJob(self, job_id: str) -> None:
         """
@@ -572,8 +575,11 @@ class QQRunner:
             return
 
         logger.info("Resubmitting the job.")
+        logger.debug(
+            f"Resubmitting using the batch system '{str(self._batch_system)}'."
+        )
 
-        QQRetryer(
+        Retryer(
             self._batch_system.resubmit,
             input_machine=self._informer.info.input_machine,
             input_dir=self._informer.info.input_dir,

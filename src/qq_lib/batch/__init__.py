@@ -3,5 +3,7 @@
 
 # ruff: noqa: F401
 
-from .interface import BatchJobInterface, QQBatchInterface, QQBatchMeta
-from .pbs import QQPBS, PBSJob
+from .interface import BatchInterface, BatchJobInterface, BatchMeta
+from .pbs import PBS, PBSJob, PBSNode, PBSQueue
+from .slurm import Slurm, SlurmJob, SlurmNode, SlurmQueue
+from .slurmit4i import SlurmIT4I

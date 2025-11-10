@@ -3,9 +3,11 @@
 
 import re
 from datetime import timedelta
+from functools import lru_cache
 from pathlib import Path
 
 import readchar
+import yaml
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
@@ -15,6 +17,37 @@ from .error import QQError
 from .logger import get_logger
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def load_yaml_dumper() -> type[yaml.Dumper]:
+    """Return the fastest available YAML dumper (CDumper if possible)."""
+    try:
+        from yaml import CDumper as Dumper  # type: ignore[attr-defined]
+
+        logger.debug("Loaded YAML CDumper.")
+    except ImportError:
+        from yaml import Dumper
+
+        logger.debug("Loaded default YAML dumper.")
+    return Dumper
+
+
+@lru_cache(maxsize=1)
+def load_yaml_loader() -> type[yaml.SafeLoader]:
+    """Return the fastest available safe YAML loader (CSafeLoader if possible)."""
+    try:
+        from yaml import (
+            CSafeLoader as SafeLoader,  # ty: ignore[possibly-missing-import]
+        )
+
+        logger.debug("Loaded YAML CLoader.")
+    except ImportError:
+        from yaml import SafeLoader
+
+        logger.debug("Loaded default YAML loader.")
+
+    return SafeLoader
 
 
 def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
@@ -116,10 +149,10 @@ def get_info_file_from_job_id(job_id: str) -> Path:
 
     from qq_lib.batch.interface import (
         BatchJobInterface,
-        QQBatchMeta,
+        BatchMeta,
     )
 
-    BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+    BatchSystem = BatchMeta.fromEnvVarOrGuess()
     job_info: BatchJobInterface = BatchSystem.getBatchJob(job_id)
 
     if job_info.isEmpty():
@@ -309,6 +342,39 @@ def hhmmss_to_duration(timestr: str) -> timedelta:
     hours, minutes, seconds = map(int, match.groups())
 
     return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+
+
+def dhhmmss_to_duration(timestr: str) -> timedelta:
+    """
+    Convert a time string in optional D-HH:MM:SS (or HH:MM:SS / HHH:MM:SS) format to a timedelta object.
+
+    Examples:
+        "0:00:00"      -> 0 seconds
+        "1:23:45"      -> 1 hour, 23 minutes, 45 seconds
+        "100:00:00"    -> 100 hours
+        "2-12:34:56"   -> 2 days, 12 hours, 34 minutes, 56 seconds
+
+    Args:
+        timestr (str): Input string in optional D-HH:MM:SS format.
+
+    Returns:
+        timedelta: The corresponding duration.
+
+    Raises:
+        QQError: If the input string is not in a valid format or contains invalid numeric values.
+    """
+    pattern = re.compile(r"^\s*(?:(\d+)-)?(\d+):([0-5]?\d):([0-5]?\d)\s*$")
+    match = pattern.fullmatch(timestr)
+    if not match:
+        raise QQError(f"Invalid D-HH:MM:SS time string '{timestr}'.")
+
+    days_str, hours_str, minutes_str, seconds_str = match.groups()
+    days = int(days_str) if days_str else 0
+    hours = int(hours_str)
+    minutes = int(minutes_str)
+    seconds = int(seconds_str)
+
+    return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
 
 
 def normalize(s: str) -> str:

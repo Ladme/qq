@@ -14,12 +14,12 @@ from qq_lib.core.common import get_runtime_files
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.submit.factory import QQSubmitterFactory
+from qq_lib.submit.factory import SubmitterFactory
 
 logger = get_logger(__name__)
 
 
-# Note that all options must be part of an optgroup otherwise QQParser breaks.
+# Note that all options must be part of an optgroup otherwise Parser breaks.
 @click.command(
     short_help="Submit a job to the batch system.",
     help=f"""
@@ -41,6 +41,12 @@ using qq directives of this format: `# qq <option>=<value>`.
     type=str,
     default=None,
     help="Name of the queue to submit the job to.",
+)
+@optgroup.option(
+    "--account",
+    type=str,
+    default=None,
+    help="Account to use for the job. Only needed in environments with accounting (e.g., IT4Innovations).",
 )
 @optgroup.option(
     "--job-type",
@@ -165,7 +171,7 @@ def submit(script: str, **kwargs) -> NoReturn:
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
         # parse options from the command line and from the script itself
-        factory = QQSubmitterFactory(
+        factory = SubmitterFactory(
             script_path.resolve(), submit.params, sys.argv[2:], **kwargs
         )
         submitter = factory.makeSubmitter()

@@ -25,8 +25,8 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
-from qq_lib.kill.killer import QQKiller
+from qq_lib.core.repeater import Repeater
+from qq_lib.kill.killer import Killer
 
 logger = get_logger(__name__)
 console = Console()
@@ -91,14 +91,14 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = QQRepeater(info_files, kill_job, force, yes, job)
+        repeater = Repeater(info_files, kill_job, force, yes, job)
         repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
         repeater.run()
         print()
         sys.exit(0)
-    # QQErrors should be caught by QQRepeater
+    # QQErrors should be caught by Repeater
     except QQError as e:
         logger.error(e)
         sys.exit(CFG.exit_codes.default)
@@ -122,7 +122,7 @@ def kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
         QQNotSuitableError: If the job is not suitable for termination.
         QQError: If the job cannot be killed or the qq info file cannot be updated.
     """
-    killer = QQKiller(info_file)
+    killer = Killer(info_file)
 
     # check that the info file in the killer corresponds
     # to the specified job

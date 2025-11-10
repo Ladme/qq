@@ -42,6 +42,7 @@ class NodeGroup:
         self._setSharedProperties()
 
         self._show_gpus = self._shouldShowGPUs()
+        self._show_gpu_mem = self._shouldShowGPUMem()
         self._show_local = self._shouldShowLocalScratch()
         self._show_ssd = self._shouldShowSSDScratch()
         self._show_shared = self._shouldShowSharedScratch()
@@ -86,7 +87,7 @@ class NodeGroup:
             "NCPUs": True,
             "CPU Mem": True,
             "NGPUs": self._show_gpus,
-            "GPU Mem": self._show_gpus,
+            "GPU Mem": self._show_gpu_mem,
             "Scratch Local": self._show_local,
             "Scratch SSD": self._show_ssd,
             "Scratch Shared": self._show_shared,
@@ -115,7 +116,7 @@ class NodeGroup:
         Returns:
             Table: A Rich `Table` summarizing shared properties and resource totals.
         """
-        return QQNodesPresenter._formatMetadataTable(
+        return NodesPresenter._formatMetadataTable(
             self._shared_properties, "Shared properties", self.stats
         )
 
@@ -184,19 +185,19 @@ class NodeGroup:
         )
 
         content = [
-            QQNodesPresenter._formatStateMark(
+            NodesPresenter._formatStateMark(
                 free_cpus, total_cpus, free_gpus, total_gpus, available
             ),
             Text(node.getName(), style=style),
-            QQNodesPresenter._formatProcessingUnits(free_cpus, total_cpus, available),
-            QQNodesPresenter._formatSizeProperty(
+            NodesPresenter._formatProcessingUnits(free_cpus, total_cpus, available),
+            NodesPresenter._formatSizeProperty(
                 node.getFreeCPUMemory(), node.getCPUMemory(), style
             ),
-            QQNodesPresenter._formatProcessingUnits(free_gpus, total_gpus, available)
+            NodesPresenter._formatProcessingUnits(free_gpus, total_gpus, available)
             if self._show_gpus
             else None,
             Text(str(node.getFreeGPUMemory()), style=style)
-            if self._show_gpus
+            if self._show_gpu_mem
             else None,
             Text(str(node.getFreeLocalScratch()), style=style)
             if self._show_local
@@ -207,7 +208,7 @@ class NodeGroup:
             Text(str(node.getFreeSharedScratch()), style=style)
             if self._show_shared
             else None,
-            QQNodesPresenter._formatNodeProperties(
+            NodesPresenter._formatNodeProperties(
                 node.getProperties(), self._shared_properties, style
             )
             if self._show_props
@@ -218,12 +219,21 @@ class NodeGroup:
 
     def _shouldShowGPUs(self) -> bool:
         """
-        Determine whether GPU-related columns should be displayed.
+        Determine whether the GPUs column should be displayed.
 
         Returns:
             bool: True if any node has GPUs, False otherwise.
         """
         return any(n.getNGPUs() != 0 for n in self.nodes)
+
+    def _shouldShowGPUMem(self) -> bool:
+        """
+        Determine whether GPU memory column should be displayed.
+
+        Returns:
+            bool: True if any node has GPU memory, False otherwise.
+        """
+        return any(n.getGPUMemory().value != 0 for n in self.nodes)
 
     def _shouldShowLocalScratch(self) -> bool:
         """
@@ -372,7 +382,7 @@ class NodeGroupStats:
         )
 
 
-class QQNodesPresenter:
+class NodesPresenter:
     """
     Presenter class for displaying information about batch system nodes.
     """
@@ -416,11 +426,9 @@ class QQNodesPresenter:
 
         groups = self._node_groups
         parts = [g.createFullInfoPanel() for g in self._node_groups]
-        seps = [
-            QQNodesPresenter._createSeparator(g.name) for g in self._node_groups[1:]
-        ]
+        seps = [NodesPresenter._createSeparator(g.name) for g in self._node_groups[1:]]
 
-        content: list[Group] = QQNodesPresenter._interleave(parts, seps)
+        content: list[Group] = NodesPresenter._interleave(parts, seps)
 
         if len(groups) > 1:
             content.append(self._createMetadataPanel())
@@ -461,7 +469,7 @@ class QQNodesPresenter:
                 style=CFG.nodes_presenter.rule_style,
             ),
             "",
-            QQNodesPresenter._formatMetadataTable(
+            NodesPresenter._formatMetadataTable(
                 list(total_stats.properties), "All properties", total_stats
             ),
         )
@@ -680,7 +688,7 @@ class QQNodesPresenter:
         grid.add_column()
 
         grid.add_row(
-            QQNodesPresenter._formatPropertiesSection(props, title),
+            NodesPresenter._formatPropertiesSection(props, title),
             stats.createStatsTable(),
         )
 

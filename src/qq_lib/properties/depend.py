@@ -91,7 +91,7 @@ class DependType(Enum):
         )
 
 
-@dataclass()
+@dataclass
 class Depend:
     """
     Representation of a parsed job dependency.

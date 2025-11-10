@@ -14,7 +14,7 @@ from qq_lib.kill.cli import kill, kill_job
 
 
 def test_kill_job_raises_mismatch_error():
-    with patch("qq_lib.kill.cli.QQKiller") as mock_killer_cls:
+    with patch("qq_lib.kill.cli.Killer") as mock_killer_cls:
         mock_killer = MagicMock()
         mock_killer.matchesJob.return_value = False
         mock_killer_cls.return_value = mock_killer
@@ -27,7 +27,7 @@ def test_kill_job_raises_mismatch_error():
 
 def test_kill_job_force_skips_suitability_and_logs_killed():
     with (
-        patch("qq_lib.kill.cli.QQKiller") as mock_killer_cls,
+        patch("qq_lib.kill.cli.Killer") as mock_killer_cls,
         patch("qq_lib.kill.cli.logger.info") as mock_logger,
         patch("qq_lib.kill.cli.yes_or_no_prompt") as mock_prompt,
         patch("qq_lib.kill.cli.console"),
@@ -47,7 +47,7 @@ def test_kill_job_force_skips_suitability_and_logs_killed():
 
 def test_kill_job_prompts_yes_and_kills():
     with (
-        patch("qq_lib.kill.cli.QQKiller") as mock_killer_cls,
+        patch("qq_lib.kill.cli.Killer") as mock_killer_cls,
         patch("qq_lib.kill.cli.logger.info") as mock_logger,
         patch("qq_lib.kill.cli.console"),
         patch("qq_lib.kill.cli.yes_or_no_prompt", return_value=True),
@@ -66,7 +66,7 @@ def test_kill_job_prompts_yes_and_kills():
 
 def test_kill_job_prompts_no_and_aborts():
     with (
-        patch("qq_lib.kill.cli.QQKiller") as mock_killer_cls,
+        patch("qq_lib.kill.cli.Killer") as mock_killer_cls,
         patch("qq_lib.kill.cli.logger.info") as mock_logger,
         patch("qq_lib.kill.cli.console"),
         patch("qq_lib.kill.cli.yes_or_no_prompt", return_value=False),
@@ -97,7 +97,7 @@ def test_kill_invokes_repeater_and_exits_success(tmp_path):
             "qq_lib.kill.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.kill.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger"),
     ):
         result = runner.invoke(kill, [])
@@ -125,7 +125,7 @@ def test_kill_catches_qqerror_and_exits_91(tmp_path):
             "qq_lib.kill.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.kill.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger") as mock_logger,
     ):
         result = runner.invoke(kill, [])
@@ -147,7 +147,7 @@ def test_kill_catches_generic_exception_and_exits_99(tmp_path):
             "qq_lib.kill.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.kill.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger") as mock_logger,
     ):
         result = runner.invoke(kill, [])

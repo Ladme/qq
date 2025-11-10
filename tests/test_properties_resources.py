@@ -4,12 +4,12 @@
 import pytest
 
 from qq_lib.core.error import QQError
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
 
 
 def test_init_converts_mem_and_storage_per_cpu_strings():
-    res = QQResources(mem_per_cpu="2gb", work_size_per_cpu="1gb")
+    res = Resources(mem_per_cpu="2gb", work_size_per_cpu="1gb")
     assert isinstance(res.mem_per_cpu, Size)
     assert str(res.mem_per_cpu) == "2gb"
     assert isinstance(res.work_size_per_cpu, Size)
@@ -17,7 +17,7 @@ def test_init_converts_mem_and_storage_per_cpu_strings():
 
 
 def test_init_converts_mem_and_storage_strings():
-    res = QQResources(mem="4gb", work_size="10gb")
+    res = Resources(mem="4gb", work_size="10gb")
     assert isinstance(res.mem, Size)
     assert str(res.mem) == "4gb"
     assert isinstance(res.work_size, Size)
@@ -25,39 +25,39 @@ def test_init_converts_mem_and_storage_strings():
 
 
 def test_init_converts_walltime_seconds():
-    res = QQResources(walltime="3600s")
+    res = Resources(walltime="3600s")
     assert res.walltime == "1:00:00"
 
 
 def test_init_does_not_convert_walltime_with_colon():
-    res = QQResources(walltime="02:30:00")
+    res = Resources(walltime="02:30:00")
     assert res.walltime == "02:30:00"
 
 
 def test_init_converts_props_string_to_dict_equal_sign():
-    res = QQResources(props="gpu_type=a100,property=new")
+    res = Resources(props="gpu_type=a100,property=new")
     assert res.props == {"gpu_type": "a100", "property": "new"}
 
 
 def test_init_converts_props_string_to_dict_flags():
-    res = QQResources(props="avx512 ^smt")
+    res = Resources(props="avx512 ^smt")
     assert res.props == {"avx512": "true", "smt": "false"}
 
 
 def test_init_converts_props_string_with_mixed_delimiters():
-    res = QQResources(props="gpu_type=a100 property=new:debug")
+    res = Resources(props="gpu_type=a100 property=new:debug")
     assert res.props == {"gpu_type": "a100", "property": "new", "debug": "true"}
 
 
 def test_init_converts_numeric_strings_to_integers():
-    res = QQResources(nnodes="2", ncpus="16", ngpus="4")
+    res = Resources(nnodes="2", ncpus="16", ngpus="4")
     assert res.nnodes == 2
     assert res.ncpus == 16
     assert res.ngpus == 4
 
 
 def test_init_mem_overrides_mem_per_cpu():
-    res = QQResources(mem_per_cpu="1gb", mem="4gb")
+    res = Resources(mem_per_cpu="1gb", mem="4gb")
     assert res.mem_per_cpu is None
 
     assert res.mem is not None
@@ -65,7 +65,7 @@ def test_init_mem_overrides_mem_per_cpu():
 
 
 def test_init_worksize_overrides_work_size_per_cpu():
-    res = QQResources(work_size_per_cpu="1gb", work_size="4gb")
+    res = Resources(work_size_per_cpu="1gb", work_size="4gb")
     assert res.work_size_per_cpu is None
 
     assert res.work_size is not None
@@ -73,7 +73,7 @@ def test_init_worksize_overrides_work_size_per_cpu():
 
 
 def test_init_leaves_already_converted_types_unchanged():
-    res = QQResources(
+    res = Resources(
         nnodes=2,
         ncpus=16,
         ngpus=4,
@@ -96,28 +96,28 @@ def test_init_leaves_already_converted_types_unchanged():
 
 
 def test_merge_resources_basic_field_precedence():
-    r1 = QQResources(ncpus=4, work_dir="input_dir")
-    r2 = QQResources(ncpus=8, work_dir="scratch_local")
-    merged = QQResources.mergeResources(r1, r2)
+    r1 = Resources(ncpus=4, work_dir="input_dir")
+    r2 = Resources(ncpus=8, work_dir="scratch_local")
+    merged = Resources.mergeResources(r1, r2)
 
     assert merged.ncpus == 4
     assert merged.work_dir == "input_dir"
 
 
 def test_merge_resources_props_merging_order_and_dedup():
-    r1 = QQResources(props="cl_example,ssd")
-    r2 = QQResources(props="ssd:infiniband")
-    r3 = QQResources(props=None)
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources(props="cl_example,ssd")
+    r2 = Resources(props="ssd:infiniband")
+    r3 = Resources(props=None)
+    merged = Resources.mergeResources(r1, r2, r3)
 
     assert merged.props == {"cl_example": "true", "ssd": "true", "infiniband": "true"}
 
 
 def test_merge_resources_props_merging_order_and_dedup_disallowed():
-    r1 = QQResources(props="vnode=example_node  ^ssd")
-    r2 = QQResources(props="ssd,infiniband:^property")
-    r3 = QQResources(props=None)
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources(props="vnode=example_node  ^ssd")
+    r2 = Resources(props="ssd,infiniband:^property")
+    r3 = Resources(props=None)
+    merged = Resources.mergeResources(r1, r2, r3)
 
     assert merged.props == {
         "vnode": "example_node",
@@ -128,10 +128,10 @@ def test_merge_resources_props_merging_order_and_dedup_disallowed():
 
 
 def test_merge_resources_props_merging_order_and_dedup_disallowed2():
-    r1 = QQResources(props="vnode=^example_node  ssd")
-    r2 = QQResources(props=None)
-    r3 = QQResources(props="^ssd,infiniband:property")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources(props="vnode=^example_node  ssd")
+    r2 = Resources(props=None)
+    r3 = Resources(props="^ssd,infiniband:property")
+    merged = Resources.mergeResources(r1, r2, r3)
 
     assert merged.props == {
         "vnode": "^example_node",
@@ -142,17 +142,17 @@ def test_merge_resources_props_merging_order_and_dedup_disallowed2():
 
 
 def test_merge_resources_props_none_when_no_values():
-    r1 = QQResources()
-    r2 = QQResources()
-    merged = QQResources.mergeResources(r1, r2)
+    r1 = Resources()
+    r2 = Resources()
+    merged = Resources.mergeResources(r1, r2)
     assert merged.props is None
 
 
 def test_merge_resources_mem_with_mem_per_cpu_precedence():
-    r1 = QQResources(mem="16gb")
-    r2 = QQResources(mem="32gb", mem_per_cpu="4gb")
-    r3 = QQResources(mem="64gb")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources(mem="16gb")
+    r2 = Resources(mem="32gb", mem_per_cpu="4gb")
+    r3 = Resources(mem="64gb")
+    merged = Resources.mergeResources(r1, r2, r3)
     assert merged.mem is not None
     assert merged.mem.value == 16777216
 
@@ -160,39 +160,39 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence():
 
 
 def test_merge_resources_mem_with_mem_per_cpu_precedence2():
-    r1 = QQResources()
-    r2 = QQResources(mem="32gb", mem_per_cpu="4gb")
-    r3 = QQResources(mem="64gb")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources()
+    r2 = Resources(mem="32gb", mem_per_cpu="4gb")
+    r3 = Resources(mem="64gb")
+    merged = Resources.mergeResources(r1, r2, r3)
     assert merged.mem is not None
     assert merged.mem.value == 33554432
     assert merged.mem_per_cpu is None
 
 
 def test_merge_resources_mem_with_mem_per_cpu_precedence3():
-    r1 = QQResources()
-    r2 = QQResources(mem_per_cpu="4gb")
-    r3 = QQResources(mem="64gb")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources()
+    r2 = Resources(mem_per_cpu="4gb")
+    r3 = Resources(mem="64gb")
+    merged = Resources.mergeResources(r1, r2, r3)
     assert merged.mem is None
     assert merged.mem_per_cpu is not None
     assert merged.mem_per_cpu.value == 4194304
 
 
 def test_merge_resources_mem_skipped_if_mem_per_cpu_seen_first():
-    r1 = QQResources(mem_per_cpu="4gb")
-    r2 = QQResources(mem="32gb")
-    merged = QQResources.mergeResources(r1, r2)
+    r1 = Resources(mem_per_cpu="4gb")
+    r2 = Resources(mem="32gb")
+    merged = Resources.mergeResources(r1, r2)
     assert merged.mem is None
     assert merged.mem_per_cpu is not None
     assert merged.mem_per_cpu.value == 4194304
 
 
 def test_merge_resources_work_size_with_work_size_per_cpu_precedence():
-    r1 = QQResources(work_size="100gb")
-    r2 = QQResources(work_size="200gb", work_size_per_cpu="10gb")
-    r3 = QQResources(work_size="300gb")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources(work_size="100gb")
+    r2 = Resources(work_size="200gb", work_size_per_cpu="10gb")
+    r3 = Resources(work_size="300gb")
+    merged = Resources.mergeResources(r1, r2, r3)
     assert merged.work_size is not None
     assert merged.work_size.value == 104857600
 
@@ -200,10 +200,10 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence():
 
 
 def test_merge_resources_work_size_with_work_size_per_cpu_precedence2():
-    r1 = QQResources()
-    r2 = QQResources(work_size="200gb", work_size_per_cpu="10gb")
-    r3 = QQResources(work_size="300gb")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources()
+    r2 = Resources(work_size="200gb", work_size_per_cpu="10gb")
+    r3 = Resources(work_size="300gb")
+    merged = Resources.mergeResources(r1, r2, r3)
     assert merged.work_size is not None
     assert merged.work_size.value == 209715200
 
@@ -211,26 +211,26 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence2():
 
 
 def test_merge_resources_work_size_with_work_size_per_cpu_precedence3():
-    r1 = QQResources()
-    r2 = QQResources(work_size_per_cpu="10gb")
-    r3 = QQResources(work_size="300gb")
-    merged = QQResources.mergeResources(r1, r2, r3)
+    r1 = Resources()
+    r2 = Resources(work_size_per_cpu="10gb")
+    r3 = Resources(work_size="300gb")
+    merged = Resources.mergeResources(r1, r2, r3)
     assert merged.work_size is None
     assert merged.work_size_per_cpu is not None
     assert merged.work_size_per_cpu.value == 10485760
 
 
 def test_merge_resources_work_size_skipped_if_work_size_per_cpu_seen_first():
-    r1 = QQResources(work_size_per_cpu="10gb")
-    r2 = QQResources(work_size="200gb")
-    merged = QQResources.mergeResources(r1, r2)
+    r1 = Resources(work_size_per_cpu="10gb")
+    r2 = Resources(work_size="200gb")
+    merged = Resources.mergeResources(r1, r2)
     assert merged.work_size is None
     assert merged.work_size_per_cpu is not None
     assert merged.work_size_per_cpu.value == 10485760
 
 
 def test_merge_resources_all_fields_combined():
-    r1 = QQResources(
+    r1 = Resources(
         nnodes=2,
         ncpus=4,
         mem_per_cpu="16gb",
@@ -238,7 +238,7 @@ def test_merge_resources_all_fields_combined():
         work_dir="scratch_local",
         props="gpu",
     )
-    r2 = QQResources(
+    r2 = Resources(
         nnodes=None,
         ncpus=8,
         mem="32gb",
@@ -246,7 +246,7 @@ def test_merge_resources_all_fields_combined():
         work_dir=None,
         props="^ssd",
     )
-    merged = QQResources.mergeResources(r1, r2)
+    merged = Resources.mergeResources(r1, r2)
     assert merged.nnodes == 2
     assert merged.ncpus == 4
     assert merged.mem is None
@@ -260,39 +260,39 @@ def test_merge_resources_all_fields_combined():
 
 
 def test_merge_resources_with_none_resources():
-    r1 = QQResources()
-    r2 = QQResources()
-    merged = QQResources.mergeResources(r1, r2)
+    r1 = Resources()
+    r2 = Resources()
+    merged = Resources.mergeResources(r1, r2)
     for f in r1.__dataclass_fields__:
         assert getattr(merged, f) is None
 
 
 def test_parse_size_from_string():
-    result = QQResources._parseSize("4gb")
+    result = Resources._parseSize("4gb")
     assert isinstance(result, Size)
     assert result.value == 4194304
 
 
 def test_parse_size_from_size():
-    result = QQResources._parseSize(Size(4, "gb"))
+    result = Resources._parseSize(Size(4, "gb"))
     assert isinstance(result, Size)
     assert result.value == 4194304
 
 
 def test_parse_size_from_dict():
     data = {"value": 8, "unit": "mb"}
-    result = QQResources._parseSize(data)
+    result = Resources._parseSize(data)
     assert isinstance(result, Size)
     assert result.value == 8192
 
 
 def test_parse_size_invalid_type_int():
-    result = QQResources._parseSize(123)
+    result = Resources._parseSize(123)
     assert result is None
 
 
 def test_parse_size_invalid_type_none():
-    result = QQResources._parseSize(None)
+    result = Resources._parseSize(None)
     assert result is None
 
 
@@ -312,12 +312,12 @@ def test_parse_size_invalid_type_none():
     ],
 )
 def test_parse_props_various_cases(props, expected):
-    result = QQResources._parseProps(props)
+    result = Resources._parseProps(props)
     assert result == expected
 
 
 def test_parse_props_strips_empty_parts():
-    result = QQResources._parseProps("foo,, ,bar=1")
+    result = Resources._parseProps("foo,, ,bar=1")
     assert result == {"foo": "true", "bar": "1"}
 
 
@@ -333,4 +333,4 @@ def test_parse_props_strips_empty_parts():
 )
 def test_parse_props_raises_on_duplicate_keys(props):
     with pytest.raises(QQError, match="Property 'foo' is defined multiple times."):
-        QQResources._parseProps(props)
+        Resources._parseProps(props)

@@ -9,51 +9,36 @@ from typing import Self
 
 import yaml
 
-from qq_lib.batch.interface import QQBatchInterface, QQBatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 
-from .job_type import QQJobType
-from .loop import QQLoopInfo
-from .resources import QQResources
+from .job_type import JobType
+from .loop import LoopInfo
+from .resources import Resources
 from .states import NaiveState
 
 logger = get_logger(__name__)
 
-# load faster YAML loader and dumper
-try:
-    from yaml import CSafeLoader as SafeLoader  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CLoader.")
-except ImportError:
-    from yaml import SafeLoader
-
-    logger.debug("Loaded default YAML loader.")
-
-try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CDumper.")
-except ImportError:
-    from yaml import Dumper
-
-    logger.debug("Loaded default YAML dumper.")
+SafeLoader: type[yaml.SafeLoader] = load_yaml_loader()
+Dumper: type[yaml.Dumper] = load_yaml_dumper()
 
 
 @dataclass
-class QQInfo:
+class Info:
     """
     Dataclass storing information about a qq job.
 
     Exposes only minimal functionality for loading, exporting, and basic access.
     More complex operations, such as transforming or combining the data
-    should be implemented in QQInformer.
+    should be implemented in Informer.
     """
 
     # The batch system class used
-    batch_system: type[QQBatchInterface]
+    batch_system: type[BatchInterface]
 
     # Version of qq that submitted the job
     qq_version: str
@@ -74,7 +59,7 @@ class QQInfo:
     queue: str
 
     # Type of the qq job
-    job_type: QQJobType
+    job_type: JobType
 
     # Host from which the job was submitted
     input_machine: str
@@ -95,7 +80,7 @@ class QQInfo:
     stderr_file: str
 
     # Resources allocated to the job
-    resources: QQResources
+    resources: Resources
 
     # Command line arguments and options provided when submitting.
     command_line: list[str]
@@ -107,7 +92,10 @@ class QQInfo:
     depend: list[Depend] = field(default_factory=list)
 
     # Loop job-associated information.
-    loop_info: QQLoopInfo | None = None
+    loop_info: LoopInfo | None = None
+
+    # Account associated with the job
+    account: str | None = None
 
     # Job start time
     start_time: datetime | None = None
@@ -130,7 +118,7 @@ class QQInfo:
     @classmethod
     def fromFile(cls, file: Path, host: str | None = None) -> Self:
         """
-        Load a QQInfo instance from a YAML file, either locally or on a remote host.
+        Load an Info instance from a YAML file, either locally or on a remote host.
 
         If `host` is provided, the file will be read from the remote host using
         the batch system's `readRemoteFile` method. Otherwise, the file is read locally.
@@ -141,7 +129,7 @@ class QQInfo:
                 If None, the file is assumed to be local.
 
         Returns:
-            QQInfo: Instance constructed from the file.
+            Info: Instance constructed from the file.
 
         Raises:
             QQError: If the file does not exist, cannot be reached, cannot be parsed,
@@ -152,7 +140,7 @@ class QQInfo:
                 # remote file
                 logger.debug(f"Loading qq info from '{file}' on '{host}'.")
 
-                BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+                BatchSystem = BatchMeta.fromEnvVarOrGuess()
                 data: dict[str, object] = yaml.load(
                     BatchSystem.readRemoteFile(host, file),
                     Loader=SafeLoader,
@@ -177,7 +165,7 @@ class QQInfo:
 
     def toFile(self, file: Path, host: str | None = None) -> None:
         """
-        Export this QQInfo instance to a YAML file, either locally or on a remote host.
+        Export this Info instance to a YAML file, either locally or on a remote host.
 
         If `host` is provided, the file will be written to the remote host using
         the batch system's `writeRemoteFile` method. Otherwise, the file is written locally.
@@ -207,10 +195,10 @@ class QQInfo:
 
     def _toYaml(self) -> str:
         """
-        Serialize the QQInfo instance to a YAML string.
+        Serialize the Info instance to a YAML string.
 
         Returns:
-            str: YAML representation of the QQInfo object.
+            str: YAML representation of the Info object.
         """
         return yaml.dump(
             self._toDict(), default_flow_style=False, sort_keys=False, Dumper=Dumper
@@ -218,7 +206,7 @@ class QQInfo:
 
     def _toDict(self) -> dict[str, object]:
         """
-        Convert the QQInfo instance into a dictionary of string-object pairs.
+        Convert the Info instance into a dictionary of string-object pairs.
         Fields that are None are ignored.
 
         Returns:
@@ -238,15 +226,15 @@ class QQInfo:
                 continue
 
             # convert job type
-            if f.type == QQJobType:
+            if f.type == JobType:
                 result[f.name] = str(value)
             # convert resources
-            elif f.type == QQResources or f.type == QQLoopInfo | None:
+            elif f.type == Resources or f.type == LoopInfo | None:
                 result[f.name] = value.toDict()
             # convert the state and the batch system
             elif (
                 f.type == NaiveState
-                or f.type == type[QQBatchInterface]
+                or f.type == type[BatchInterface]
                 or f.type == Path
                 or f.type == Path | None
             ):
@@ -267,13 +255,13 @@ class QQInfo:
     @classmethod
     def _fromDict(cls, data: dict[str, object]) -> Self:
         """
-        Construct a QQInfo instance from a dictionary.
+        Construct an Info instance from a dictionary.
 
         Args:
             data: Dictionary containing field names and values.
 
         Returns:
-            QQInfo: A QQInfo instance.
+            Info: An Info instance.
 
         Raises:
             TypeError: If required fields are missing.
@@ -288,20 +276,20 @@ class QQInfo:
             value = data[name]
 
             # convert job type
-            if f.type == QQJobType and isinstance(value, str):
-                init_kwargs[name] = QQJobType.fromStr(value)
+            if f.type == JobType and isinstance(value, str):
+                init_kwargs[name] = JobType.fromStr(value)
             # convert optional loop job info
-            elif f.type == QQLoopInfo | None and isinstance(value, dict):
+            elif f.type == LoopInfo | None and isinstance(value, dict):
                 # 'archive' must be converted to Path
-                init_kwargs[name] = QQLoopInfo(  # ty: ignore[missing-argument]
+                init_kwargs[name] = LoopInfo(  # ty: ignore[missing-argument]
                     **{k: Path(v) if k == "archive" else v for k, v in value.items()}
                 )
             # convert resources
-            elif f.type == QQResources:
-                init_kwargs[name] = QQResources(**value)  # ty: ignore[invalid-argument-type]
+            elif f.type == Resources:
+                init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]
             # convert the batch system
-            elif f.type == type[QQBatchInterface] and isinstance(value, str):
-                init_kwargs[name] = QQBatchMeta.fromStr(value)
+            elif f.type == type[BatchInterface] and isinstance(value, str):
+                init_kwargs[name] = BatchMeta.fromStr(value)
             # convert the job state
             elif f.type == NaiveState and isinstance(value, str):
                 init_kwargs[name] = (

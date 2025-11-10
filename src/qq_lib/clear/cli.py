@@ -12,7 +12,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
-from .clearer import QQClearer
+from .clearer import Clearer
 
 logger = get_logger(__name__)
 
@@ -37,7 +37,7 @@ def clear(force: bool) -> NoReturn:
     Delete qq runtime files in the current directory.
     """
     try:
-        clearer = QQClearer(Path())
+        clearer = Clearer(Path())
         clearer.clear(force)
         sys.exit(0)
     except QQError as e:

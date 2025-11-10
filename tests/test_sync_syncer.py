@@ -9,11 +9,11 @@ import pytest
 
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.properties.states import RealState
-from qq_lib.sync.syncer import QQSyncer
+from qq_lib.sync.syncer import Syncer
 
 
-def test_qqsyncer_ensure_suitable_raises_finished():
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_ensure_suitable_raises_finished():
+    syncer = Syncer.__new__(Syncer)
     syncer._state = RealState.FINISHED
 
     with pytest.raises(
@@ -23,8 +23,8 @@ def test_qqsyncer_ensure_suitable_raises_finished():
         syncer.ensureSuitable()
 
 
-def test_qqsyncer_ensure_suitable_raises_exiting_successfully():
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_ensure_suitable_raises_exiting_successfully():
+    syncer = Syncer.__new__(Syncer)
     syncer._state = RealState.EXITING
     syncer._informer = MagicMock()
     syncer._informer.info.job_exit_code = 0
@@ -37,8 +37,8 @@ def test_qqsyncer_ensure_suitable_raises_exiting_successfully():
 
 
 @pytest.mark.parametrize("destination", [(None, "host"), (Path("some/path"), None)])
-def test_qqsyncer_ensure_suitable_raises_killed_without_destination(destination):
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_ensure_suitable_raises_killed_without_destination(destination):
+    syncer = Syncer.__new__(Syncer)
     syncer._state = RealState.KILLED
     syncer._work_dir, syncer._main_node = destination
 
@@ -49,8 +49,8 @@ def test_qqsyncer_ensure_suitable_raises_killed_without_destination(destination)
         syncer.ensureSuitable()
 
 
-def test_qqsyncer_ensure_suitable_raises_queued_state():
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_ensure_suitable_raises_queued_state():
+    syncer = Syncer.__new__(Syncer)
     syncer._state = RealState.QUEUED
 
     with pytest.raises(
@@ -60,8 +60,8 @@ def test_qqsyncer_ensure_suitable_raises_queued_state():
         syncer.ensureSuitable()
 
 
-def test_qqsyncer_ensure_suitable_passes_when_suitable():
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_ensure_suitable_passes_when_suitable():
+    syncer = Syncer.__new__(Syncer)
     syncer._state = RealState.RUNNING
     syncer._work_dir = Path("/some/dir")
     syncer._main_node = "host"
@@ -73,8 +73,8 @@ def test_qqsyncer_ensure_suitable_passes_when_suitable():
 @pytest.mark.parametrize(
     "destination", [(None, "host"), (Path("some/path"), None), (None, None)]
 )
-def test_qqsyncer_sync_raises_without_destination(destination):
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_sync_raises_without_destination(destination):
+    syncer = Syncer.__new__(Syncer)
     syncer._work_dir, syncer._main_node = destination
 
     with pytest.raises(
@@ -84,8 +84,8 @@ def test_qqsyncer_sync_raises_without_destination(destination):
         syncer.sync()
 
 
-def test_qqsyncer_sync_calls_sync_selected_with_files():
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_sync_calls_sync_selected_with_files():
+    syncer = Syncer.__new__(Syncer)
     syncer._work_dir = Path("/work")
     syncer._main_node = "host"
     syncer._batch_system = MagicMock()
@@ -109,8 +109,8 @@ def test_qqsyncer_sync_calls_sync_selected_with_files():
         )
 
 
-def test_qqsyncer_sync_calls_sync_with_exclusions_without_files():
-    syncer = QQSyncer.__new__(QQSyncer)
+def test_syncer_sync_calls_sync_with_exclusions_without_files():
+    syncer = Syncer.__new__(Syncer)
     syncer._work_dir = Path("/work")
     syncer._main_node = "host"
     syncer._batch_system = MagicMock()

@@ -19,7 +19,7 @@ def test_go_to_job_matches_job_raises_mismatch_error():
     goer_mock.matchesJob.return_value = False
 
     with (
-        patch("qq_lib.go.cli.QQGoer", return_value=goer_mock),
+        patch("qq_lib.go.cli.Goer", return_value=goer_mock),
         pytest.raises(
             QQJobMismatchError,
             match="Info file for job '12345' does not exist or is not reachable.",
@@ -34,7 +34,7 @@ def test_go_to_job_calls_printinfo_ensure_suitable_and_go():
     goer_mock.matchesJob.return_value = True
 
     with (
-        patch("qq_lib.go.cli.QQGoer", return_value=goer_mock),
+        patch("qq_lib.go.cli.Goer", return_value=goer_mock),
         patch("qq_lib.go.cli.console", new=MagicMock()),
     ):
         _go_to_job(info_file, job=None)
@@ -56,7 +56,7 @@ def test_go_invokes_repeater_and_exits_success(tmp_path):
             "qq_lib.go.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.go.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.go.cli.logger"),
     ):
         result = runner.invoke(go, [])
@@ -82,7 +82,7 @@ def test_go_catches_qqerror_and_exits_91(tmp_path):
             "qq_lib.go.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.go.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.go.cli.logger") as mock_logger,
     ):
         result = runner.invoke(go, [])
@@ -104,7 +104,7 @@ def test_go_catches_generic_exception_and_exits_99(tmp_path):
             "qq_lib.go.cli.get_info_files_from_job_id_or_dir",
             return_value=[dummy_file],
         ),
-        patch("qq_lib.go.cli.QQRepeater", return_value=repeater_mock),
+        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.go.cli.logger") as mock_logger,
     ):
         result = runner.invoke(go, [])

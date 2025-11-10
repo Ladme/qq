@@ -11,13 +11,13 @@ from typing import NoReturn
 import click
 
 from qq_lib.batch.interface.job import BatchJobInterface
-from qq_lib.batch.interface.meta import QQBatchMeta
+from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import yes_or_no_prompt
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
+from qq_lib.core.repeater import Repeater
 from qq_lib.kill.cli import kill_job
 
 logger = get_logger(__name__)
@@ -41,7 +41,7 @@ This command is only able to terminate qq jobs, all other jobs are not affected 
 )
 def killall(yes: bool = False, force: bool = False) -> NoReturn:
     try:
-        BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.fromEnvVarOrGuess()
         jobs = BatchSystem.getUnfinishedBatchJobs(getpass.getuser())
         if not jobs:
             logger.info("You have no active jobs. Nothing to kill.")
@@ -61,7 +61,7 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
                 f"You have {len(files)} active qq job{'s' if len(files) > 1 else ''}. Do you want to kill {'them' if len(files) > 1 else 'it'}?"
             )
         ):
-            repeater = QQRepeater(
+            repeater = Repeater(
                 files,
                 kill_job,
                 force=force,
@@ -76,7 +76,7 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
             logger.info("Operation aborted.")
 
         sys.exit(0)
-    # QQErrors should be caught by QQRepeater
+    # QQErrors should be caught by Repeater
     except QQError as e:
         logger.error(e)
         sys.exit(CFG.exit_codes.default)
@@ -91,7 +91,7 @@ def _jobs_to_paths(jobs: Iterable[BatchJobInterface]) -> list[Path]:
 
 def _log_error_and_continue(
     exception: BaseException,
-    _metadata: QQRepeater,
+    _metadata: Repeater,
 ) -> None:
     """
     Log error as error and continue the execution.

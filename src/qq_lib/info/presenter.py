@@ -15,20 +15,20 @@ from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import RealState
 
-from .informer import QQInformer
+from .informer import Informer
 
 
-class QQPresenter:
+class Presenter:
     """
     Presentation layer for qq job information.
     """
 
-    def __init__(self, informer: QQInformer):
+    def __init__(self, informer: Informer):
         """
-        Initialize the presenter with a QQInformer.
+        Initialize the presenter with an Informer.
 
         Args:
-            informer (QQInformer): The informer object that provides
+            informer (Informer): The informer object that provides
                 access to qq job metadata and runtime details.
         """
         self._informer = informer
@@ -297,7 +297,7 @@ class QQPresenter:
                 ),
             )
             table.add_row(
-                f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
                 Text(f"{completed}"),
             )
         # job is "completed" (likely killed) but never started running
@@ -310,7 +310,7 @@ class QQPresenter:
                 ),
             )
             table.add_row(
-                f"{QQPresenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
                 Text(f"{completed}"),
             )
 
@@ -402,7 +402,7 @@ class QQPresenter:
                 elif len(all_nodes) == 1:
                     nodes = f"'{main_node}'"
                 else:
-                    nodes = f"'{main_node}' and {len(all_nodes) - 1} other nodes"
+                    nodes = f"'{main_node}' and {len(all_nodes) - 1} other node{'s' if len(all_nodes) > 2 else ''}"
                 return (
                     "Job is running",
                     f"Running for {format_duration_wdhhmmss(end_time - start_time)} on {nodes}",

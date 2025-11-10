@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from qq_lib.archive.archiver import CFG, QQArchiver
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.archive.archiver import CFG, Archiver
+from qq_lib.batch.pbs import PBS
 
 
 def test_remove_files(tmp_path):
@@ -18,7 +18,7 @@ def test_remove_files(tmp_path):
         f.write_text("test")
         files.append(f)
 
-    QQArchiver._removeFiles(files)
+    Archiver._removeFiles(files)
 
     for f in files:
         assert not f.exists()
@@ -31,16 +31,16 @@ def test_remove_files_raises(tmp_path):
     f.unlink()
 
     with pytest.raises(OSError):
-        QQArchiver._removeFiles([f])
+        Archiver._removeFiles([f])
 
 
 def test_remove_files_empty_list():
-    QQArchiver._removeFiles([])
+    Archiver._removeFiles([])
 
 
 def test_prepare_regex_pattern_printf():
     pattern = "md%04d"
-    regex = QQArchiver._prepare_regex_pattern(pattern)
+    regex = Archiver._prepare_regex_pattern(pattern)
 
     assert isinstance(regex, re.Pattern)
 
@@ -53,7 +53,7 @@ def test_prepare_regex_pattern_printf():
 
 def test_prepare_regex_pattern_simple_regex():
     pattern = "file\\d{3}"
-    regex = QQArchiver._prepare_regex_pattern(pattern)
+    regex = Archiver._prepare_regex_pattern(pattern)
 
     assert regex.fullmatch("file123")
     assert not regex.fullmatch("afile123")
@@ -62,7 +62,7 @@ def test_prepare_regex_pattern_simple_regex():
 
 def test_prepare_regex_pattern_anchored():
     pattern = "^abc\\d+$"
-    regex = QQArchiver._prepare_regex_pattern(pattern)
+    regex = Archiver._prepare_regex_pattern(pattern)
 
     assert regex.pattern == pattern
     assert regex.fullmatch("abc123")
@@ -89,12 +89,12 @@ def work_dir(tmp_path):
 def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    archiver = QQArchiver(
+    archiver = Archiver(
         archive=archive_dir,
         archive_format="job%04d",
         input_machine="fake_host",
         input_dir=input_dir,
-        batch_system=QQPBS,
+        batch_system=PBS,
     )
 
     assert not archive_dir.exists()
@@ -108,12 +108,12 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
     # pre-create the archive directory
     archive_dir.mkdir(parents=True)
 
-    archiver = QQArchiver(
+    archiver = Archiver(
         archive=archive_dir,
         archive_format="job%04d",
         input_machine="fake_host",
         input_dir=input_dir,
-        batch_system=QQPBS,
+        batch_system=PBS,
     )
 
     archiver.makeArchiveDir()
@@ -123,12 +123,12 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
 
 @pytest.fixture
 def archiver(input_dir, archive_dir):
-    return QQArchiver(
+    return Archiver(
         archive=archive_dir,
         archive_format="job%04d",
         input_machine="fake_host",
         input_dir=input_dir,
-        batch_system=QQPBS,
+        batch_system=PBS,
     )
 
 

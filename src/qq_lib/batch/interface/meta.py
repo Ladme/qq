@@ -9,37 +9,37 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
-from .interface import QQBatchInterface
+from .interface import BatchInterface
 
 logger = get_logger(__name__)
 
 
-class QQBatchMeta(ABCMeta):
+class BatchMeta(ABCMeta):
     """
     Metaclass for batch system classes.
     """
 
     # registry of supported batch systems
-    _registry: dict[str, type[QQBatchInterface]] = {}
+    _registry: dict[str, type[BatchInterface]] = {}
 
-    def __str__(cls: type[QQBatchInterface]) -> str:
+    def __str__(cls: type[BatchInterface]) -> str:
         """
         Get the string representation of the batch system class.
         """
         return cls.envName()
 
     @classmethod
-    def register(cls, batch_cls: type[QQBatchInterface]) -> None:
+    def register(cls, batch_cls: type[BatchInterface]) -> None:
         """
         Register a batch system class in the metaclass registry.
 
         Args:
-            batch_cls: Subclass of QQBatchInterface to register.
+            batch_cls: Subclass of BatchInterface to register.
         """
         cls._registry[batch_cls.envName()] = batch_cls
 
     @classmethod
-    def fromStr(mcs, name: str) -> type[QQBatchInterface]:
+    def fromStr(mcs, name: str) -> type[BatchInterface]:
         """
         Return the batch system class registered with the given name.
 
@@ -52,7 +52,7 @@ class QQBatchMeta(ABCMeta):
             raise QQError(f"No batch system registered as '{name}'.") from e
 
     @classmethod
-    def guess(mcs) -> type[QQBatchInterface]:
+    def guess(mcs) -> type[BatchInterface]:
         """
         Attempt to select an appropriate batch system implementation.
 
@@ -64,7 +64,7 @@ class QQBatchMeta(ABCMeta):
             QQError: If no available batch system is found among the registered ones.
 
         Returns:
-            type[QQBatchInterface]: The first available batch system class.
+            type[BatchInterface]: The first available batch system class.
         """
         for BatchSystem in mcs._registry.values():
             if BatchSystem.isAvailable():
@@ -77,7 +77,7 @@ class QQBatchMeta(ABCMeta):
         )
 
     @classmethod
-    def fromEnvVarOrGuess(mcs) -> type[QQBatchInterface]:
+    def fromEnvVarOrGuess(mcs) -> type[BatchInterface]:
         """
         Select a batch system based on the environment variable or by guessing.
 
@@ -87,7 +87,7 @@ class QQBatchMeta(ABCMeta):
         batch system from the registered classes.
 
         Returns:
-            type[QQBatchInterface]: The selected batch system class.
+            type[BatchInterface]: The selected batch system class.
 
         Raises:
             QQError: If the environment variable is set to an unknown batch system name,
@@ -98,12 +98,12 @@ class QQBatchMeta(ABCMeta):
             logger.debug(
                 f"Using batch system name from an environment variable: {name}."
             )
-            return QQBatchMeta.fromStr(name)
+            return BatchMeta.fromStr(name)
 
-        return QQBatchMeta.guess()
+        return BatchMeta.guess()
 
     @classmethod
-    def obtain(mcs, name: str | None) -> type[QQBatchInterface]:
+    def obtain(mcs, name: str | None) -> type[BatchInterface]:
         """
         Obtain a batch system class by name, environment variable, or guessing.
 
@@ -114,24 +114,23 @@ class QQBatchMeta(ABCMeta):
                 the batch system from the environment variable or by guessing.
 
         Returns:
-            type[QQBatchInterface]: The selected batch system class.
+            type[BatchInterface]: The selected batch system class.
 
         Raises:
             QQError: If `name` is provided but no batch system with that name is registered,
                     or if `name` is `None` and `fromEnvVarOrGuess` fails.
         """
         if name:
-            return QQBatchMeta.fromStr(name)
+            return BatchMeta.fromStr(name)
 
-        return QQBatchMeta.fromEnvVarOrGuess()
+        return BatchMeta.fromEnvVarOrGuess()
 
 
 def batch_system(cls):
     """
-    Class decorator to register a batch system class
-    with the QQBatchMeta registry.
+    Class decorator to register a batch system class with the BatchMeta registry.
 
-    Has to be added to every implementation of `BatchSystemInterface`.
+    Has to be added to every implementation of `BatchInterface`.
     """
-    QQBatchMeta.register(cls)
+    BatchMeta.register(cls)
     return cls

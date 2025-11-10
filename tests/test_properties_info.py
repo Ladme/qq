@@ -9,36 +9,36 @@ from typing import Any
 import pytest
 import yaml
 
-from qq_lib.batch.interface import QQBatchMeta
-from qq_lib.batch.pbs import QQPBS
+from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
-from qq_lib.properties.info import CFG, QQInfo
-from qq_lib.properties.job_type import QQJobType
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.info import CFG, Info
+from qq_lib.properties.job_type import JobType
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
 
 
 @pytest.fixture(autouse=True)
 def register():
-    QQBatchMeta.register(QQPBS)
+    BatchMeta.register(PBS)
 
 
 @pytest.fixture
 def sample_resources():
-    return QQResources(ncpus=8, work_dir="scratch_local")
+    return Resources(ncpus=8, work_dir="scratch_local")
 
 
 @pytest.fixture
 def sample_info(sample_resources):
-    return QQInfo(
-        batch_system=QQPBS,
+    return Info(
+        batch_system=PBS,
         qq_version="0.1.0",
         username="fake_user",
         job_id="12345.fake.server.com",
         job_name="script.sh+025",
         queue="default",
         script_name="script.sh",
-        job_type=QQJobType.STANDARD,
+        job_type=JobType.STANDARD,
         input_machine="fake.machine.com",
         input_dir=Path("/shared/storage/"),
         job_state=NaiveState.RUNNING,
@@ -51,6 +51,7 @@ def sample_info(sample_resources):
         excluded_files=[Path("ignore.txt")],
         command_line=["-q", "default", "script.sh"],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
+        account="fake-account",
     )
 
 
@@ -85,6 +86,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
         "stderr_file",
         "resources",
         "excluded_files",
+        "account",
     }
     assert expected_fields.issubset(result.keys())
 
@@ -102,6 +104,7 @@ def test_to_yaml_contains_fields(sample_info):
     assert data["job_id"] == "12345.fake.server.com"
     assert data["job_name"] == "script.sh+025"
     assert data["resources"]["ncpus"] == 8
+    assert data["account"] == "fake-account"
 
 
 def test_to_yaml_skips_none_fields(sample_info):
@@ -165,7 +168,7 @@ def test_export_to_file_invalid_path(sample_info):
 def test_from_dict_roundtrip(sample_info):
     # convert to dict and back
     data = sample_info._toDict()
-    reconstructed = QQInfo._fromDict(data)
+    reconstructed = Info._fromDict(data)
 
     # basic fields
     for field_name in [
@@ -189,7 +192,7 @@ def test_from_dict_roundtrip(sample_info):
         )
 
     # resources
-    assert isinstance(reconstructed.resources, QQResources)
+    assert isinstance(reconstructed.resources, Resources)
     assert reconstructed.resources.ncpus == sample_info.resources.ncpus
     assert reconstructed.resources.work_dir == sample_info.resources.work_dir
 
@@ -215,7 +218,7 @@ def test_from_dict_multiple_excluded_files(sample_info):
 
     # convert to dict and back
     data = sample_info._toDict()
-    reconstructed = QQInfo._fromDict(data)
+    reconstructed = Info._fromDict(data)
 
     assert reconstructed.excluded_files == [Path(p) for p in sample_info.excluded_files]
 
@@ -224,7 +227,7 @@ def test_from_dict_empty_excluded(sample_info):
     data = sample_info._toDict()
     data["excluded_files"] = []
 
-    reconstructed = QQInfo._fromDict(data)
+    reconstructed = Info._fromDict(data)
     assert len(reconstructed.excluded_files) == 0
 
 
@@ -233,7 +236,7 @@ def test_load_from_file(tmp_path, sample_info):
 
     sample_info.toFile(file_path)
 
-    loaded_info = QQInfo.fromFile(file_path)
+    loaded_info = Info.fromFile(file_path)
 
     assert loaded_info.job_id == sample_info.job_id
     assert loaded_info.job_name == sample_info.job_name
@@ -243,7 +246,7 @@ def test_load_from_file(tmp_path, sample_info):
 def test_load_from_file_missing(tmp_path):
     missing_file = tmp_path / "nonexistent.yaml"
     with pytest.raises(QQError, match="does not exist"):
-        QQInfo.fromFile(missing_file)
+        Info.fromFile(missing_file)
 
 
 def test_from_file_invalid_yaml(tmp_path):
@@ -251,7 +254,7 @@ def test_from_file_invalid_yaml(tmp_path):
     file.write_text("key: : value")
 
     with pytest.raises(QQError, match=r"Could not parse the qq info file"):
-        QQInfo.fromFile(file)
+        Info.fromFile(file)
 
 
 def test_from_file_missing_required_field(tmp_path):
@@ -275,4 +278,4 @@ def test_from_file_missing_required_field(tmp_path):
     file.write_text(yaml.dump(data))
 
     with pytest.raises(QQError, match=r"Mandatory information missing"):
-        QQInfo.fromFile(file)
+        Info.fromFile(file)

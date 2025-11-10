@@ -13,7 +13,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
 from qq_lib.core.logger import get_logger
 
-from .runner import QQRunner, log_fatal_error_and_exit
+from .runner import Runner, log_fatal_error_and_exit
 
 logger = get_logger(__name__)  # intentionally does not show datetime
 
@@ -77,7 +77,7 @@ def run(script_path: str) -> NoReturn:
             )
 
         # initialize the runner
-        runner = QQRunner(Path(info_file), input_machine)
+        runner = Runner(Path(info_file), input_machine)
 
         # prepare the working directory
         runner.prepare()
@@ -95,7 +95,7 @@ def run(script_path: str) -> NoReturn:
         log_fatal_error_and_exit(e)  # exits here
     except QQRunCommunicationError as e:
         # miscommunication error - the info file state is not consistent
-        # with QQRunner's expectations - do not update it
+        # with Runner's expectations - do not update it
         log_fatal_error_and_exit(e)  # exits here
     except Exception as e:
         # other exceptions should be logged into both stderr and the info file

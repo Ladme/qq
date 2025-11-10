@@ -8,17 +8,17 @@ from pathlib import Path
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.states import RealState
 
-from .operator import QQOperator
+from .operator import Operator
 
 logger = get_logger(__name__)
 
 
-class QQNavigator(QQOperator):
+class Navigator(Operator):
     """
     Base class for performing operations with job's working directory.
 
     Attributes:
-        _informer (QQInformer): The underlying informer object that provides job details.
+        _informer (Informer): The underlying informer object that provides job details.
         _info_file (Path): The path to the qq info file associated with this job.
         _input_machine (str | None): Hostname of the machine on which the qq info file is stored.
         _batch_system (str): The batch system type as reported by the informer.
@@ -28,6 +28,14 @@ class QQNavigator(QQOperator):
     """
 
     def __init__(self, info_file: Path, host: str | None = None):
+        """
+        Initialize a Navigator instance from a qq info file.
+
+        Args:
+            info_file (Path): Path to the qq info file describing the job.
+            host (str | None, optional): Optional hostname of a machine from
+                which to load job information. Defaults to None meaning 'current machine'.
+        """
         super().__init__(info_file, host)
         self._setDestination()
 

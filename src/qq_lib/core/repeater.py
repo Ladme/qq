@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any, Self
 
 
-class QQRepeater:
+class Repeater:
     """
     Execute a given function repeatedly for a collection of items,
     with optional per-exception handling and tracking of encountered errors.
@@ -55,7 +55,7 @@ class QQRepeater:
             handler (Callable): Function to call when `exc_type` is raised.
                 The handler must accept two arguments:
                 - BaseException: The caught exception instance.
-                - QQRepeater: Reference to this `QQRepeater` instance.
+                - Repeater: Reference to this `Repeater` instance.
         """
         self._handlers[exc_type] = handler  # ty: ignore[invalid-assignment]
 

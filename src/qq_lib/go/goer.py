@@ -6,12 +6,12 @@ from time import sleep
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
-from qq_lib.core.navigator import QQNavigator
+from qq_lib.core.navigator import Navigator
 
 logger = get_logger(__name__)
 
 
-class QQGoer(QQNavigator):
+class Goer(Navigator):
     """
     Provides utilities to open a shell in the working directory of a qq job.
     """

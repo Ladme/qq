@@ -11,9 +11,9 @@ from .logger import get_logger
 logger = get_logger(__name__, show_time=True)
 
 
-class QQRetryer:
+class Retryer:
     """
-    QQRetryer repeatedly executes a function until it succeeds or max attempts are reached.
+    Retryer repeatedly executes a function until it succeeds or max attempts are reached.
 
     Attributes:
         func (Callable): The function or method to execute.
@@ -64,5 +64,5 @@ class QQRetryer:
 
         # should never get here
         raise QQError(
-            "Execution got into an unexpected part of the QQRetryer.run method. This is a bug, please report it."
+            "Execution got into an unexpected part of the Retryer.run method. This is a bug, please report it."
         )

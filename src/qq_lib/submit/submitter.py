@@ -8,23 +8,23 @@ from datetime import datetime
 from pathlib import Path
 
 import qq_lib
-from qq_lib.batch.interface import QQBatchInterface
-from qq_lib.core.common import get_info_file
+from qq_lib.batch.interface import BatchInterface
+from qq_lib.core.common import get_info_file, hhmmss_to_duration
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import QQInformer
+from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.info import QQInfo
-from qq_lib.properties.job_type import QQJobType
-from qq_lib.properties.loop import QQLoopInfo
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.info import Info
+from qq_lib.properties.job_type import JobType
+from qq_lib.properties.loop import LoopInfo
+from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
 
 logger = get_logger(__name__)
 
 
-class QQSubmitter:
+class Submitter:
     """
     Class to submit jobs to a batch system.
 
@@ -32,33 +32,35 @@ class QQSubmitter:
         - Validate that the script exists and has a proper shebang.
         - Guard against multiple submissions from the same directory.
         - Set environment variables required for `qq run`.
-        - Create QQInfo files for tracking job state and metadata.
+        - Create a qq info file for tracking job state and metadata.
     """
 
     def __init__(
         self,
-        batch_system: type[QQBatchInterface],
+        batch_system: type[BatchInterface],
         queue: str,
+        account: str | None,
         script: Path,
-        job_type: QQJobType,
-        resources: QQResources,
+        job_type: JobType,
+        resources: Resources,
         command_line: list[str],
-        loop_info: QQLoopInfo | None = None,
+        loop_info: LoopInfo | None = None,
         exclude: list[Path] | None = None,
         depend: list[Depend] | None = None,
     ):
         """
-        Initialize a QQSubmitter instance.
+        Initialize a Submitter instance.
 
         Args:
-            batch_system (type[QQBatchInterface]): The batch system class implementing
-                the QQBatchInterface used for job submission.
+            batch_system (type[BatchInterface]): The batch system class implementing
+                the BatchInterface used for job submission.
             queue (str): The name of the batch system queue to which the job will be submitted.
+            account (str | None): The name of the account to use for the job.
             script (Path): Path to the job script to submit.
-            job_type (QQJobType): Type of the job to submit (e.g. standard, loop).
-            resources (QQResources): Job resource requirements (e.g., CPUs, memory, walltime).
+            job_type (JobType): Type of the job to submit (e.g. standard, loop).
+            resources (Resources): Job resource requirements (e.g., CPUs, memory, walltime).
             command_line (list[str]): List of all arguments and options provided on the command line.
-            loop_info (QQLoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
+            loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
             depend (list[Depend] | None): Optional list of job dependencies.
 
@@ -69,6 +71,7 @@ class QQSubmitter:
         self._batch_system = batch_system
         self._job_type = job_type
         self._queue = queue
+        self._account = account
         self._loop_info = loop_info
         self._script = script
         self._input_dir = script.resolve().parent
@@ -99,7 +102,7 @@ class QQSubmitter:
         Submit the script to the batch system.
 
         Sets required environment variables, calls the batch system's
-        job submission mechanism, and creates a QQInfo file with job metadata.
+        job submission mechanism, and creates an info file with job metadata.
 
         Returns:
             str: The job ID of the submitted job.
@@ -115,11 +118,12 @@ class QQSubmitter:
             self._job_name,
             self._depend,
             self._createEnvVarsDict(),
+            self._account,
         )
 
         # create job qq info file
-        informer = QQInformer(
-            QQInfo(
+        informer = Informer(
+            Info(
                 batch_system=self._batch_system,
                 qq_version=qq_lib.__version__,
                 username=getpass.getuser(),
@@ -139,6 +143,7 @@ class QQSubmitter:
                 excluded_files=self._exclude,
                 command_line=self._command_line,
                 depend=self._depend,
+                account=self._account,
             )
         )
         informer.toFile(self._info_file)
@@ -163,7 +168,7 @@ class QQSubmitter:
         try:
             # only one qq info file can be present
             info_file = get_info_file(self._input_dir)
-            informer = QQInformer.fromFile(info_file)
+            informer = Informer.fromFile(info_file)
 
             if (
                 informer.info.loop_info
@@ -217,6 +222,15 @@ class QQSubmitter:
 
         # contains the path to the input directory
         env_vars[CFG.env_vars.input_dir] = str(self._input_dir)
+
+        # environment variables for resources
+        env_vars[CFG.env_vars.ncpus] = str(self._resources.ncpus or 1)
+        env_vars[CFG.env_vars.ngpus] = str(self._resources.ngpus or 0)
+        env_vars[CFG.env_vars.nnodes] = str(self._resources.nnodes or 1)
+        env_vars[CFG.env_vars.walltime] = str(
+            hhmmss_to_duration(self._resources.walltime or "00:00:00").total_seconds()
+            / 3600
+        )
 
         # loop job-specific environment variables
         if self._loop_info:

@@ -15,9 +15,9 @@ from qq_lib.core.common import (
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
-from qq_lib.info.informer import QQInformer
-from qq_lib.info.presenter import QQPresenter
+from qq_lib.core.repeater import Repeater
+from qq_lib.info.informer import Informer
+from qq_lib.info.presenter import Presenter
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ def info(job: str | None, short: bool) -> NoReturn:
     """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
-        QQRepeater(info_files, _info_for_job, short, job).run()
+        Repeater(info_files, _info_for_job, short, job).run()
         sys.exit(0)
     except QQError as e:
         logger.error(e)
@@ -72,7 +72,7 @@ def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
     Raises:
         QQError: If the provided job ID does not match the job in the info file.
     """
-    informer = QQInformer.fromFile(info_file)
+    informer = Informer.fromFile(info_file)
 
     # if job id is provided on the command line,
     # we need to check that the info file actually corresponds to this job
@@ -81,7 +81,7 @@ def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
             f"Info file for job '{job}' does not exist or is not reachable."
         )
 
-    presenter = QQPresenter(informer)
+    presenter = Presenter(informer)
     console = Console()
     if short:
         console.print(presenter.getShortInfo())

@@ -9,12 +9,12 @@ from typing import NoReturn
 import click
 from rich.console import Console
 
-from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.interface import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.jobs.presenter import QQJobsPresenter
+from qq_lib.jobs.presenter import JobsPresenter
 
 logger = get_logger(__name__)
 
@@ -33,15 +33,21 @@ logger = get_logger(__name__)
     help="Username whose jobs should be displayed. Defaults to your own username.",
 )
 @click.option(
+    "-e",
+    "--extra",
+    is_flag=True,
+    help="Show additional information about the jobs.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
     help="Include both unfinished and finished jobs in the summary.",
 )
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
-def jobs(user: str, all: bool, yaml: bool) -> NoReturn:
+def jobs(user: str, extra: bool, all: bool, yaml: bool) -> NoReturn:
     try:
-        BatchSystem = QQBatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.fromEnvVarOrGuess()
         if not user:
             # use the current user, if `--user` is not specified
             user = getpass.getuser()
@@ -55,7 +61,8 @@ def jobs(user: str, all: bool, yaml: bool) -> NoReturn:
             logger.info("No jobs found.")
             sys.exit(0)
 
-        presenter = QQJobsPresenter(jobs)
+        BatchSystem.sortJobs(jobs)
+        presenter = JobsPresenter(jobs, extra)
         if yaml:
             presenter.dumpYaml()
         else:

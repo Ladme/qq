@@ -5,44 +5,43 @@ from datetime import datetime
 from pathlib import Path
 from typing import Self
 
-from qq_lib.batch.interface import BatchJobInterface, QQBatchInterface
+from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.info import QQInfo
+from qq_lib.properties.info import Info
 from qq_lib.properties.states import BatchState, NaiveState, RealState
 
 logger = get_logger(__name__)
 
 
-class QQInformer:
+class Informer:
     """
     Provides an interface to access and manipulate qq job information.
     """
 
-    def __init__(self, info: QQInfo):
+    def __init__(self, info: Info):
         """
         Initialize the informer with job information.
 
         Args:
-            info: A QQInfo object containing raw job data.
+            info: An Info object containing raw job data.
         """
         self.info = info
         self._batch_info: BatchJobInterface | None = None
 
     @property
-    def batch_system(self) -> type[QQBatchInterface]:
+    def batch_system(self) -> type[BatchInterface]:
         """
         Return the batch system class used for this job.
 
         Returns:
-            type[QQBatchInterface]: The batch system class
-            associated with the job.
+            type[BatchInterface]: The batch system class associated with the job.
         """
         return self.info.batch_system
 
     @classmethod
     def fromFile(cls, file: Path, host: str | None = None) -> Self:
         """
-        Create a QQInformer by loading job information from a file.
+        Create an Informer by loading job information from a file.
 
         If 'host' is provided, the file is read from the remote host; otherwise, it is read locally.
 
@@ -51,12 +50,12 @@ class QQInformer:
             host (str | None): Optional remote host from which to read the file.
 
         Returns:
-            QQInformer: An instance initialized with the loaded QQInfo.
+            Informer: An instance initialized with the loaded Info.
 
         Raises:
             QQError: If the file cannot be read, reached, or parsed correctly.
         """
-        return cls(QQInfo.fromFile(file, host))
+        return cls(Info.fromFile(file, host))
 
     def toFile(self, file: Path, host: str | None = None) -> None:
         """

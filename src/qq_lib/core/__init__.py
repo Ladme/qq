@@ -10,5 +10,5 @@ from .common import (
     get_info_files_from_job_id_or_dir,
 )
 from .error import QQError
-from .repeater import QQRepeater
-from .retryer import QQRetryer
+from .repeater import Repeater
+from .retryer import Retryer

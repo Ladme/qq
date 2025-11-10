@@ -41,6 +41,11 @@ class EnvironmentVariables:
     no_resubmit: str = "QQ_NO_RESUBMIT"
     archive_format: str = "QQ_ARCHIVE_FORMAT"
     pbs_scratch_dir: str = "SCRATCHDIR"
+    slurm_job_account: str = "SLURM_JOB_ACCOUNT"
+    ncpus: str = "QQ_NCPUS"
+    ngpus: str = "QQ_NGPUS"
+    nnodes: str = "QQ_NNODES"
+    walltime: str = "QQ_WALLTIME"
 
 
 @dataclass
@@ -53,7 +58,7 @@ class TimeoutSettings:
 
 @dataclass
 class RunnerSettings:
-    """Settings for QQRunner operations."""
+    """Settings for Runner operations."""
 
     retry_tries: int = 3
     retry_wait: int = 300
@@ -64,7 +69,7 @@ class RunnerSettings:
 
 @dataclass
 class ArchiverSettings:
-    """Settings for QQArchiver operations."""
+    """Settings for Archiver operations."""
 
     retry_tries: int = 3
     retry_wait: int = 300
@@ -72,7 +77,7 @@ class ArchiverSettings:
 
 @dataclass
 class GoerSettings:
-    """Settings for QQGoer operations."""
+    """Settings for Goer operations."""
 
     wait_time: int = 5
 
@@ -107,7 +112,7 @@ class FullInfoPanelSettings:
 
 @dataclass
 class PresenterSettings:
-    """Settings for QQPresenter."""
+    """Settings for Presenter."""
 
     job_status_panel: JobStatusPanelSettings = field(
         default_factory=JobStatusPanelSettings
@@ -125,7 +130,7 @@ class PresenterSettings:
 
 @dataclass
 class JobsPresenterSettings:
-    """Settings for QQJobsPresenter."""
+    """Settings for JobsPresenter."""
 
     max_job_name_length: int = 20
     max_nodes_length: int = 40
@@ -134,13 +139,14 @@ class JobsPresenterSettings:
     headers_style: str = "default"
     main_style: str = "white"
     secondary_style: str = "grey70"
+    extra_info_style: str = "grey50"
     strong_warning_style: str = "bright_red"
     mild_warning_style: str = "bright_yellow"
 
 
 @dataclass
 class QueuesPresenterSettings:
-    """Settings for QQQueuesPresenter."""
+    """Settings for QueuesPresenter."""
 
     max_width: int | None = None
     min_width: int | None = 80
@@ -161,7 +167,7 @@ class QueuesPresenterSettings:
 
 @dataclass
 class NodesPresenterSettings:
-    """Settings for QQNodesPresenter."""
+    """Settings for NodesPresenter."""
 
     max_width: int | None = None
     min_width: int | None = 80
@@ -189,6 +195,7 @@ class DateFormats:
 
     standard: str = "%Y-%m-%d %H:%M:%S"
     pbs: str = "%a %b %d %H:%M:%S %Y"
+    slurm: str = "%Y-%m-%dT%H:%M:%S"
 
 
 @dataclass
@@ -232,7 +239,7 @@ class SizeOptions:
 
 
 @dataclass
-class QQConfig:
+class Config:
     """Main configuration for qq."""
 
     suffixes: FileSuffixes = field(default_factory=FileSuffixes)
@@ -265,10 +272,10 @@ class QQConfig:
             config_path: Explicit path to config file. If None, searches standard locations.
 
         Returns:
-            QQConfig instance with loaded or default values.
+            Config instance with loaded or default values.
         """
         if config_path is None:
-            config_path = QQConfig._get_config_path()
+            config_path = Config._get_config_path()
 
         try:
             if config_path and config_path.exists():
@@ -329,4 +336,4 @@ def _dict_to_dataclass(cls, data: dict[str, Any]):
 
 
 # Global configuration for qq.
-CFG = QQConfig.load()
+CFG = Config.load()

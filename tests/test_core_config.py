@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from qq_lib.core.config import QQConfig, _dict_to_dataclass
+from qq_lib.core.config import Config, _dict_to_dataclass
 
 
 def test_dict_to_dataclass_simple_conversion():
@@ -44,12 +44,12 @@ def test_dict_to_dataclass_nested_conversion():
 
 def test_dict_to_dataclass_partial_data_uses_defaults():
     @dataclass
-    class Config:
+    class MockConfig:
         required: str = "default"
         optional: int = 42
 
     data = {"required": "provided"}
-    result = _dict_to_dataclass(Config, data)
+    result = _dict_to_dataclass(MockConfig, data)
 
     assert result.required == "provided"
     assert result.optional == 42
@@ -57,11 +57,11 @@ def test_dict_to_dataclass_partial_data_uses_defaults():
 
 def test_dict_to_dataclass_extra_fields_ignored():
     @dataclass
-    class Config:
+    class MockConfig:
         valid: str = "default"
 
     data = {"valid": "value", "invalid": "ignored"}
-    result = _dict_to_dataclass(Config, data)
+    result = _dict_to_dataclass(MockConfig, data)
 
     assert result.valid == "value"
     assert not hasattr(result, "invalid")
@@ -84,7 +84,7 @@ def test_get_config_path_env_variable_highest_priority(tmp_path, monkeypatch):
     monkeypatch.setenv("QQ_CONFIG", str(config_file))
     monkeypatch.chdir(tmp_path)
 
-    result = QQConfig._get_config_path()
+    result = Config._get_config_path()
     assert result == config_file
 
 
@@ -103,7 +103,7 @@ def test_get_config_path_current_directory_second_priority(tmp_path, monkeypatch
     unused_config_file.write_text("")
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
 
-    result = QQConfig._get_config_path()
+    result = Config._get_config_path()
     assert result == config_file
 
 
@@ -121,7 +121,7 @@ def test_get_config_path_xdg_config_home_third_priority(tmp_path, monkeypatch):
     monkeypatch.chdir(other_dir)
     monkeypatch.delenv("QQ_CONFIG", raising=False)
 
-    result = QQConfig._get_config_path()
+    result = Config._get_config_path()
     assert result == config_file
 
 
@@ -130,7 +130,7 @@ def test_get_config_path_returns_none_when_no_config_exists(tmp_path, monkeypatc
     monkeypatch.delenv("QQ_CONFIG", raising=False)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "nonexistent"))
 
-    result = QQConfig._get_config_path()
+    result = Config._get_config_path()
     assert result is None
 
 
@@ -150,7 +150,7 @@ retry_tries = 5
 default = 100
 """)
 
-    config = QQConfig.load(config_file)
+    config = Config.load(config_file)
 
     assert config.exit_codes.default == 100
     assert config.binary_name == "qqd"
@@ -174,7 +174,7 @@ border_style = "default"
 max_width = 80
 """)
 
-    config = QQConfig.load(config_file)
+    config = Config.load(config_file)
 
     assert config.presenter.key_style == "bright_green"
     assert config.presenter.job_status_panel.border_style == "default"
@@ -186,8 +186,8 @@ max_width = 80
 def test_load_returns_defaults_when_file_missing(tmp_path):
     non_existent = tmp_path / "does_not_exist.toml"
 
-    config = QQConfig.load(non_existent)
-    default_config = QQConfig()
+    config = Config.load(non_existent)
+    default_config = Config()
     print(config)
     print(default_config)
 
@@ -203,7 +203,7 @@ binary_name = "qqd"
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("QQ_CONFIG", raising=False)
 
-    config = QQConfig.load()
+    config = Config.load()
 
     assert config.binary_name == "qqd"
 
@@ -215,7 +215,7 @@ def test_load_partial_config_preserves_defaults(tmp_path):
 retry_tries = 10
 """)
 
-    config = QQConfig.load(config_file)
+    config = Config.load(config_file)
 
     # overriden value
     assert config.runner.retry_tries == 10
@@ -230,8 +230,8 @@ def test_load_empty_config_file_uses_all_defaults(tmp_path):
     config_file = tmp_path / "config.toml"
     config_file.write_text("")
 
-    config = QQConfig.load(config_file)
-    default_config = QQConfig()
+    config = Config.load(config_file)
+    default_config = Config()
 
     assert config == default_config
 
@@ -284,7 +284,7 @@ border_style = "black"
 unexpected_error = 150
 """)
 
-    config = QQConfig.load(config_file)
+    config = Config.load(config_file)
 
     assert config.binary_name == "qqd"
     assert config.suffixes.qq_info == ".info"
@@ -311,4 +311,4 @@ retry_tries = 5
 """)  # missing closing bracket
 
     with pytest.raises(ValueError, match="Could not read qq config"):
-        QQConfig.load(config_file)
+        Config.load(config_file)

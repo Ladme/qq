@@ -5,7 +5,7 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from qq_lib.archive.archiver import QQArchiver
+from qq_lib.archive.archiver import Archiver
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 @dataclass(init=False)
-class QQLoopInfo:
+class LoopInfo:
     """
     Dataclass containing information about a qq loop job.
     """
@@ -101,13 +101,13 @@ class QQLoopInfo:
             )
             return self.start
 
-        stem_pattern = QQArchiver._prepare_regex_pattern(self.archive_format)
+        stem_pattern = Archiver._prepare_regex_pattern(self.archive_format)
         logger.debug(f"Stem pattern: {stem_pattern}.")
 
         # use start as default
         max_number = self.start
         for f in self.archive.iterdir():
-            if not stem_pattern.fullmatch(f.stem):
+            if not stem_pattern.search(f.stem):
                 continue
 
             match = re.search(r"\d+", f.stem)

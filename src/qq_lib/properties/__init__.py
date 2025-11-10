@@ -2,10 +2,10 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 __all__ = [
-    "QQInfo",
-    "QQJobType",
-    "QQLoopInfo",
-    "QQResources",
+    "Info",
+    "JobType",
+    "LoopInfo",
+    "Resources",
     "Size",
     "BatchState",
     "NaiveState",
@@ -13,10 +13,10 @@ __all__ = [
 ]
 
 _MODULES = {
-    "QQInfo": "info",
-    "QQJobType": "job_type",
-    "QQLoopInfo": "loop",
-    "QQResources": "resources",
+    "Info": "info",
+    "JobType": "job_type",
+    "LoopInfo": "loop",
+    "Resources": "resources",
     "Size": "size",
     "BatchState": "states",
     "NaiveState": "states",

@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -9,8 +10,8 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface import BatchJobInterface
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
-from qq_lib.core.common import hhmmss_to_duration
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
+from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -19,15 +20,7 @@ from qq_lib.properties.states import BatchState
 
 logger = get_logger(__name__)
 
-# load faster YAML dumper
-try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CDumper.")
-except ImportError:
-    from yaml import Dumper
-
-    logger.debug("Loaded default YAML dumper.")
+Dumper: type[yaml.Dumper] = load_yaml_dumper()
 
 
 class PBSJob(BatchJobInterface):
@@ -47,6 +40,9 @@ class PBSJob(BatchJobInterface):
 
     def getId(self) -> str:
         return self._job_id
+
+    def getAccount(self) -> str | None:
+        return None
 
     def update(self) -> None:
         # get job info from PBS
@@ -68,7 +64,7 @@ class PBSJob(BatchJobInterface):
             )
             self._info: dict[str, str] = {}
         else:
-            self._info = parsePBSDumpToDictionary(result.stdout)
+            self._info = parse_pbs_dump_to_dictionary(result.stdout)
 
     def getState(self) -> BatchState:
         if not (state := self._info.get("job_state")):
@@ -166,7 +162,7 @@ class PBSJob(BatchJobInterface):
             return Size(0, "kb")
 
     def getStartTime(self) -> datetime | None:
-        return self._getDatetimeProperty("stime", "the job starting time")
+        return self._getDatetimeProperty("stime", "the job start time")
 
     def getSubmissionTime(self) -> datetime:
         return (
@@ -321,7 +317,25 @@ class PBSJob(BatchJobInterface):
 
         return job_info
 
+    def getIdInt(self) -> int | None:
+        """
+        Extract the leading numeric portion of the job ID and return it as an integer.
+
+        Returns:
+            int | None: The integer value of the leading digits in the job ID,
+            or `None` if no valid digits are found or conversion fails.
+        """
+        match = re.match(r"\d+", self.getId())
+        return int(match.group()) if match else None
+
     def _getEnvVars(self) -> dict[str, str] | None:
+        """
+        Retrieve environment variables associated with the job.
+
+        Returns:
+            dict[str, str] | None: A dictionary of environment variables, or None
+            if no variable list is available.
+        """
         if not (variable_list := self._info.get("Variable_List")):
             return None
 
@@ -330,6 +344,18 @@ class PBSJob(BatchJobInterface):
         )
 
     def _getIntProperty(self, property: str, property_name: str) -> int:
+        """
+        Retrieve an integer property value from the job information.
+
+        If the property is missing or cannot be converted, 0 is returned.
+
+        Args:
+            property (str): The key identifying the property in the job information.
+            property_name (str): A human-readable name of the property for logging.
+
+        Returns:
+            int: The integer value of the property, or 0 if unavailable or invalid.
+        """
         try:
             return int(self._info[property])
         except Exception:
@@ -342,6 +368,16 @@ class PBSJob(BatchJobInterface):
     def _getDatetimeProperty(
         self, property: str, property_name: str
     ) -> datetime | None:
+        """
+        Retrieve and parse a datetime property from the job information.
+
+        Args:
+            property (str): The key identifying the property in the job information.
+            property_name (str): A human-readable name of the property for logging.
+
+        Returns:
+            datetime | None: A datetime object if parsing succeeds, otherwise None.
+        """
         if not (raw_datetime := self._info.get(property)):
             return None
 

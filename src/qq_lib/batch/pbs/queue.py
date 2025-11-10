@@ -10,23 +10,15 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface.queue import BatchQueueInterface
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
-from qq_lib.core.common import hhmmss_to_duration
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
+from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.resources import QQResources
+from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
-# load faster YAML dumper
-try:
-    from yaml import CDumper as Dumper  # ty: ignore[possibly-missing-import]
-
-    logger.debug("Loaded YAML CDumper.")
-except ImportError:
-    from yaml import Dumper
-
-    logger.debug("Loaded default YAML dumper.")
+Dumper: type[yaml.Dumper] = load_yaml_dumper()
 
 
 class ACLData:
@@ -116,14 +108,14 @@ class PBSQueue(BatchQueueInterface):
         if result.returncode != 0:
             raise QQError(f"Queue '{self._name}' does not exist.")
 
-        self._info = parsePBSDumpToDictionary(result.stdout)
+        self._info = parse_pbs_dump_to_dictionary(result.stdout)
         self._setAttributes()
 
     def getName(self) -> str:
         return self._name
 
-    def getPriority(self) -> int | None:
-        return PBSQueue._getIntValue(self._info, "Priority")
+    def getPriority(self) -> str | None:
+        return self._info.get("Priority")
 
     def getTotalJobs(self) -> int:
         return PBSQueue._getIntValue(self._info, "total_jobs") or 0
@@ -132,13 +124,16 @@ class PBSQueue(BatchQueueInterface):
         return PBSQueue._getIntValue(self._job_numbers, "Running") or 0
 
     def getQueuedJobs(self) -> int:
-        return PBSQueue._getIntValue(self._job_numbers, "Queued") or 0
+        # we count held and waiting jobs as queued for consistency with slurm
+        return (
+            (PBSQueue._getIntValue(self._job_numbers, "Queued") or 0)
+            + (PBSQueue._getIntValue(self._job_numbers, "Held") or 0)
+            + (PBSQueue._getIntValue(self._job_numbers, "Waiting") or 0)
+        )
 
     def getOtherJobs(self) -> int:
         return (
             (PBSQueue._getIntValue(self._job_numbers, "Transit") or 0)
-            + (PBSQueue._getIntValue(self._job_numbers, "Held") or 0)
-            + (PBSQueue._getIntValue(self._job_numbers, "Waiting") or 0)
             + (PBSQueue._getIntValue(self._job_numbers, "Exiting") or 0)
             + (PBSQueue._getIntValue(self._job_numbers, "Begun") or 0)
         )
@@ -198,7 +193,7 @@ class PBSQueue(BatchQueueInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getDefaultResources(self) -> dict[str, str]:
+    def getDefaultResources(self) -> Resources:
         default_resources = {}
 
         for key, value in self._info.items():
@@ -206,9 +201,11 @@ class PBSQueue(BatchQueueInterface):
                 resource = key.split(".")[-1]
                 default_resources[resource.strip()] = value.strip()
 
-        # only return resources that are part of QQResources
-        field_names = {f.name for f in fields(QQResources)}
-        return {k: v for k, v in default_resources.items() if k in field_names}
+        # filter resources that are part of Resources
+        field_names = {f.name for f in fields(Resources)}
+        return Resources(
+            **{k: v for k, v in default_resources.items() if k in field_names}
+        )
 
     @staticmethod
     def _getIntValue(dict: dict[str, str], key: str) -> int | None:

@@ -10,7 +10,7 @@ from qq_lib.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-def parsePBSDumpToDictionary(text: str) -> dict[str, str]:
+def parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
     """
     Parse a PBS info dump into a dictionary.
 
@@ -31,7 +31,7 @@ def parsePBSDumpToDictionary(text: str) -> dict[str, str]:
     return result
 
 
-def parseMultiPBSDumpToDictionaries(
+def parse_multi_pbs_dump_to_dictionaries(
     text: str, keyword: str | None
 ) -> list[tuple[dict[str, str], str]]:
     """
@@ -60,7 +60,9 @@ def parseMultiPBSDumpToDictionaries(
         # if the line is empty, start a new block
         if not line.strip():
             if block:
-                data.append((parsePBSDumpToDictionary("\n".join(block)), identifier))
+                data.append(
+                    (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
+                )
                 block, identifier = [], None
             continue
 
@@ -80,7 +82,7 @@ def parseMultiPBSDumpToDictionaries(
 
     # last block (no trailing newline)
     if block:
-        data.append((parsePBSDumpToDictionary("\n".join(block)), identifier))
+        data.append((parse_pbs_dump_to_dictionary("\n".join(block)), identifier))
 
     logger.debug(f"Detected and parsed metadata for {len(data)} PBS objects.")
     return data

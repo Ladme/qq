@@ -18,7 +18,7 @@ class BatchJobInterface(ABC):
     Must support situations where the job information no longer exists.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `QQBatchInterface.getBatchJob`.
+    be used inside the corresponding implementation of `BatchInterface.getBatchJob`.
     """
 
     @abstractmethod
@@ -39,6 +39,17 @@ class BatchJobInterface(ABC):
 
         Returns:
             str: The ID of the job.
+        """
+        pass
+
+    @abstractmethod
+    def getAccount(self) -> str | None:
+        """
+        Return the account under which the job is submitted.
+
+        Returns:
+            str | None: Account associated with the job or None if no
+            account is defined.
         """
         pass
 

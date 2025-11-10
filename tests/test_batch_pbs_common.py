@@ -5,8 +5,8 @@
 import pytest
 
 from qq_lib.batch.pbs.common import (
-    parseMultiPBSDumpToDictionaries,
-    parsePBSDumpToDictionary,
+    parse_multi_pbs_dump_to_dictionaries,
+    parse_pbs_dump_to_dictionary,
 )
 from qq_lib.core.error import QQError
 
@@ -60,7 +60,7 @@ def test_parse_pbs_dump_to_dictionary_queue():
         "started": "True",
     }
 
-    result = parsePBSDumpToDictionary(pbs_dump)
+    result = parse_pbs_dump_to_dictionary(pbs_dump)
     assert result == expected
 
 
@@ -167,7 +167,7 @@ def test_parse_pbs_dump_to_dictionary_job():
         "credential_validity": "Mon Sep 22 06:38:19 2025",
     }
 
-    result = parsePBSDumpToDictionary(pbs_dump)
+    result = parse_pbs_dump_to_dictionary(pbs_dump)
     assert result == expected
 
 
@@ -227,7 +227,7 @@ Queue: gpu
     started = True
     """
 
-    result = parseMultiPBSDumpToDictionaries(pbs_dump, "Queue")
+    result = parse_multi_pbs_dump_to_dictionaries(pbs_dump, "Queue")
 
     assert len(result) == 3
     queue_names = [name for _, name in result]
@@ -279,7 +279,7 @@ Job Id: 103.fake-cluster.example.com
     started = False
     """
 
-    result = parseMultiPBSDumpToDictionaries(pbs_dump, "Job Id")
+    result = parse_multi_pbs_dump_to_dictionaries(pbs_dump, "Job Id")
 
     assert len(result) == 3
 
@@ -359,7 +359,7 @@ def test_parse_pbs_dump_to_dictionary_node():
         "license": "l",
     }
 
-    result = parsePBSDumpToDictionary(pbs_dump)
+    result = parse_pbs_dump_to_dictionary(pbs_dump)
     assert result == expected
 
 
@@ -398,7 +398,7 @@ zero3
      resources_available.mem = 64000mb
     """
 
-    result = parseMultiPBSDumpToDictionaries(pbs_dump, None)
+    result = parse_multi_pbs_dump_to_dictionaries(pbs_dump, None)
 
     assert len(result) == 3
 
@@ -415,10 +415,10 @@ zero3
 
 @pytest.mark.parametrize("content", ["", "    ", "\t", "\n\n\n"])
 def test_parse_multi_pbs_dump_to_dictionaries_empty(content):
-    assert parseMultiPBSDumpToDictionaries(content, "Queue") == []
+    assert parse_multi_pbs_dump_to_dictionaries(content, "Queue") == []
 
 
 def test_parse_multi_pbs_dump_to_dictionaries_invalid_format_raises_error():
     invalid_dump = "Invalid text without queue name line"
     with pytest.raises(QQError, match="Invalid PBS dump format"):
-        parseMultiPBSDumpToDictionaries(invalid_dump, "Job Id")
+        parse_multi_pbs_dump_to_dictionaries(invalid_dump, "Job Id")

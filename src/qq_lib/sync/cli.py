@@ -23,9 +23,9 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import QQRepeater
+from qq_lib.core.repeater import Repeater
 
-from .syncer import QQSyncer
+from .syncer import Syncer
 
 logger = get_logger(__name__)
 console = Console()
@@ -68,14 +68,14 @@ def sync(job: str | None, files: str | None) -> NoReturn:
     """
     try:
         info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = QQRepeater(info_files, _sync_job, job, _split_files(files))
+        repeater = Repeater(info_files, _sync_job, job, _split_files(files))
         repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
         repeater.run()
         print()
         sys.exit(0)
-    # QQErrors should be caught by QQRepeater
+    # QQErrors should be caught by Repeater
     except QQError as e:
         logger.error(e)
         sys.exit(CFG.exit_codes.default)
@@ -114,7 +114,7 @@ def _sync_job(info_file: Path, job: str | None, files: list[str] | None) -> None
         QQError: If an error occurs during synchronization setup or execution.
     """
 
-    syncer = QQSyncer(info_file)
+    syncer = Syncer(info_file)
 
     # check that the info file in the killer corresponds
     # to the specified job

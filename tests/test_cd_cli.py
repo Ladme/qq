@@ -6,16 +6,16 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.interface import QQBatchMeta
+from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.interface.interface import CFG
-from qq_lib.batch.pbs import QQPBS, PBSJob
+from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.cd.cli import cd
 
 
 @pytest.fixture(autouse=True)
 def register():
-    QQBatchMeta._registry.clear()
-    QQBatchMeta.register(QQPBS)
+    BatchMeta._registry.clear()
+    BatchMeta.register(PBS)
 
 
 def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
@@ -31,8 +31,8 @@ def test_cd_command_success_pbs_o_workdir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getBatchJob", return_value=job_info),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getBatchJob", return_value=job_info),
     ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == 0
@@ -45,8 +45,8 @@ def test_cd_command_success_input_dir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getBatchJob", return_value=job_info),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getBatchJob", return_value=job_info),
     ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == 0
@@ -58,8 +58,8 @@ def test_cd_command_job_does_not_exist():
     job_info_empty = _make_jobinfo_with_info({})
 
     with (
-        patch.object(QQBatchMeta, "fromEnvVarOrGuess", return_value=QQPBS),
-        patch.object(QQPBS, "getBatchJob", return_value=job_info_empty),
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getBatchJob", return_value=job_info_empty),
     ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == CFG.exit_codes.default

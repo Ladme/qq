@@ -4,7 +4,7 @@
 # ruff: noqa: F401
 
 """
-This module defines the `QQRunner` class and related helpers that manage the
+This module defines the `Runner` class and related helpers that manage the
 execution of qq jobs within a batch system. It is invoked internally through
 the `qq run` command, which is hidden from the user-facing CLI.
 
@@ -43,4 +43,4 @@ Summary:
 """
 
 from .cli import run
-from .runner import QQRunner
+from .runner import Runner

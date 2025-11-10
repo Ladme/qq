@@ -10,6 +10,7 @@ import yaml
 
 from qq_lib.batch.pbs.queue import ACLData, PBSQueue
 from qq_lib.core.error import QQError
+from qq_lib.properties.resources import Resources
 
 
 def test_acldata_get_groups_or_init_cached():
@@ -93,7 +94,7 @@ def test_pbsqueue_update_success():
             "qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result
         ) as run_mock,
         patch(
-            "qq_lib.batch.pbs.queue.parsePBSDumpToDictionary",
+            "qq_lib.batch.pbs.queue.parse_pbs_dump_to_dictionary",
             return_value={"k": "v"},
         ) as parse_mock,
         patch.object(queue, "_setAttributes") as set_attrs_mock,
@@ -185,12 +186,12 @@ def test_pbsqueue_get_other_jobs_sum_all_states():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {
         "Transit": 1,
-        "Held": 2,
-        "Waiting": 3,
+        "Held": 2,  # not counted as other
+        "Waiting": 3,  # not counted as other
         "Exiting": 4,
         "Begun": 5,
     }
-    assert queue.getOtherJobs() == 15
+    assert queue.getOtherJobs() == 10
 
 
 def test_pbsqueue_get_other_jobs_default_zero():
@@ -472,11 +473,11 @@ def test_pbsqueue_get_default_resources_filters_correct_fields():
         "resources_max.walltime": "24:00:00",
     }
 
-    expected = {
-        "mem": "8gb",
-        "ncpus": "4",
-        "ngpus": "1",
-    }
+    expected = Resources(
+        mem="8gb",
+        ncpus=4,
+        ngpus=1,
+    )
 
     result = queue.getDefaultResources()
 
@@ -491,4 +492,4 @@ def test_pbsqueue_get_default_resources_returns_empty_when_no_defaults():
         "comment": "No default resources here",
     }
 
-    assert queue.getDefaultResources() == {}
+    assert queue.getDefaultResources() == Resources()

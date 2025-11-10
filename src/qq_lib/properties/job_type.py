@@ -7,7 +7,7 @@ from typing import Self
 from qq_lib.core.error import QQError
 
 
-class QQJobType(Enum):
+class JobType(Enum):
     """
     Type of the qq job.
     """
@@ -21,16 +21,16 @@ class QQJobType(Enum):
     @classmethod
     def fromStr(cls, s: str) -> Self:
         """
-        Convert a string to the corresponding QQJobType enum variant.
+        Convert a string to the corresponding JobType enum variant.
 
         Args:
             s (str): String representation of the job type (case-insensitive).
 
         Returns:
-            QQJobType variant.
+            JobType variant.
 
         Raises:
-            QQError if the string corresponds to no QQJobType.
+            QQError if the string corresponds to no JobType.
         """
         try:
             return cls[s.upper()]

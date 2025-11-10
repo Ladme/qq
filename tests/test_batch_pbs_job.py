@@ -6,10 +6,11 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from qq_lib.batch.pbs.common import parsePBSDumpToDictionary
+from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
 from qq_lib.batch.pbs.job import CFG, PBSJob
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
@@ -72,7 +73,7 @@ Job Id: 123456.fake-cluster.example.com
 
 def test_get_state(sample_dump_file):
     pbs_job_info = object.__new__(PBSJob)
-    pbs_job_info._info = parsePBSDumpToDictionary(sample_dump_file)
+    pbs_job_info._info = parse_pbs_dump_to_dictionary(sample_dump_file)
 
     assert pbs_job_info.getState() == BatchState.RUNNING
 
@@ -635,7 +636,7 @@ def test_pbs_job_info_get_env_vars_empty():
 
 
 def test_pbs_job_info_to_yaml(sample_dump_file):
-    info = parsePBSDumpToDictionary(sample_dump_file)
+    info = parse_pbs_dump_to_dictionary(sample_dump_file)
     job = _make_jobinfo_with_info(info)
 
     assert (
@@ -706,3 +707,41 @@ def test_pbs_job_info_is_empty():
 def test_pbs_job_info_is_empty_false():
     job = _make_jobinfo_with_info({})
     assert job.isEmpty()
+
+
+def test_pbs_job_get_account():
+    job = _make_jobinfo_with_info(
+        {"Submit_Host": "random.machine.org", "account": "fake-account"}
+    )
+    assert job.getAccount() is None
+
+
+@pytest.mark.parametrize(
+    "job_id,expected",
+    [
+        ("1234.server", 1234),
+        ("0007.host", 7),
+        ("9", 9),
+        ("42abc", 42),
+        ("12345678[]", 12345678),
+        ("12345678[].fake.server.org", 12345678),
+    ],
+)
+def test_pbs_job_get_id_int(job_id, expected):
+    job = PBSJob.__new__(PBSJob)
+    job._job_id = job_id
+    assert job.getIdInt() == expected
+
+
+@pytest.mark.parametrize("job_id", ["abc123", "", "!@#"])
+def test_pbs_job_get_id_int_returns_none_for_invalid(job_id):
+    job = PBSJob.__new__(PBSJob)
+    job._job_id = job_id
+    assert job.getIdInt() is None
+
+
+def test_pbs_job_get_id_int_returns_none_on_conversion_failure():
+    job = PBSJob.__new__(PBSJob)
+    job._job_id = "123x"
+    with patch("qq_lib.batch.pbs.job.re.match", return_value=None):
+        assert job.getIdInt() is None

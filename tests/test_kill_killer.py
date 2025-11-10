@@ -10,11 +10,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.core.error import QQNotSuitableError
-from qq_lib.kill.killer import QQKiller
+from qq_lib.kill.killer import Killer
 from qq_lib.properties.states import RealState
 
 
-def test_qqkiller_lock_file_removes_write_permissions():
+def test_killer_lock_file_removes_write_permissions():
     with tempfile.NamedTemporaryFile() as tmp_file:
         file_path = Path(tmp_file.name)
         # set initial permissions
@@ -27,7 +27,7 @@ def test_qqkiller_lock_file_removes_write_permissions():
             | stat.S_IWOTH
         )
 
-        killer = QQKiller.__new__(QQKiller)
+        killer = Killer.__new__(Killer)
         killer._lockFile(file_path)
 
         new_mode = file_path.stat().st_mode
@@ -49,8 +49,8 @@ def test_qqkiller_lock_file_removes_write_permissions():
         (RealState.KILLED, False),
     ],
 )
-def test_qqkiller_is_suspended_returns_correctly(state, expected):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_is_suspended_returns_correctly(state, expected):
+    killer = Killer.__new__(Killer)
     killer._state = state
     assert killer._isSuspended() is expected
 
@@ -65,8 +65,8 @@ def test_qqkiller_is_suspended_returns_correctly(state, expected):
         (RealState.RUNNING, False),
     ],
 )
-def test_qqkiller_is_queued_returns_correctly(state, expected):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_is_queued_returns_correctly(state, expected):
+    killer = Killer.__new__(Killer)
     killer._state = state
     assert killer._isQueued() is expected
 
@@ -81,8 +81,8 @@ def test_qqkiller_is_queued_returns_correctly(state, expected):
         (RealState.FAILED, 1, False),
     ],
 )
-def test_qqkiller_is_killed_returns_correctly(state, exit, expected):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_is_killed_returns_correctly(state, exit, expected):
+    killer = Killer.__new__(Killer)
     killer._state = state
     killer._informer = MagicMock()
     killer._informer.info.job_exit_code = exit
@@ -97,8 +97,8 @@ def test_qqkiller_is_killed_returns_correctly(state, exit, expected):
         (RealState.RUNNING, False),
     ],
 )
-def test_qqkiller_is_completed_returns_correctly(state, expected):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_is_completed_returns_correctly(state, expected):
+    killer = Killer.__new__(Killer)
     killer._state = state
     assert killer._isCompleted() is expected
 
@@ -110,8 +110,8 @@ def test_qqkiller_is_completed_returns_correctly(state, expected):
         (RealState.RUNNING, False),
     ],
 )
-def test_qqkiller_is_exiting_returns_correctly(state, expected):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_is_exiting_returns_correctly(state, expected):
+    killer = Killer.__new__(Killer)
     killer._state = state
     assert killer._isExiting() is expected
 
@@ -124,15 +124,15 @@ def test_qqkiller_is_exiting_returns_correctly(state, expected):
         (RealState.RUNNING, False),
     ],
 )
-def test_qqkiller_is_unknown_inconsistent_returns_correctly(state, expected):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_is_unknown_inconsistent_returns_correctly(state, expected):
+    killer = Killer.__new__(Killer)
     killer._state = state
     assert killer._isUnknownInconsistent() is expected
 
 
-def test_qqkiller_update_info_file_calls_informer_and_locks_file():
+def test_killer_update_info_file_calls_informer_and_locks_file():
     mock_file = Path("/tmp/fake_info_file.txt")
-    killer = QQKiller.__new__(QQKiller)
+    killer = Killer.__new__(Killer)
     killer._info_file = mock_file
 
     mock_informer = MagicMock()
@@ -184,18 +184,18 @@ def test_qqkiller_update_info_file_calls_informer_and_locks_file():
         (RealState.IN_AN_INCONSISTENT_STATE, None, True, False),
     ],
 )
-def test_qqkiller_should_update_info_file_all_combinations_manual(
+def test_killer_should_update_info_file_all_combinations_manual(
     state, exit, force, expected
 ):
-    killer = QQKiller.__new__(QQKiller)
+    killer = Killer.__new__(Killer)
     killer._state = state
     killer._informer = MagicMock()
     killer._informer.info.job_exit_code = exit
     assert killer._shouldUpdateInfoFile(force) is expected
 
 
-def test_qqkiller_terminate_normal_updates_info_file():
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_terminate_normal_updates_info_file():
+    killer = Killer.__new__(Killer)
     killer._shouldUpdateInfoFile = MagicMock(return_value=True)
     killer._updateInfoFile = MagicMock()
     killer._batch_system = MagicMock()
@@ -211,8 +211,8 @@ def test_qqkiller_terminate_normal_updates_info_file():
     killer._updateInfoFile.assert_called_once()
 
 
-def test_qqkiller_terminate_force_updates_info_file():
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_terminate_force_updates_info_file():
+    killer = Killer.__new__(Killer)
     killer._shouldUpdateInfoFile = MagicMock(return_value=True)
     killer._updateInfoFile = MagicMock()
     killer._batch_system = MagicMock()
@@ -228,8 +228,8 @@ def test_qqkiller_terminate_force_updates_info_file():
     killer._updateInfoFile.assert_called_once()
 
 
-def test_qqkiller_terminate_does_not_update_info_file():
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_terminate_does_not_update_info_file():
+    killer = Killer.__new__(Killer)
     killer._shouldUpdateInfoFile = MagicMock(return_value=False)
     killer._updateInfoFile = MagicMock()
     killer._batch_system = MagicMock()
@@ -263,8 +263,8 @@ def test_qqkiller_terminate_does_not_update_info_file():
         (RealState.EXITING, 1, "Job cannot be terminated. Job is in an exiting state."),
     ],
 )
-def test_qqkiller_ensure_suitable_raises(state, exit, expected_message):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_ensure_suitable_raises(state, exit, expected_message):
+    killer = Killer.__new__(Killer)
     killer._state = state
     killer._informer = MagicMock()
     killer._informer.info.job_exit_code = exit
@@ -285,7 +285,7 @@ def test_qqkiller_ensure_suitable_raises(state, exit, expected_message):
         RealState.IN_AN_INCONSISTENT_STATE,
     ],
 )
-def test_qqkiller_ensure_suitable_passes(state):
-    killer = QQKiller.__new__(QQKiller)
+def test_killer_ensure_suitable_passes(state):
+    killer = Killer.__new__(Killer)
     killer._state = state
     killer.ensureSuitable()

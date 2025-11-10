@@ -107,6 +107,8 @@ qq() {
         command qq "\$@"
     fi
 }
+# This makes qq autocomplete work.
+eval "$(_QQ_COMPLETE=bash_source qq)"
 $BLOCK_END
 EOF
 }

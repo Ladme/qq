@@ -3,7 +3,7 @@
 #     Script for running Gromacs       #
 #  flexible-length replica exchange    #
 #              using qq                #
-#         script version: 0.1          #
+#         script version: 0.2          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -44,7 +44,7 @@ PLUMED=""
 # with this setting, each individual simulation should be stored in a subdirectory
 # following the naming pattern: win01, win02, win03, ..., win44, etc.
 CLIENTS_PATTERN="win"
-# frequency of replica exchange attempts; this option has to always be set!
+# frequency of replica exchange attempts; leave empty for no exchanges being attempted
 RE_FREQ="50000"
 # run Hamiltonian replica exchange; leave empty to NOT run Hamiltonian replica exchange
 # if this option is set, you also need to set RE_FREQ
@@ -131,16 +131,14 @@ else
 fi
 
 # replica exchange options
-if [[ -z "${RE_FREQ}" ]]; then
-    echo "[QQ_FLEX_RE]    ERROR    Frequency of replica exchange attempts has to be defined!"
-    exit 1
-fi
-
-REPLEX="-replex ${RE_FREQ}"
-
-if [[ -n "${HREX}" ]]; then
-    # run Hamiltonian replica exchange
-    HREX="-hrex"
+REPLEX=""
+if [[ -n "${RE_FREQ}" ]]; then
+    # run replica exchange
+    REPLEX="-replex ${RE_FREQ}"
+    if [[ -n "${HREX}" ]]; then
+        # run Hamiltonian replica exchange
+        HREX="-hrex"
+    fi
 fi
 
 if [[ -z "${MAX_TIME}" ]]; then

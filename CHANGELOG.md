@@ -1,3 +1,10 @@
+## Version 0.5.0
+
+### Bug fixes and other small changes
+- Added support for the `-h` flag as a shorthand for `--help` to display the help output.
+
+***
+
 ## Version 0.4.0
 
 ### Support for Slurm

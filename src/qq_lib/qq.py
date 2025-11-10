@@ -23,9 +23,15 @@ from qq_lib.sync import sync
 
 __version__ = "0.4.0"
 
+# support both --help and -h
+_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
 
 @click.group(
-    cls=HelpColorsGroup, help_options_color="bright_blue", invoke_without_command=True
+    cls=HelpColorsGroup,
+    help_options_color="bright_blue",
+    invoke_without_command=True,
+    context_settings=_CONTEXT_SETTINGS,
 )
 @click.option(
     "--version",

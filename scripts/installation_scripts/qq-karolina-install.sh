@@ -1,6 +1,6 @@
 #!/bin/bash
-# Installs qq on IT4Innovation's Karolina.
-# Script version: 0.1.0
+# Installs qq on IT4Innovations' Karolina.
+# Script version: 0.2.0
 
 set -euo pipefail
 
@@ -38,7 +38,7 @@ for HOME_DIR in "${TARGET_HOMES[@]}"; do
     if [ -d "$HOME_DIR" ]; then
         "$TMP_INSTALLER" "$HOME_DIR" "$RELEASE_URL"
     else
-        echo "WARN    [qq sokar installer] Skipping $HOME_DIR (directory not found)"
+        echo "WARN    [qq karolina installer] Skipping $HOME_DIR (directory not found)"
     fi
 done
 

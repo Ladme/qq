@@ -21,7 +21,7 @@ from qq_lib.stat import stat
 from qq_lib.submit import submit
 from qq_lib.sync import sync
 
-__version__ = "0.4.0"
+__version__ = "0.5.0-dev.1"
 
 # support both --help and -h
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}

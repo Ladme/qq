@@ -132,3 +132,11 @@ class Navigator(Operator):
         return (
             self._state == RealState.EXITING and self._informer.info.job_exit_code == 0
         )
+
+    def _isSuspended(self) -> bool:
+        """Check if the job is currently suspended."""
+        return self._state == RealState.SUSPENDED
+
+    def _isRunning(self) -> bool:
+        """Check if the job is running."""
+        return self._state == RealState.RUNNING

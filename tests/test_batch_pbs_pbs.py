@@ -4,6 +4,8 @@
 # ruff: noqa: W291
 
 import os
+import shutil
+import socket
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1314,3 +1316,46 @@ def test_pbs_sort_jobs_handles_none_values(monkeypatch):
 
     result = [job.getId() for job in jobs]
     assert result == ["abc", "1.server"]
+
+
+def test_pbs_delete_remote_dir_deletes_local(tmp_path):
+    test_dir = tmp_path / "to_delete"
+    test_dir.mkdir()
+    (test_dir / "file.txt").write_text("content")
+
+    assert test_dir.exists()
+
+    host = socket.gethostname()
+    PBS.deleteRemoteDir(host, test_dir)
+
+    assert not test_dir.exists()
+
+
+def test_pbs_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypatch):
+    test_dir = tmp_path / "to_delete_fail"
+    test_dir.mkdir()
+
+    def mock_rmtree(_):
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
+    host = socket.gethostname()
+
+    with pytest.raises(
+        QQError, match=f"Could not delete directory '{test_dir}': access denied."
+    ):
+        PBS.deleteRemoteDir(host, test_dir)
+
+
+@patch("qq_lib.batch.pbs.pbs.super")
+def test_pbs_delete_remote_dir_calls_super_for_remote_host(mock_super):
+    mock_super().deleteRemoteDir = patch(
+        "qq_lib.batch.pbs.pbs.BatchInterface.deleteRemoteDir"
+    ).start()
+
+    host = "remote_host"
+    directory = Path("/tmp/remotedir")
+
+    PBS.deleteRemoteDir(host, directory)
+
+    mock_super().deleteRemoteDir.assert_called_once_with(host, directory)

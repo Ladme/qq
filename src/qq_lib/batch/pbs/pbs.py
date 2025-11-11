@@ -282,6 +282,20 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             return super().listRemoteDir(host, directory)
 
     @classmethod
+    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+        if host == socket.gethostname():
+            # directory is available on the current host
+            logger.debug(f"Deleting a directory '{directory}' on local host.")
+            try:
+                shutil.rmtree(directory)
+            except Exception as e:
+                raise QQError(f"Could not delete directory '{directory}': {e}.") from e
+        else:
+            # otherwise we fall back to the default implementation
+            logger.debug(f"Deleting a directory '{directory}' on '{host}'.")
+            return super().deleteRemoteDir(host, directory)
+
+    @classmethod
     def moveRemoteFiles(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:

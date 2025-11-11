@@ -821,3 +821,9 @@ def test_slurm_get_nodes_failure_raises_qqerror(mock_run):
         QQError, match="Could not retrieve information about nodes: some error."
     ):
         Slurm.getNodes()
+
+
+@patch("qq_lib.batch.slurm.slurm.PBS.deleteRemoteDir")
+def test_slurm_delete_remote_dir_delegates(mock_make):
+    Slurm.deleteRemoteDir("host3", Path("/tmp/dir"))
+    mock_make.assert_called_once_with("host3", Path("/tmp/dir"))

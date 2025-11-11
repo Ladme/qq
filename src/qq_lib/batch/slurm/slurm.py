@@ -240,6 +240,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return PBS.listRemoteDir(host, directory)
 
     @classmethod
+    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+        PBS.deleteRemoteDir(host, directory)
+
+    @classmethod
     def moveRemoteFiles(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:

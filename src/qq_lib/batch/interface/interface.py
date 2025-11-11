@@ -481,6 +481,43 @@ class BatchInterface[
         ]
 
     @classmethod
+    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+        """
+        Delete a directory on a remote host.
+
+        The default implementation uses SSH to run `rm -rf` on the remote host.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the directory resides.
+            directory (Path): The remote directory to delete.
+
+        Raises:
+            QQError: If the directory cannot be deleted or the SSH command fails.
+        """
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                host,
+                f"yes | rm -r {directory}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not delete remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+            )
+
+    @classmethod
     def moveRemoteFiles(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:

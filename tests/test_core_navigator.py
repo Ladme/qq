@@ -183,6 +183,32 @@ def test_navigator_is_finished(state, expected):
 @pytest.mark.parametrize(
     "state,expected",
     [
+        (RealState.SUSPENDED, True),
+        (RealState.RUNNING, False),
+    ],
+)
+def test_navigator_is_suspended(state, expected):
+    goer = Navigator.__new__(Navigator)
+    goer._state = state
+    assert goer._isSuspended() is expected
+
+
+@pytest.mark.parametrize(
+    "state,expected",
+    [
+        (RealState.RUNNING, True),
+        (RealState.FAILED, False),
+    ],
+)
+def test_navigator_is_running(state, expected):
+    goer = Navigator.__new__(Navigator)
+    goer._state = state
+    assert goer._isRunning() is expected
+
+
+@pytest.mark.parametrize(
+    "state,expected",
+    [
         (RealState.FAILED, True),
         (RealState.FINISHED, False),
     ],

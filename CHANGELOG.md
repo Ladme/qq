@@ -3,6 +3,9 @@
 ### Support for LUMI
 - qq can now be used on the LUMI supercomputer.
 
+### qq wipe
+- Introduced a new command, `qq wipe`, for safely deleting working directory of failed and killed jobs.
+
 ### Bug fixes and other small changes
 - Added support for the `-h` flag as a shorthand for `--help` to display the help output.
 - Added autocomplete for qq.

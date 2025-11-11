@@ -3,6 +3,7 @@
 
 
 import os
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -348,3 +349,31 @@ def test_slurmit4i_get_scratch_dir_raises_on_mkdir_failure(mock_mkdir, mock_user
         SlurmIT4I.getScratchDir("456")
     mock_user.assert_called_once()
     mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+
+def test_slurm_delete_remote_dir_deletes_local(tmp_path):
+    test_dir = tmp_path / "to_delete"
+    test_dir.mkdir()
+    (test_dir / "file.txt").write_text("content")
+
+    assert test_dir.exists()
+
+    SlurmIT4I.deleteRemoteDir("some_host", test_dir)
+
+    # Ensure directory was removed
+    assert not test_dir.exists()
+
+
+def test_slurm_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypatch):
+    test_dir = tmp_path / "to_delete_fail"
+    test_dir.mkdir()
+
+    def mock_rmtree(_):
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
+
+    with pytest.raises(
+        QQError, match=f"Could not delete directory '{test_dir}': access denied."
+    ):
+        SlurmIT4I.deleteRemoteDir("some_host", test_dir)

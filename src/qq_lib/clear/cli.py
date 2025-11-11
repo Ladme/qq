@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="Delete qq runtime files.",
+    short_help="Delete qq runtime files from the current directory.",
     help=f"""Delete qq runtime files from the current directory.
 
 By default, `{CFG.binary_name} clear` removes only those files that do not correspond to an active or successfully completed job.

@@ -20,6 +20,7 @@ from qq_lib.shebang import shebang
 from qq_lib.stat import stat
 from qq_lib.submit import submit
 from qq_lib.sync import sync
+from qq_lib.wipe import wipe
 
 __version__ = "0.5.0-dev.1"
 
@@ -70,3 +71,4 @@ cli.add_command(killall)
 cli.add_command(queues)
 cli.add_command(nodes)
 cli.add_command(shebang)
+cli.add_command(wipe)

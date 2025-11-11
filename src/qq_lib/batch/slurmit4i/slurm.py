@@ -94,6 +94,15 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not list a directory '{directory}': {e}.") from e
 
     @classmethod
+    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+        # directory is always on shared storage
+        _ = host
+        try:
+            shutil.rmtree(directory)
+        except Exception as e:
+            raise QQError(f"Could not delete directory '{directory}': {e}.") from e
+
+    @classmethod
     def moveRemoteFiles(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:

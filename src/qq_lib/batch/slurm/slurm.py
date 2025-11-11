@@ -35,7 +35,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def isAvailable(cls) -> bool:
-        return shutil.which("sbatch") is not None and shutil.which("it4ifree") is None
+        return (
+            shutil.which("sbatch") is not None
+            and shutil.which("it4ifree") is None
+            and shutil.which("lumi-allocations") is None
+        )
 
     @classmethod
     def getJobId(cls) -> str | None:

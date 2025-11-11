@@ -16,6 +16,7 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.core.common import construct_loop_job_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -150,7 +151,10 @@ class Runner:
             )
             self._archiver.archiveRunTimeFiles(
                 # we need to escape the '+' character
-                f"{self._informer.info.script_name}{CFG.loop_jobs.pattern.replace('+', '\\+') % (self._informer.info.loop_info.current - 1)}",
+                construct_loop_job_name(
+                    self._informer.info.script_name,
+                    self._informer.info.loop_info.current - 1,
+                ).replace("+", "\\+"),
                 self._informer.info.loop_info.current - 1,
             )
 

@@ -145,7 +145,7 @@ class Archiver:
 
         Args:
             job_name (str): The name of the job.
-            cycle (int): Current cycle number (for archiving).
+            cycle (int): Cycle number for which the files should be archived.
 
         Raises:
             QQError: If moving the runtime files fails.
@@ -154,7 +154,9 @@ class Archiver:
             files := self._getFiles(
                 self._input_dir,
                 self._input_machine,
-                job_name,
+                # only use the stem of the job name, the extension will not be matched
+                job_name.split(".", maxsplit=1)[0],
+                # we do not need to use the cycle number here since the job_name should already be expanded
                 cycle=None,
                 include_qq_files=True,
             )

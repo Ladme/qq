@@ -658,3 +658,23 @@ def get_panel_width(
         panel_width = min(panel_width, max_width)
 
     return panel_width
+
+
+def construct_loop_job_name(script_name: str, cycle: int) -> str:
+    """
+    Construct a job name for a loop job.
+
+    Args:
+        script_name (str): Filename of the submitted script.
+        cycle (int): The current cycle of the loop job.
+
+    Returns:
+        str: The name of the loop job in the current cycle.
+    """
+    try:
+        # if the script has an extension, put the cycle number BEFORE the extension
+        stem, suffix = script_name.split(".", maxsplit=1)
+        return f"{stem}{CFG.loop_jobs.pattern % cycle}.{suffix}"
+    except ValueError:
+        # if the script has no extension, add the cycle number after the full name
+        return f"{script_name}{CFG.loop_jobs.pattern % cycle}"

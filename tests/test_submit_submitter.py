@@ -162,7 +162,25 @@ def test_submitter_construct_job_name_returns_name_with_cycle_number_for_loop_jo
 
     result = submitter._constructJobName()
 
-    assert result == f"job.sh{CFG.loop_jobs.pattern % 3}"
+    assert result == f"job{CFG.loop_jobs.pattern % 3}.sh"
+
+
+def test_submitter_construct_job_name_loop_job_no_extension(
+    tmp_path,
+):
+    script = tmp_path / "job"
+    script.write_text("#!/usr/bin/env -S qq run\n")
+    submitter = Submitter.__new__(Submitter)
+    submitter._script_name = "job"
+
+    class DummyLoopInfo:
+        current = 3
+
+    submitter._loop_info = DummyLoopInfo()
+
+    result = submitter._constructJobName()
+
+    assert result == f"job{CFG.loop_jobs.pattern % 3}"
 
 
 def test_submitter_has_valid_shebang_returns_true_for_valid_shebang(tmp_path):

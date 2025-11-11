@@ -16,6 +16,7 @@ from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
+    construct_loop_job_name,
     convert_absolute_to_relative,
     dhhmmss_to_duration,
     equals_normalized,
@@ -1004,3 +1005,30 @@ def test_common_load_yaml_loader_cache_hits():
     assert first == "CSafeLoaderMock"
     assert second == "CSafeLoaderMock"
     assert imp.call_count == 1
+
+
+def test_construct_loop_job_name_no_extension():
+    script_name = "loop_job"
+    cycle = 134
+    assert (
+        construct_loop_job_name(script_name, cycle)
+        == f"loop_job{CFG.loop_jobs.pattern % cycle}"
+    )
+
+
+def test_construct_loop_job_name_with_extension():
+    script_name = "loop_job.sh"
+    cycle = 134
+    assert (
+        construct_loop_job_name(script_name, cycle)
+        == f"loop_job{CFG.loop_jobs.pattern % cycle}.sh"
+    )
+
+
+def test_construct_loop_job_name_with_two_extensions():
+    script_name = "loop_job.py.sh"
+    cycle = 134
+    assert (
+        construct_loop_job_name(script_name, cycle)
+        == f"loop_job{CFG.loop_jobs.pattern % cycle}.py.sh"
+    )

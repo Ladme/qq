@@ -42,6 +42,7 @@ class EnvironmentVariables:
     archive_format: str = "QQ_ARCHIVE_FORMAT"
     pbs_scratch_dir: str = "SCRATCHDIR"
     slurm_job_account: str = "SLURM_JOB_ACCOUNT"
+    lumi_scratch_type: str = "LUMI_SCRATCH_TYPE"
     ncpus: str = "QQ_NCPUS"
     ngpus: str = "QQ_NGPUS"
     nnodes: str = "QQ_NNODES"

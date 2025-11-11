@@ -1079,7 +1079,7 @@ def test_runner_prepare_with_scratch_and_archiver():
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
-        patch("qq_lib.run.runner.CFG") as mock_cfg,
+        patch("qq_lib.core.common.CFG") as mock_cfg,
     ):
         mock_cfg.loop_jobs.pattern = "_loop_%d+"
         runner.prepare()
@@ -1118,7 +1118,7 @@ def test_runner_prepare_without_scratch_and_with_archiver():
 
     with (
         patch("qq_lib.run.runner.logger"),
-        patch("qq_lib.run.runner.CFG") as mock_cfg,
+        patch("qq_lib.core.common.CFG") as mock_cfg,
     ):
         mock_cfg.loop_jobs.pattern = "_loop_%d+"
         runner.prepare()

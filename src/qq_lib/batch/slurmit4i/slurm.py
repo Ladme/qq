@@ -22,6 +22,9 @@ logger = get_logger(__name__)
 
 @batch_system
 class SlurmIT4I(Slurm, metaclass=BatchMeta):
+    # all scratch directory types supported by SlurmIT4I
+    SUPPORTED_SCRATCHES = ["scratch"]
+
     @classmethod
     def envName(cls) -> str:
         return "SlurmIT4I"
@@ -153,13 +156,12 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
                 "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity."
             )
 
-        if (
-            not equals_normalized(resources.work_dir, "scratch")
-            and not equals_normalized(resources.work_dir, "input_dir")
-            and not equals_normalized(resources.work_dir, "job_dir")
+        supported_types = cls.SUPPORTED_SCRATCHES + ["input_dir", "job_dir"]
+        if not any(
+            equals_normalized(resources.work_dir, dir) for dir in supported_types
         ):
             raise QQError(
-                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: scratch input_dir job_dir."
+                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: {' '.join(supported_types)}."
             )
 
         return resources

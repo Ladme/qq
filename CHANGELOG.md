@@ -1,8 +1,12 @@
 ## Version 0.5.0
 
+### Support for LUMI
+- qq can now be used on the LUMI supercomputer.
+
 ### Bug fixes and other small changes
 - Added support for the `-h` flag as a shorthand for `--help` to display the help output.
 - Added autocomplete for qq.
+- Names for loop jobs are now created correctly even if the job script has a file extension.
 
 ***
 

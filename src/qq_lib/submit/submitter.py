@@ -9,7 +9,11 @@ from pathlib import Path
 
 import qq_lib
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import get_info_file, hhmmss_to_duration
+from qq_lib.core.common import (
+    construct_loop_job_name,
+    get_info_file,
+    hhmmss_to_duration,
+)
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -270,4 +274,4 @@ class Submitter:
             return self._script_name
 
         # for loop jobs, use script_name with cycle number
-        return f"{self._script_name}{CFG.loop_jobs.pattern % self._loop_info.current}"
+        return construct_loop_job_name(self._script_name, self._loop_info.current)

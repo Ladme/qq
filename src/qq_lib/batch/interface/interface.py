@@ -485,7 +485,7 @@ class BatchInterface[
         """
         Delete a directory on a remote host.
 
-        The default implementation uses SSH to run `rm -rf` on the remote host.
+        The default implementation uses SSH to run `rm -r` on the remote host.
         This approach may be inefficient on shared storage or high-latency networks.
         Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
 

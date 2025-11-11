@@ -19,6 +19,10 @@ logger = get_logger(__name__)
 
 @batch_system
 class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
+    """
+    Implementation of BatchInterface for Slurm on the LUMI supercomputer.
+    """
+
     # all scratch directory types supported by SlurmLumi
     SUPPORTED_SCRATCHES = ["scratch", "flash"]
 

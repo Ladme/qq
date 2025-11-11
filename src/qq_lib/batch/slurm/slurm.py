@@ -29,6 +29,10 @@ logger = get_logger(__name__)
 
 @batch_system
 class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta):
+    """
+    Implementation of BatchInterface for Slurm batch system.
+    """
+
     @classmethod
     def envName(cls) -> str:
         return "Slurm"

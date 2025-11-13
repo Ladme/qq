@@ -11,6 +11,9 @@
 - Added autocomplete for qq.
 - Names for loop jobs are now created correctly even if the job script has a file extension.
 
+### Internal changes
+- Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.
+
 ***
 
 ## Version 0.4.0

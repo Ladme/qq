@@ -226,7 +226,7 @@ class NodeGroup:
         Returns:
             bool: True if any node has GPUs, False otherwise.
         """
-        return any(n.getNGPUs() != 0 for n in self.nodes)
+        return any((ngpus := n.getNGPUs()) and ngpus != 0 for n in self.nodes)
 
     def _shouldShowGPUMem(self) -> bool:
         """

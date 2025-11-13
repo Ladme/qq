@@ -99,7 +99,7 @@ def test_submitter_factory_get_loop_info_uses_cli_over_parser():
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10
     assert loop_info.end == 20
-    assert loop_info.archive == Path("archive").resolve()
+    assert loop_info.archive == Path("fake_path/archive").resolve()
     assert loop_info.archive_format == "job%04d"
 
 
@@ -120,7 +120,7 @@ def test_submitter_factory_get_loop_info_falls_back_to_parser():
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 2
     assert loop_info.end == 5
-    assert loop_info.archive == Path("archive").resolve()
+    assert loop_info.archive == Path("fake_path/archive").resolve()
     assert loop_info.archive_format == "job%02d"
 
 
@@ -143,7 +143,7 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10  # CLI
     assert loop_info.end == 50  # parser
-    assert loop_info.archive == Path("storage").resolve()  # default
+    assert loop_info.archive == Path("fake_path/storage").resolve()  # default
     assert loop_info.archive_format == "job%02d"  # parser
 
 

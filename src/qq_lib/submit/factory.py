@@ -165,7 +165,8 @@ class SubmitterFactory:
         return LoopInfo(
             self._kwargs.get("loop_start") or self._parser.getLoopStart() or 1,
             self._kwargs.get("loop_end") or self._parser.getLoopEnd(),
-            Path(self._kwargs.get("archive") or self._parser.getArchive() or "storage"),
+            self._input_dir
+            / (self._kwargs.get("archive") or self._parser.getArchive() or "storage"),
             self._kwargs.get("archive_format")
             or self._parser.getArchiveFormat()
             or "job%04d",

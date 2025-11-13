@@ -10,6 +10,7 @@
 - Added support for the `-h` flag as a shorthand for `--help` to display the help output.
 - Added autocomplete for qq.
 - Names for loop jobs are now created correctly even if the job script has a file extension.
+- Fixed a bug which caused the archive directory to be created in an incorrect directory when submitting a loop job from a different directory than in which the script was located.
 
 ### Internal changes
 - Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.

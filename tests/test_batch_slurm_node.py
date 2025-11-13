@@ -81,24 +81,22 @@ def test_slurm_node_get_size_resource_non_numeric_value():
     assert result.value == 1024 * 1024
 
 
-def test_slurm_node_get_size_resource_returns_zero_if_missing():
+def test_slurm_node_get_size_resource_returns_none_if_missing():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {}
 
     result = node._getSizeResource("mem")
 
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
-def test_slurm_node_get_size_resource_exception_returns_zero():
+def test_slurm_node_get_size_resource_returns_none_when_invalid():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {"mem": "invalid"}
 
     result = node._getSizeResource("mem")
 
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
 def test_slurm_node_get_int_from_tres_returns_cpu():
@@ -119,31 +117,31 @@ def test_slurm_node_get_int_from_tres_returns_gpu():
     assert result == 8
 
 
-def test_slurm_node_get_int_from_tres_returns_zero_if_key_missing():
+def test_slurm_node_get_int_from_tres_returns_none_if_key_missing():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {}
 
     result = node._getIntFromTres("tres", "gpu")
 
-    assert result == 0
+    assert result is None
 
 
-def test_slurm_node_get_int_from_tres_returns_zero_if_res_not_found():
+def test_slurm_node_get_int_from_tres_returns_none_if_res_not_found():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {"tres": "cpu=128,mem=250G,billing=128"}
 
     result = node._getIntFromTres("tres", "gpu")
 
-    assert result == 0
+    assert result is None
 
 
-def test_slurm_node_get_int_from_tres_invalid_value_returns_zero():
+def test_slurm_node_get_int_from_tres_invalid_value_returns_none():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {"tres": "cpu=invalid,mem=250G,billing=128"}
 
     result = node._getIntFromTres("tres", "cpu")
 
-    assert result == 0
+    assert result is None
 
 
 def test_slurm_node_get_int_resource_returns_integer_value():
@@ -154,21 +152,21 @@ def test_slurm_node_get_int_resource_returns_integer_value():
     assert result == 128
 
 
-def test_slurm_node_get_int_resource_returns_zero_if_missing():
+def test_slurm_node_get_int_resource_returns_none_if_missing():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {}
 
     result = node._getIntResource("CPUTot")
-    assert result == 0
+    assert result is None
 
 
-def test_slurm_node_get_int_resource_invalid_value_returns_zero():
+def test_slurm_node_get_int_resource_invalid_value_returns_none():
     node = SlurmNode.__new__(SlurmNode)
     node._info = {"CPUTot": "not_a_number"}
 
     result = node._getIntResource("CPUTot")
 
-    assert result == 0
+    assert result is None
 
 
 def test_slurm_node_to_yaml_round_trip():
@@ -298,18 +296,16 @@ def test_slurm_node_get_free_cpu_memory_returns_difference():
     assert result.value == (1024 - 512) * 1024
 
 
-def test_slurm_node_get_gpu_memory_returns_zero():
+def test_slurm_node_get_gpu_memory_returns_none():
     node = make_node_with_info({})
     result = node.getGPUMemory()
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
-def test_slurm_node_get_free_gpu_memory_returns_zero():
+def test_slurm_node_get_free_gpu_memory_returns_none():
     node = make_node_with_info({})
     result = node.getFreeGPUMemory()
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
 def test_slurm_node_get_local_scratch_returns_size():
@@ -326,32 +322,28 @@ def test_slurm_node_get_free_local_scratch_returns_size():
     assert result.value == 2500 * 1024
 
 
-def test_slurm_node_get_ssd_scratch_returns_zero():
+def test_slurm_node_get_ssd_scratch_returns_none():
     node = make_node_with_info({})
     result = node.getSSDScratch()
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
-def test_slurm_node_get_free_ssd_scratch_returns_zero():
+def test_slurm_node_get_free_ssd_scratch_returns_none():
     node = make_node_with_info({})
     result = node.getFreeSSDScratch()
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
-def test_slurm_node_get_shared_scratch_returns_zero():
+def test_slurm_node_get_shared_scratch_returns_none():
     node = make_node_with_info({})
     result = node.getSharedScratch()
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
-def test_slurm_node_get_free_shared_scratch_returns_zero():
+def test_slurm_node_get_free_shared_scratch_returns_none():
     node = make_node_with_info({})
     result = node.getFreeSharedScratch()
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
 def test_slurm_node_get_properties_returns_list_of_features():

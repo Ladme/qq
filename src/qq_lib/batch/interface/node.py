@@ -35,142 +35,142 @@ class BatchNodeInterface(ABC):
         pass
 
     @abstractmethod
-    def getNCPUs(self) -> int:
+    def getNCPUs(self) -> int | None:
         """
         Retrieve the total number of CPU cores available on the node.
 
         Returns:
-            int: Total CPU core count.
+            int | None: Total CPU core count or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getNFreeCPUs(self) -> int:
+    def getNFreeCPUs(self) -> int | None:
         """
         Retrieve the number of currently available (unallocated) CPU cores.
 
         Returns:
-            int: Number of free CPU cores.
+            int | None: Number of free CPU cores or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getNGPUs(self) -> int:
+    def getNGPUs(self) -> int | None:
         """
         Retrieve the total number of GPUs available on the node.
 
         Returns:
-            int: Total GPU count.
+            int | None: Total GPU count or `None` if not available..
         """
         pass
 
     @abstractmethod
-    def getNFreeGPUs(self) -> int:
+    def getNFreeGPUs(self) -> int | None:
         """
         Retrieve the number of currently available (unallocated) GPUs.
 
         Returns:
-            int: Number of free GPUs.
+            int | None: Number of free GPUs or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getCPUMemory(self) -> Size:
+    def getCPUMemory(self) -> Size | None:
         """
         Retrieve the total CPU memory capacity of the node.
 
         Returns:
-            Size: Total CPU memory available on the node.
+            Size | None: Total CPU memory available on the node or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getFreeCPUMemory(self) -> Size:
+    def getFreeCPUMemory(self) -> Size | None:
         """
         Retrieve the currently available CPU memory.
 
         Returns:
-            Size: Free (unused) CPU memory.
+            Size | None: Free (unused) CPU memory or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getGPUMemory(self) -> Size:
+    def getGPUMemory(self) -> Size | None:
         """
         Retrieve the total GPU memory capacity of the node.
 
         Returns:
-            Size: Total GPU memory available.
+            Size | None: Total GPU memory available or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getFreeGPUMemory(self) -> Size:
+    def getFreeGPUMemory(self) -> Size | None:
         """
         Retrieve the currently available GPU memory.
 
         Returns:
-            Size: Free (unused) GPU memory.
+            Size | None: Free (unused) GPU memory or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getLocalScratch(self) -> Size:
+    def getLocalScratch(self) -> Size | None:
         """
         Retrieve the total local scratch storage capacity of the node.
 
         Returns:
-            Size: Total size of local scratch space.
+            Size | None: Total size of local scratch space or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getFreeLocalScratch(self) -> Size:
+    def getFreeLocalScratch(self) -> Size | None:
         """
         Retrieve the available local scratch storage space.
 
         Returns:
-            Size: Free local scratch space.
+            Size | None: Free local scratch space or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getSSDScratch(self) -> Size:
+    def getSSDScratch(self) -> Size | None:
         """
         Retrieve the total SSD-based scratch storage capacity.
 
         Returns:
-            Size: Total SSD scratch capacity.
+            Size | None: Total SSD scratch capacity or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getFreeSSDScratch(self) -> Size:
+    def getFreeSSDScratch(self) -> Size | None:
         """
         Retrieve the currently available SSD-based scratch storage space.
 
         Returns:
-            Size: Free SSD scratch space.
+            Size | None: Free SSD scratch space or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getSharedScratch(self) -> Size:
+    def getSharedScratch(self) -> Size | None:
         """
         Retrieve the total capacity of shared scratch storage accessible from the node.
 
         Returns:
-            Size: Total shared scratch capacity.
+            Size | None: Total shared scratch capacity or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getFreeSharedScratch(self) -> Size:
+    def getFreeSharedScratch(self) -> Size | None:
         """
         Retrieve the available space in shared scratch storage.
 
         Returns:
-            Size: Free shared scratch space.
+            Size | None: Free shared scratch space or `None` if not available.
         """
         pass
 

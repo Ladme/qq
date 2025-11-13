@@ -91,46 +91,46 @@ class PBSNode(BatchNodeInterface):
     def getName(self) -> str:
         return self._name
 
-    def getNCPUs(self) -> int:
+    def getNCPUs(self) -> int | None:
         return self._getIntResource("resources_available.ncpus")
 
-    def getNFreeCPUs(self) -> int:
+    def getNFreeCPUs(self) -> int | None:
         return self._getFreeIntResource("ncpus")
 
-    def getNGPUs(self) -> int:
+    def getNGPUs(self) -> int | None:
         return self._getIntResource("resources_available.ngpus")
 
-    def getNFreeGPUs(self) -> int:
+    def getNFreeGPUs(self) -> int | None:
         return self._getFreeIntResource("ngpus")
 
-    def getCPUMemory(self) -> Size:
+    def getCPUMemory(self) -> Size | None:
         return self._getSizeResource("resources_available.mem")
 
-    def getFreeCPUMemory(self) -> Size:
+    def getFreeCPUMemory(self) -> Size | None:
         return self._getFreeSizeResource("mem")
 
-    def getGPUMemory(self) -> Size:
+    def getGPUMemory(self) -> Size | None:
         return self._getSizeResource("resources_available.gpu_mem")
 
-    def getFreeGPUMemory(self) -> Size:
+    def getFreeGPUMemory(self) -> Size | None:
         return self._getFreeSizeResource("gpu_mem")
 
-    def getLocalScratch(self) -> Size:
+    def getLocalScratch(self) -> Size | None:
         return self._getSizeResource("resources_available.scratch_local")
 
-    def getFreeLocalScratch(self) -> Size:
+    def getFreeLocalScratch(self) -> Size | None:
         return self._getFreeSizeResource("scratch_local")
 
-    def getSSDScratch(self) -> Size:
+    def getSSDScratch(self) -> Size | None:
         return self._getSizeResource("resources_available.scratch_ssd")
 
-    def getFreeSSDScratch(self) -> Size:
+    def getFreeSSDScratch(self) -> Size | None:
         return self._getFreeSizeResource("scratch_ssd")
 
-    def getSharedScratch(self) -> Size:
+    def getSharedScratch(self) -> Size | None:
         return self._getSizeResource("resources_available.scratch_shared")
 
-    def getFreeSharedScratch(self) -> Size:
+    def getFreeSharedScratch(self) -> Size | None:
         return self._getFreeSizeResource("scratch_shared")
 
     def getProperties(self) -> list[str]:
@@ -184,7 +184,7 @@ class PBSNode(BatchNodeInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def _getIntResource(self, res: str) -> int:
+    def _getIntResource(self, res: str) -> int | None:
         """
         Retrieve an integer-valued resource from the node information.
 
@@ -192,39 +192,42 @@ class PBSNode(BatchNodeInterface):
             res (str): The resource key to retrieve (e.g., "resources_available.ncpus").
 
         Returns:
-            int: The integer value of the resource, or `0` if unavailable or invalid.
+            int: The integer value of the resource, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
-            return 0
+            return None
         try:
             return int(val)
         except Exception as e:
             logger.debug(f"Could not parse the value '{val}' of resource '{res}': {e}.")
-            return 0
+            return None
 
-    def _getFreeIntResource(self, res: str) -> int:
+    def _getFreeIntResource(self, res: str) -> int | None:
         """
         Compute the number of free units for an integer-valued resource.
 
         Calculates the difference between the total available (`resources_available.<res>`)
         and the assigned (`resources_assigned.<res>`) quantities. If the computed
-        difference is negative or invalid, returns `0`.
+        difference is negative, returns 0. If the information is not available, returns None.
 
         Args:
             res (str): The base resource name (e.g., "ncpus", "ngpus").
 
         Returns:
-            int: The number of unallocated (free) resource units, or `0` if unavailable.
+            int | None: The number of unallocated (free) resource units, or None if unavailable.
         """
-        full = self._getIntResource(f"resources_available.{res}")
-        assigned = self._getIntResource(f"resources_assigned.{res}")
+        if not (full := self._getIntResource(f"resources_available.{res}")):
+            return None
+
+        # if the `resources_assigned` property is missing, we assume it means that there are no resources assigned
+        assigned = self._getIntResource(f"resources_assigned.{res}") or 0
 
         if (diff := full - assigned) >= 0:
             return diff
 
         return 0
 
-    def _getSizeResource(self, res: str) -> Size:
+    def _getSizeResource(self, res: str) -> Size | None:
         """
         Retrieve a Size resource from the node information.
 
@@ -232,33 +235,36 @@ class PBSNode(BatchNodeInterface):
             res (str): The resource key to retrieve (e.g., "resources_available.mem").
 
         Returns:
-            Size: The parsed Size, or a zero-size object if unavailable or invalid.
+            Size | None: The parsed Size, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
-            return Size(0, "kb")
+            return None
 
         try:
             return Size.fromString(val)
         except Exception as e:
             logger.debug(f"Could not parse the value '{val}' of resource '{res}': {e}.")
-            return Size(0, "kb")
+            return None
 
-    def _getFreeSizeResource(self, res: str) -> Size:
+    def _getFreeSizeResource(self, res: str) -> Size | None:
         """
         Compute the amount of free space for a Size resource.
 
         Calculates the difference between total available (`resources_available.<res>`)
-        and assigned (`resources_assigned.<res>`) values. If subtraction fails or
-        results in a negative size, returns a zero-size object.
+        and assigned (`resources_assigned.<res>`) values. If subtraction results in a negative size,
+        returns a zero-size object. If the information are not available, returns None.
 
         Args:
             res (str): The base resource name (e.g., "mem", "scratch_local").
 
         Returns:
-            Size: The available (free) size for the resource, or `0 kb` if unavailable.
+            Size | None: The available (free) size for the resource, or `None` if unavailable.
         """
-        full = self._getSizeResource(f"resources_available.{res}")
-        assigned = self._getSizeResource(f"resources_assigned.{res}")
+        if not (full := self._getSizeResource(f"resources_available.{res}")):
+            return None
+
+        # if the `resources_assigned` property is missing, we assume it means that there are no resources assigned
+        assigned = self._getSizeResource(f"resources_assigned.{res}") or Size(0, "kb")
 
         try:
             return full - assigned

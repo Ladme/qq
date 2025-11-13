@@ -50,50 +50,59 @@ class SlurmNode(BatchNodeInterface):
     def getName(self) -> str:
         return self._name
 
-    def getNCPUs(self) -> int:
+    def getNCPUs(self) -> int | None:
         return self._getIntResource("CPUTot")
 
-    def getNFreeCPUs(self) -> int:
-        return self.getNCPUs() - self._getIntResource("CPUAlloc")
+    def getNFreeCPUs(self) -> int | None:
+        if not (cpus := self.getNCPUs()):
+            return None
 
-    def getNGPUs(self) -> int:
+        return cpus - (self._getIntResource("CPUAlloc") or 0)
+
+    def getNGPUs(self) -> int | None:
         return self._getIntFromTres("CfgTRES", "gpu")
 
-    def getNFreeGPUs(self) -> int:
-        return self.getNGPUs() - self._getIntFromTres("AllocTRES", "gpu")
+    def getNFreeGPUs(self) -> int | None:
+        if not (gpus := self.getNGPUs()):
+            return None
 
-    def getCPUMemory(self) -> Size:
+        return gpus - (self._getIntFromTres("AllocTRES", "gpu") or 0)
+
+    def getCPUMemory(self) -> Size | None:
         # RealMemory corresponds to memory configured in slurm.conf
         return self._getSizeResource("RealMemory")
 
-    def getFreeCPUMemory(self) -> Size:
+    def getFreeCPUMemory(self) -> Size | None:
+        if not (mem := self.getCPUMemory()):
+            return None
+
         # we do not use the FreeMem property as it corresponds to the ACTUAL free memory on the machine
         # and can be higher than RealMemory - AllocMem (e.g. if the jobs don't use all the allocated memory)
-        return self.getCPUMemory() - self._getSizeResource("AllocMem")
+        return mem - (self._getSizeResource("AllocMem") or Size(0, "kb"))
 
-    def getGPUMemory(self) -> Size:
-        return Size(0, "kb")
+    def getGPUMemory(self) -> Size | None:
+        return None
 
-    def getFreeGPUMemory(self) -> Size:
-        return Size(0, "kb")
+    def getFreeGPUMemory(self) -> Size | None:
+        return None
 
-    def getLocalScratch(self) -> Size:
+    def getLocalScratch(self) -> Size | None:
         return self._getSizeResource("TmpDisk")
 
-    def getFreeLocalScratch(self) -> Size:
+    def getFreeLocalScratch(self) -> Size | None:
         return self._getSizeResource("TmpDisk")
 
-    def getSSDScratch(self) -> Size:
-        return Size(0, "kb")
+    def getSSDScratch(self) -> Size | None:
+        return None
 
-    def getFreeSSDScratch(self) -> Size:
-        return Size(0, "kb")
+    def getFreeSSDScratch(self) -> Size | None:
+        return None
 
-    def getSharedScratch(self) -> Size:
-        return Size(0, "kb")
+    def getSharedScratch(self) -> Size | None:
+        return None
 
-    def getFreeSharedScratch(self) -> Size:
-        return Size(0, "kb")
+    def getFreeSharedScratch(self) -> Size | None:
+        return None
 
     def getProperties(self) -> list[str]:
         if not (raw := self._info.get("AvailableFeatures")):
@@ -150,7 +159,7 @@ class SlurmNode(BatchNodeInterface):
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def _getIntResource(self, res: str) -> int:
+    def _getIntResource(self, res: str) -> int | None:
         """
         Retrieve an integer-valued resource from the node information.
 
@@ -158,17 +167,27 @@ class SlurmNode(BatchNodeInterface):
             res (str): The resource key to retrieve.
 
         Returns:
-            int: The integer value of the resource, or `0` if unavailable or invalid.
+            int | None: The integer value of the resource, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
-            return 0
+            return None
         try:
             return int(val)
         except Exception as e:
             logger.debug(f"Could not parse the value '{val}' of resource '{res}': {e}.")
-            return 0
+            return None
 
-    def _getIntFromTres(self, tres_key: str, res: str) -> int:
+    def _getIntFromTres(self, tres_key: str, res: str) -> int | None:
+        """
+        Retrieve an integer-valued resources from TRES.
+
+        Args:
+            tres_key (str): The tres key to use.
+            res (str): The resource key to retrieve.
+
+        Returns:
+            int | None: The integer value of the resources, or `None` if unavailable or invalid.
+        """
         tres = self._info.get(tres_key, "")
 
         for item in tres.split(","):
@@ -180,11 +199,20 @@ class SlurmNode(BatchNodeInterface):
                         f"Could not parse the property '{res}' from '{item}': {e}."
                     )
 
-        return 0
+        return None
 
-    def _getSizeResource(self, res: str) -> Size:
+    def _getSizeResource(self, res: str) -> Size | None:
+        """
+        Retrieve a Size resource from the node information.
+
+        Args:
+            res (str): The resource key to retrieve.
+
+        Returns:
+            Size | None: The parsed Size, or `None` if unavailable or invalid.
+        """
         if not (val := self._info.get(res)):
-            return Size(0, "kb")
+            return None
 
         try:
             if val.isnumeric():
@@ -192,4 +220,4 @@ class SlurmNode(BatchNodeInterface):
             return Size.fromString(val)
         except Exception as e:
             logger.debug(f"Could not parse the value '{val}' of resource '{res}': {e}.")
-            return Size(0, "kb")
+            return None

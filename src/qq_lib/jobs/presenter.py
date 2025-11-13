@@ -387,10 +387,9 @@ class JobsPresenter:
             return ""
 
         if estimated := job.getEstimated():
+            truncated_nodes = JobsPresenter._shortenNodes(estimated[1])
             return JobsPresenter._color(
-                JobsPresenter._shortenNodes(
-                    f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}"
-                ),
+                f"{truncated_nodes} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
                 color=state.color,
             )
 

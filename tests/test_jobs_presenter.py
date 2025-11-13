@@ -110,6 +110,20 @@ def test_format_nodes_or_comment_returns_nodes(mock_job):
         assert result == expected
 
 
+def test_format_nodes_or_comment_returns_truncated_nodes(mock_job):
+    with (
+        patch.object(
+            mock_job,
+            "getShortNodes",
+            return_value=[f"node{i}" for i in range(1, 10)],
+        ),
+        patch.object(mock_job, "getEstimated", return_value=None),
+    ):
+        result = JobsPresenter._formatNodesOrComment(BatchState.RUNNING, mock_job)
+        expected = JobsPresenter._mainColor("node1 + node2 + node3 + node4 + node5 + …")
+        assert result == expected
+
+
 @pytest.mark.parametrize("state", [BatchState.FINISHED, BatchState.FAILED])
 def test_format_nodes_or_comment_finished_or_failed_no_nodes(mock_job, state):
     with (
@@ -144,6 +158,25 @@ def test_format_nodes_or_comment_returns_estimated(mock_job):
 
         assert JobsPresenter.ANSI_COLORS[BatchState.QUEUED.color] in result
         assert desc in result
+        duration_str = format_duration_wdhhmmss(estimated_time - datetime.now()).rsplit(
+            ":", 1
+        )[0]
+        assert duration_str in result
+
+
+def test_format_nodes_or_comment_returns_estimated_truncated(mock_job):
+    now = datetime.now()
+    estimated_time = now + timedelta(hours=2)
+    desc = " + ".join([f"node{i}" for i in range(1, 10)])
+
+    with (
+        patch.object(mock_job, "getShortNodes", return_value=[]),
+        patch.object(mock_job, "getEstimated", return_value=(estimated_time, desc)),
+    ):
+        result = JobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
+
+        assert JobsPresenter.ANSI_COLORS[BatchState.QUEUED.color] in result
+        assert "node1 + node2 + node3 + node4 + node5 + …" in result
         duration_str = format_duration_wdhhmmss(estimated_time - datetime.now()).rsplit(
             ":", 1
         )[0]

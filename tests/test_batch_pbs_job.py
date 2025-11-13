@@ -285,7 +285,7 @@ def test_pbs_job_info_get_name_present():
 def test_pbs_job_info_get_name_missing():
     job = _make_jobinfo_with_info({})
     result = job.getName()
-    assert result == "?????"
+    assert result is None
 
 
 def test_pbs_job_info_get_ncpus_present():
@@ -296,7 +296,7 @@ def test_pbs_job_info_get_ncpus_present():
 def test_pbs_job_info_get_ncpus_missing():
     job = _make_jobinfo_with_info({})
     result = job.getNCPUs()
-    assert result == 0
+    assert result is None
 
 
 def test_pbs_job_info_get_ngpus_present():
@@ -307,7 +307,7 @@ def test_pbs_job_info_get_ngpus_present():
 def test_pbs_job_info_get_ngpus_missing():
     job = _make_jobinfo_with_info({})
     result = job.getNGPUs()
-    assert result == 0
+    assert result is None
 
 
 def test_pbs_job_info_get_nnodes_present():
@@ -318,7 +318,7 @@ def test_pbs_job_info_get_nnodes_present():
 def test_pbs_job_info_get_nnodes_missing():
     job = _make_jobinfo_with_info({})
     result = job.getNNodes()
-    assert result == 0
+    assert result is None
 
 
 def test_pbs_job_info_get_mem_present():
@@ -331,13 +331,13 @@ def test_pbs_job_info_get_mem_present():
 def test_pbs_job_info_get_mem_missing():
     job = _make_jobinfo_with_info({})
     mem = job.getMem()
-    assert mem.value == 0
+    assert mem is None
 
 
 def test_pbs_job_info_get_mem_invalid_value():
     job = _make_jobinfo_with_info({"Resource_List.mem": "invalid123"})
     mem = job.getMem()
-    assert mem.value == 0
+    assert mem is None
 
 
 def test_pbs_job_info_get_start_time_present():
@@ -375,7 +375,7 @@ def test_pbs_job_info_get_submission_time_present():
 def test_pbs_job_info_get_submission_time_missing():
     job = _make_jobinfo_with_info({})
     result = job.getSubmissionTime()
-    assert result == datetime.min
+    assert result is None
 
 
 def test_pbs_job_info_get_completion_time_present():
@@ -426,7 +426,7 @@ def test_pbs_job_info_get_modification_time_missing_submission_time_present():
 def test_pbs_job_info_get_modification_time_missing():
     job = _make_jobinfo_with_info({})
     result = job.getModificationTime()
-    assert result == datetime.min
+    assert result is None
 
 
 def test_pbs_job_info_get_user_present():
@@ -436,8 +436,7 @@ def test_pbs_job_info_get_user_present():
 
 def test_pbs_job_info_get_user_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getUser()
-    assert result == "?????"
+    assert job.getUser() is None
 
 
 def test_pbs_job_info_get_walltime_valid():
@@ -448,14 +447,12 @@ def test_pbs_job_info_get_walltime_valid():
 
 def test_pbs_job_info_get_walltime_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getWalltime()
-    assert result == timedelta(0)
+    assert job.getWalltime() is None
 
 
 def test_pbs_job_info_get_walltime_invalid():
     job = _make_jobinfo_with_info({"Resource_List.walltime": "not-a-time"})
-    result = job.getWalltime()
-    assert result == timedelta(0)
+    assert job.getWalltime() is None
 
 
 def test_pbs_job_info_get_queue_present():
@@ -465,8 +462,7 @@ def test_pbs_job_info_get_queue_present():
 
 def test_pbs_job_info_get_queue_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getQueue()
-    assert result == "?????"
+    assert job.getQueue() is None
 
 
 def test_pbs_job_info_get_util_cpu_valid():
@@ -478,16 +474,14 @@ def test_pbs_job_info_get_util_cpu_valid():
 
 def test_pbs_job_info_get_util_cpu_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getUtilCPU()
-    assert result is None
+    assert job.getUtilCPU() is None
 
 
 def test_pbs_job_info_get_util_cpu_invalid():
     job = _make_jobinfo_with_info(
         {"resources_used.cpupercent": "abc", "Resource_List.ncpus": "4"}
     )
-    result = job.getUtilCPU()
-    assert result is None
+    assert job.getUtilCPU() is None
 
 
 def test_pbs_job_info_get_util_mem_valid():
@@ -504,18 +498,21 @@ def test_pbs_job_info_get_util_mem_zero():
     assert job.getUtilMem() == 0
 
 
+def test_pbs_job_info_get_util_only_mem_missing():
+    job = _make_jobinfo_with_info({"resources_used.mem": "1048576kb"})
+    assert job.getUtilMem() is None
+
+
 def test_pbs_job_info_get_util_mem_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getUtilMem()
-    assert result is None
+    assert job.getUtilMem() is None
 
 
 def test_pbs_job_info_get_util_mem_invalid():
     job = _make_jobinfo_with_info(
         {"resources_used.mem": "invalid", "Resource_List.mem": "8gb"}
     )
-    result = job.getUtilMem()
-    assert result is None
+    assert job.getUtilMem() is None
 
 
 def test_pbs_job_info_get_exit_code_valid():
@@ -530,8 +527,7 @@ def test_pbs_job_info_get_exit_code_valid_nonzero():
 
 def test_pbs_job_info_get_exit_code_invalid():
     job = _make_jobinfo_with_info({"Exit_status": "oops"})
-    result = job.getExitCode()
-    assert result is None
+    assert job.getExitCode() is None
 
 
 def test_pbs_job_info_get_exit_code_missing():
@@ -554,7 +550,7 @@ def test_pbs_job_info_get_input_machine():
 
 def test_pbs_job_info_get_input_machine_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getInputMachine() == "?????"
+    assert job.getInputMachine() is None
 
 
 def test_pbs_job_info_get_input_dir_pbs():
@@ -590,7 +586,7 @@ def test_pbs_job_info_get_input_dir_nonexistent():
             "Variable_List": "PBS_O_LOGNAME=user,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("???")
+    assert job.getInputDir() is None
 
 
 def test_pbs_job_info_get_info_file():

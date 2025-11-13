@@ -171,18 +171,20 @@ class JobsPresenter:
                 else job.getCompletionTime() or job.getModificationTime()
             )
 
-            cpus = job.getNCPUs()
-            gpus = job.getNGPUs()
-            nodes = job.getNNodes()
+            cpus = job.getNCPUs() or 0
+            gpus = job.getNGPUs() or 0
+            nodes = job.getNNodes() or 0
             self._stats.addJob(state, cpus, gpus, nodes)
             exit_code = job.getExitCode()
 
             row = [
                 JobsPresenter._color(state.toCode(), state.color),
                 JobsPresenter._mainColor(JobsPresenter._shortenJobId(job.getId())),
-                JobsPresenter._mainColor(job.getUser()),
-                JobsPresenter._mainColor(JobsPresenter._shortenJobName(job.getName())),
-                JobsPresenter._mainColor(job.getQueue()),
+                JobsPresenter._mainColor(job.getUser() or ""),
+                JobsPresenter._mainColor(
+                    JobsPresenter._shortenJobName(job.getName() or "")
+                ),
+                JobsPresenter._mainColor(job.getQueue() or ""),
                 JobsPresenter._mainColor(str(cpus)),
                 JobsPresenter._mainColor(str(gpus)),
                 JobsPresenter._mainColor(str(nodes)),
@@ -252,20 +254,27 @@ class JobsPresenter:
 
     @staticmethod
     def _formatTime(
-        state: BatchState, start_time: datetime, end_time: datetime, walltime: timedelta
+        state: BatchState,
+        start_time: datetime | None,
+        end_time: datetime | None,
+        walltime: timedelta | None,
     ) -> str:
         """
         Format the job running time, queued time or completion time with color coding.
 
         Args:
             state (BatchState): Current job state.
-            start_time (datetime): Job submission or start time.
-            end_time (datetime): Job completion or current time.
-            walltime (timedelta): Scheduled walltime for the job.
+            start_time (datetime | None): Job submission or start time.
+            end_time (datetime | None): Job completion or current time.
+            walltime (timedelta | None): Scheduled walltime for the job.
 
         Returns:
             str: ANSI-colored string representing elapsed or finished time.
         """
+        # return an empty string if any of the required times is missing
+        if start_time is None or end_time is None or walltime is None:
+            return ""
+
         match state:
             case BatchState.UNKNOWN | BatchState.SUSPENDED:
                 return ""

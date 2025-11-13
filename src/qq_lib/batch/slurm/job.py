@@ -162,39 +162,42 @@ class SlurmJob(BatchJobInterface):
 
         return None
 
-    def getName(self) -> str:
+    def getName(self) -> str | None:
         if not (name := self._info.get("JobName")):
-            logger.warning(f"Could not get job name for '{self._job_id}'.")
-            return "?????"
+            logger.debug(f"Could not get job name for '{self._job_id}'.")
+            return None
 
         return name
 
-    def getNCPUs(self) -> int:
+    def getNCPUs(self) -> int | None:
         min_cpus = (
             self._getIntProperty("MinCPUsNode", "the minimum number of CPUs per node")
-            * self.getNNodes()
-        )
-        cpus = self._getIntProperty("NumCPUs", "the number of CPUs")
+            or 0
+        ) * (self.getNNodes() or 0)
+
+        if not (cpus := self._getIntProperty("NumCPUs", "the number of CPUs")):
+            return None
 
         return max(min_cpus, cpus)
 
-    def getNGPUs(self) -> int:
+    def getNGPUs(self) -> int | None:
         tres = self._getTres()
         for item in tres.split(","):
             if item.startswith("gpu=") or item.startswith("gres/gpu="):
                 try:
                     return int(item.split("=")[1])
                 except ValueError as e:
-                    logger.debug(
+                    logger.warning(
                         f"Could not parse the number of GPUs from '{item}': {e}."
                     )
+                    return None
 
-        return 0
+        return None
 
-    def getNNodes(self) -> int:
+    def getNNodes(self) -> int | None:
         return self._getIntProperty("NumNodes", "the number of nodes")
 
-    def getMem(self) -> Size:
+    def getMem(self) -> Size | None:
         tres = self._getTres()
         for item in tres.split(","):
             if item.startswith("mem="):
@@ -202,51 +205,48 @@ class SlurmJob(BatchJobInterface):
                     return Size.fromString(item.split("=", 1)[1])
                 except Exception as e:
                     logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
-                    return Size(0, "kb")
+                    return None
 
-        logger.warning(f"Memory not available for '{self._job_id}'.")
-        return Size(0, "kb")
+        logger.debug(f"Memory not available for '{self._job_id}'.")
+        return None
 
     def getStartTime(self) -> datetime | None:
         return self._getDatetimeProperty("StartTime", "the job start time")
 
-    def getSubmissionTime(self) -> datetime:
-        return (
-            self._getDatetimeProperty("SubmitTime", "the job submission time")
-            or datetime.min  # arbitrary datetime - submission time should always be available
-        )
+    def getSubmissionTime(self) -> datetime | None:
+        return self._getDatetimeProperty("SubmitTime", "the job submission time")
 
     def getCompletionTime(self) -> datetime | None:
         # the property EndTime is available for running jobs as well (estimated completion time)
         # but that should not matter for our purposes
         return self._getDatetimeProperty("EndTime", "the job completion time")
 
-    def getModificationTime(self) -> datetime:
+    def getModificationTime(self) -> datetime | None:
         # assuming this is only used for completed jobs
         return self.getCompletionTime() or self.getSubmissionTime()
 
-    def getUser(self) -> str:
+    def getUser(self) -> str | None:
         if not (user := self._info.get("UserId")):
-            logger.warning(f"Could not get user for '{self._job_id}'.")
-            return "?????"
+            logger.debug(f"Could not get user for '{self._job_id}'.")
+            return None
 
         return user.split("(")[0]
 
-    def getWalltime(self) -> timedelta:
+    def getWalltime(self) -> timedelta | None:
         if not (walltime := self._info.get("TimeLimit")):
-            logger.warning(f"Could not get walltime for '{self._job_id}'.")
-            return timedelta(0)
+            logger.debug(f"Could not get walltime for '{self._job_id}'.")
+            return None
 
         try:
             return dhhmmss_to_duration(walltime)
         except QQError as e:
             logger.warning(f"Could not parse walltime for '{self._job_id}': {e}.")
-            return timedelta(0)
+            return None
 
-    def getQueue(self) -> str:
+    def getQueue(self) -> str | None:
         if not (queue := self._info.get("Partition")):
-            logger.warning(f"Could not get queue for '{self._job_id}'.")
-            return "?????"
+            logger.debug(f"Could not get queue for '{self._job_id}'.")
+            return None
 
         return queue
 
@@ -272,21 +272,22 @@ class SlurmJob(BatchJobInterface):
             logger.debug(f"Could not parse exit codes '{raw_exit}': {e}.")
             return None
 
-    def getInputMachine(self) -> str:
+    def getInputMachine(self) -> str | None:
         # not available for Slurm
-        return "?????"
+        return None
 
-    def getInputDir(self) -> Path:
+    def getInputDir(self) -> Path | None:
         if not (raw_dir := self._info.get("WorkDir")):
-            logger.warning(f"Could not obtain input directory for '{self._job_id}'.")
-            return Path("???")
+            logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
+            return None
 
         return Path(raw_dir).resolve()
 
     def getInfoFile(self) -> Path | None:
-        info_file = (self.getInputDir() / self.getName()).with_suffix(
-            CFG.suffixes.qq_info
-        )
+        if not (input_dir := self.getInputDir()) or not (name := self.getName()):
+            return None
+
+        info_file = (input_dir / name).with_suffix(CFG.suffixes.qq_info)
 
         # we need to check whether the info file actually exists
         # (or rather if it is available to the user)
@@ -436,20 +437,20 @@ class SlurmJob(BatchJobInterface):
 
         return result.stdout.strip().split("\n")
 
-    def _getIntProperty(self, property: str, property_name: str) -> int:
+    def _getIntProperty(self, property: str, property_name: str) -> int | None:
         """
         Retrieve an integer property value from the job information.
 
         If the property contains a range (e.g., "MIN-MAX"), only the minimum value
         is returned. If the property cannot be retrieved or converted to an integer,
-        0 is returned by default.
+        `None` is returned.
 
         Args:
             property (str): The key identifying the property in the job information.
             property_name (str): A human-readable name of the property for logging.
 
         Returns:
-            int: The integer value of the property, or 0 if unavailable or invalid.
+            int: The integer value of the property, or `None` if unavailable or invalid.
         """
         try:
             # we split by '-' because pending jobs may have this property shown as MIN-MAX
@@ -459,8 +460,7 @@ class SlurmJob(BatchJobInterface):
             logger.debug(
                 f"Could not get information about {property_name} from the batch system for '{self._job_id}'."
             )
-            # if not specified, we assume 0
-            return 0
+            return None
 
     def _getDatetimeProperty(
         self, property: str, property_name: str

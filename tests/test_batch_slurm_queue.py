@@ -197,10 +197,10 @@ def test_slurm_queue_get_max_walltime_returns_none_when_missing():
     assert result is None
 
 
-def test_slurm_queue_get_comment_returns_empty_string():
+def test_slurm_queue_get_comment_returns_none():
     queue = SlurmQueue.__new__(SlurmQueue)
     result = queue.getComment()
-    assert result == ""
+    assert result is None
 
 
 @pytest.mark.parametrize("state", ["DOWN", "INACTIVE", "MAINT", "ALLOCATED"])

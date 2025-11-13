@@ -48,43 +48,47 @@ class BatchQueueInterface(ABC):
         pass
 
     @abstractmethod
-    def getTotalJobs(self) -> int:
+    def getTotalJobs(self) -> int | None:
         """
         Retrieve the total number of jobs currently in the queue.
 
         Returns:
-            int: The total count of jobs, regardless of status.
+            int | None: The total count of jobs, regardless of status
+            or `None` if the information is not available.
         """
         pass
 
     @abstractmethod
-    def getRunningJobs(self) -> int:
+    def getRunningJobs(self) -> int | None:
         """
         Retrieve the number of jobs currently running in the queue.
 
         Returns:
-            int: The number of running jobs.
+            int | None: The number of running jobs or `None`
+            if the information is not available.
         """
         pass
 
     @abstractmethod
-    def getQueuedJobs(self) -> int:
+    def getQueuedJobs(self) -> int | None:
         """
         Retrieve the number of jobs waiting to start in the queue.
 
         Returns:
-            int: The number of queued jobs.
+            int | None: The number of queued jobs or `None`
+            if the information is not available.
         """
         pass
 
     @abstractmethod
-    def getOtherJobs(self) -> int:
+    def getOtherJobs(self) -> int | None:
         """
         Retrieve the number of jobs in other states (non-running and non-queued).
 
         Returns:
-            int: The number of jobs that are neither running nor queued,
-            such as held or exiting jobs.
+            int | None: The number of jobs that are neither running nor queued,
+            such as exiting or suspended jobs.
+            Returns `None` if the information is not available.
         """
         pass
 
@@ -99,12 +103,13 @@ class BatchQueueInterface(ABC):
         pass
 
     @abstractmethod
-    def getComment(self) -> str:
+    def getComment(self) -> str | None:
         """
         Retrieve the comment or description associated with the queue.
 
         Returns:
-            str: The human-readable comment or note about the queue.
+            str | None: The human-readable comment or note about the queue
+            or `None` if the information is not available.
         """
         pass
 

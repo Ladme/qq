@@ -225,12 +225,12 @@ class QueuesPresenter:
             Text(mark, style=mark_style),
             Text(queue.getName(), style=text_style),
             Text(queue.getPriority() or "", style=text_style),
-            Text(str(queue.getRunningJobs()), style=CFG.state_colors.running),
-            Text(str(queue.getQueuedJobs()), style=CFG.state_colors.queued),
-            Text(str(queue.getOtherJobs()), style=CFG.state_colors.other),
-            Text(str(queue.getTotalJobs()), style=CFG.state_colors.sum),
+            Text(str(queue.getRunningJobs() or 0), style=CFG.state_colors.running),
+            Text(str(queue.getQueuedJobs() or 0), style=CFG.state_colors.queued),
+            Text(str(queue.getOtherJobs() or 0), style=CFG.state_colors.other),
+            Text(str(queue.getTotalJobs() or 0), style=CFG.state_colors.sum),
             QueuesPresenter._formatWalltime(queue, text_style),
-            Text(queue.getComment(), style=text_style),
+            Text(queue.getComment() or "", style=text_style),
         )
 
     @staticmethod

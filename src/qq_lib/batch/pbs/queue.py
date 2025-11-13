@@ -117,21 +117,21 @@ class PBSQueue(BatchQueueInterface):
     def getPriority(self) -> str | None:
         return self._info.get("Priority")
 
-    def getTotalJobs(self) -> int:
-        return PBSQueue._getIntValue(self._info, "total_jobs") or 0
+    def getTotalJobs(self) -> int | None:
+        return PBSQueue._getIntValue(self._info, "total_jobs")
 
-    def getRunningJobs(self) -> int:
-        return PBSQueue._getIntValue(self._job_numbers, "Running") or 0
+    def getRunningJobs(self) -> int | None:
+        return PBSQueue._getIntValue(self._job_numbers, "Running")
 
-    def getQueuedJobs(self) -> int:
-        # we count held and waiting jobs as queued for consistency with slurm
+    def getQueuedJobs(self) -> int | None:
+        # we count held and waiting jobs as queued for consistency with Slurm
         return (
             (PBSQueue._getIntValue(self._job_numbers, "Queued") or 0)
             + (PBSQueue._getIntValue(self._job_numbers, "Held") or 0)
             + (PBSQueue._getIntValue(self._job_numbers, "Waiting") or 0)
         )
 
-    def getOtherJobs(self) -> int:
+    def getOtherJobs(self) -> int | None:
         return (
             (PBSQueue._getIntValue(self._job_numbers, "Transit") or 0)
             + (PBSQueue._getIntValue(self._job_numbers, "Exiting") or 0)
@@ -144,9 +144,9 @@ class PBSQueue(BatchQueueInterface):
 
         return None
 
-    def getComment(self) -> str:
+    def getComment(self) -> str | None:
         if not (raw_comment := self._info.get("comment")):
-            return ""
+            return None
 
         return raw_comment.split("|", 1)[0]
 

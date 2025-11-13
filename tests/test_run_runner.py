@@ -832,7 +832,8 @@ def test_runner_log_failure_and_exit_calls_fallback_on_exception():
     mock_fatal.assert_called_once()
 
 
-def test_runner_finalize_failure_updates_info_failed():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_failure_updates_info_failed(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 91
@@ -842,9 +843,12 @@ def test_runner_finalize_failure_updates_info_failed():
     runner.finalize()
 
     runner._updateInfoFailed.assert_called_once_with(91)
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job finished with an exit code of 91.")
 
 
-def test_runner_finalize_with_scratch_and_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -870,9 +874,12 @@ def test_runner_finalize_with_scratch_and_archiver():
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
 
 
-def test_runner_finalize_with_scratch_and_without_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -897,9 +904,12 @@ def test_runner_finalize_with_scratch_and_without_archiver():
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
 
 
-def test_runner_finalize_without_scratch_and_with_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_without_scratch_and_with_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -920,9 +930,12 @@ def test_runner_finalize_without_scratch_and_with_archiver():
     runner._archiver.toArchive.assert_called_once_with(runner._work_dir)
     runner._deleteWorkDir.assert_not_called()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
 
 
-def test_runner_finalize_without_scratch_and_without_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_without_scratch_and_without_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -942,9 +955,12 @@ def test_runner_finalize_without_scratch_and_without_archiver():
 
     runner._deleteWorkDir.assert_not_called()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
 
 
-def test_runner_finalize_with_scratch_archiver_and_resubmit():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -971,6 +987,8 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit():
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._resubmit.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
 
 
 def test_runner_execute_updates_info_and_runs_script(tmp_path):

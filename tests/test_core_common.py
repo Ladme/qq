@@ -818,6 +818,24 @@ def test_get_info_files_from_job_id_or_dir_job_id_does_not_exit(
     mock_get_info_file_from_job_id.assert_called_once_with("12345")
 
 
+@patch("qq_lib.core.common.get_info_file_from_job_id")
+def test_get_info_files_from_job_id_or_dir_permission_error(
+    mock_get_info_file_from_job_id,
+):
+    fake_path = Path("/tmp/missing.qqinfo")
+    mock_get_info_file_from_job_id.return_value = fake_path
+
+    with (
+        patch.object(
+            Path, "is_file", side_effect=PermissionError("no permissions to read")
+        ),
+        pytest.raises(QQError, match="Info file for job '12345'"),
+    ):
+        get_info_files_from_job_id_or_dir("12345")
+
+    mock_get_info_file_from_job_id.assert_called_once_with("12345")
+
+
 @patch("qq_lib.core.common.get_info_files")
 def test_get_info_files_from_job_id_or_dir_job_id_no_job_id(mock_get_info_files):
     fake_files = [Path("/tmp/job1.qqinfo"), Path("/tmp/job2.qqinfo")]

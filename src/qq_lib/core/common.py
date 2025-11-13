@@ -184,8 +184,13 @@ def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
     """
     if job_id:
         info_file = get_info_file_from_job_id(job_id)
-        # check that the detected info file exists
-        if not info_file.is_file():
+        # check that the detected info file exists and we have permissions to read it
+        try:
+            missing = not info_file.is_file()
+        except PermissionError:
+            missing = True
+
+        if missing:
             raise QQError(
                 f"Info file for job '{job_id}' does not exist or is not reachable."
             )

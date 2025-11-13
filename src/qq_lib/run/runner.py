@@ -276,6 +276,8 @@ class Runner:
             # only update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
 
+        logger.info(f"Job finished with an exit code of {self._process.returncode}.")
+
     def logFailureAndExit(self, exception: BaseException) -> NoReturn:
         """
         Record a failure state into the qq info file and exit the program.

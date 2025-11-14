@@ -582,6 +582,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         # translate per-chunk resources
         if res.ncpus:
             trans_res.append(f"ncpus={res.ncpus // res.nnodes}")
+            # we need to specify the number of MPI processes so that mpirun uses the correct
+            # number of sockets; this does not mean that the run script has to use one MPI
+            # process per CPU core, this value can be overriden
+            trans_res.append(f"mpiprocs={res.ncpus // res.nnodes}")
 
         if res.mem:
             trans_res.append(f"mem={(res.mem // res.nnodes).toStrExact()}")

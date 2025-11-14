@@ -237,15 +237,15 @@ class JobsPresenter:
         for line, job in zip(split_table[1:], self._jobs):
             table_with_extra_info += line + "\n"
 
-            if "???" not in (input_machine := job.getInputMachine()):
+            if input_machine := job.getInputMachine():
                 table_with_extra_info += JobsPresenter._color(
                     f" >   Input machine:   {input_machine}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
 
-            if "???" not in (input_dir := str(job.getInputDir())):
+            if input_dir := job.getInputDir():
                 table_with_extra_info += JobsPresenter._color(
-                    f" >   Input directory: {input_dir}\n",
+                    f" >   Input directory: {str(input_dir)}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
             table_with_extra_info += "\n"

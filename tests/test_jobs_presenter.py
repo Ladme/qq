@@ -935,11 +935,11 @@ def test_add_job_mixed_states_accumulates_correctly():
         # both have valid info
         ("machine1", "/path/dir", True, True),
         # input machine missing, dir valid
-        ("?????", "/path/dir", False, True),
+        (None, "/path/dir", False, True),
         # input machine valid, dir missing
-        ("machine2", "????", True, False),
+        ("machine2", None, True, False),
         # both missing
-        ("?????", "???", False, False),
+        (None, None, False, False),
     ],
 )
 def test_jobs_presenter_insert_extra_info_various_combinations(

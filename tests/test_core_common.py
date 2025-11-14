@@ -485,9 +485,9 @@ def test_split_files_list_whitespace(tmp_path):
         f"{tmp_path / 'file1.txt'} {tmp_path / 'file2.txt'}\t{tmp_path / 'file3.txt'}"
     )
     expected = [
-        Path(tmp_path / "file1.txt").resolve(),
-        Path(tmp_path / "file2.txt").resolve(),
-        Path(tmp_path / "file3.txt").resolve(),
+        Path(tmp_path / "file1.txt"),
+        Path(tmp_path / "file2.txt"),
+        Path(tmp_path / "file3.txt"),
     ]
     assert split_files_list(string) == expected
 
@@ -497,9 +497,9 @@ def test_split_files_list_commas_and_colons(tmp_path):
         f"{tmp_path / 'file1.txt'},{tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'}"
     )
     expected = [
-        Path(tmp_path / "file1.txt").resolve(),
-        Path(tmp_path / "file2.txt").resolve(),
-        Path(tmp_path / "file3.txt").resolve(),
+        Path(tmp_path / "file1.txt"),
+        Path(tmp_path / "file2.txt"),
+        Path(tmp_path / "file3.txt"),
     ]
     assert split_files_list(string) == expected
 
@@ -507,17 +507,17 @@ def test_split_files_list_commas_and_colons(tmp_path):
 def test_split_files_list_mixed_separators(tmp_path):
     string = f"{tmp_path / 'file1.txt'}, {tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'} {tmp_path / 'file4.txt'}"
     expected = [
-        Path(tmp_path / "file1.txt").resolve(),
-        Path(tmp_path / "file2.txt").resolve(),
-        Path(tmp_path / "file3.txt").resolve(),
-        Path(tmp_path / "file4.txt").resolve(),
+        Path(tmp_path / "file1.txt"),
+        Path(tmp_path / "file2.txt"),
+        Path(tmp_path / "file3.txt"),
+        Path(tmp_path / "file4.txt"),
     ]
     assert split_files_list(string) == expected
 
 
 def test_split_files_list_single_file(tmp_path):
     string = str(tmp_path / "single_file.txt")
-    expected = [Path(tmp_path / "single_file.txt").resolve()]
+    expected = [Path(tmp_path / "single_file.txt")]
     assert split_files_list(string) == expected
 
 

@@ -60,7 +60,7 @@ using qq directives of this format: `# qq <option>=<value>`.
     default=None,
     help=(
         f"A colon-, comma-, or space-separated list of files and directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
-        "By default, all files and directories except the qq info file and the archive directory are copied to the working directory.\n"
+        "Paths to files and directories to exclude must be relative to the input directory.\n"
     ),
 )
 @optgroup.option(

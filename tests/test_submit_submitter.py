@@ -37,6 +37,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             job_type=JobType.STANDARD,
             resources=Resources(),
             command_line=["-q", "default", str(script)],
+            exclude=[Path("exclude")],
         )
 
         assert submitter._batch_system == PBS
@@ -49,7 +50,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._job_name == "job1"
         assert submitter._info_file == tmp_path / f"job1{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
-        assert submitter._exclude == []
+        assert submitter._exclude == [tmp_path / "exclude"]
         assert submitter._command_line == ["-q", "default", str(script)]
         assert submitter._depend == []
 

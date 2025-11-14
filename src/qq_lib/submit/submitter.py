@@ -66,6 +66,7 @@ class Submitter:
             command_line (list[str]): List of all arguments and options provided on the command line.
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
+                Paths are provided relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
 
         Raises:
@@ -87,7 +88,8 @@ class Submitter:
             .resolve()
         )
         self._resources = resources
-        self._exclude = exclude or []
+        # convert relative paths to absolute paths by prepending the input dir path
+        self._exclude = [self._input_dir / e for e in (exclude or [])]
         self._command_line = command_line
         self._depend = depend or []
 

@@ -587,7 +587,7 @@ exit 0
     assert resources.props == {"vnode": "node"}
 
     exclude = parser.getExclude()
-    assert exclude == [Path.cwd() / "file1.txt", Path.cwd() / "file2.txt"]
+    assert exclude == [Path("file1.txt"), Path("file2.txt")]
 
     assert parser.getLoopStart() == 2
     assert parser.getLoopEnd() == 10

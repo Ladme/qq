@@ -419,3 +419,35 @@ def test_informer_get_nodes_with_cache():
 
     batch_job_info_mock.getNodes.assert_called_once()
     assert result == ["node1", "node2"]
+
+
+def test_informer_get_batch_info_fetches_when_not_cached():
+    batch_job = MagicMock()
+    batch_system = MagicMock()
+    batch_system.getBatchJob.return_value = batch_job
+
+    info = MagicMock()
+    info.job_id = "123"
+    info.batch_system = batch_system
+
+    informer = Informer(info)
+
+    result = informer.getBatchInfo()
+
+    assert result is batch_job
+    batch_system.getBatchJob.assert_called_once_with("123")
+    assert informer._batch_info is batch_job
+
+
+def test_informer_get_batch_info_returns_cached_when_available():
+    batch_job = MagicMock()
+
+    info = MagicMock()
+    info.job_id = "123"
+
+    informer = Informer(info)
+    informer._batch_info = batch_job
+
+    result = informer.getBatchInfo()
+
+    assert result is batch_job

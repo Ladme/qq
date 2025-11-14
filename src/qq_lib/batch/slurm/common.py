@@ -9,8 +9,11 @@ from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
-# field requested in sacct
+# fields requested in sacct for full jobs
 SACCT_FIELDS = "JobID,Account,State,User,JobName,Partition,WorkDir,AllocCPUs,ReqCPUs,AllocTRES,ReqTRES,AllocNodes,ReqNodes,Submit,Start,End,TimeLimit,NodeList,Reason,ExitCode"
+
+# fields requested in sacct for job steps
+SACCT_STEP_FIELDS = "JobID,State,Start,End"
 
 
 def parse_slurm_dump_to_dictionary(

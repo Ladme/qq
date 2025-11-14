@@ -839,3 +839,133 @@ def test_slurm_job_get_ids_for_sorting_returns_zero_for_invalid(job_id):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = job_id
     assert job.getIdsForSorting() == [0]
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_get_steps_returns_empty_on_nonzero_returncode(mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+    mock_run.return_value = mock_result
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    assert job.getSteps() == []
+    mock_run.assert_called_once()
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+def test_slurm_job_get_steps_parses_numeric_steps(mock_step, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "a\nb\n"
+    mock_run.return_value = mock_result
+
+    s0 = SlurmJob.__new__(SlurmJob)
+    s0._job_id = "999.0"
+    s1 = SlurmJob.__new__(SlurmJob)
+    s1._job_id = "999.1"
+
+    mock_step.side_effect = [s0, s1]
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    steps = job.getSteps()
+
+    assert len(steps) == 2
+    mock_step.assert_any_call("a")
+    mock_step.assert_any_call("b")
+    mock_run.assert_called_once()
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+def test_slurm_job_get_steps_skips_empty_lines(mock_step, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "a\n\nb\n"
+    mock_run.return_value = mock_result
+
+    s0 = SlurmJob.__new__(SlurmJob)
+    s0._job_id = "999.0"
+    s1 = SlurmJob.__new__(SlurmJob)
+    s1._job_id = "999.1"
+
+    mock_step.side_effect = [s0, s1]
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    steps = job.getSteps()
+
+    assert len(steps) == 2
+    mock_step.assert_any_call("a")
+    mock_step.assert_any_call("b")
+    mock_run.assert_called_once()
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+def test_slurm_job_get_steps_skips_non_numeric_steps(mock_step, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "x\n1\nabc\n2\n"
+    mock_run.return_value = mock_result
+
+    s_invalid1 = SlurmJob.__new__(SlurmJob)
+    s_invalid1._job_id = "999.x"
+    s_valid0 = SlurmJob.__new__(SlurmJob)
+    s_valid0._job_id = "999.0"
+    s_invalid2 = SlurmJob.__new__(SlurmJob)
+    s_invalid2._job_id = "999.abc"
+    s_valid1 = SlurmJob.__new__(SlurmJob)
+    s_valid1._job_id = "999.1"
+
+    mock_step.side_effect = [s_invalid1, s_valid0, s_invalid2, s_valid1]
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    steps = job.getSteps()
+
+    assert len(steps) == 2
+    mock_run.assert_called_once()
+
+
+def test_slurm_job_get_step_id_returns_step_part_when_present():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123.456"
+    assert job.getStepId() == "456"
+
+
+def test_slurm_job_get_step_id_returns_none_when_no_step_part():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+    assert job.getStepId() is None
+
+
+def test_slurm_job_step_from_sacct_string_parses_fields_correctly():
+    s = "123.1|RUNNING extra words|2025-11-14 14:45:16|2025-11-14 15:00:00"
+
+    result = SlurmJob._stepFromSacctString(s)
+
+    assert isinstance(result, SlurmJob)
+    assert result._job_id == "123.1"
+    assert result._info == {
+        "JobId": "123.1",
+        "JobState": "RUNNING",
+        "StartTime": "2025-11-14 14:45:16",
+        "EndTime": "2025-11-14 15:00:00",
+    }
+
+
+def test_slurm_job_step_from_sacct_string_raises_on_invalid_field_count():
+    s = "a|b|c"
+
+    with pytest.raises(
+        QQError, match="Number of items in a sacct string for a slurm step"
+    ):
+        SlurmJob._stepFromSacctString(s)

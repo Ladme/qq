@@ -5,6 +5,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Self
 
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
@@ -326,5 +327,28 @@ class BatchJobInterface(ABC):
 
         Returns:
             str: YAML-formatted string of job metadata.
+        """
+        pass
+
+    @abstractmethod
+    def getSteps(self) -> list[Self]:
+        """
+        Return a list of steps associated with this job.
+
+        Note that job step is represented by BatchJobInterface, but
+        may not contain all the values that a proper BatchJobInterface contains.
+
+        Returns:
+            list[BatchJobInterface] | None: List of job steps. An empty list if there are none.
+        """
+        pass
+
+    @abstractmethod
+    def getStepId(self) -> str | None:
+        """
+        Return the step index if this job is a job step.
+
+        Returns:
+            str | None: Job step index or `None` if this is not a job step.
         """
         pass

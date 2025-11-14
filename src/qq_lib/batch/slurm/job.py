@@ -17,7 +17,7 @@ from qq_lib.core.logger import get_logger
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
-from .common import SACCT_FIELDS, parse_slurm_dump_to_dictionary
+from .common import SACCT_FIELDS, SACCT_STEP_FIELDS, parse_slurm_dump_to_dictionary
 
 logger = get_logger(__name__)
 
@@ -304,6 +304,42 @@ class SlurmJob(BatchJobInterface):
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
+    def getSteps(self) -> list[Self]:
+        command = f"sacct -j {self._job_id} --parsable2 --format={SACCT_STEP_FIELDS}"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            logger.debug(f"Could not get steps for a job '{self._job_id}'.")
+            return []
+
+        jobs = []
+        for sacct_string in result.stdout.split("\n"):
+            if sacct_string.strip() == "":
+                continue
+
+            job = SlurmJob._stepFromSacctString(sacct_string)
+            # only consider job steps with numeric indices
+            if (step_id := job.getStepId()) and step_id.isnumeric():
+                jobs.append(job)
+
+        return jobs
+
+    def getStepId(self) -> str | None:
+        try:
+            (_, step) = self._job_id.split(".", maxsplit=1)
+            return step
+        except ValueError:
+            return None
+
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
@@ -376,6 +412,38 @@ class SlurmJob(BatchJobInterface):
 
         SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
         SlurmJob._assignIfAllocated(info, "AllocNodes", "ReqNodes", "NumNodes")
+
+        return SlurmJob.fromDict(info["JobId"], info)
+
+    @classmethod
+    def _stepFromSacctString(cls, string: str) -> Self:
+        """
+        Construct a new instance of SlurmJob step using a string from sacct.
+
+        Args:
+            string (str): String describing the job properties obtained using sacct.
+
+        Returns:
+            Self: A new instance of SlurmJob for a job step.
+        """
+        fields: list[str] = [
+            "JobId",
+            "JobState",
+            "StartTime",
+            "EndTime",
+        ]
+
+        split = string.split("|")
+        if len(fields) != len(split):
+            raise QQError(
+                f"Number of items in a sacct string for a slurm step '{string}' ('{len(split)}') does not match the expected number of items ('{len(fields)}'). This is a bug, please report it!"
+            )
+
+        info: dict[str, str] = dict(zip(fields, split))
+
+        # only take the first word from JobState
+        # other words may contain useless additional information
+        info["JobState"] = info["JobState"].split()[0]
 
         return SlurmJob.fromDict(info["JobId"], info)
 

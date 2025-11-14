@@ -291,6 +291,14 @@ class PBSJob(BatchJobInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
+    def getSteps(self) -> list[Self]:
+        # not available for PBS
+        return []
+
+    def getStepId(self) -> str | None:
+        # no job steps for PBS
+        return None
+
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
         """

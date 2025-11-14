@@ -11,6 +11,7 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
+from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import RealState
@@ -106,6 +107,7 @@ class Presenter:
                 self._createJobHistoryTable(state, self._informer.info.job_exit_code),
                 (0, 2),
             ),
+            self._createJobStepsBlock(),
             Text(""),
             Rule(
                 title=Text("STATE", style=CFG.presenter.full_info_panel.title_style),
@@ -359,6 +361,63 @@ class Presenter:
             table.add_row("", Text(comment, style=CFG.presenter.notes_style))
 
         return table
+
+    def _createJobStepsTable(self, steps: list[BatchJobInterface]):
+        table = Table(show_header=True, box=None, padding=(0, 1))
+
+        table.add_column("Step", justify="center", style=CFG.presenter.key_style)
+        table.add_column(
+            "State", justify="center", style=CFG.presenter.value_style, overflow="fold"
+        )
+        table.add_column(
+            "Start", justify="center", style=CFG.presenter.value_style, overflow="fold"
+        )
+        table.add_column(
+            "End", justify="center", style=CFG.presenter.value_style, overflow="fold"
+        )
+        table.add_column(
+            "Duration",
+            justify="center",
+            style=CFG.presenter.value_style,
+            overflow="fold",
+        )
+        for step in steps:
+            state = step.getState()
+            start = step.getStartTime()
+            end = step.getCompletionTime()
+
+            if not start:
+                continue
+
+            table.add_row(
+                f"{step.getStepId()}",
+                Text(state.toCode(), style=state.color),
+                start.strftime(CFG.date_formats.standard),
+                end.strftime(CFG.date_formats.standard) if end else "",
+                format_duration_wdhhmmss((end or datetime.now()) - start),
+            )
+
+        return table
+
+    def _createJobStepsBlock(self) -> Group:
+        job: BatchJobInterface = self._informer.getBatchInfo()
+        steps = job.getSteps()
+
+        # only show the job steps if there is more than 1 of them
+        if len(steps) > 1:
+            return Group(
+                Text(""),
+                Rule(
+                    title=Text(
+                        "STEPS", style=CFG.presenter.full_info_panel.title_style
+                    ),
+                    style=CFG.presenter.full_info_panel.rule_style,
+                ),
+                Text(""),
+                Padding(self._createJobStepsTable(steps), (0, 2)),
+            )
+
+        return Group()
 
     def _getStateMessages(
         self, state: RealState, start_time: datetime, end_time: datetime

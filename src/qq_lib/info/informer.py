@@ -263,3 +263,15 @@ class Informer:
             self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getNodes()
+
+    def getBatchInfo(self) -> BatchJobInterface:
+        """
+        Return cached batch job information if available; otherwise fetch it from
+        the batch system, cache it, and return the result.
+
+        Returns:
+            BatchJobInterface: The information about the job from the batch system.
+        """
+        if self._batch_info is None:
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+        return self._batch_info

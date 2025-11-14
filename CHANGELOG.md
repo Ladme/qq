@@ -6,6 +6,9 @@
 ### qq wipe
 - Introduced a new command, `qq wipe`, for safely deleting working directory of failed and killed jobs.
 
+### Slurm steps
+- `qq info` now prints information about that states of the individual Slurm job steps, if there is more than one of them and if this information is available from the batch system.
+
 ### Bug fixes and other small changes
 - Added support for the `-h` flag as a shorthand for `--help` to display the help output.
 - Added autocomplete for qq.

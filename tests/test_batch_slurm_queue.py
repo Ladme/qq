@@ -183,6 +183,27 @@ def test_slurm_queue_get_max_walltime_converts_valid_time():
     assert result == timedelta(days=2, hours=12, minutes=34, seconds=56)
 
 
+def test_slurm_queue_get_max_nnodes_returns_int():
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {"MaxNodes": "8"}
+    result = queue.getMaxNNodes()
+    assert result == 8
+
+
+def test_slurm_queue_get_max_nnodes_none():
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {}
+    result = queue.getMaxNNodes()
+    assert result is None
+
+
+def test_slurm_queue_get_max_nnodes_returns_none_if_invalid():
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {"MaxNodes": "invalid"}
+    result = queue.getMaxNNodes()
+    assert result is None
+
+
 def test_slurm_queue_get_max_walltime_converts_simple_time():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"MaxTime": "10:00:00"}

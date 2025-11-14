@@ -103,6 +103,16 @@ class BatchQueueInterface(ABC):
         pass
 
     @abstractmethod
+    def getMaxNNodes(self) -> int | None:
+        """
+        Retrieve the maximum number of nodes that can be requested in the queue.
+
+        Returns:
+            int | None: The maximum number of nodes that can be requested, or None if unlimited or unknown.
+        """
+        pass
+
+    @abstractmethod
     def getComment(self) -> str | None:
         """
         Retrieve the comment or description associated with the queue.

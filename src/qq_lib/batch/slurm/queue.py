@@ -152,6 +152,16 @@ class SlurmQueue(BatchQueueInterface):
 
         return None
 
+    def getMaxNNodes(self) -> int | None:
+        if not (raw := self._info.get("MaxNodes")):
+            return None
+
+        try:
+            return int(raw)
+        except ValueError as e:
+            logger.debug(f"Could not parse the 'MaxNodes' property as integer: {e}.")
+            return None
+
     def getComment(self) -> str | None:
         return None
 

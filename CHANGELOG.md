@@ -12,6 +12,10 @@
 ### Slurm steps
 - `qq info` now prints information about that states of the individual Slurm job steps, if there is more than one of them and if this information is available from the batch system.
 
+### Changes to qq nodes
+- If no queue has an associated comment, the "Comment" column is hidden.
+- Added a `Max Nodes` column which shows the maximal number of nodes that can be requested in the queue.
+
 ### Bug fixes and other small changes
 - Added support for the `-h` flag as a shorthand for `--help` to display the help output.
 - Added autocomplete for qq.
@@ -20,7 +24,6 @@
 - `get_info_files_from_job_id_or_dir` now properly catches PermissionError when the user does not have permissions to read an info file.
 - Obtaining the list of jobs on Slurm is now much faster (but can be still slow due to Slurm limitations).
 - Fixed a bug which caused the job to not be able to use multiple MPI ranks on some PBS clusters.
-- In `qq queues`, if no queue has an associated comment, the "Comment" column is hidden.
 
 ### Internal changes
 - Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.

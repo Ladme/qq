@@ -144,6 +144,9 @@ class PBSQueue(BatchQueueInterface):
 
         return None
 
+    def getMaxNNodes(self) -> int | None:
+        return PBSQueue._getIntValue(self._info, "resources_max.nodect")
+
     def getComment(self) -> str | None:
         if not (raw_comment := self._info.get("comment")):
             return None

@@ -32,6 +32,7 @@ class QueuesPresenter:
         self._display_all = all
 
         self._show_comment = self._shouldShowComment()
+        self._show_max_nnodes = self._shouldShowMaxNNodes()
 
     def dumpYaml(self) -> None:
         """
@@ -132,6 +133,15 @@ class QueuesPresenter:
             ),
             justify="right",
         )
+        if self._show_max_nnodes:
+            table.add_column(
+                header=Text(
+                    "Max Nodes",
+                    justify="center",
+                    style=CFG.queues_presenter.headers_style,
+                ),
+                justify="center",
+            )
 
         if self._show_comment:
             table.add_column(
@@ -234,6 +244,9 @@ class QueuesPresenter:
             Text(str(queue.getOtherJobs() or 0), style=CFG.state_colors.other),
             Text(str(queue.getTotalJobs() or 0), style=CFG.state_colors.sum),
             QueuesPresenter._formatWalltime(queue, text_style),
+            Text(str(queue.getMaxNNodes() or "∞"), style=text_style)
+            if self._show_max_nnodes
+            else None,
             Text(queue.getComment() or "", style=text_style)
             if self._show_comment
             else None,
@@ -267,3 +280,13 @@ class QueuesPresenter:
             bool: True if any node has a comment, False otherwise.
         """
         return any(queue.getComment() is not None for queue in self._queues)
+
+    def _shouldShowMaxNNodes(self) -> bool:
+        """
+        Determine whether the Max Nodes column should be displayed.
+
+        Returns:
+            bool: True if any node has a defined maximal number of nodes that
+            can be requested, False otherwise.
+        """
+        return any(queue.getMaxNNodes() is not None for queue in self._queues)

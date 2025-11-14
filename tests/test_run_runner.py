@@ -275,6 +275,74 @@ def test_runner_cleanup_without_running_process():
     process_mock.kill.assert_not_called()
 
 
+def test_runner_prepare_command_line_for_resubmit_only_script():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == informer_mock.info.command_line + ["--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_script_path():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "job/script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_script_path_last():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "-q",
+        "gpu",
+        "job/script.sh",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == ["-q", "gpu", "script.sh", "--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_complicated_script_path():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "../path/to/../something/job/script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
+
+
 def test_runner_prepare_command_line_for_resubmit_inline_depend():
     informer_mock = MagicMock()
     informer_mock.info.command_line = [
@@ -283,6 +351,7 @@ def test_runner_prepare_command_line_for_resubmit_inline_depend():
         "-q",
         "gpu",
     ]
+    informer_mock.info.script_name = "script.sh"
     informer_mock.info.job_id = "99999"
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -302,6 +371,7 @@ def test_runner_prepare_command_line_for_resubmit_separate_depend_argument():
         "-q",
         "gpu",
     ]
+    informer_mock.info.script_name = "script.sh"
     informer_mock.info.job_id = "99999"
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -324,6 +394,7 @@ def test_runner_prepare_command_line_for_resubmit_multiple_depends():
         "-q",
         "gpu",
     ]
+    informer_mock.info.script_name = "script.sh"
     informer_mock.info.job_id = "99999"
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -336,6 +407,33 @@ def test_runner_prepare_command_line_for_resubmit_multiple_depends():
     assert result[-1] == "--depend=afterok=99999"
     assert "gpu" in result
     assert "script.sh" in result
+
+
+def test_runner_prepare_command_line_for_resubmit_multiple_depends_and_script_path_complex():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "--depend=afterok=11111",
+        "--depend",
+        "afterany=33333",
+        "job/path/script.sh",
+        "--depend=after=22222",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert "--depend" not in result
+    assert all("afterok=11111" not in arg for arg in result)
+    assert all("afterany=33333" not in arg for arg in result)
+    assert result[-1] == "--depend=afterok=99999"
+    assert "gpu" in result
+    assert "script.sh" in result
+    assert "job/path/script.sh" not in result
 
 
 def test_runner_prepare_command_line_for_resubmit_depend_last_arg():

@@ -600,27 +600,55 @@ class Runner:
         """
         Prepare a modified command line for submitting the next cycle of a loop job.
 
-        This method takes the original command line from the job's informer,
-        removes any existing dependency options (i.e., arguments containing or
-        following `"--depend"`), and appends a new dependency referencing the
-        current job ID. This ensures that the resubmitted job depends on the
-        successful completion (`afterok`) of the current one.
+        Removes existing dependency options and replaces the script path with just
+        the script name. Appends a new dependency on the current job ID to ensure
+        the resubmitted job runs after successful completion (`afterok`) of the
+        current one.
 
         Returns:
-            line[str]: The sanitized and updated list of command line arguments.
+            list[str]: The sanitized and updated list of command line arguments.
         """
         command_line = self._informer.info.command_line
+        script_name = self._informer.info.script_name
 
-        # we need to remove dependencies for the previous cycle
+        # here we perform two modifications
+        # 1) we replace path to the submitted script with just the script name
+        # this is needed in case we resubmit a loop job that has been originally submitted
+        # from a different directory than the current working directory
+        # e.g. if the job was submitted as `qq submit (...) job/run.sh`, we need to
+        # resubmit as `qq submit (...) run.sh`, because we are resubmitting from the job's
+        # input directory not from the directory from which the original qq submit was called
+        # note that this is done heuristically, assuming that the script name is not used as
+        # an independently-placed parameter of any option
+        # to protect against silently doing something wrong, we just explicitly raise an exception
+        # if the script name is detected multiple times
+
+        # 2) we remove dependencies for the previous cycle
+        # these dependencies had to already be fulfilled for the previous cycle to run
+        # so we ignore them for the next run
         modified = []
         it = iter(command_line)
+        replaced_script_name = False
         for arg in it:
-            if arg.strip() == "--depend":
+            if not arg.startswith("-") and Path(arg).name == script_name:
+                if replaced_script_name:
+                    # script has already been replaced
+                    raise QQError(
+                        f"Heuristic identification of script name failed for command line: {command_line}."
+                    )
+
+                # replace the script name
+                modified.append(script_name)
+                replaced_script_name = True
+
+            elif arg.strip() == "--depend":
                 next(it, None)  # skip the following argument
+
             elif "--depend" not in arg:
                 modified.append(arg)
 
-        # and add in a new dependency for the current cycle
+        # and add in a new dependency for the next cycle
+        # so that the next cycle always starts only after the previous one finishes
         modified.append(f"--depend=afterok={self._informer.info.job_id}")
 
         logger.debug(f"Command line for resubmit: {modified}.")

@@ -127,10 +127,21 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[SlurmJob]:
-        command = f'squeue -u {user} -t PENDING,RUNNING -h -o "%i"'
+        # get running jobs from sacct (faster than using squeue and scontrol)
+        command = f"sacct -u {user} --state RUNNING --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        return cls._getBatchJobsUsingSqueueCommand(command)
+        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+
+        # get pending jobs using squeue
+        command = f'squeue -u {user} -t PENDING -h -o "%i"'
+        logger.debug(command)
+
+        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+
+        # filter out duplicate jobs
+        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        return list(merged.values())
 
     @classmethod
     def getBatchJobs(cls, user: str) -> list[SlurmJob]:
@@ -152,10 +163,21 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def getAllUnfinishedBatchJobs(cls) -> list[SlurmJob]:
-        command = 'squeue -t PENDING,RUNNING -h -o "%i"'
+        # get running jobs using sacct (faster than using squeue and scontrol)
+        command = f"sacct --state RUNNING --allusers --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        return cls._getBatchJobsUsingSqueueCommand(command)
+        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+
+        # get pending jobs using squeue
+        command = 'squeue -t PENDING -h -o "%i"'
+        logger.debug(command)
+
+        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+
+        # filter out duplicate jobs
+        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        return list(merged.values())
 
     @classmethod
     def getAllBatchJobs(cls) -> list[SlurmJob]:

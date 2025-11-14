@@ -12,6 +12,7 @@
 - Names for loop jobs are now created correctly even if the job script has a file extension.
 - Fixed a bug which caused the archive directory to be created in an incorrect directory when submitting a loop job from a different directory than in which the script was located.
 - `get_info_files_from_job_id_or_dir` now properly catches PermissionError when the user does not have permissions to read an info file.
+- Obtaining the list of jobs on Slurm is now much faster (but can be still slow due to Slurm limitations).
 
 ### Internal changes
 - Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.

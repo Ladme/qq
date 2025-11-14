@@ -183,7 +183,7 @@ class SlurmJob(BatchJobInterface):
     def getNGPUs(self) -> int | None:
         tres = self._getTres()
         for item in tres.split(","):
-            if item.startswith("gpu=") or item.startswith("gres/gpu="):
+            if item.startswith("gpu") or item.startswith("gres/gpu"):
                 try:
                     return int(item.split("=")[1])
                 except ValueError as e:

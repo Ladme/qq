@@ -351,6 +351,14 @@ def test_slurm_job_get_ngpus_returns_value_from_gres_gpu_prefix(monkeypatch):
     assert job.getNGPUs() == 4
 
 
+def test_slurm_job_get_ngpus_returns_value_from_gres_gpu_with_specification(
+    monkeypatch,
+):
+    job = SlurmJob.__new__(SlurmJob)
+    monkeypatch.setattr(job, "_getTres", lambda: "gres/gpu:mi250=4,mem=32G")
+    assert job.getNGPUs() == 4
+
+
 def test_slurm_job_get_ngpus_returns_none_when_no_gpu_entry(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,mem=16G")

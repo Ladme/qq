@@ -66,8 +66,10 @@ def test_queues_presenter_add_queue_row_main_available():
     queue.getComment.return_value = "Main queue"
     queue.getMaxWalltime.return_value = None
 
+    presenter = QueuesPresenter([queue], "user", True)
+    presenter._show_comment = True
     table = Table()
-    QueuesPresenter._addQueueRow(queue, table, user="user")
+    presenter._addQueueRow(queue, table, user="user")
 
     buffer = StringIO()
     console = Console(file=buffer, width=120)
@@ -84,6 +86,38 @@ def test_queues_presenter_add_queue_row_main_available():
     queue.isAvailableToUser.assert_called_once_with("user")
 
 
+def test_queues_presenter_add_queue_row_main_available_do_not_show_comment():
+    queue = MagicMock()
+    queue.isAvailableToUser.return_value = True
+    queue.getName.return_value = "mainq"
+    queue.getPriority.return_value = "47"
+    queue.getRunningJobs.return_value = 5
+    queue.getQueuedJobs.return_value = 3
+    queue.getOtherJobs.return_value = 2
+    queue.getTotalJobs.return_value = 10
+    queue.getComment.return_value = "Main queue"
+    queue.getMaxWalltime.return_value = None
+
+    presenter = QueuesPresenter([queue], "user", False)
+    presenter._show_comment = False
+    table = Table()
+    presenter._addQueueRow(queue, table, user="user")
+
+    buffer = StringIO()
+    console = Console(file=buffer, width=120)
+    console.print(table)
+    output = buffer.getvalue()
+
+    assert "mainq" in output
+    assert "47" in output
+    assert "5" in output
+    assert "3" in output
+    assert "2" in output
+    assert "10" in output
+    assert "Main queue" not in output
+    queue.isAvailableToUser.assert_called_once_with("user")
+
+
 def test_queues_presenter_add_queue_row_main_unavailable():
     queue = MagicMock()
     queue.isAvailableToUser.return_value = False
@@ -96,8 +130,10 @@ def test_queues_presenter_add_queue_row_main_unavailable():
     queue.getComment.return_value = "No access"
     queue.getMaxWalltime.return_value = None
 
+    presenter = QueuesPresenter([queue], "user", True)
+    presenter._show_comment = True
     table = Table()
-    QueuesPresenter._addQueueRow(queue, table, user="user")
+    presenter._addQueueRow(queue, table, user="user")
 
     buffer = StringIO()
     console = Console(file=buffer, width=160, force_terminal=False, color_system=None)
@@ -123,8 +159,10 @@ def test_queues_presenter_add_queue_row_rerouted_available():
     queue.getComment.return_value = "Rerouted ok"
     queue.getMaxWalltime.return_value = None
 
+    presenter = QueuesPresenter([queue], "user", False)
+    presenter._show_comment = True
     table = Table()
-    QueuesPresenter._addQueueRow(queue, table, user="user", from_route=True)
+    presenter._addQueueRow(queue, table, user="user", from_route=True)
 
     buffer = StringIO()
     console = Console(file=buffer, width=160, force_terminal=False, color_system=None)
@@ -153,8 +191,10 @@ def test_queues_presenter_add_queue_row_rerouted_unavailable():
     queue.getComment.return_value = "Rerouted blocked"
     queue.getMaxWalltime.return_value = None
 
+    presenter = QueuesPresenter([queue], "user", True)
+    presenter._show_comment = True
     table = Table()
-    QueuesPresenter._addQueueRow(queue, table, user="user", from_route=True)
+    presenter._addQueueRow(queue, table, user="user", from_route=True)
 
     buffer = StringIO()
     console = Console(file=buffer, width=160, force_terminal=False, color_system=None)
@@ -180,8 +220,10 @@ def test_queues_presenter_add_queue_row_dangling():
     queue.getComment.return_value = "Dangling dest"
     queue.getMaxWalltime.return_value = None
 
+    presenter = QueuesPresenter([queue], "user", False)
+    presenter._show_comment = True
     table = Table()
-    QueuesPresenter._addQueueRow(queue, table, user="user", dangling=True)
+    presenter._addQueueRow(queue, table, user="user", dangling=True)
 
     buffer = StringIO()
     console = Console(file=buffer, width=160, force_terminal=False, color_system=None)
@@ -241,6 +283,23 @@ def test_queues_presenter_create_queues_table_basic_main_only():
 
     assert "Name" in output
     assert "Priority" in output
+    assert "Comment" in output
+    assert CFG.queues_presenter.main_mark in output
+    assert "mainq" in output
+    main.isAvailableToUser.assert_called_once_with("user")
+
+
+def test_queues_presenter_create_queues_table_no_comment():
+    main = _make_queue("mainq", destinations=[])
+    presenter = QueuesPresenter([main], user="user", all=False)
+    presenter._show_comment = False
+
+    table = presenter._createQueuesTable()
+    output = _render_table(table)
+
+    assert "Name" in output
+    assert "Priority" in output
+    assert "Comment" not in output
     assert CFG.queues_presenter.main_mark in output
     assert "mainq" in output
     main.isAvailableToUser.assert_called_once_with("user")
@@ -376,3 +435,24 @@ def test_queues_presenter_dump_yaml_roundtrip():
         assert orig.getRunningJobs() == loaded.getRunningJobs()
         assert orig.getQueuedJobs() == loaded.getQueuedJobs()
         assert orig.getComment() == loaded.getComment()
+
+
+def test_queues_presenter_should_show_comment_returns_true_if_any_has_comment():
+    q1 = _make_queue("queue1")
+    q1.getComment.return_value = None
+
+    q2 = _make_queue("queue2")
+
+    presenter = QueuesPresenter([q1, q2], user="user", all=False)
+    assert presenter._shouldShowComment()
+
+
+def test_queues_presenter_should_show_comment_returns_true_if_none_has_comment():
+    q1 = _make_queue("queue1")
+    q1.getComment.return_value = None
+
+    q2 = _make_queue("queue2")
+    q2.getComment.return_value = None
+
+    presenter = QueuesPresenter([q1, q2], user="user", all=False)
+    assert not presenter._shouldShowComment()

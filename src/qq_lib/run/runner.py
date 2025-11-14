@@ -237,7 +237,7 @@ class Runner:
         - On failure (non-zero return code):
             - Updates the qq info file to indicate the job "failed".
             - If `use_scratch` is True, files remain in the scratch directory
-            for debugging purposes.
+            for debugging purposes. Only runtime files are copied to the input directory.
 
         Raises:
             QQError: If copying or deletion of files fails.
@@ -273,10 +273,14 @@ class Runner:
             if self._informer.info.job_type == JobType.LOOP:
                 self._resubmit()
         else:
-            # only update the qqinfo file
+            # copy runtime files to input directory
+            if self._use_scratch:
+                self._copyRunTimeFilesToInputDir(retry=True)
+
+            # update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
 
-        logger.info(f"Job finished with an exit code of {self._process.returncode}.")
+        logger.info(f"Job completed with an exit code of {self._process.returncode}.")
 
     def logFailureAndExit(self, exception: BaseException) -> NoReturn:
         """
@@ -494,6 +498,43 @@ class Runner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
+    def _copyRunTimeFilesToInputDir(self, retry: bool = True) -> None:
+        """
+        Copy .out and .err runtime files from the working directory to the input directory.
+
+        Args:
+            retry (bool): Retry the copying if it fails.
+
+        Raises:
+            QQError: If the files could not be copied after retrying.
+        """
+        files_to_copy = [
+            Path(self._informer.info.stdout_file).resolve(),
+            Path(self._informer.info.stderr_file).resolve(),
+        ]
+
+        logger.debug(f"Copying runtime files '{files_to_copy}' to input directory.")
+
+        if retry:
+            Retryer(
+                self._batch_system.syncSelected,
+                self._work_dir,
+                self._input_dir,
+                socket.gethostname(),
+                self._informer.info.input_machine,
+                include_files=files_to_copy,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
+            ).run()
+        else:
+            self._batch_system.syncSelected(
+                self._work_dir,
+                self._input_dir,
+                socket.gethostname(),
+                self._informer.info.input_machine,
+                files_to_copy,
+            )
+
     def _reloadInfo(self, retry: bool = True) -> None:
         """
         Reload the qq job info file for this job.
@@ -658,9 +699,14 @@ class Runner:
         """
         Clean up after execution is interrupted or killed.
 
+        - Copies .out and .err file to the input directory.
         - Marks job as killed in the info file.
         - Terminates the subprocess.
         """
+        # copy runtime files to input dir without retrying
+        if self._use_scratch:
+            self._copyRunTimeFilesToInputDir(retry=False)
+
         # update the qq info file
         self._updateInfoKilled()
 

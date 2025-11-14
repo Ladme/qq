@@ -459,7 +459,7 @@ wheels = [
 
 [[package]]
 name = "qq"
-version = "0.5.0.dev1"
+version = "0.5.0.dev2"
 source = { virtual = "." }
 dependencies = [
     { name = "click" },

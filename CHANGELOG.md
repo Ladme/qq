@@ -3,6 +3,9 @@
 ### Support for LUMI
 - qq can now be used on the LUMI supercomputer.
 
+### Changes in failed and killed jobs
+- Runtime files `.err` and `.out` are now copied from the working directory to the input directory even if the job fails or is killed to allow users to more easily check what exactly went wrong. All other files are left in the working directory, to keep the input directory in a consistent state.
+
 ### qq wipe
 - Introduced a new command, `qq wipe`, for safely deleting working directory of failed and killed jobs.
 

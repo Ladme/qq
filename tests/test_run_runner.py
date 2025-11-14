@@ -216,6 +216,7 @@ def test_runner_handle_sigterm_performs_cleanup_and_exits():
 def test_runner_cleanup_with_running_process():
     runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = True
     process_mock = MagicMock()
     process_mock.poll.return_value = None
 
@@ -229,10 +230,12 @@ def test_runner_cleanup_with_running_process():
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
         patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
     ):
         cfg_mock.runner.sigterm_to_sigkill = 3
         runner._cleanup()
 
+    mock_copy.assert_called_once_with(retry=False)
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_called_once_with("Cleaning up: terminating subprocess.")
     process_mock.terminate.assert_called_once()
@@ -243,6 +246,7 @@ def test_runner_cleanup_with_running_process():
 def test_runner_cleanup_with_timeout():
     runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = True
     process_mock = MagicMock()
     process_mock.poll.return_value = None
     runner._process = process_mock
@@ -250,9 +254,11 @@ def test_runner_cleanup_with_timeout():
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
     ):
         runner._cleanup()
 
+    mock_copy.assert_called_once_with(retry=False)
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_any_call("Cleaning up: terminating subprocess.")
     process_mock.terminate.assert_called_once()
@@ -263,15 +269,50 @@ def test_runner_cleanup_with_timeout():
 def test_runner_cleanup_without_running_process():
     runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = True
     process_mock = MagicMock()
     process_mock.poll.return_value = 0
     runner._process = process_mock
 
-    with patch("qq_lib.run.runner.logger"):
+    with (
+        patch("qq_lib.run.runner.logger"),
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
+    ):
         runner._cleanup()
 
+    mock_copy.assert_called_once_with(retry=False)
     runner._updateInfoKilled.assert_called_once()
     process_mock.terminate.assert_not_called()
+    process_mock.kill.assert_not_called()
+
+
+def test_runner_cleanup_with_running_process_no_scratch():
+    runner = Runner.__new__(Runner)
+    runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = False
+    process_mock = MagicMock()
+    process_mock.poll.return_value = None
+
+    def terminate_and_stop():
+        process_mock.poll.return_value = 0
+
+    process_mock.terminate.side_effect = terminate_and_stop
+    runner._process = process_mock
+
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.sleep") as mock_sleep,
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
+    ):
+        cfg_mock.runner.sigterm_to_sigkill = 3
+        runner._cleanup()
+
+    mock_copy.assert_not_called()
+    runner._updateInfoKilled.assert_called_once()
+    mock_logger.info.assert_called_once_with("Cleaning up: terminating subprocess.")
+    process_mock.terminate.assert_called_once()
+    mock_sleep.assert_called_once_with(3)
     process_mock.kill.assert_not_called()
 
 
@@ -931,7 +972,8 @@ def test_runner_log_failure_and_exit_calls_fallback_on_exception():
 
 
 @patch("qq_lib.run.runner.logger.info")
-def test_runner_finalize_failure_updates_info_failed(mock_logger_info):
+@patch.object(Runner, "_copyRunTimeFilesToInputDir")
+def test_runner_finalize_failure_updates_info_failed(mock_copy, mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 91
@@ -940,9 +982,29 @@ def test_runner_finalize_failure_updates_info_failed(mock_logger_info):
 
     runner.finalize()
 
+    mock_copy.assert_called_once_with(retry=True)
     runner._updateInfoFailed.assert_called_once_with(91)
     mock_logger_info.assert_any_call("Finalizing the execution.")
-    mock_logger_info.assert_any_call("Job finished with an exit code of 91.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 91.")
+
+
+@patch("qq_lib.run.runner.logger.info")
+@patch.object(Runner, "_copyRunTimeFilesToInputDir")
+def test_runner_finalize_failure_updates_info_failed_no_scratch(
+    mock_copy, mock_logger_info
+):
+    runner = Runner.__new__(Runner)
+    runner._process = MagicMock()
+    runner._process.returncode = 91
+    runner._use_scratch = False
+    runner._updateInfoFailed = MagicMock()
+
+    runner.finalize()
+
+    mock_copy.assert_not_called()
+    runner._updateInfoFailed.assert_called_once_with(91)
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 91.")
 
 
 @patch("qq_lib.run.runner.logger.info")
@@ -973,7 +1035,7 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
-    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
 @patch("qq_lib.run.runner.logger.info")
@@ -1003,7 +1065,7 @@ def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
-    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
 @patch("qq_lib.run.runner.logger.info")
@@ -1029,7 +1091,7 @@ def test_runner_finalize_without_scratch_and_with_archiver(mock_logger_info):
     runner._deleteWorkDir.assert_not_called()
     runner._updateInfoFinished.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
-    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
 @patch("qq_lib.run.runner.logger.info")
@@ -1054,7 +1116,7 @@ def test_runner_finalize_without_scratch_and_without_archiver(mock_logger_info):
     runner._deleteWorkDir.assert_not_called()
     runner._updateInfoFinished.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
-    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
 @patch("qq_lib.run.runner.logger.info")
@@ -1086,7 +1148,7 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
     runner._deleteWorkDir.assert_called_once()
     runner._resubmit.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
-    mock_logger_info.assert_any_call("Job finished with an exit code of 0.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
 def test_runner_execute_updates_info_and_runs_script(tmp_path):
@@ -1445,3 +1507,77 @@ def test_runner_reload_info_and_ensure_valid_raises_on_killed_state():
 
     runner._reloadInfo.assert_called_once_with(False)
     runner._ensureMatchesJob.assert_called_once_with("12345")
+
+
+def test_runner_copy_run_time_files_to_input_dir_retry_true():
+    informer = MagicMock()
+    informer.info.stdout_file = "/tmp/std.out"
+    informer.info.stderr_file = "/tmp/std.err"
+    informer.info.input_machine = "machineA"
+
+    batch_system = MagicMock()
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer
+    runner._batch_system = batch_system
+    runner._work_dir = "/work"
+    runner._input_dir = "/input"
+
+    with (
+        patch("qq_lib.run.runner.socket.gethostname", return_value="host"),
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
+    ):
+        retry_instance = MagicMock()
+        mock_retryer.return_value = retry_instance
+
+        runner._copyRunTimeFilesToInputDir(retry=True)
+
+    expected_files = [
+        Path("/tmp/std.out").resolve(),
+        Path("/tmp/std.err").resolve(),
+    ]
+
+    mock_retryer.assert_called_once_with(
+        batch_system.syncSelected,
+        "/work",
+        "/input",
+        "host",
+        "machineA",
+        include_files=expected_files,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
+    )
+
+    retry_instance.run.assert_called_once()
+    batch_system.syncSelected.assert_not_called()
+
+
+def test_runner_copy_run_time_files_to_input_dir_retry_false():
+    informer = MagicMock()
+    informer.info.stdout_file = "/tmp/std.out"
+    informer.info.stderr_file = "/tmp/std.err"
+    informer.info.input_machine = "machineA"
+
+    batch_system = MagicMock()
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer
+    runner._batch_system = batch_system
+    runner._work_dir = "/work"
+    runner._input_dir = "/input"
+
+    with patch("qq_lib.run.runner.socket.gethostname", return_value="host"):
+        runner._copyRunTimeFilesToInputDir(retry=False)
+
+    expected_files = [
+        Path("/tmp/std.out").resolve(),
+        Path("/tmp/std.err").resolve(),
+    ]
+
+    batch_system.syncSelected.assert_called_once_with(
+        "/work",
+        "/input",
+        "host",
+        "machineA",
+        expected_files,
+    )

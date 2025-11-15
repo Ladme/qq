@@ -682,3 +682,17 @@ def construct_loop_job_name(script_name: str, cycle: int) -> str:
     except ValueError:
         # if the script has no extension, add the cycle number after the full name
         return f"{script_name}{CFG.loop_jobs.pattern % cycle}"
+
+
+def construct_info_file_path(input_dir: Path, job_name: str) -> Path:
+    """
+    Construct the absolute path to a job's qq info file.
+
+    Args:
+        input_dir (Path): The directory containing the job script.
+        job_name (str): The name of the job.
+
+    Returns:
+        Path: The absolute path to the job's qq info file.
+    """
+    return (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()

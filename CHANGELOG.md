@@ -25,6 +25,7 @@
 - Obtaining the list of jobs on Slurm is now much faster (but can be still slow due to Slurm limitations).
 - Fixed a bug which caused the job to not be able to use multiple MPI ranks on some PBS clusters.
 - More dynamic output of `qq jobs`: unused columns are now hidden.
+- Operating on job IDs is now faster.
 
 ### Internal changes
 - Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.

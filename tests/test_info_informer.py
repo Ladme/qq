@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.core.config import CFG
+from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.info.informer import Informer
 from qq_lib.properties.info import Info
 from qq_lib.properties.states import BatchState, NaiveState, RealState
@@ -451,3 +453,98 @@ def test_informer_get_batch_info_returns_cached_when_available():
     result = informer.getBatchInfo()
 
     assert result is batch_job
+
+
+def test_informer_get_info_file_returns_expected_path():
+    info = Info.__new__(Info)
+    info.input_dir = Path("/tmp/jobs")
+    info.job_name = "job"
+
+    informer = Informer.__new__(Informer)
+    informer.info = info
+
+    expected = (
+        (info.input_dir / info.job_name).with_suffix(CFG.suffixes.qq_info).resolve()
+    )
+
+    assert informer.getInfoFile() == expected
+
+
+def test_informer_from_job_id_raises_when_empty():
+    batch_system = MagicMock()
+    batch_job = MagicMock()
+    batch_job.isEmpty.return_value = True
+    batch_system.getBatchJob.return_value = batch_job
+
+    with (
+        patch(
+            "qq_lib.info.informer.BatchMeta.fromEnvVarOrGuess",
+            return_value=batch_system,
+        ),
+        pytest.raises(QQError, match="Job '123' does not exist."),
+    ):
+        Informer.fromJobId("123")
+
+
+def test_informer_from_job_id_returns_informer_when_valid():
+    batch_system = MagicMock()
+    batch_job = MagicMock()
+    batch_job.isEmpty.return_value = False
+    batch_system.getBatchJob.return_value = batch_job
+
+    informer_instance = MagicMock()
+
+    with (
+        patch(
+            "qq_lib.info.informer.BatchMeta.fromEnvVarOrGuess",
+            return_value=batch_system,
+        ),
+        patch(
+            "qq_lib.info.informer.Informer.fromBatchJob", return_value=informer_instance
+        ),
+    ):
+        result = Informer.fromJobId("123")
+
+    assert result is informer_instance
+
+
+def test_informer_from_batch_job_raises_when_no_info_file():
+    batch_job = MagicMock()
+    batch_job.getInfoFile.return_value = None
+    batch_job.getId.return_value = "123"
+
+    with pytest.raises(QQError, match="Job '123' is not a valid qq job."):
+        Informer.fromBatchJob(batch_job)
+
+
+def test_informer_from_batch_job_raises_on_mismatch():
+    batch_job = MagicMock()
+    batch_job.getInfoFile.return_value = "info_path"
+    batch_job.getId.return_value = "123"
+
+    informer_mock = MagicMock()
+    informer_mock.matchesJob.return_value = False
+
+    with (
+        patch("qq_lib.info.informer.Informer.fromFile", return_value=informer_mock),
+        pytest.raises(
+            QQJobMismatchError,
+            match="Info file for job '123' does not exist or is not reachable.",
+        ),
+    ):
+        Informer.fromBatchJob(batch_job)
+
+
+def test_informer_from_batch_job_returns_informer_on_success():
+    batch_job = MagicMock()
+    batch_job.getInfoFile.return_value = "info_path"
+    batch_job.getId.return_value = "123"
+
+    informer_mock = MagicMock()
+    informer_mock.matchesJob.return_value = True
+
+    with patch("qq_lib.info.informer.Informer.fromFile", return_value=informer_mock):
+        result = Informer.fromBatchJob(batch_job)
+
+    assert result is informer_mock
+    assert result._batch_info is batch_job

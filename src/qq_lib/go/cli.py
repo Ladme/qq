@@ -10,22 +10,21 @@ from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
-    get_info_files_from_job_id_or_dir,
+    get_info_files,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
-    QQJobMismatchError,
     QQNotSuitableError,
 )
 from qq_lib.core.error_handlers import (
     handle_general_qq_error,
-    handle_job_mismatch_error,
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
 from qq_lib.go.goer import Goer
+from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 console = Console()
@@ -60,9 +59,12 @@ def go(job: str | None) -> NoReturn:
     Go to the working directory (directories) of the specified qq job or qq job(s) submitted from this directory.
     """
     try:
-        info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = Repeater(info_files, _go_to_job, job)
-        repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
+        if job:
+            informers = [Informer.fromJobId(job)]
+        else:
+            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+
+        repeater = Repeater(informers, _go_to_job)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
         repeater.run()
@@ -76,29 +78,17 @@ def go(job: str | None) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def _go_to_job(info_file: Path, job: str | None) -> None:
+def _go_to_job(informer: Informer) -> None:
     """
     Navigate to the working directory of a qq job if it is accessible.
 
     Args:
-        info_file (Path): Path to the qq job's info file.
-        job (str | None): Optional job ID to verify against the info file.
+        informer (Informer): Informer associated with the job.
 
     Raises:
-        QQJobMismatchError: If the info file does not correspond to the specified job.
-        QQNotSuitableError: If the job has finished & been synchronized or has been killed and
-                            has no working directory.
-        QQError: If the navigation fails for a different reason.
+        QQError: If the navigation fails.
     """
-    goer = Goer(info_file)
-
-    # check thatthe info file in the goer corresponds
-    # to the specified job
-    if job and not goer.matchesJob(job):
-        raise QQJobMismatchError(
-            f"Info file for job '{job}' does not exist or is not reachable."
-        )
-
+    goer = Goer.fromInformer(informer)
     goer.printInfo(console)
 
     # make sure that the job is not in a state without a working directory

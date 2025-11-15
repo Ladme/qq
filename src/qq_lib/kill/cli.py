@@ -10,22 +10,21 @@ from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
-    get_info_files_from_job_id_or_dir,
+    get_info_files,
     yes_or_no_prompt,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
-    QQJobMismatchError,
     QQNotSuitableError,
 )
 from qq_lib.core.error_handlers import (
     handle_general_qq_error,
-    handle_job_mismatch_error,
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
+from qq_lib.info.informer import Informer
 from qq_lib.kill.killer import Killer
 
 logger = get_logger(__name__)
@@ -90,9 +89,12 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
             updating the job state in the info file once the job is terminated.
     """
     try:
-        info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = Repeater(info_files, kill_job, force, yes, job)
-        repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
+        if job:
+            informers = [Informer.fromJobId(job)]
+        else:
+            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+
+        repeater = Repeater(informers, kill_job, force, yes)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
         repeater.run()
@@ -107,28 +109,20 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def kill_job(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
+def kill_job(informer: Informer, force: bool, yes: bool) -> None:
     """
-    Attempt to terminate a qq job associated with the specified info file.
+    Attempt to terminate a qq job associated with the specified informer.
 
     Args:
-        info_file (Path): Path to the qq job's info file.
+        informer (Informer): Informer associated with the job.
         force (bool): Whether to forcibly kill the job regardless of its state.
         yes (bool): Whether to skip confirmation before termination.
-        job (str | None): Optional job ID for matching the target job.
 
     Raises:
-        QQJobMismatchError: If the job ID does not match the info file.
         QQNotSuitableError: If the job is not suitable for termination.
         QQError: If the job cannot be killed or the qq info file cannot be updated.
     """
-    killer = Killer(info_file)
-
-    # check that the info file in the killer corresponds
-    # to the specified job
-    if job and not killer.matchesJob(job):
-        raise QQJobMismatchError(f"Info file for job '{job}' does not exist.")
-
+    killer = Killer.fromInformer(informer)
     killer.printInfo(console)
 
     # make sure that the job can actually be killed

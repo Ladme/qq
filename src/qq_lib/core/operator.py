@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
 from pathlib import Path
+from typing import Self
 
 from rich.console import Console
 
@@ -35,6 +36,28 @@ class Operator:
         self._input_machine = host
         self._batch_system = self._informer.batch_system
         self._state = self._informer.getRealState()
+
+    @classmethod
+    def fromInformer(cls, informer: Informer) -> Self:
+        """
+        Initialize an Operator instance from an Informer.
+
+        Path to info file is set based on the information in the Informer, even if it does not exist.
+
+        Args:
+            informer (Informer): Initialized informer instance containing information about the job.
+
+        Returns:
+            Operator: Initialized Operator.
+        """
+        operator = cls.__new__(cls)
+        operator._informer = informer
+        operator._info_file = informer.getInfoFile()
+        operator._input_machine = informer.info.input_machine
+        operator._batch_system = informer.batch_system
+        operator._state = informer.getRealState()
+
+        return operator
 
     def update(self) -> None:
         """

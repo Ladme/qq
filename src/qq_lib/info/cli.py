@@ -10,10 +10,10 @@ from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
-    get_info_files_from_job_id_or_dir,
+    get_info_files,
 )
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError, QQJobMismatchError
+from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import Informer
@@ -48,8 +48,12 @@ def info(job: str | None, short: bool) -> NoReturn:
     Get information about the specified qq job or qq job(s) submitted from this directory.
     """
     try:
-        info_files = get_info_files_from_job_id_or_dir(job)
-        Repeater(info_files, _info_for_job, short, job).run()
+        if job:
+            informers = [Informer.fromJobId(job)]
+        else:
+            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+
+        Repeater(informers, _info_for_job, short).run()
         sys.exit(0)
     except QQError as e:
         logger.error(e)
@@ -59,28 +63,15 @@ def info(job: str | None, short: bool) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def _info_for_job(info_file: Path, short: bool, job: str | None) -> None:
+def _info_for_job(informer: Informer, short: bool) -> None:
     """
-    Display information about a qq job based on its info file and the batch system information.
+    Display information about a qq job associated with the specified Informer.
 
     Args:
-        info_file (Path): Path to the qq job's info file.
+        informer (Informer): Informer associated with the job.
         short (bool): If True, print only the job ID and the current job state.
                       If False, print the full formatted information panel.
-        job (str | None): Optional job ID to verify against the info file.
-
-    Raises:
-        QQError: If the provided job ID does not match the job in the info file.
     """
-    informer = Informer.fromFile(info_file)
-
-    # if job id is provided on the command line,
-    # we need to check that the info file actually corresponds to this job
-    if job and not informer.matchesJob(job):
-        raise QQJobMismatchError(
-            f"Info file for job '{job}' does not exist or is not reachable."
-        )
-
     presenter = Presenter(informer)
     console = Console()
     if short:

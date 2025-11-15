@@ -81,7 +81,7 @@ class BatchMeta(ABCMeta):
         """
         Select a batch system based on the environment variable or by guessing.
 
-        This method first checks the `BATCH_SYSTEM` environment variable. If it is set,
+        This method first checks the `QQ_BATCH_SYSTEM` environment variable. If it is set,
         the method returns the registered batch system class corresponding to its value.
         If the variable is not set, it falls back to `guess` to select an available
         batch system from the registered classes.

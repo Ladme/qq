@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.navigator import Navigator
 from qq_lib.properties.states import RealState
 
@@ -249,3 +250,37 @@ def test_navigator_is_exiting_successfully(state, job_exit_code, expected):
     goer._informer = MagicMock()
     goer._informer.info.job_exit_code = job_exit_code
     assert goer._isExitingSuccessfully() is expected
+
+
+def test_navigator_from_informer_initializes_destination():
+    informer = MagicMock()
+    informer.getInfoFile.return_value = "info_path"
+    informer.info.input_machine = "machineA"
+    informer.batch_system = PBS
+    informer.getRealState.return_value = RealState.RUNNING
+    informer.getDestination.return_value = ("nodeA", "/work/dir")
+
+    nav = Navigator.fromInformer(informer)
+
+    assert isinstance(nav, Navigator)
+    assert nav._informer is informer
+    assert nav._info_file == "info_path"
+    assert nav._input_machine == "machineA"
+    assert nav._batch_system == PBS
+    assert nav._state == RealState.RUNNING
+    assert nav._main_node == "nodeA"
+    assert nav._work_dir == "/work/dir"
+
+
+def test_navigator_from_informer_handles_missing_destination():
+    informer = MagicMock()
+    informer.getInfoFile.return_value = "info_path"
+    informer.info.input_machine = "machineA"
+    informer.batch_system = PBS
+    informer.getRealState.return_value = RealState.QUEUED
+    informer.getDestination.return_value = None
+
+    nav = Navigator.fromInformer(informer)
+
+    assert nav._main_node is None
+    assert nav._work_dir is None

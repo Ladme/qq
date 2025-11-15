@@ -4,8 +4,10 @@
 
 import socket
 from pathlib import Path
+from typing import Self
 
 from qq_lib.core.logger import get_logger
+from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
 
 from .operator import Operator
@@ -38,6 +40,24 @@ class Navigator(Operator):
         """
         super().__init__(info_file, host)
         self._setDestination()
+
+    @classmethod
+    def fromInformer(cls, informer: Informer) -> Self:
+        """
+        Initialize a Navigator instance from an Informer.
+
+        Path to info file is set based on the information in the Informer, even if it does not exist.
+
+        Args:
+            informer (Informer): Initialized informer instance containing information about the job.
+
+        Returns:
+            Operator: Initialized Operator.
+        """
+        navigator = super().fromInformer(informer)
+        navigator._setDestination()
+
+        return navigator
 
     def update(self):
         super().update()

@@ -16,6 +16,7 @@ from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
+    construct_info_file_path,
     construct_loop_job_name,
     convert_absolute_to_relative,
     dhhmmss_to_duration,
@@ -1050,3 +1051,14 @@ def test_construct_loop_job_name_with_two_extensions():
         construct_loop_job_name(script_name, cycle)
         == f"loop_job{CFG.loop_jobs.pattern % cycle}.py.sh"
     )
+
+
+def test_construct_info_file_path_returns_expected_path():
+    input_dir = Path("/tmp/jobs")
+    job_name = "example"
+
+    expected = (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()
+
+    result = construct_info_file_path(input_dir, job_name)
+
+    assert result == expected

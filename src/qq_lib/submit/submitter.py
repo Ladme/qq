@@ -10,6 +10,7 @@ from pathlib import Path
 import qq_lib
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import (
+    construct_info_file_path,
     construct_loop_job_name,
     get_info_file,
     hhmmss_to_duration,
@@ -82,11 +83,7 @@ class Submitter:
         self._input_dir = script.resolve().parent
         self._script_name = script.name
         self._job_name = self._constructJobName()
-        self._info_file = (
-            (self._input_dir / self._job_name)
-            .with_suffix(CFG.suffixes.qq_info)
-            .resolve()
-        )
+        self._info_file = construct_info_file_path(self._input_dir, self._job_name)
         self._resources = resources
         # convert relative paths to absolute paths by prepending the input dir path
         self._exclude = [self._input_dir / e for e in (exclude or [])]

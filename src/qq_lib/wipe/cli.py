@@ -10,22 +10,21 @@ from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
-    get_info_files_from_job_id_or_dir,
+    get_info_files,
     yes_or_no_prompt,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
-    QQJobMismatchError,
     QQNotSuitableError,
 )
 from qq_lib.core.error_handlers import (
     handle_general_qq_error,
-    handle_job_mismatch_error,
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
+from qq_lib.info.informer import Informer
 from qq_lib.wipe.wiper import Wiper
 
 logger = get_logger(__name__)
@@ -74,9 +73,12 @@ def wipe(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     Delete the working directory of the specified qq job or qq job(s) submitted from the current directory.
     """
     try:
-        info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = Repeater(info_files, wipe_work_dir, force, yes, job)
-        repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
+        if job:
+            informers = [Informer.fromJobId(job)]
+        else:
+            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+
+        repeater = Repeater(informers, _wipe_work_dir, force, yes)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
         repeater.run()
@@ -91,28 +93,21 @@ def wipe(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def wipe_work_dir(info_file: Path, force: bool, yes: bool, job: str | None) -> None:
+def _wipe_work_dir(informer: Informer, force: bool, yes: bool) -> None:
     """
-    Attempt to delete the working directory of the job associated with the specified info file.
+    Attempt to delete the working directory of the job associated with the specified Informer.
 
     Args:
-        info_file (Path): Path to the qq job's info file.
+        informer (Informer): Informer associated with the job.
         force (bool): Whether to forcibly delete the working directory regardless of the job's state.
         yes (bool): Whether to skip confirmation before deleting.
         job (str | None): Optional job ID for matching the target job.
 
     Raises:
-        QQJobMismatchError: If the job ID does not match the info file.
         QQNotSuitableError: If the job does (or should) not have a working directory.
         QQError: If the working directory cannot be deleted.
     """
-    wiper = Wiper(info_file)
-
-    # check that the info file in the wiper corresponds
-    # to the specified job
-    if job and not wiper.matchesJob(job):
-        raise QQJobMismatchError(f"Info file for job '{job}' does not exist.")
-
+    wiper = Wiper.fromInformer(informer)
     wiper.printInfo(console)
 
     # make sure that the job is suitable for wiping

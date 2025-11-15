@@ -258,6 +258,9 @@ class Runner:
                     self._input_dir,
                     socket.gethostname(),
                     self._informer.info.input_machine,
+                    # exclude files that were copied to workdir from the outside of input dir (--include option)
+                    # these files should not be copied to the input directory, since they were never inside it
+                    self._getExplicitlyIncludedFilesInWorkDir(),
                     max_tries=CFG.runner.retry_tries,
                     wait_seconds=CFG.runner.retry_wait,
                 ).run()
@@ -358,7 +361,10 @@ class Runner:
         if self._archiver:
             excluded.append(self._archiver._archive)
 
-        # copy files to the working directory
+        # copy files from the input directory to the working directory
+        logger.debug(
+            f"Files excluded from being copied to the working directory: {excluded}."
+        )
         Retryer(
             self._batch_system.syncWithExclusions,
             self._input_dir,
@@ -366,6 +372,18 @@ class Runner:
             self._informer.info.input_machine,
             socket.gethostname(),
             excluded,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
+        ).run()
+
+        # copy explicitly included files to the working directory
+        # this will copy files that were specified with the --include option, even if they are also in the list of excluded files
+        logger.debug(
+            f"Files explicitly requested to be copied to the working directory: {self._informer.info.included_files}."
+        )
+        Retryer(
+            self._copyFiles,
+            self._informer.info.included_files,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
@@ -694,6 +712,37 @@ class Runner:
 
         logger.debug(f"Command line for resubmit: {modified}.")
         return modified
+
+    def _getExplicitlyIncludedFilesInWorkDir(self) -> list[Path]:
+        """
+        Return absolute paths to files and directories in the working directory
+        that were explicitly copied via the `--include` submission option.
+        """
+        files = [
+            (self._work_dir / f.name).resolve()
+            for f in self._informer.info.included_files
+        ]
+
+        logger.debug(
+            f"Files that were copied to work dir using the `--include` option: {files}."
+        )
+
+        return files
+
+    def _copyFiles(self, files: list[Path]):
+        """
+        Copy files and directories using the provided absolute paths to the working directory.
+        """
+        for file in files:
+            # we rsync each file or directory individually because each file can be provided in a different directory
+            # this may be very slow if there is a large amount of files/directories to include
+            self._batch_system.syncSelected(
+                file.parent,
+                self._work_dir,
+                self._informer.info.input_machine,
+                socket.gethostname(),
+                [file],
+            )
 
     def _cleanup(self) -> None:
         """

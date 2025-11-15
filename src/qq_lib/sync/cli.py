@@ -58,7 +58,8 @@ Files are copied from the job's working directory to its input directory, not to
     "--files",
     type=str,
     default=None,
-    help="A colon-, comma-, or space-separated list of files to fetch. If not specified, all files are fetched.",
+    help="""A colon-, comma-, or space-separated list of files or directories to fetch.
+If not specified, the entire content of the working directory is fetched.""",
 )
 def sync(job: str | None, files: str | None) -> NoReturn:
     """

@@ -27,6 +27,7 @@
 - More dynamic output of `qq jobs`: unused columns are now hidden.
 - Operating on job IDs is now faster.
 - Job comment is now show in the output of `qq jobs -e` and `qq stat -e` (if available).
+- `qq sync` now properly synchronizes content of directories when using the `-f` option.
 
 ### Internal changes
 - Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.

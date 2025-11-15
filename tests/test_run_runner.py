@@ -847,6 +847,7 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._input_dir = Path("/input")
     runner._informer.info.job_id = "123"
     runner._informer.info.excluded_files = ["ignore.txt"]
+    runner._informer.info.included_files = ["include1.txt", "include2.txt"]
     runner._informer.info.input_machine = "random.host.org"
     runner._informer.info.input_dir = Path("/input")
     runner._informer.info.job_name = "job+0002"
@@ -888,6 +889,14 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     assert sync_call.kwargs["max_tries"] == CFG.runner.retry_tries
     assert sync_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
 
+    # fourth Retryer call: _copyFiles
+    copy_files_call = retryer_cls.call_args_list[3]
+    expected_included = ["include1.txt", "include2.txt"]
+    assert copy_files_call.args[0] == runner._copyFiles
+    assert copy_files_call.args[1] == expected_included
+    assert copy_files_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert copy_files_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
+
 
 def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     runner = Runner.__new__(Runner)
@@ -916,8 +925,8 @@ def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     ):
         runner._setUpScratchDir()
 
-    # ensure Retryer was called three times
-    assert retryer_cls.call_count == 3
+    # ensure Retryer was called four times
+    assert retryer_cls.call_count == 4
 
     # verify that the third Retryer call (syncWithExclusions) included the archive in excluded
     sync_call_args = retryer_cls.call_args_list[2].args
@@ -1027,6 +1036,9 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
         patch("socket.gethostname", return_value="host"),
+        patch.object(
+            Runner, "_getExplicitlyIncludedFilesInWorkDir", return_value=[]
+        ) as included_mock,
     ):
         runner.finalize()
 
@@ -1034,6 +1046,7 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
+    included_mock.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
     mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
@@ -1581,3 +1594,65 @@ def test_runner_copy_run_time_files_to_input_dir_retry_false():
         "machineA",
         expected_files,
     )
+
+
+def test_runner_get_included_files_in_work_dir_resolves_paths(tmp_path):
+    runner = Runner.__new__(Runner)
+
+    runner._work_dir = tmp_path / "workdir"
+    runner._work_dir.mkdir()
+
+    abs_file = tmp_path / "abs.txt"
+    abs_file.write_text("abs")
+
+    rel_file = Path("rel.txt")
+    (tmp_path / "rel.txt").write_text("rel")
+
+    included = [abs_file, rel_file]
+
+    runner._informer = MagicMock()
+    runner._informer.info.included_files = included
+
+    expected = [
+        (runner._work_dir / abs_file.name).resolve(),
+        (runner._work_dir / rel_file.name).resolve(),
+    ]
+
+    result = runner._getExplicitlyIncludedFilesInWorkDir()
+
+    assert result == expected
+
+
+@patch("qq_lib.run.runner.socket.gethostname", return_value="local")
+def test_runner_copy_files_calls_sync_selected(tmp_path):
+    runner = Runner.__new__(Runner)
+    runner._work_dir = tmp_path / "work"
+    runner._work_dir.mkdir()
+
+    file1 = tmp_path / "a" / "file1.txt"
+    file2 = tmp_path / "b" / "file2.txt"
+    files = [file1, file2]
+
+    runner._batch_system = MagicMock()
+    runner._informer = MagicMock()
+    runner._informer.info.input_machine = "input_machine"
+
+    runner._copyFiles(files)
+
+    runner._batch_system.syncSelected.assert_any_call(
+        file1.parent,
+        runner._work_dir,
+        "input_machine",
+        "local",
+        [file1],
+    )
+
+    runner._batch_system.syncSelected.assert_any_call(
+        file2.parent,
+        runner._work_dir,
+        "input_machine",
+        "local",
+        [file2],
+    )
+
+    assert runner._batch_system.syncSelected.call_count == 2

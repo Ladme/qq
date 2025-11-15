@@ -954,7 +954,11 @@ class BatchInterface[
             "-rltD",
         ]
         for file in relative_included:
+            # if `file` is a file
             command.extend(["--include", str(file)])
+            # if `file` is a directory
+            # it's okay to include both patterns - if it is invalid, it's ignored
+            command.extend(["--include", f"{str(file)}/***"])
         # exclude all files not specifically included
         command.extend(["--exclude", "*"])
 

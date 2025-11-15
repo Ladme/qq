@@ -77,6 +77,26 @@ def test_submitter_factory_get_exclude():
     assert set(result) == set(cli_excludes + parser_excludes)
 
 
+def test_submitter_factory_get_include():
+    mock_parser = MagicMock()
+    parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    mock_parser.getInclude.return_value = parser_includes
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"include": "/tmp/file3,/tmp/file4"}
+
+    cli_includes = [Path("/tmp/file3"), Path("/tmp/file4")]
+
+    with patch(
+        "qq_lib.submit.factory.split_files_list", return_value=cli_includes
+    ) as mock_split:
+        result = factory._getInclude()
+
+    mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
+    assert set(result) == set(cli_includes + parser_includes)
+
+
 def test_submitter_factory_get_loop_info_uses_cli_over_parser():
     mock_parser = MagicMock()
     mock_parser.getLoopStart.return_value = 2
@@ -330,6 +350,7 @@ def test_submitter_factory_make_submitter_standard_job():
     mock_parser.getJobType.return_value = JobType.STANDARD
     resources = Resources()
     excludes = [Path("/tmp/file1")]
+    includes = [Path("included_file")]
     depends = []
     account = "fake-account"
 
@@ -350,6 +371,7 @@ def test_submitter_factory_make_submitter_standard_job():
         patch.object(factory, "_getLoopInfo") as mock_get_loop,
         patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
         patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_getInclude", return_value=includes) as mock_get_incl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
@@ -365,6 +387,7 @@ def test_submitter_factory_make_submitter_standard_job():
     mock_get_loop.assert_not_called()  # STANDARD job, loop info not used
     mock_get_res.assert_called_once_with(BatchSystem, queue)
     mock_get_excl.assert_called_once()
+    mock_get_incl.assert_called_once()
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
 
@@ -378,6 +401,7 @@ def test_submitter_factory_make_submitter_standard_job():
         factory._command_line,
         None,  # loop_info is None for STANDARD job
         excludes,
+        includes,
         depends,
     )
     assert result == mock_submit_instance
@@ -389,6 +413,7 @@ def test_submitter_factory_make_submitter_loop_job():
     mock_parser.getJobType.return_value = JobType.LOOP
     resources = Resources()
     excludes = [Path("/tmp/file1")]
+    includes = [Path("included_file")]
     depends = []
     account = None
 
@@ -410,6 +435,7 @@ def test_submitter_factory_make_submitter_loop_job():
         patch.object(factory, "_getLoopInfo", return_value=loop_info) as mock_get_loop,
         patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
         patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_getInclude", return_value=includes) as mock_get_incl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
@@ -425,6 +451,7 @@ def test_submitter_factory_make_submitter_loop_job():
     mock_get_loop.assert_called_once()
     mock_get_res.assert_called_once_with(BatchSystem, queue)
     mock_get_excl.assert_called_once()
+    mock_get_incl.assert_called_once()
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
 
@@ -438,6 +465,7 @@ def test_submitter_factory_make_submitter_loop_job():
         factory._command_line,
         loop_info,
         excludes,
+        includes,
         depends,
     )
     assert result == mock_submit_instance

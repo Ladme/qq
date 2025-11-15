@@ -51,6 +51,7 @@ class Submitter:
         command_line: list[str],
         loop_info: LoopInfo | None = None,
         exclude: list[Path] | None = None,
+        include: list[Path] | None = None,
         depend: list[Depend] | None = None,
     ):
         """
@@ -68,6 +69,9 @@ class Submitter:
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
                 Paths are provided relative to the input directory.
+            include (list[Path] | None): Optional list of files which should be copied to the working directory
+                even though they are not part of the job's input directory.
+                Paths are provided either absolute or relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
 
         Raises:
@@ -87,6 +91,9 @@ class Submitter:
         self._resources = resources
         # convert relative paths to absolute paths by prepending the input dir path
         self._exclude = [self._input_dir / e for e in (exclude or [])]
+        self._include = [
+            i if i.is_absolute() else self._input_dir / i for i in (include or [])
+        ]
         self._command_line = command_line
         self._depend = depend or []
 
@@ -144,6 +151,7 @@ class Submitter:
                 resources=self._resources,
                 loop_info=self._loop_info,
                 excluded_files=self._exclude,
+                included_files=self._include,
                 command_line=self._command_line,
                 depend=self._depend,
                 account=self._account,

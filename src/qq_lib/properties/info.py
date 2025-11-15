@@ -85,8 +85,11 @@ class Info:
     # Command line arguments and options provided when submitting.
     command_line: list[str]
 
-    # List of files to not copy to the working directory
+    # List of files and directories to not copy to the working directory.
     excluded_files: list[Path] = field(default_factory=list)
+
+    # List of files and directories to explicitly copy to the working directory.
+    included_files: list[Path] = field(default_factory=list)
 
     # List of dependencies.
     depend: list[Depend] = field(default_factory=list)
@@ -239,7 +242,7 @@ class Info:
                 or f.type == Path | None
             ):
                 result[f.name] = str(value)
-            # convert list of excluded files
+            # convert list of excluded/included files
             elif f.type == list[Path]:
                 result[f.name] = [str(x) for x in value]
             elif f.type == list[Depend]:

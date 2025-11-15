@@ -40,9 +40,9 @@ console = Console()
 If JOB_ID is not specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
 
 By default, `{CFG.binary_name} kill` prompts for confirmation before terminating a job.
-Without the `--force` flag, it will only attempt to terminate jobs that
-are queued, held, booting, or running, but not yet finished or already killed.
 
+Without the `--force` flag, `{CFG.binary_name} kill` will only attempt to terminate jobs that
+are queued, held, booting, or running, but not yet finished or already killed.
 When the `--force` flag is used, `{CFG.binary_name} kill` attempts to terminate any job regardless of its state,
 including jobs that are, according to qq, already finished or killed.
 This can be useful for removing lingering or stuck jobs.""",

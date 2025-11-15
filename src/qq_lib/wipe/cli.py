@@ -40,8 +40,8 @@ console = Console()
 If JOB_ID is not specified, `{CFG.binary_name} wipe` searches for qq jobs in the current directory.
 
 By default, `{CFG.binary_name} wipe` prompts for confirmation before deleting the working directory.
-Without the `--force` flag, it will only attempt to delete working directories of jobs that have failed or been killed.
 
+Without the `--force` flag, `{CFG.binary_name} wipe` will only attempt to delete working directories of jobs that have failed or been killed.
 When the `--force` flag is used, `{CFG.binary_name} wipe` attempts to wipe the working directory of any job
 regardless of its state, including jobs that are queued, running or successfully finished.
 You should be very careful when using this option as it may delete useful data or cause your job to crash!

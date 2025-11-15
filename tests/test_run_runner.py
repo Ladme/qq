@@ -424,6 +424,29 @@ def test_runner_prepare_command_line_for_resubmit_separate_depend_argument():
     assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
 
 
+def test_runner_prepare_command_line_for_resubmit_multiple_scripts():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "script.sh",
+        "--depend",
+        "afterok=11111",
+        "--exclude",
+        "script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    with pytest.raises(
+        QQError,
+        match="Heuristic identification of script name failed for command line:",
+    ):
+        runner._prepareCommandLineForResubmit()
+
+
 def test_runner_prepare_command_line_for_resubmit_multiple_depends():
     informer_mock = MagicMock()
     informer_mock.info.command_line = [

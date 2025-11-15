@@ -346,6 +346,28 @@ def test_create_job_history_table_submitted_only(sample_info):
     assert "finished" not in output.lower()
 
 
+def test_create_job_history_table_submitted_and_completed(sample_info):
+    # no start time set
+    sample_info.start_time = None
+    sample_info.completion_time = datetime.strptime(
+        "2025-09-21 14:00:00", CFG.date_formats.standard
+    )
+
+    presenter = Presenter(Informer(sample_info))
+    table = presenter._createJobHistoryTable(RealState.KILLED, None)
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "Submitted at:" in output
+    assert str(sample_info.submission_time) in output
+    assert "was queued" in output
+    assert "Killed at:" in output
+    assert str(sample_info.completion_time) in output
+    assert "Started at:" not in output
+
+
 @pytest.mark.parametrize("state", list(RealState))
 def test_create_job_status_table_states(sample_info, state):
     # prepare info for special states

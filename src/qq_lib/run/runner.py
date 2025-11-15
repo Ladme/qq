@@ -491,7 +491,7 @@ class Runner:
 
         try:
             self._informer.setKilled(datetime.now())
-            # no retrying here since we cannot affort multiple attempts here
+            # no retrying here since we cannot afford multiple attempts here
             self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(

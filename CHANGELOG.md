@@ -1,36 +1,40 @@
 ## Version 0.5.0
 
 ### Support for LUMI
-- qq can now be used on the LUMI supercomputer.
+- qq is now fully compatible with the **LUMI** supercomputer.
 
-### Changes in failed and killed jobs
-- Runtime files `.err` and `.out` are now copied from the working directory to the input directory even if the job fails or is killed to allow users to more easily check what exactly went wrong. All other files are left in the working directory, to keep the input directory in a consistent state.
+### Handling of failed and killed jobs
+- The `.err` and `.out` runtime files are now copied from the working directory to the input directory even when a job fails or is killed.
+  This makes it easier to inspect what went wrong while keeping the input directory in a consistent state — all other files remain in the working directory.
 
-### qq wipe
-- Introduced a new command, `qq wipe`, for safely deleting working directory of failed and killed jobs.
+### New command: `qq wipe`
+- Added the `qq wipe` command for safely deleting the working directories of failed or killed jobs.
 
-### Slurm steps
-- `qq info` now prints information about that states of the individual Slurm job steps, if there is more than one of them and if this information is available from the batch system.
+### Slurm step information
+- `qq info` now displays the status of individual Slurm job steps when multiple steps exist and the information is available from the batch system.
 
-### Changes in qq nodes
-- If no queue has an associated comment, the "Comment" column is hidden.
-- Added a `Max Nodes` column which shows the maximal number of nodes that can be requested in the queue.
+### Updates to `qq nodes`
+- The *Comment* column is now hidden when no queues include a comment.
+- Added a new *Max Nodes* column showing the maximum number of nodes that can be requested in each queue. This column is hidden if no queue has a set maximal number of nodes.
 
-### Bug fixes and other small changes
-- Added support for the `-h` flag as a shorthand for `--help` to display the help output.
-- Added autocomplete for qq.
-- Names for loop jobs are now created correctly even if the job script has a file extension.
+### New option: `--include` in `qq submit`
+- You can now use the `--include` option to specify additional files or directories outside the job's input directory. These will be copied into the working directory upon submission.
+
+### Bug fixes and minor improvements
+- Added support for the `-h` flag as a shorthand for `--help`.
+- Added shell autocomplete for qq commands.
+- Fixed incorrect naming of loop jobs when the job script had a file extension.
 - Made it possible to submit qq jobs from directories other than the current working directory.
-- `get_info_files_from_job_id_or_dir` now properly catches PermissionError when the user does not have permissions to read an info file.
-- Obtaining the list of jobs on Slurm is now much faster (but can be still slow due to Slurm limitations).
-- Fixed a bug which caused the job to not be able to use multiple MPI ranks on some PBS clusters.
-- More dynamic output of `qq jobs`: unused columns are now hidden.
-- Operating on job IDs is now faster.
-- Job comment is now show in the output of `qq jobs -e` and `qq stat -e` (if available).
-- `qq sync` now properly synchronizes content of directories when using the `-f` option.
+- `get_info_files_from_job_id_or_dir` now properly catches `PermissionError` when reading restricted info files.
+- Retrieving job lists from Slurm is now significantly faster (still limited by Slurm performance).
+- Fixed an issue preventing jobs from using multiple MPI ranks on some PBS clusters.
+- Improved the dynamic output of `qq jobs`: unused columns are now hidden.
+- Operations on job IDs are now faster.
+- Job comments are now shown in the output of `qq jobs -e` and `qq stat -e` (if available).
+- `qq sync` now correctly synchronizes contents of selected directories when using the `-f` option.
 
 ### Internal changes
-- Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.
+- Most methods in `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have optional return values.
 
 ***
 

@@ -302,6 +302,22 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         jobs.sort(key=lambda job: job.getIdsForSorting())
 
     @classmethod
+    def jobsPresenterColumnsToShow(cls) -> set[str]:
+        return {
+            "S",
+            "Job ID",
+            "User",
+            "Job Name",
+            "Queue",
+            "NCPUs",
+            "NGPUs",
+            "NNodes",
+            "Times",
+            "Node",
+            "Exit",
+        }
+
+    @classmethod
     def _translateKill(cls, job_id: str) -> str:
         """
         Generate the Slurm kill command for a job using SIGTERM.

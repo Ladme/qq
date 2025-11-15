@@ -26,6 +26,7 @@
 - Fixed a bug which caused the job to not be able to use multiple MPI ranks on some PBS clusters.
 - More dynamic output of `qq jobs`: unused columns are now hidden.
 - Operating on job IDs is now faster.
+- Job comment is now show in the output of `qq jobs -e` and `qq stat -e` (if available).
 
 ### Internal changes
 - Most of the methods of `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have an optional return.

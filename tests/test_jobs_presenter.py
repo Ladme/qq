@@ -873,30 +873,27 @@ def test_add_job_mixed_states_accumulates_correctly():
 
 
 @pytest.mark.parametrize(
-    "input_machine,input_dir,expected_machine,expected_dir",
+    "input_machine,input_dir,comment,expected_machine,expected_dir,expected_comment",
     [
-        # both have valid info
-        ("machine1", "/path/dir", True, True),
-        # input machine missing, dir valid
-        (None, "/path/dir", False, True),
-        # input machine valid, dir missing
-        ("machine2", None, True, False),
-        # both missing
-        (None, None, False, False),
+        ("machine1", "/path/dir", "comment1", True, True, True),
+        (None, "/path/dir", "comment2", False, True, True),
+        ("machine2", None, None, True, False, False),
+        (None, None, "comment3", False, False, True),
+        (None, None, None, False, False, False),
     ],
 )
 def test_jobs_presenter_insert_extra_info_various_combinations(
-    input_machine, input_dir, expected_machine, expected_dir
+    input_machine, input_dir, comment, expected_machine, expected_dir, expected_comment
 ):
     job = Mock()
     job.getInputMachine.return_value = input_machine
     job.getInputDir.return_value = input_dir
+    job.getComment.return_value = comment
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job]
 
     table = "HEADER\nROW1"
-
     result = presenter._insertExtraInfo(table)
 
     assert "HEADER" in result
@@ -904,16 +901,19 @@ def test_jobs_presenter_insert_extra_info_various_combinations(
 
     assert (">   Input machine:" in result) == expected_machine
     assert (">   Input directory:" in result) == expected_dir
+    assert (">   Comment:" in result) == expected_comment
 
 
 def test_jobs_presenter_insert_extra_info_multiple_jobs():
     job1 = Mock()
     job1.getInputMachine.return_value = "machineA"
     job1.getInputDir.return_value = "/dirA"
+    job1.getComment.return_value = "commentA"
 
     job2 = Mock()
     job2.getInputMachine.return_value = "machineB"
     job2.getInputDir.return_value = "/dirB"
+    job2.getComment.return_value = "commentB"
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job1, job2]
@@ -925,12 +925,15 @@ def test_jobs_presenter_insert_extra_info_multiple_jobs():
     assert "machineB" in result
     assert "/dirA" in result
     assert "/dirB" in result
+    assert "commentA" in result
+    assert "commentB" in result
 
 
 def test_jobs_presenter_insert_extra_info_preserves_header_and_spacing():
     job = Mock()
     job.getInputMachine.return_value = "machineX"
     job.getInputDir.return_value = "/inputX"
+    job.getComment.return_value = "commentX"
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job]
@@ -946,6 +949,7 @@ def test_jobs_presenter_insert_extra_info_uses_cfg_style():
     job = Mock()
     job.getInputMachine.return_value = "machineZ"
     job.getInputDir.return_value = "/inputZ"
+    job.getComment.return_value = "commentZ"
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job]

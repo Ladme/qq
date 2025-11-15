@@ -280,7 +280,7 @@ class JobsPresenter:
         """
         Augment a formatted job table with additional information about each job.
 
-        Lines where job attributes are missing (indicated by "???") are skipped.
+        Lines where job attributes are missing are skipped.
 
         Args:
             table (str): The formatted table string containing one line per job.
@@ -303,6 +303,12 @@ class JobsPresenter:
             if input_dir := job.getInputDir():
                 table_with_extra_info += JobsPresenter._color(
                     f" >   Input directory: {str(input_dir)}\n",
+                    CFG.jobs_presenter.extra_info_style,
+                )
+
+            if comment := job.getComment():
+                table_with_extra_info += JobsPresenter._color(
+                    f" >   Comment:         {comment}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
             table_with_extra_info += "\n"

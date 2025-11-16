@@ -3,11 +3,13 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from rich.console import Console, Group
+from rich.padding import Padding
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
@@ -17,7 +19,7 @@ from qq_lib.info.presenter import CFG, Presenter
 from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
-from qq_lib.properties.states import NaiveState, RealState
+from qq_lib.properties.states import BatchState, NaiveState, RealState
 
 
 @pytest.fixture
@@ -344,6 +346,28 @@ def test_create_job_history_table_submitted_only(sample_info):
     assert "finished" not in output.lower()
 
 
+def test_create_job_history_table_submitted_and_completed(sample_info):
+    # no start time set
+    sample_info.start_time = None
+    sample_info.completion_time = datetime.strptime(
+        "2025-09-21 14:00:00", CFG.date_formats.standard
+    )
+
+    presenter = Presenter(Informer(sample_info))
+    table = presenter._createJobHistoryTable(RealState.KILLED, None)
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "Submitted at:" in output
+    assert str(sample_info.submission_time) in output
+    assert "was queued" in output
+    assert "Killed at:" in output
+    assert str(sample_info.completion_time) in output
+    assert "Started at:" not in output
+
+
 @pytest.mark.parametrize("state", list(RealState))
 def test_create_job_status_table_states(sample_info, state):
     # prepare info for special states
@@ -542,3 +566,117 @@ def test_get_short_info_combines_job_id_and_state_correctly():
 )
 def test_translate_state_to_completed_msg(state, exit_code, expected):
     assert Presenter._translateStateToCompletedMsg(state, exit_code) == expected
+
+
+def test_presenter_create_job_steps_block_returns_empty_group_when_no_steps():
+    informer = MagicMock()
+    job = MagicMock()
+    job.getSteps.return_value = []
+    informer.getBatchInfo.return_value = job
+
+    presenter = Presenter(informer)
+
+    result = presenter._createJobStepsBlock()
+
+    assert isinstance(result, Group)
+    assert len(result.renderables) == 0
+
+
+def test_presenter_create_job_steps_block_returns_empty_group_when_one_step():
+    informer = MagicMock()
+    job = MagicMock()
+    job.getSteps.return_value = [MagicMock()]
+    informer.getBatchInfo.return_value = job
+
+    presenter = Presenter(informer)
+
+    result = presenter._createJobStepsBlock()
+
+    assert isinstance(result, Group)
+    assert len(result.renderables) == 0
+
+
+def test_presenter_create_job_steps_block_returns_full_block_for_multiple_steps():
+    informer = MagicMock()
+    job = MagicMock()
+    job.getSteps.return_value = [MagicMock(), MagicMock()]
+    informer.getBatchInfo.return_value = job
+
+    presenter = Presenter(informer)
+
+    with patch.object(presenter, "_createJobStepsTable", return_value="TABLE"):
+        result = presenter._createJobStepsBlock()
+
+    assert isinstance(result, Group)
+    assert len(result.renderables) == 4
+
+    assert isinstance(result.renderables[0], Text)
+    assert result.renderables[0].plain == ""
+
+    assert isinstance(result.renderables[1], Rule)
+    assert isinstance(result.renderables[1].title, Text)
+    assert result.renderables[1].title.plain == "STEPS"
+
+    assert isinstance(result.renderables[2], Text)
+    assert result.renderables[2].plain == ""
+
+    assert isinstance(result.renderables[3], Padding)
+    assert result.renderables[3].renderable == "TABLE"
+
+
+def test_presenter_create_job_steps_table_adds_rows_for_valid_steps():
+    informer = MagicMock()
+    presenter = Presenter(informer)
+
+    start = datetime(2025, 1, 1, 10, 0, 0)
+    end = datetime(2025, 1, 1, 12, 0, 0)
+
+    step = MagicMock()
+    step.getState.return_value = BatchState.RUNNING
+    step.getStartTime.return_value = start
+    step.getCompletionTime.return_value = end
+    step.getStepId.return_value = "1"
+
+    table = presenter._createJobStepsTable([step])
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "1" in output
+    assert "R" in output
+    assert start.strftime("%Y-%m-%d %H:%M:%S") in output
+    assert end.strftime("%Y-%m-%d %H:%M:%S") in output
+
+    assert "02:00:00" in output
+
+
+def test_presenter_create_job_steps_table_uses_now_when_end_missing():
+    informer = MagicMock()
+    presenter = Presenter(informer)
+
+    start = datetime(2025, 1, 1, 10, 0, 0)
+    fake_now = datetime(2025, 1, 1, 12, 0, 0)
+
+    step = MagicMock()
+    step.getState.return_value = BatchState.RUNNING
+    step.getStartTime.return_value = start
+    step.getCompletionTime.return_value = None
+    step.getStepId.return_value = "1"
+
+    with patch("qq_lib.info.presenter.datetime") as mock_dt:
+        mock_dt.now.return_value = fake_now
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        table = presenter._createJobStepsTable([step])
+
+    console = Console(record=True)
+    console.print(table)
+    output = console.export_text()
+
+    assert "1" in output
+    assert "R" in output
+    assert start.strftime("%Y-%m-%d %H:%M:%S") in output
+    assert fake_now.strftime("%Y-%m-%d %H:%M:%S") not in output
+
+    assert "02:00:00" in output

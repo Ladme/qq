@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sets up .bashrc to sync qq from a specified directory to /scratch/${USER}
 # and add both locations to PATH (with /scratch/${USER}/qq prioritized).
-# Script version: 0.1.0
+# Script version: 0.2.0
 
 set -euo pipefail
 
@@ -76,6 +76,8 @@ qq() {
         command qq "\$@"
     fi
 }
+# This makes qq autocomplete work.
+eval "$(_QQ_COMPLETE=bash_source qq)"
 $BLOCK_END
 EOF
 }

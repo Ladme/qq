@@ -26,7 +26,10 @@ logger = get_logger(__name__)
     short_help="Display the nodes of the batch system.",
     help="""Display information about the the nodes of the batch system.
 
-If the `--all` flag is specified, display all nodes, including those not available.""",
+By default, only nodes that are available to you are shown.
+If the `--all` flag is specified, display all nodes, including those not available.
+
+Nodes are grouped heuristically into node groups based on their names.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )

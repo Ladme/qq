@@ -31,6 +31,9 @@ class QueuesPresenter:
         self._user = user
         self._display_all = all
 
+        self._show_comment = self._shouldShowComment()
+        self._show_max_nnodes = self._shouldShowMaxNNodes()
+
     def dumpYaml(self) -> None:
         """
         Print the YAML representation of all queues to stdout.
@@ -130,21 +133,32 @@ class QueuesPresenter:
             ),
             justify="right",
         )
-        table.add_column(
-            header=Text(
-                "Comment",
+        if self._show_max_nnodes:
+            table.add_column(
+                header=Text(
+                    "Max Nodes",
+                    justify="center",
+                    style=CFG.queues_presenter.headers_style,
+                ),
                 justify="center",
-                style=CFG.queues_presenter.headers_style,
-            ),
-            justify="center",
-        )
+            )
+
+        if self._show_comment:
+            table.add_column(
+                header=Text(
+                    "Comment",
+                    justify="center",
+                    style=CFG.queues_presenter.headers_style,
+                ),
+                justify="center",
+            )
 
         visited_queues = set()
         for queue in self._queues:
             if queue.fromRouteOnly():
                 continue
 
-            QueuesPresenter._addQueueRow(queue, table, self._user)
+            self._addQueueRow(queue, table, self._user)
             visited_queues.add(queue)
 
             # print all reroutings
@@ -152,7 +166,7 @@ class QueuesPresenter:
                 destinations = [q for q in self._queues if q.getName() in dest_names]
 
                 for rerouted in destinations:
-                    QueuesPresenter._addQueueRow(
+                    self._addQueueRow(
                         rerouted,
                         table,
                         self._user,
@@ -172,14 +186,14 @@ class QueuesPresenter:
                 Text("?", style=f"{CFG.queues_presenter.dangling_mark_style} bold")
             )
             for queue in unvisited_queues:
-                QueuesPresenter._addQueueRow(
+                self._addQueueRow(
                     queue, table, self._user, from_route=True, dangling=True
                 )
 
         return table
 
-    @staticmethod
     def _addQueueRow(
+        self,
         queue: BatchQueueInterface,
         table: Table,
         user: str,
@@ -221,17 +235,24 @@ class QueuesPresenter:
             else CFG.queues_presenter.rerouted_text_style
         )
 
-        table.add_row(
+        content = [
             Text(mark, style=mark_style),
             Text(queue.getName(), style=text_style),
             Text(queue.getPriority() or "", style=text_style),
-            Text(str(queue.getRunningJobs()), style=CFG.state_colors.running),
-            Text(str(queue.getQueuedJobs()), style=CFG.state_colors.queued),
-            Text(str(queue.getOtherJobs()), style=CFG.state_colors.other),
-            Text(str(queue.getTotalJobs()), style=CFG.state_colors.sum),
+            Text(str(queue.getRunningJobs() or 0), style=CFG.state_colors.running),
+            Text(str(queue.getQueuedJobs() or 0), style=CFG.state_colors.queued),
+            Text(str(queue.getOtherJobs() or 0), style=CFG.state_colors.other),
+            Text(str(queue.getTotalJobs() or 0), style=CFG.state_colors.sum),
             QueuesPresenter._formatWalltime(queue, text_style),
-            Text(queue.getComment(), style=text_style),
-        )
+            Text(str(queue.getMaxNNodes() or "∞"), style=text_style)
+            if self._show_max_nnodes
+            else None,
+            Text(queue.getComment() or "", style=text_style)
+            if self._show_comment
+            else None,
+        ]
+
+        table.add_row(*[x for x in content if x is not None])
 
     @staticmethod
     def _formatWalltime(queue: BatchQueueInterface, style: str) -> Text:
@@ -250,3 +271,22 @@ class QueuesPresenter:
             return Text("")
 
         return Text(format_duration_wdhhmmss(walltime), style=style)
+
+    def _shouldShowComment(self) -> bool:
+        """
+        Determine whether the Comment column should be displayed.
+
+        Returns:
+            bool: True if any node has a comment, False otherwise.
+        """
+        return any(queue.getComment() is not None for queue in self._queues)
+
+    def _shouldShowMaxNNodes(self) -> bool:
+        """
+        Determine whether the Max Nodes column should be displayed.
+
+        Returns:
+            bool: True if any node has a defined maximal number of nodes that
+            can be requested, False otherwise.
+        """
+        return any(queue.getMaxNNodes() is not None for queue in self._queues)

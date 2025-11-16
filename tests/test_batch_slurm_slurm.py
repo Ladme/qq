@@ -545,17 +545,21 @@ def test_slurm_sync_selected_delegates(mock_sync):
 
 
 @patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSqueueCommand")
-def test_slurm_get_unfinished_batch_jobs(mock_squeue):
-    mock_job1 = MagicMock()
-    mock_job2 = MagicMock()
-    mock_job1.getId.return_value = "2"
-    mock_job2.getId.return_value = "1"
-    mock_squeue.return_value = [mock_job1, mock_job2]
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSacctCommand")
+def test_slurm_get_unfinished_batch_jobs(mock_sacct, mock_squeue):
+    mock_sacct_job = MagicMock()
+    mock_sacct_job.getId.return_value = "2"
+    mock_squeue_job = MagicMock()
+    mock_squeue_job.getId.return_value = "1"
+    mock_sacct.return_value = [mock_sacct_job, mock_squeue_job]
+    mock_squeue.return_value = [mock_squeue_job]
 
-    result = Slurm.getUnfinishedBatchJobs("user1")
+    result = Slurm.getBatchJobs("user2")
 
-    mock_squeue.assert_called_once_with('squeue -u user1 -t PENDING,RUNNING -h -o "%i"')
-    assert set(result) == {mock_job1, mock_job2}
+    mock_sacct.assert_called_once()
+    mock_squeue.assert_called_once()
+    assert len(result) == 2
+    assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
 @patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSacctCommand")
@@ -577,17 +581,21 @@ def test_slurm_get_batch_jobs(mock_squeue, mock_sacct):
 
 
 @patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSqueueCommand")
-def test_slurm_get_all_unfinished_batch_jobs(mock_squeue):
-    mock_job1 = MagicMock()
-    mock_job2 = MagicMock()
-    mock_job1.getId.return_value = "3"
-    mock_job2.getId.return_value = "1"
-    mock_squeue.return_value = [mock_job1, mock_job2]
+@patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSacctCommand")
+def test_slurm_get_all_unfinished_batch_jobs(mock_sacct, mock_squeue):
+    mock_sacct_job = MagicMock()
+    mock_sacct_job.getId.return_value = "5"
+    mock_squeue_job = MagicMock()
+    mock_squeue_job.getId.return_value = "2"
+    mock_sacct.return_value = [mock_sacct_job]
+    mock_squeue.return_value = [mock_squeue_job, mock_sacct_job]
 
-    result = Slurm.getAllUnfinishedBatchJobs()
+    result = Slurm.getAllBatchJobs()
 
-    mock_squeue.assert_called_once_with('squeue -t PENDING,RUNNING -h -o "%i"')
-    assert set(result) == {mock_job1, mock_job2}
+    mock_sacct.assert_called_once()
+    mock_squeue.assert_called_once()
+    assert len(result) == 2
+    assert set(result) == {mock_squeue_job, mock_sacct_job}
 
 
 @patch("qq_lib.batch.slurm.slurm.Slurm._getBatchJobsUsingSacctCommand")
@@ -821,3 +829,9 @@ def test_slurm_get_nodes_failure_raises_qqerror(mock_run):
         QQError, match="Could not retrieve information about nodes: some error."
     ):
         Slurm.getNodes()
+
+
+@patch("qq_lib.batch.slurm.slurm.PBS.deleteRemoteDir")
+def test_slurm_delete_remote_dir_delegates(mock_make):
+    Slurm.deleteRemoteDir("host3", Path("/tmp/dir"))
+    mock_make.assert_called_once_with("host3", Path("/tmp/dir"))

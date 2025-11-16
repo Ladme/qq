@@ -53,6 +53,16 @@ def shebang(script: str | None) -> NoReturn:
 
 
 def _replaceOrAddShebang(file: Path) -> None:
+    """
+    Replaces or adds a shebang line to a file.
+
+    Args:
+        file (Path): The path to the file to modify.
+
+    Raises:
+        QQError: If the specified file does not exist or is not a regular file.
+    """
+
     if not file.is_file():
         raise QQError(f"File '{str(file)}' does not exist.")
 

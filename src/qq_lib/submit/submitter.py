@@ -4,12 +4,18 @@
 import getpass
 import os
 import socket
+from contextlib import chdir
 from datetime import datetime
 from pathlib import Path
 
 import qq_lib
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import get_info_file, hhmmss_to_duration
+from qq_lib.core.common import (
+    construct_info_file_path,
+    construct_loop_job_name,
+    get_info_file,
+    hhmmss_to_duration,
+)
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -46,6 +52,7 @@ class Submitter:
         command_line: list[str],
         loop_info: LoopInfo | None = None,
         exclude: list[Path] | None = None,
+        include: list[Path] | None = None,
         depend: list[Depend] | None = None,
     ):
         """
@@ -62,6 +69,10 @@ class Submitter:
             command_line (list[str]): List of all arguments and options provided on the command line.
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
+                Paths are provided relative to the input directory.
+            include (list[Path] | None): Optional list of files which should be copied to the working directory
+                even though they are not part of the job's input directory.
+                Paths are provided either absolute or relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
 
         Raises:
@@ -77,13 +88,13 @@ class Submitter:
         self._input_dir = script.resolve().parent
         self._script_name = script.name
         self._job_name = self._constructJobName()
-        self._info_file = (
-            (self._input_dir / self._job_name)
-            .with_suffix(CFG.suffixes.qq_info)
-            .resolve()
-        )
+        self._info_file = construct_info_file_path(self._input_dir, self._job_name)
         self._resources = resources
-        self._exclude = exclude or []
+        # convert relative paths to absolute paths by prepending the input dir path
+        self._exclude = [self._input_dir / e for e in (exclude or [])]
+        self._include = [
+            i if i.is_absolute() else self._input_dir / i for i in (include or [])
+        ]
         self._command_line = command_line
         self._depend = depend or []
 
@@ -110,44 +121,55 @@ class Submitter:
         Raises:
             QQError: If job submission fails.
         """
-        # submit the job
-        job_id = self._batch_system.jobSubmit(
-            self._resources,
-            self._queue,
-            self._script,
-            self._job_name,
-            self._depend,
-            self._createEnvVarsDict(),
-            self._account,
-        )
-
-        # create job qq info file
-        informer = Informer(
-            Info(
-                batch_system=self._batch_system,
-                qq_version=qq_lib.__version__,
-                username=getpass.getuser(),
-                job_id=job_id,
-                job_name=self._job_name,
-                script_name=self._script_name,
-                queue=self._queue,
-                job_type=self._job_type,
-                input_machine=socket.gethostname(),
-                input_dir=self._input_dir,
-                job_state=NaiveState.QUEUED,
-                submission_time=datetime.now(),
-                stdout_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stdout)),
-                stderr_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stderr)),
-                resources=self._resources,
-                loop_info=self._loop_info,
-                excluded_files=self._exclude,
-                command_line=self._command_line,
-                depend=self._depend,
-                account=self._account,
+        # move to the script's parent directory and submit the script
+        # with PBS it is possible to submit the script from anywhere
+        # but with Slurm the input directory path is then not set correctly
+        # it is safer and easier to just move to the input directory,
+        # execute the command and then return back
+        with chdir(self._input_dir):
+            # submit the job
+            job_id = self._batch_system.jobSubmit(
+                self._resources,
+                self._queue,
+                self._script,
+                self._job_name,
+                self._depend,
+                self._createEnvVarsDict(),
+                self._account,
             )
-        )
-        informer.toFile(self._info_file)
-        return job_id
+
+            # create job qq info file
+            informer = Informer(
+                Info(
+                    batch_system=self._batch_system,
+                    qq_version=qq_lib.__version__,
+                    username=getpass.getuser(),
+                    job_id=job_id,
+                    job_name=self._job_name,
+                    script_name=self._script_name,
+                    queue=self._queue,
+                    job_type=self._job_type,
+                    input_machine=socket.gethostname(),
+                    input_dir=self._input_dir,
+                    job_state=NaiveState.QUEUED,
+                    submission_time=datetime.now(),
+                    stdout_file=str(
+                        Path(self._job_name).with_suffix(CFG.suffixes.stdout)
+                    ),
+                    stderr_file=str(
+                        Path(self._job_name).with_suffix(CFG.suffixes.stderr)
+                    ),
+                    resources=self._resources,
+                    loop_info=self._loop_info,
+                    excluded_files=self._exclude,
+                    included_files=self._include,
+                    command_line=self._command_line,
+                    depend=self._depend,
+                    account=self._account,
+                )
+            )
+            informer.toFile(self._info_file)
+            return job_id
 
     def continuesLoop(self) -> bool:
         """
@@ -270,4 +292,4 @@ class Submitter:
             return self._script_name
 
         # for loop jobs, use script_name with cycle number
-        return f"{self._script_name}{CFG.loop_jobs.pattern % self._loop_info.current}"
+        return construct_loop_job_name(self._script_name, self._loop_info.current)

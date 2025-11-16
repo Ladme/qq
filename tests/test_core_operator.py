@@ -119,3 +119,19 @@ def test_operator_print_info():
             mock_console
         )
         mock_console.print.assert_called_once_with(mock_panel)
+
+
+def test_operator_from_informer_initializes_fields():
+    informer = MagicMock()
+    informer.getInfoFile.return_value = "info_path"
+    informer.info.input_machine = "machineA"
+    informer.batch_system = PBS
+    informer.getRealState.return_value = RealState.RUNNING
+
+    op = Operator.fromInformer(informer)
+
+    assert op._informer is informer
+    assert op._info_file == "info_path"
+    assert op._input_machine == "machineA"
+    assert op._batch_system == PBS
+    assert op._state == RealState.RUNNING

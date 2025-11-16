@@ -3,12 +3,14 @@
 
 
 import os
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from qq_lib.batch.slurmit4i.slurm import SlurmIT4I
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
@@ -347,4 +349,52 @@ def test_slurmit4i_get_scratch_dir_raises_on_mkdir_failure(mock_mkdir, mock_user
     ):
         SlurmIT4I.getScratchDir("456")
     mock_user.assert_called_once()
-    mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+    assert mock_mkdir.call_count == CFG.it4i_scratch_dir_attempts
+
+
+@patch("qq_lib.batch.slurmit4i.slurm.getpass.getuser", return_value="userX")
+@patch.dict(os.environ, {"SLURM_JOB_ACCOUNT": "ACCT"}, clear=True)
+def test_slurmit4i_get_scratch_dir_third_attempt_succeeds(mock_user):
+    mkdir_mock = MagicMock()
+    mkdir_mock.side_effect = [
+        OSError("fail 1"),
+        OSError("fail 2"),
+        None,  # third attempt succeeds
+    ]
+
+    with patch("qq_lib.batch.slurmit4i.slurm.Path.mkdir", mkdir_mock):
+        result = SlurmIT4I.getScratchDir("999")
+
+    expected_path = "/scratch/project/acct/userX3/qq-jobs/job_999"
+    assert str(result).endswith(expected_path)
+
+    mock_user.assert_called_once()
+    assert mkdir_mock.call_count == 3
+
+
+def test_slurm_delete_remote_dir_deletes_local(tmp_path):
+    test_dir = tmp_path / "to_delete"
+    test_dir.mkdir()
+    (test_dir / "file.txt").write_text("content")
+
+    assert test_dir.exists()
+
+    SlurmIT4I.deleteRemoteDir("some_host", test_dir)
+
+    # Ensure directory was removed
+    assert not test_dir.exists()
+
+
+def test_slurm_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypatch):
+    test_dir = tmp_path / "to_delete_fail"
+    test_dir.mkdir()
+
+    def mock_rmtree(_):
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
+
+    with pytest.raises(
+        QQError, match=f"Could not delete directory '{test_dir}': access denied."
+    ):
+        SlurmIT4I.deleteRemoteDir("some_host", test_dir)

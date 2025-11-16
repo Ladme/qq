@@ -42,6 +42,7 @@ class EnvironmentVariables:
     archive_format: str = "QQ_ARCHIVE_FORMAT"
     pbs_scratch_dir: str = "SCRATCHDIR"
     slurm_job_account: str = "SLURM_JOB_ACCOUNT"
+    lumi_scratch_type: str = "LUMI_SCRATCH_TYPE"
     ncpus: str = "QQ_NCPUS"
     ngpus: str = "QQ_NGPUS"
     nnodes: str = "QQ_NNODES"
@@ -262,6 +263,8 @@ class Config:
     state_colors: StateColors = field(default_factory=StateColors)
     size: SizeOptions = field(default_factory=SizeOptions)
     binary_name: str = "qq"
+    it4i_scratch_dir_attempts: int = 5
+    lumi_scratch_dir_attempts: int = 5
 
     @classmethod
     def load(cls, config_path: Path | None = None) -> Self:

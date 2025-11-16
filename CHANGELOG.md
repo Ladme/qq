@@ -1,3 +1,43 @@
+## Version 0.5.0
+
+### Support for LUMI
+- qq is now fully compatible with the **LUMI** supercomputer.
+
+### Handling of failed and killed jobs
+- The `.err` and `.out` runtime files are now copied from the working directory to the input directory even when a job fails or is killed.
+  This makes it easier to inspect what went wrong while keeping the input directory in a consistent state — all other files remain in the working directory.
+
+### New command: `qq wipe`
+- Added the `qq wipe` command for safely deleting the working directories of failed or killed jobs.
+
+### Slurm step information
+- `qq info` now displays the status of individual Slurm job steps when multiple steps exist and the information is available from the batch system.
+
+### Updates to `qq nodes`
+- The *Comment* column is now hidden when no queues include a comment.
+- Added a new *Max Nodes* column showing the maximum number of nodes that can be requested in each queue. This column is hidden if no queue has a set maximal number of nodes.
+
+### New option: `--include` in `qq submit`
+- You can now use the `--include` option to specify additional files or directories outside the job's input directory. These will be copied into the working directory upon submission.
+
+### Bug fixes and minor improvements
+- Added support for the `-h` flag as a shorthand for `--help`.
+- Added shell autocomplete for qq commands.
+- Fixed incorrect naming of loop jobs when the job script had a file extension.
+- Made it possible to submit qq jobs from directories other than the current working directory.
+- `get_info_files_from_job_id_or_dir` now properly catches `PermissionError` when reading restricted info files.
+- Retrieving job lists from Slurm is now significantly faster (still limited by Slurm performance).
+- Fixed an issue preventing jobs from using multiple MPI ranks on some PBS clusters.
+- Improved the dynamic output of `qq jobs`: unused columns are now hidden.
+- Operations on job IDs are now faster.
+- Job comments are now shown in the output of `qq jobs -e` and `qq stat -e` (if available).
+- `qq sync` now correctly synchronizes contents of selected directories when using the `-f` option.
+
+### Internal changes
+- Most methods in `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have optional return values.
+
+***
+
 ## Version 0.4.0
 
 ### Support for Slurm

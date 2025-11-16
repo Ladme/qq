@@ -29,13 +29,21 @@ logger = get_logger(__name__)
 
 @batch_system
 class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta):
+    """
+    Implementation of BatchInterface for Slurm batch system.
+    """
+
     @classmethod
     def envName(cls) -> str:
         return "Slurm"
 
     @classmethod
     def isAvailable(cls) -> bool:
-        return shutil.which("sbatch") is not None and shutil.which("it4ifree") is None
+        return (
+            shutil.which("sbatch") is not None
+            and shutil.which("it4ifree") is None
+            and shutil.which("lumi-allocations") is None
+        )
 
     @classmethod
     def getJobId(cls) -> str | None:
@@ -119,10 +127,21 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[SlurmJob]:
-        command = f'squeue -u {user} -t PENDING,RUNNING -h -o "%i"'
+        # get running jobs from sacct (faster than using squeue and scontrol)
+        command = f"sacct -u {user} --state RUNNING --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        return cls._getBatchJobsUsingSqueueCommand(command)
+        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+
+        # get pending jobs using squeue
+        command = f'squeue -u {user} -t PENDING -h -o "%i"'
+        logger.debug(command)
+
+        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+
+        # filter out duplicate jobs
+        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        return list(merged.values())
 
     @classmethod
     def getBatchJobs(cls, user: str) -> list[SlurmJob]:
@@ -144,10 +163,21 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def getAllUnfinishedBatchJobs(cls) -> list[SlurmJob]:
-        command = 'squeue -t PENDING,RUNNING -h -o "%i"'
+        # get running jobs using sacct (faster than using squeue and scontrol)
+        command = f"sacct --state RUNNING --allusers --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        return cls._getBatchJobsUsingSqueueCommand(command)
+        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+
+        # get pending jobs using squeue
+        command = 'squeue -t PENDING -h -o "%i"'
+        logger.debug(command)
+
+        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+
+        # filter out duplicate jobs
+        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        return list(merged.values())
 
     @classmethod
     def getAllBatchJobs(cls) -> list[SlurmJob]:
@@ -236,6 +266,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return PBS.listRemoteDir(host, directory)
 
     @classmethod
+    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+        PBS.deleteRemoteDir(host, directory)
+
+    @classmethod
     def moveRemoteFiles(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:
@@ -266,6 +300,22 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     @classmethod
     def sortJobs(cls, jobs: list[SlurmJob]) -> None:
         jobs.sort(key=lambda job: job.getIdsForSorting())
+
+    @classmethod
+    def jobsPresenterColumnsToShow(cls) -> set[str]:
+        return {
+            "S",
+            "Job ID",
+            "User",
+            "Job Name",
+            "Queue",
+            "NCPUs",
+            "NGPUs",
+            "NNodes",
+            "Times",
+            "Node",
+            "Exit",
+        }
 
     @classmethod
     def _translateKill(cls, job_id: str) -> str:

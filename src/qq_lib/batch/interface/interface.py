@@ -481,6 +481,43 @@ class BatchInterface[
         ]
 
     @classmethod
+    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+        """
+        Delete a directory on a remote host.
+
+        The default implementation uses SSH to run `rm -r` on the remote host.
+        This approach may be inefficient on shared storage or high-latency networks.
+        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the directory resides.
+            directory (Path): The remote directory to delete.
+
+        Raises:
+            QQError: If the directory cannot be deleted or the SSH command fails.
+        """
+        result = subprocess.run(
+            [
+                "ssh",
+                "-o PasswordAuthentication=no",
+                "-o GSSAPIAuthentication=yes",
+                f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                host,
+                f"yes | rm -r {directory}",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            raise QQError(
+                f"Could not delete remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+            )
+
+    @classmethod
     def moveRemoteFiles(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:
@@ -722,6 +759,36 @@ class BatchInterface[
         jobs.sort(key=lambda job: job.getId())
 
     @classmethod
+    def jobsPresenterColumnsToShow(cls) -> set[str]:
+        """
+        Get a set of columns that should be shown in the output of JobsPresenter (`qq jobs`)
+        for this batch system.
+
+        In the default implementation, all columns are shown.
+
+        Note that the 'Exit' column is not shown when printing queued and running jobs,
+        even if you specify it here.
+
+        Args:
+            set[str]: Set of column titles that should be shown.
+        """
+        return {
+            "S",
+            "Job ID",
+            "User",
+            "Job Name",
+            "Queue",
+            "NCPUs",
+            "NGPUs",
+            "NNodes",
+            "Times",
+            "Node",
+            "%CPU",
+            "%Mem",
+            "Exit",
+        }
+
+    @classmethod
     def _translateSSHCommand(cls, host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.
@@ -887,7 +954,11 @@ class BatchInterface[
             "-rltD",
         ]
         for file in relative_included:
+            # if `file` is a file
             command.extend(["--include", str(file)])
+            # if `file` is a directory
+            # it's okay to include both patterns - if it is invalid, it's ignored
+            command.extend(["--include", f"{str(file)}/***"])
         # exclude all files not specifically included
         command.extend(["--exclude", "*"])
 

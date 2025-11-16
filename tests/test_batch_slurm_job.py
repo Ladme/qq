@@ -286,14 +286,11 @@ def test_slurm_job_get_name_returns_name():
     assert job.getName() == "test_job"
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_name_returns_placeholder_and_logs_warning(mock_warning):
+def test_slurm_job_get_name_returns_none():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    result = job.getName()
-    assert result == "?????"
-    mock_warning.assert_called_once()
+    assert job.getName() is None
 
 
 def test_slurm_job_get_ncpus_returns_integer_value():
@@ -328,18 +325,18 @@ def test_slurm_job_get_ncpus_returns_min_cpus_if_higher():
     assert job.getNCPUs() == 16
 
 
-def test_slurm_job_get_ncpus_returns_zero_when_invalid_value():
+def test_slurm_job_get_ncpus_returns_none_when_invalid_value():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     job._info = {"NumCPUs": "invalid"}
-    assert job.getNCPUs() == 0
+    assert job.getNCPUs() is None
 
 
-def test_slurm_job_get_ncpus_returns_zero_when_key_missing():
+def test_slurm_job_get_ncpus_returns_none_when_key_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "654"
     job._info = {}
-    assert job.getNCPUs() == 0
+    assert job.getNCPUs() is None
 
 
 def test_slurm_job_get_ngpus_returns_value_from_gpu_prefix(monkeypatch):
@@ -354,22 +351,30 @@ def test_slurm_job_get_ngpus_returns_value_from_gres_gpu_prefix(monkeypatch):
     assert job.getNGPUs() == 4
 
 
-def test_slurm_job_get_ngpus_returns_zero_when_no_gpu_entry(monkeypatch):
+def test_slurm_job_get_ngpus_returns_value_from_gres_gpu_with_specification(
+    monkeypatch,
+):
+    job = SlurmJob.__new__(SlurmJob)
+    monkeypatch.setattr(job, "_getTres", lambda: "gres/gpu:mi250=4,mem=32G")
+    assert job.getNGPUs() == 4
+
+
+def test_slurm_job_get_ngpus_returns_none_when_no_gpu_entry(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,mem=16G")
-    assert job.getNGPUs() == 0
+    assert job.getNGPUs() is None
 
 
-def test_slurm_job_get_ngpus_returns_zero_when_empty_tres(monkeypatch):
+def test_slurm_job_get_ngpus_returns_none_when_empty_tres(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     monkeypatch.setattr(job, "_getTres", lambda: "")
-    assert job.getNGPUs() == 0
+    assert job.getNGPUs() is None
 
 
-def test_slurm_job_get_ngpus_returns_zero_when_gpu_value_invalid(monkeypatch):
+def test_slurm_job_get_ngpus_returns_none_when_gpu_value_invalid(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,gpu=invalid,mem=16G")
-    assert job.getNGPUs() == 0
+    assert job.getNGPUs() is None
 
 
 def test_slurm_job_get_nnodes_returns_integer_value():
@@ -384,18 +389,18 @@ def test_slurm_job_get_nnodes_returns_min_value_when_range():
     assert job.getNNodes() == 2
 
 
-def test_slurm_job_get_nnodes_returns_zero_when_invalid_value():
+def test_slurm_job_get_nnodes_returns_none_when_invalid_value():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     job._info = {"NumNodes": "invalid"}
-    assert job.getNNodes() == 0
+    assert job.getNNodes() is None
 
 
-def test_slurm_job_get_nnodes_returns_zero_when_key_missing():
+def test_slurm_job_get_nnodes_returns_none_when_key_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "654"
     job._info = {}
-    assert job.getNNodes() == 0
+    assert job.getNNodes() is None
 
 
 def test_slurm_job_get_mem_returns_parsed_size(monkeypatch):
@@ -415,37 +420,26 @@ def test_slurm_job_get_mem_returns_parsed_size_mb(monkeypatch):
 
 
 @patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_mem_returns_zero_size_when_parsing_fails(
-    mock_warning, monkeypatch
-):
+def test_slurm_job_get_mem_returns_none_when_parsing_fails(mock_warning, monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     monkeypatch.setattr(job, "_getTres", lambda: "cpu=4,mem=invalid")
-    result = job.getMem()
-    assert result.value == 0
+    assert job.getMem() is None
     mock_warning.assert_called_once()
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_mem_returns_zero_size_when_empty_tres(mock_warning, monkeypatch):
+def test_slurm_job_get_mem_returns_none_when_empty_tres(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     monkeypatch.setattr(job, "_getTres", lambda: "")
-    result = job.getMem()
-    assert result.value == 0
-    mock_warning.assert_called_once()
+    assert job.getMem() is None
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_mem_returns_zero_size_when_mem_missing(
-    mock_warning, monkeypatch
-):
+def test_slurm_job_get_mem_returns_none_when_mem_missing(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "654"
     monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,gres/gpu=1")
-    result = job.getMem()
-    assert result.value == 0
-    mock_warning.assert_called_once()
+    assert job.getMem() is None
 
 
 def test_slurm_job_get_start_time_returns_parsed_datetime():
@@ -485,11 +479,11 @@ def test_slurm_job_get_submission_time_returns_parsed_datetime():
     assert result == datetime(2024, 5, 10, 12, 0, 0)
 
 
-def test_slurm_job_get_submission_time_returns_datetime_min_when_invalid():
+def test_slurm_job_get_submission_time_returns_none_when_invalid():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {"SubmitTime": "invalid"}
-    assert job.getSubmissionTime() == datetime.min
+    assert job.getSubmissionTime() is None
 
 
 def test_slurm_job_get_completion_time_returns_parsed_datetime():
@@ -539,14 +533,11 @@ def test_slurm_job_get_user_returns_full_value_when_no_parenthesis():
     assert job.getUser() == "user2"
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_user_returns_placeholder_and_logs_warning(mock_warning):
+def test_slurm_job_get_user_returns_none():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "789"
     job._info = {}
-    result = job.getUser()
-    assert result == "?????"
-    mock_warning.assert_called_once()
+    assert job.getUser() is None
 
 
 def test_slurm_job_get_walltime_returns_correct_timedelta():
@@ -557,24 +548,18 @@ def test_slurm_job_get_walltime_returns_correct_timedelta():
     assert result == timedelta(days=2, hours=12, minutes=34, seconds=56)
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_walltime_returns_zero_and_logs_when_missing(mock_warning):
+def test_slurm_job_get_walltime_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    result = job.getWalltime()
-    assert result == timedelta(0)
-    mock_warning.assert_called_once()
+    assert job.getWalltime() is None
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_walltime_returns_zero_and_logs_when_invalid(mock_warning):
+def test_slurm_job_get_walltime_returns_none_when_invalid():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "456"
     job._info = {"TimeLimit": "invalid"}
-    result = job.getWalltime()
-    assert result == timedelta(0)
-    mock_warning.assert_called_once()
+    assert job.getWalltime() is None
 
 
 def test_slurm_job_get_queue_returns_partition_value():
@@ -583,14 +568,11 @@ def test_slurm_job_get_queue_returns_partition_value():
     assert job.getQueue() == "default"
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_queue_returns_placeholder_and_logs_warning(mock_warning):
+def test_slurm_job_get_queue_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    result = job.getQueue()
-    assert result == "?????"
-    mock_warning.assert_called_once()
+    assert job.getQueue() is None
 
 
 def test_slurm_job_get_util_cpu_returns_none():
@@ -633,9 +615,9 @@ def test_slurm_job_get_exit_code_returns_none_when_invalid_format():
     assert job.getExitCode() is None
 
 
-def test_slurm_job_get_input_machine_returns_placeholder():
+def test_slurm_job_get_input_machine_returns_none():
     job = SlurmJob.__new__(SlurmJob)
-    assert job.getInputMachine() == "?????"
+    assert job.getInputMachine() is None
 
 
 def test_slurm_job_get_input_dir_returns_resolved_path():
@@ -646,14 +628,11 @@ def test_slurm_job_get_input_dir_returns_resolved_path():
     assert resolved == Path("/tmp/testdir").resolve()
 
 
-@patch("qq_lib.batch.slurm.job.logger.warning")
-def test_slurm_job_get_input_dir_returns_placeholder_and_logs_warning(mock_warning):
+def test_slurm_job_get_input_dir_returns_none():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    result = job.getInputDir()
-    assert result == Path("???")
-    mock_warning.assert_called_once()
+    assert job.getInputDir() is None
 
 
 def test_slurm_job_get_info_file_returns_path_when_file_exists(monkeypatch):
@@ -860,3 +839,133 @@ def test_slurm_job_get_ids_for_sorting_returns_zero_for_invalid(job_id):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = job_id
     assert job.getIdsForSorting() == [0]
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_get_steps_returns_empty_on_nonzero_returncode(mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_result.stdout = ""
+    mock_run.return_value = mock_result
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    assert job.getSteps() == []
+    mock_run.assert_called_once()
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+def test_slurm_job_get_steps_parses_numeric_steps(mock_step, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "a\nb\n"
+    mock_run.return_value = mock_result
+
+    s0 = SlurmJob.__new__(SlurmJob)
+    s0._job_id = "999.0"
+    s1 = SlurmJob.__new__(SlurmJob)
+    s1._job_id = "999.1"
+
+    mock_step.side_effect = [s0, s1]
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    steps = job.getSteps()
+
+    assert len(steps) == 2
+    mock_step.assert_any_call("a")
+    mock_step.assert_any_call("b")
+    mock_run.assert_called_once()
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+def test_slurm_job_get_steps_skips_empty_lines(mock_step, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "a\n\nb\n"
+    mock_run.return_value = mock_result
+
+    s0 = SlurmJob.__new__(SlurmJob)
+    s0._job_id = "999.0"
+    s1 = SlurmJob.__new__(SlurmJob)
+    s1._job_id = "999.1"
+
+    mock_step.side_effect = [s0, s1]
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    steps = job.getSteps()
+
+    assert len(steps) == 2
+    mock_step.assert_any_call("a")
+    mock_step.assert_any_call("b")
+    mock_run.assert_called_once()
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+def test_slurm_job_get_steps_skips_non_numeric_steps(mock_step, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "x\n1\nabc\n2\n"
+    mock_run.return_value = mock_result
+
+    s_invalid1 = SlurmJob.__new__(SlurmJob)
+    s_invalid1._job_id = "999.x"
+    s_valid0 = SlurmJob.__new__(SlurmJob)
+    s_valid0._job_id = "999.0"
+    s_invalid2 = SlurmJob.__new__(SlurmJob)
+    s_invalid2._job_id = "999.abc"
+    s_valid1 = SlurmJob.__new__(SlurmJob)
+    s_valid1._job_id = "999.1"
+
+    mock_step.side_effect = [s_invalid1, s_valid0, s_invalid2, s_valid1]
+
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+
+    steps = job.getSteps()
+
+    assert len(steps) == 2
+    mock_run.assert_called_once()
+
+
+def test_slurm_job_get_step_id_returns_step_part_when_present():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123.456"
+    assert job.getStepId() == "456"
+
+
+def test_slurm_job_get_step_id_returns_none_when_no_step_part():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123"
+    assert job.getStepId() is None
+
+
+def test_slurm_job_step_from_sacct_string_parses_fields_correctly():
+    s = "123.1|RUNNING extra words|2025-11-14 14:45:16|2025-11-14 15:00:00"
+
+    result = SlurmJob._stepFromSacctString(s)
+
+    assert isinstance(result, SlurmJob)
+    assert result._job_id == "123.1"
+    assert result._info == {
+        "JobId": "123.1",
+        "JobState": "RUNNING",
+        "StartTime": "2025-11-14 14:45:16",
+        "EndTime": "2025-11-14 15:00:00",
+    }
+
+
+def test_slurm_job_step_from_sacct_string_raises_on_invalid_field_count():
+    s = "a|b|c"
+
+    with pytest.raises(
+        QQError, match="Number of items in a sacct string for a slurm step"
+    ):
+        SlurmJob._stepFromSacctString(s)

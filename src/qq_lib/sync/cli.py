@@ -10,20 +10,19 @@ import click
 from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import get_info_files_from_job_id_or_dir
+from qq_lib.core.common import get_info_files
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
-    QQJobMismatchError,
     QQNotSuitableError,
 )
 from qq_lib.core.error_handlers import (
     handle_general_qq_error,
-    handle_job_mismatch_error,
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
+from qq_lib.info.informer import Informer
 
 from .syncer import Syncer
 
@@ -59,7 +58,8 @@ Files are copied from the job's working directory to its input directory, not to
     "--files",
     type=str,
     default=None,
-    help="A colon-, comma-, or space-separated list of files to fetch. If not specified, all files are fetched.",
+    help="""A colon-, comma-, or space-separated list of files or directories to fetch.
+If not specified, the entire content of the working directory is fetched.""",
 )
 def sync(job: str | None, files: str | None) -> NoReturn:
     """
@@ -67,9 +67,12 @@ def sync(job: str | None, files: str | None) -> NoReturn:
     working directory (directories) of qq job(s) submitted from this directory.
     """
     try:
-        info_files = get_info_files_from_job_id_or_dir(job)
-        repeater = Repeater(info_files, _sync_job, job, _split_files(files))
-        repeater.onException(QQJobMismatchError, handle_job_mismatch_error)
+        if job:
+            informers = [Informer.fromJobId(job)]
+        else:
+            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+
+        repeater = Repeater(informers, _sync_job, _split_files(files))
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)
         repeater.onException(QQError, handle_general_qq_error)
         repeater.run()
@@ -94,33 +97,24 @@ def _split_files(files: str | None) -> list[str] | None:
     return re.split(r"[\s:,]+", files)
 
 
-def _sync_job(info_file: Path, job: str | None, files: list[str] | None) -> None:
+def _sync_job(informer: Informer, files: list[str] | None) -> None:
     """
     Perform synchronization of job files from a remote working directory to the local input directory.
 
     Args:
-        info_file (Path): Path to the qq info file associated with the job.
-        job (str | None): Optional job ID. If provided, it must correspond to the job id in
-            `info_file`; otherwise, a `QQJobMismatchError` is raised.
+        informer (Informer): Informer associated with the job.
         files (list[str] | None): Optional list of specific file names to synchronize.
             If not provided, all files are fetched from the job's working directory
             except those excluded by the batch system.
 
     Raises:
-        QQJobMismatchError: If the given `job` does not match the job described in `info_file`.
         QQNotSuitableError: If the job is not in a state suitable for synchronization,
             e.g., it has already finished, is exiting successfully, has been killed while queued,
             or is queued/booting.
         QQError: If an error occurs during synchronization setup or execution.
     """
 
-    syncer = Syncer(info_file)
-
-    # check that the info file in the killer corresponds
-    # to the specified job
-    if job and not syncer.matchesJob(job):
-        raise QQJobMismatchError(f"Info file for job '{job}' does not exist.")
-
+    syncer = Syncer.fromInformer(informer)
     syncer.printInfo(console)
 
     # make sure that the job is suitable to be synced

@@ -216,6 +216,7 @@ def test_runner_handle_sigterm_performs_cleanup_and_exits():
 def test_runner_cleanup_with_running_process():
     runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = True
     process_mock = MagicMock()
     process_mock.poll.return_value = None
 
@@ -229,10 +230,12 @@ def test_runner_cleanup_with_running_process():
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
         patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
     ):
         cfg_mock.runner.sigterm_to_sigkill = 3
         runner._cleanup()
 
+    mock_copy.assert_called_once_with(retry=False)
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_called_once_with("Cleaning up: terminating subprocess.")
     process_mock.terminate.assert_called_once()
@@ -243,6 +246,7 @@ def test_runner_cleanup_with_running_process():
 def test_runner_cleanup_with_timeout():
     runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = True
     process_mock = MagicMock()
     process_mock.poll.return_value = None
     runner._process = process_mock
@@ -250,9 +254,11 @@ def test_runner_cleanup_with_timeout():
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
     ):
         runner._cleanup()
 
+    mock_copy.assert_called_once_with(retry=False)
     runner._updateInfoKilled.assert_called_once()
     mock_logger.info.assert_any_call("Cleaning up: terminating subprocess.")
     process_mock.terminate.assert_called_once()
@@ -263,16 +269,119 @@ def test_runner_cleanup_with_timeout():
 def test_runner_cleanup_without_running_process():
     runner = Runner.__new__(Runner)
     runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = True
     process_mock = MagicMock()
     process_mock.poll.return_value = 0
     runner._process = process_mock
 
-    with patch("qq_lib.run.runner.logger"):
+    with (
+        patch("qq_lib.run.runner.logger"),
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
+    ):
         runner._cleanup()
 
+    mock_copy.assert_called_once_with(retry=False)
     runner._updateInfoKilled.assert_called_once()
     process_mock.terminate.assert_not_called()
     process_mock.kill.assert_not_called()
+
+
+def test_runner_cleanup_with_running_process_no_scratch():
+    runner = Runner.__new__(Runner)
+    runner._updateInfoKilled = MagicMock()
+    runner._use_scratch = False
+    process_mock = MagicMock()
+    process_mock.poll.return_value = None
+
+    def terminate_and_stop():
+        process_mock.poll.return_value = 0
+
+    process_mock.terminate.side_effect = terminate_and_stop
+    runner._process = process_mock
+
+    with (
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.sleep") as mock_sleep,
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch.object(Runner, "_copyRunTimeFilesToInputDir") as mock_copy,
+    ):
+        cfg_mock.runner.sigterm_to_sigkill = 3
+        runner._cleanup()
+
+    mock_copy.assert_not_called()
+    runner._updateInfoKilled.assert_called_once()
+    mock_logger.info.assert_called_once_with("Cleaning up: terminating subprocess.")
+    process_mock.terminate.assert_called_once()
+    mock_sleep.assert_called_once_with(3)
+    process_mock.kill.assert_not_called()
+
+
+def test_runner_prepare_command_line_for_resubmit_only_script():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == informer_mock.info.command_line + ["--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_script_path():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "job/script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_script_path_last():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "-q",
+        "gpu",
+        "job/script.sh",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == ["-q", "gpu", "script.sh", "--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_complicated_script_path():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "../path/to/../something/job/script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
 
 
 def test_runner_prepare_command_line_for_resubmit_inline_depend():
@@ -283,6 +392,7 @@ def test_runner_prepare_command_line_for_resubmit_inline_depend():
         "-q",
         "gpu",
     ]
+    informer_mock.info.script_name = "script.sh"
     informer_mock.info.job_id = "99999"
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -302,6 +412,7 @@ def test_runner_prepare_command_line_for_resubmit_separate_depend_argument():
         "-q",
         "gpu",
     ]
+    informer_mock.info.script_name = "script.sh"
     informer_mock.info.job_id = "99999"
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -311,6 +422,29 @@ def test_runner_prepare_command_line_for_resubmit_separate_depend_argument():
     assert "--depend" not in result
     assert "afterok=11111" not in result
     assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
+
+
+def test_runner_prepare_command_line_for_resubmit_multiple_scripts():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "script.sh",
+        "--depend",
+        "afterok=11111",
+        "--exclude",
+        "script.sh",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    with pytest.raises(
+        QQError,
+        match="Heuristic identification of script name failed for command line:",
+    ):
+        runner._prepareCommandLineForResubmit()
 
 
 def test_runner_prepare_command_line_for_resubmit_multiple_depends():
@@ -324,6 +458,7 @@ def test_runner_prepare_command_line_for_resubmit_multiple_depends():
         "-q",
         "gpu",
     ]
+    informer_mock.info.script_name = "script.sh"
     informer_mock.info.job_id = "99999"
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -336,6 +471,33 @@ def test_runner_prepare_command_line_for_resubmit_multiple_depends():
     assert result[-1] == "--depend=afterok=99999"
     assert "gpu" in result
     assert "script.sh" in result
+
+
+def test_runner_prepare_command_line_for_resubmit_multiple_depends_and_script_path_complex():
+    informer_mock = MagicMock()
+    informer_mock.info.command_line = [
+        "--depend=afterok=11111",
+        "--depend",
+        "afterany=33333",
+        "job/path/script.sh",
+        "--depend=after=22222",
+        "-q",
+        "gpu",
+    ]
+    informer_mock.info.script_name = "script.sh"
+    informer_mock.info.job_id = "99999"
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._prepareCommandLineForResubmit()
+
+    assert "--depend" not in result
+    assert all("afterok=11111" not in arg for arg in result)
+    assert all("afterany=33333" not in arg for arg in result)
+    assert result[-1] == "--depend=afterok=99999"
+    assert "gpu" in result
+    assert "script.sh" in result
+    assert "job/path/script.sh" not in result
 
 
 def test_runner_prepare_command_line_for_resubmit_depend_last_arg():
@@ -708,6 +870,7 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._input_dir = Path("/input")
     runner._informer.info.job_id = "123"
     runner._informer.info.excluded_files = ["ignore.txt"]
+    runner._informer.info.included_files = ["include1.txt", "include2.txt"]
     runner._informer.info.input_machine = "random.host.org"
     runner._informer.info.input_dir = Path("/input")
     runner._informer.info.job_name = "job+0002"
@@ -749,6 +912,14 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     assert sync_call.kwargs["max_tries"] == CFG.runner.retry_tries
     assert sync_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
 
+    # fourth Retryer call: _copyFiles
+    copy_files_call = retryer_cls.call_args_list[3]
+    expected_included = ["include1.txt", "include2.txt"]
+    assert copy_files_call.args[0] == runner._copyFiles
+    assert copy_files_call.args[1] == expected_included
+    assert copy_files_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert copy_files_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
+
 
 def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     runner = Runner.__new__(Runner)
@@ -777,8 +948,8 @@ def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     ):
         runner._setUpScratchDir()
 
-    # ensure Retryer was called three times
-    assert retryer_cls.call_count == 3
+    # ensure Retryer was called four times
+    assert retryer_cls.call_count == 4
 
     # verify that the third Retryer call (syncWithExclusions) included the archive in excluded
     sync_call_args = retryer_cls.call_args_list[2].args
@@ -832,7 +1003,9 @@ def test_runner_log_failure_and_exit_calls_fallback_on_exception():
     mock_fatal.assert_called_once()
 
 
-def test_runner_finalize_failure_updates_info_failed():
+@patch("qq_lib.run.runner.logger.info")
+@patch.object(Runner, "_copyRunTimeFilesToInputDir")
+def test_runner_finalize_failure_updates_info_failed(mock_copy, mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 91
@@ -841,10 +1014,33 @@ def test_runner_finalize_failure_updates_info_failed():
 
     runner.finalize()
 
+    mock_copy.assert_called_once_with(retry=True)
     runner._updateInfoFailed.assert_called_once_with(91)
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 91.")
 
 
-def test_runner_finalize_with_scratch_and_archiver():
+@patch("qq_lib.run.runner.logger.info")
+@patch.object(Runner, "_copyRunTimeFilesToInputDir")
+def test_runner_finalize_failure_updates_info_failed_no_scratch(
+    mock_copy, mock_logger_info
+):
+    runner = Runner.__new__(Runner)
+    runner._process = MagicMock()
+    runner._process.returncode = 91
+    runner._use_scratch = False
+    runner._updateInfoFailed = MagicMock()
+
+    runner.finalize()
+
+    mock_copy.assert_not_called()
+    runner._updateInfoFailed.assert_called_once_with(91)
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 91.")
+
+
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -863,6 +1059,9 @@ def test_runner_finalize_with_scratch_and_archiver():
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
         patch("socket.gethostname", return_value="host"),
+        patch.object(
+            Runner, "_getExplicitlyIncludedFilesInWorkDir", return_value=[]
+        ) as included_mock,
     ):
         runner.finalize()
 
@@ -870,9 +1069,13 @@ def test_runner_finalize_with_scratch_and_archiver():
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
+    included_mock.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
-def test_runner_finalize_with_scratch_and_without_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -897,9 +1100,12 @@ def test_runner_finalize_with_scratch_and_without_archiver():
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
-def test_runner_finalize_without_scratch_and_with_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_without_scratch_and_with_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -920,9 +1126,12 @@ def test_runner_finalize_without_scratch_and_with_archiver():
     runner._archiver.toArchive.assert_called_once_with(runner._work_dir)
     runner._deleteWorkDir.assert_not_called()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
-def test_runner_finalize_without_scratch_and_without_archiver():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_without_scratch_and_without_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -942,9 +1151,12 @@ def test_runner_finalize_without_scratch_and_without_archiver():
 
     runner._deleteWorkDir.assert_not_called()
     runner._updateInfoFinished.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
-def test_runner_finalize_with_scratch_archiver_and_resubmit():
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
     runner._process.returncode = 0
@@ -971,6 +1183,8 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit():
     retryer_mock.assert_called_once()
     runner._deleteWorkDir.assert_called_once()
     runner._resubmit.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
 
 def test_runner_execute_updates_info_and_runs_script(tmp_path):
@@ -1079,7 +1293,7 @@ def test_runner_prepare_with_scratch_and_archiver():
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
-        patch("qq_lib.run.runner.CFG") as mock_cfg,
+        patch("qq_lib.core.common.CFG") as mock_cfg,
     ):
         mock_cfg.loop_jobs.pattern = "_loop_%d+"
         runner.prepare()
@@ -1118,7 +1332,7 @@ def test_runner_prepare_without_scratch_and_with_archiver():
 
     with (
         patch("qq_lib.run.runner.logger"),
-        patch("qq_lib.run.runner.CFG") as mock_cfg,
+        patch("qq_lib.core.common.CFG") as mock_cfg,
     ):
         mock_cfg.loop_jobs.pattern = "_loop_%d+"
         runner.prepare()
@@ -1329,3 +1543,139 @@ def test_runner_reload_info_and_ensure_valid_raises_on_killed_state():
 
     runner._reloadInfo.assert_called_once_with(False)
     runner._ensureMatchesJob.assert_called_once_with("12345")
+
+
+def test_runner_copy_run_time_files_to_input_dir_retry_true():
+    informer = MagicMock()
+    informer.info.stdout_file = "/tmp/std.out"
+    informer.info.stderr_file = "/tmp/std.err"
+    informer.info.input_machine = "machineA"
+
+    batch_system = MagicMock()
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer
+    runner._batch_system = batch_system
+    runner._work_dir = "/work"
+    runner._input_dir = "/input"
+
+    with (
+        patch("qq_lib.run.runner.socket.gethostname", return_value="host"),
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
+    ):
+        retry_instance = MagicMock()
+        mock_retryer.return_value = retry_instance
+
+        runner._copyRunTimeFilesToInputDir(retry=True)
+
+    expected_files = [
+        Path("/tmp/std.out").resolve(),
+        Path("/tmp/std.err").resolve(),
+    ]
+
+    mock_retryer.assert_called_once_with(
+        batch_system.syncSelected,
+        "/work",
+        "/input",
+        "host",
+        "machineA",
+        include_files=expected_files,
+        max_tries=CFG.runner.retry_tries,
+        wait_seconds=CFG.runner.retry_wait,
+    )
+
+    retry_instance.run.assert_called_once()
+    batch_system.syncSelected.assert_not_called()
+
+
+def test_runner_copy_run_time_files_to_input_dir_retry_false():
+    informer = MagicMock()
+    informer.info.stdout_file = "/tmp/std.out"
+    informer.info.stderr_file = "/tmp/std.err"
+    informer.info.input_machine = "machineA"
+
+    batch_system = MagicMock()
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer
+    runner._batch_system = batch_system
+    runner._work_dir = "/work"
+    runner._input_dir = "/input"
+
+    with patch("qq_lib.run.runner.socket.gethostname", return_value="host"):
+        runner._copyRunTimeFilesToInputDir(retry=False)
+
+    expected_files = [
+        Path("/tmp/std.out").resolve(),
+        Path("/tmp/std.err").resolve(),
+    ]
+
+    batch_system.syncSelected.assert_called_once_with(
+        "/work",
+        "/input",
+        "host",
+        "machineA",
+        expected_files,
+    )
+
+
+def test_runner_get_included_files_in_work_dir_resolves_paths(tmp_path):
+    runner = Runner.__new__(Runner)
+
+    runner._work_dir = tmp_path / "workdir"
+    runner._work_dir.mkdir()
+
+    abs_file = tmp_path / "abs.txt"
+    abs_file.write_text("abs")
+
+    rel_file = Path("rel.txt")
+    (tmp_path / "rel.txt").write_text("rel")
+
+    included = [abs_file, rel_file]
+
+    runner._informer = MagicMock()
+    runner._informer.info.included_files = included
+
+    expected = [
+        (runner._work_dir / abs_file.name).resolve(),
+        (runner._work_dir / rel_file.name).resolve(),
+    ]
+
+    result = runner._getExplicitlyIncludedFilesInWorkDir()
+
+    assert result == expected
+
+
+@patch("qq_lib.run.runner.socket.gethostname", return_value="local")
+def test_runner_copy_files_calls_sync_selected(tmp_path):
+    runner = Runner.__new__(Runner)
+    runner._work_dir = tmp_path / "work"
+    runner._work_dir.mkdir()
+
+    file1 = tmp_path / "a" / "file1.txt"
+    file2 = tmp_path / "b" / "file2.txt"
+    files = [file1, file2]
+
+    runner._batch_system = MagicMock()
+    runner._informer = MagicMock()
+    runner._informer.info.input_machine = "input_machine"
+
+    runner._copyFiles(files)
+
+    runner._batch_system.syncSelected.assert_any_call(
+        file1.parent,
+        runner._work_dir,
+        "input_machine",
+        "local",
+        [file1],
+    )
+
+    runner._batch_system.syncSelected.assert_any_call(
+        file2.parent,
+        runner._work_dir,
+        "input_machine",
+        "local",
+        [file2],
+    )
+
+    assert runner._batch_system.syncSelected.call_count == 2

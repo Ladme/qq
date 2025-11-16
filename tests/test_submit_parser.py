@@ -212,6 +212,29 @@ def test_parser_get_exclude_calls_split_files_list():
     assert result == mock_split_result
 
 
+def test_parser_get_include_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.getInclude()
+    assert result == []
+
+
+def test_parser_get_include_calls_split_files_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {"include": "file1,file2"}
+
+    mock_split_result = [Path("file1"), Path("file2")]
+
+    with patch(
+        "qq_lib.submit.parser.split_files_list", return_value=mock_split_result
+    ) as mock_split:
+        result = parser.getInclude()
+
+    mock_split.assert_called_once_with("file1,file2")
+    assert result == mock_split_result
+
+
 def test_parser_get_resources_returns_empty_resources_if_no_matching_options():
     parser = Parser.__new__(Parser)
     parser._options = {"foo": "bar"}  # not a Resources field
@@ -587,7 +610,7 @@ exit 0
     assert resources.props == {"vnode": "node"}
 
     exclude = parser.getExclude()
-    assert exclude == [Path.cwd() / "file1.txt", Path.cwd() / "file2.txt"]
+    assert exclude == [Path("file1.txt"), Path("file2.txt")]
 
     assert parser.getLoopStart() == 2
     assert parser.getLoopEnd() == 10

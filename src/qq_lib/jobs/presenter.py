@@ -11,6 +11,7 @@ from rich.text import Text
 from tabulate import Line, TableFormat, tabulate
 
 from qq_lib.batch.interface import BatchJobInterface
+from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
 )
@@ -69,7 +70,13 @@ class JobsPresenter:
         with_header_hide=["lineabove", "linebelow"],
     )
 
-    def __init__(self, jobs: list[BatchJobInterface], extra: bool):
+    def __init__(
+        self,
+        batch_system: type[BatchInterface],
+        jobs: list[BatchJobInterface],
+        extra: bool,
+        all: bool,
+    ):
         """
         Initialize the presenter with a list of jobs.
 
@@ -77,10 +84,13 @@ class JobsPresenter:
             jobs (list[BatchJobInterface]): List of job information objects
                 to be presented.
             extra (bool): Should show additional info about jobs.
+            all (bool): Show all jobs, not just queued and running.
         """
+        self._batch_system = batch_system
         self._jobs = jobs
         self._stats = JobsStatistics()
         self._extra = extra
+        self._all = all
 
     def createJobsInfoPanel(self, console: Console | None = None) -> Group:
         """
@@ -142,7 +152,25 @@ class JobsPresenter:
               Rich's Table is prohibitively slow for large number of items.
             - Updates internal job statistics via `self._stats`.
         """
-        headers = [
+        headers = self._getVisibleHeaders()
+        rows = [self._createJobRow(job, headers) for job in self._jobs]
+
+        return tabulate(
+            rows,
+            headers=self._formatHeaders(headers),
+            tablefmt=JobsPresenter.COMPACT_TABLE,
+            stralign="center",
+            numalign="center",
+        )
+
+    def _getVisibleHeaders(self) -> list[str]:
+        """
+        Get list of headers to display based on the batch system configuration.
+
+        Return:
+            list[str]: A list of headers to show.
+        """
+        all_headers = [
             "S",
             "Job ID",
             "User",
@@ -155,73 +183,104 @@ class JobsPresenter:
             "Node",
             "%CPU",
             "%Mem",
-            "Exit",
+            "Exit" if self._all else None,
         ]
+        headers_to_show = self._batch_system.jobsPresenterColumnsToShow()
+        return [h for h in all_headers if h and h in headers_to_show]
 
-        rows = []
-        for job in self._jobs:
-            state = job.getState()
-            if state in {BatchState.QUEUED, BatchState.HELD, BatchState.WAITING}:
-                start_time = job.getSubmissionTime()
-            else:
-                start_time = job.getStartTime() or job.getSubmissionTime()
-            end_time = (
-                datetime.now()
-                if state not in {BatchState.FINISHED, BatchState.FAILED}
-                else job.getCompletionTime() or job.getModificationTime()
+    def _createJobRow(self, job: BatchJobInterface, headers: list[str]) -> list[str]:
+        """
+        Create a single row of job data.
+
+        Args:
+            job (BatchJobInterface): Job to show information for.
+            headers (list[str]): List of headers to include in the row
+
+        Returns:
+            list[str]: List of formatted cell values.
+        """
+        state = job.getState()
+        start_time, end_time = self._getJobTimes(job, state)
+
+        # update statistics
+        cpus = job.getNCPUs() or 0
+        gpus = job.getNGPUs() or 0
+        nodes = job.getNNodes() or 0
+        self._stats.addJob(state, cpus, gpus, nodes)
+
+        # build the row
+        row_data = {
+            "S": JobsPresenter._color(state.toCode(), state.color),
+            "Job ID": JobsPresenter._mainColor(
+                JobsPresenter._shortenJobId(job.getId())
+            ),
+            "User": JobsPresenter._mainColor(job.getUser() or ""),
+            "Job Name": JobsPresenter._mainColor(
+                JobsPresenter._shortenJobName(job.getName() or "")
+            ),
+            "Queue": JobsPresenter._mainColor(job.getQueue() or ""),
+            "NCPUs": JobsPresenter._mainColor(str(cpus)),
+            "NGPUs": JobsPresenter._mainColor(str(gpus)),
+            "NNodes": JobsPresenter._mainColor(str(nodes)),
+            "Times": JobsPresenter._formatTime(
+                state, start_time, end_time, job.getWalltime()
+            ),
+            "Node": JobsPresenter._formatNodesOrComment(state, job),
+            "%CPU": JobsPresenter._formatUtilCPU(job.getUtilCPU()),
+            "%Mem": JobsPresenter._formatUtilMem(job.getUtilMem()),
+            "Exit": JobsPresenter._formatExitCode(job, state) if self._all else None,
+        }
+
+        return [row_data[header] for header in headers if header in row_data]
+
+    @staticmethod
+    def _getJobTimes(
+        job: BatchJobInterface, state: BatchState
+    ) -> tuple[datetime | None, datetime | None]:
+        """
+        Get start and end times for a job based on its state.
+
+        Args:
+            job (BatchJobInterface): Job to get times for.
+            state (BatchState): The current job state.
+
+        Returns:
+            tuple[datetime | None, datetime | None]: Tuple of (start_time, end_time).
+        """
+        if state in {BatchState.QUEUED, BatchState.HELD, BatchState.WAITING}:
+            start_time = job.getSubmissionTime()
+        else:
+            start_time = job.getStartTime() or job.getSubmissionTime()
+
+        if state in {BatchState.FINISHED, BatchState.FAILED}:
+            end_time = job.getCompletionTime() or job.getModificationTime()
+        else:
+            end_time = datetime.now()
+
+        return start_time, end_time
+
+    def _formatHeaders(self, headers: list[str]) -> list[str]:
+        """
+        Apply formatting to table headers.
+
+        Args:
+            headers (list[str]): List of headers to format.
+
+        Returns:
+            list[str]: List of formatted and colored headers.
+        """
+        return [
+            JobsPresenter._color(
+                header, color=CFG.jobs_presenter.headers_style, bold=True
             )
-
-            cpus = job.getNCPUs()
-            gpus = job.getNGPUs()
-            nodes = job.getNNodes()
-            self._stats.addJob(state, cpus, gpus, nodes)
-            exit_code = job.getExitCode()
-
-            row = [
-                JobsPresenter._color(state.toCode(), state.color),
-                JobsPresenter._mainColor(JobsPresenter._shortenJobId(job.getId())),
-                JobsPresenter._mainColor(job.getUser()),
-                JobsPresenter._mainColor(JobsPresenter._shortenJobName(job.getName())),
-                JobsPresenter._mainColor(job.getQueue()),
-                JobsPresenter._mainColor(str(cpus)),
-                JobsPresenter._mainColor(str(gpus)),
-                JobsPresenter._mainColor(str(nodes)),
-                JobsPresenter._formatTime(
-                    state, start_time, end_time, job.getWalltime()
-                ),
-                JobsPresenter._formatNodesOrComment(state, job),
-                JobsPresenter._formatUtilCPU(job.getUtilCPU()),
-                JobsPresenter._formatUtilMem(job.getUtilMem()),
-                JobsPresenter._formatExitCode(
-                    exit_code
-                    if state
-                    in {
-                        BatchState.FINISHED,
-                        BatchState.FAILED,
-                    }  # only show exit code for completed jobs
-                    else None
-                ),
-            ]
-            rows.append(row)
-
-        return tabulate(
-            rows,
-            headers=[
-                JobsPresenter._color(
-                    header, color=CFG.jobs_presenter.headers_style, bold=True
-                )
-                for header in headers
-            ],
-            tablefmt=JobsPresenter.COMPACT_TABLE,
-            stralign="center",
-            numalign="center",
-        )
+            for header in headers
+        ]
 
     def _insertExtraInfo(self, table: str) -> str:
         """
         Augment a formatted job table with additional information about each job.
 
-        Lines where job attributes are missing (indicated by "???") are skipped.
+        Lines where job attributes are missing are skipped.
 
         Args:
             table (str): The formatted table string containing one line per job.
@@ -235,15 +294,21 @@ class JobsPresenter:
         for line, job in zip(split_table[1:], self._jobs):
             table_with_extra_info += line + "\n"
 
-            if "???" not in (input_machine := job.getInputMachine()):
+            if input_machine := job.getInputMachine():
                 table_with_extra_info += JobsPresenter._color(
                     f" >   Input machine:   {input_machine}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
 
-            if "???" not in (input_dir := str(job.getInputDir())):
+            if input_dir := job.getInputDir():
                 table_with_extra_info += JobsPresenter._color(
-                    f" >   Input directory: {input_dir}\n",
+                    f" >   Input directory: {str(input_dir)}\n",
+                    CFG.jobs_presenter.extra_info_style,
+                )
+
+            if comment := job.getComment():
+                table_with_extra_info += JobsPresenter._color(
+                    f" >   Comment:         {comment}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
             table_with_extra_info += "\n"
@@ -252,20 +317,27 @@ class JobsPresenter:
 
     @staticmethod
     def _formatTime(
-        state: BatchState, start_time: datetime, end_time: datetime, walltime: timedelta
+        state: BatchState,
+        start_time: datetime | None,
+        end_time: datetime | None,
+        walltime: timedelta | None,
     ) -> str:
         """
         Format the job running time, queued time or completion time with color coding.
 
         Args:
             state (BatchState): Current job state.
-            start_time (datetime): Job submission or start time.
-            end_time (datetime): Job completion or current time.
-            walltime (timedelta): Scheduled walltime for the job.
+            start_time (datetime | None): Job submission or start time.
+            end_time (datetime | None): Job completion or current time.
+            walltime (timedelta | None): Scheduled walltime for the job.
 
         Returns:
             str: ANSI-colored string representing elapsed or finished time.
         """
+        # return an empty string if any of the required times is missing
+        if start_time is None or end_time is None or walltime is None:
+            return ""
+
         match state:
             case BatchState.UNKNOWN | BatchState.SUSPENDED:
                 return ""
@@ -345,25 +417,35 @@ class JobsPresenter:
         return JobsPresenter._color(str(util), color=color)
 
     @staticmethod
-    def _formatExitCode(exit_code: int | None) -> str:
+    def _formatExitCode(job: BatchJobInterface, state: BatchState) -> str:
         """
-        Format the job exit code with appropriate coloring.
+        Get formatted exit code if the job is completed and color it appropriately.
+
+        The color of the exit code is set based on the state of the job,
+        not on the value of the exit code.
+
+        If the job is not completed, returns an empty string.
 
         Args:
-            exit_code (int | None): Job exit code.
+            job (BatchJobInterface): Job to get the exit code for.
+            state (BatchState): The current job state.
 
         Returns:
-            str: ANSI-colored exit code. Empty string if None.
+            str: ANSI-colored exit code. Empty string if the job is not completed
+            or the exit code is undefined.
         """
-        if exit_code is None:
+        if (exit_code := job.getExitCode()) is None:
             return ""
 
-        if exit_code == 0:
-            return JobsPresenter._mainColor(str(exit_code))
-
-        return JobsPresenter._color(
-            str(exit_code), color=CFG.jobs_presenter.strong_warning_style
-        )
+        match state:
+            case BatchState.FINISHED:
+                return JobsPresenter._mainColor(str(exit_code))
+            case BatchState.FAILED:
+                return JobsPresenter._color(
+                    str(exit_code), color=CFG.jobs_presenter.strong_warning_style
+                )
+            case _:
+                return ""
 
     @staticmethod
     def _formatNodesOrComment(state: BatchState, job: BatchJobInterface) -> str:
@@ -387,10 +469,9 @@ class JobsPresenter:
             return ""
 
         if estimated := job.getEstimated():
+            truncated_nodes = JobsPresenter._shortenNodes(estimated[1])
             return JobsPresenter._color(
-                JobsPresenter._shortenNodes(
-                    f"{estimated[1]} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}"
-                ),
+                f"{truncated_nodes} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
                 color=state.color,
             )
 

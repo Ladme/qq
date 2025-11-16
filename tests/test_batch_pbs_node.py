@@ -103,19 +103,19 @@ def test_pbs_node_get_int_resource_returns_valid_int():
     assert result == 32
 
 
-def test_pbs_node_get_int_resource_returns_zero_when_missing():
+def test_pbs_node_get_int_resource_returns_none_when_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
     result = node._getIntResource("resources_available.ncpus")
-    assert result == 0
+    assert result is None
 
 
 @patch("qq_lib.batch.pbs.node.logger.debug")
-def test_pbs_node_get_int_resource_returns_zero_on_invalid_int(mock_logger_debug):
+def test_pbs_node_get_int_resource_returns_none_on_invalid_int(mock_logger_debug):
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.ncpus": "not_an_int"}
     result = node._getIntResource("resources_available.ncpus")
-    assert result == 0
+    assert result is None
     mock_logger_debug.assert_called_once()
 
 
@@ -139,11 +139,11 @@ def test_pbs_node_get_free_int_resource_returns_zero_when_negative():
     assert result == 0
 
 
-def test_pbs_node_get_free_int_resource_returns_zero_when_values_missing():
+def test_pbs_node_get_free_int_resource_returns_none_when_values_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
     result = node._getFreeIntResource("ngpus")
-    assert result == 0
+    assert result is None
 
 
 def test_pbs_node_get_size_resource_returns_valid_size():
@@ -154,20 +154,18 @@ def test_pbs_node_get_size_resource_returns_valid_size():
     assert result.value == 8388608
 
 
-def test_pbs_node_get_size_resource_returns_zero_when_missing():
+def test_pbs_node_get_size_resource_returns_none_when_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
     result = node._getSizeResource("resources_available.mem")
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
-def test_pbs_node_get_size_resource_returns_zero_when_invalid_value():
+def test_pbs_node_get_size_resource_returns_none_when_invalid_value():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.mem": "invalid_value"}
     result = node._getSizeResource("resources_available.mem")
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
 def test_pbs_node_get_free_size_resource_returns_correct_difference():
@@ -192,12 +190,11 @@ def test_pbs_node_get_free_size_resource_returns_zero_when_negative():
     assert result.value == 0
 
 
-def test_pbs_node_get_free_size_resource_returns_zero_when_missing():
+def test_pbs_node_get_free_size_resource_returns_none_when_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
     result = node._getFreeSizeResource("mem")
-    assert isinstance(result, Size)
-    assert result.value == 0
+    assert result is None
 
 
 def test_pbs_node_get_ncpus_returns_int():

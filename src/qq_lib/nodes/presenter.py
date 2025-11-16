@@ -174,10 +174,10 @@ class NodeGroup:
             else CFG.nodes_presenter.unavailable_node_style
         )
 
-        free_cpus = node.getNFreeCPUs()
-        total_cpus = node.getNCPUs()
-        free_gpus = node.getNFreeGPUs()
-        total_gpus = node.getNGPUs()
+        free_cpus = node.getNFreeCPUs() or 0
+        total_cpus = node.getNCPUs() or 0
+        free_gpus = node.getNFreeGPUs() or 0
+        total_gpus = node.getNGPUs() or 0
 
         # add the properties of this node to statistics
         self.stats.addNode(
@@ -191,7 +191,9 @@ class NodeGroup:
             Text(node.getName(), style=style),
             NodesPresenter._formatProcessingUnits(free_cpus, total_cpus, available),
             NodesPresenter._formatSizeProperty(
-                node.getFreeCPUMemory(), node.getCPUMemory(), style
+                node.getFreeCPUMemory() or Size(0, "kb"),
+                node.getCPUMemory() or Size(0, "kb"),
+                style,
             ),
             NodesPresenter._formatProcessingUnits(free_gpus, total_gpus, available)
             if self._show_gpus
@@ -224,7 +226,7 @@ class NodeGroup:
         Returns:
             bool: True if any node has GPUs, False otherwise.
         """
-        return any(n.getNGPUs() != 0 for n in self.nodes)
+        return any((ngpus := n.getNGPUs()) and ngpus != 0 for n in self.nodes)
 
     def _shouldShowGPUMem(self) -> bool:
         """
@@ -233,7 +235,7 @@ class NodeGroup:
         Returns:
             bool: True if any node has GPU memory, False otherwise.
         """
-        return any(n.getGPUMemory().value != 0 for n in self.nodes)
+        return any((mem := n.getGPUMemory()) and mem.value != 0 for n in self.nodes)
 
     def _shouldShowLocalScratch(self) -> bool:
         """
@@ -242,7 +244,9 @@ class NodeGroup:
         Returns:
             bool: True if any node has local scratch space, False otherwise.
         """
-        return any(n.getLocalScratch().value != 0 for n in self.nodes)
+        return any(
+            (scratch := n.getLocalScratch()) and scratch.value != 0 for n in self.nodes
+        )
 
     def _shouldShowSSDScratch(self) -> bool:
         """
@@ -251,7 +255,9 @@ class NodeGroup:
         Returns:
             bool: True if any node has SSD scratch space, False otherwise.
         """
-        return any(n.getSSDScratch().value != 0 for n in self.nodes)
+        return any(
+            (scratch := n.getSSDScratch()) and scratch.value != 0 for n in self.nodes
+        )
 
     def _shouldShowSharedScratch(self) -> bool:
         """
@@ -260,7 +266,9 @@ class NodeGroup:
         Returns:
             bool: True if any node has shared scratch space, False otherwise.
         """
-        return any(n.getSharedScratch().value != 0 for n in self.nodes)
+        return any(
+            (scratch := n.getSharedScratch()) and scratch.value != 0 for n in self.nodes
+        )
 
     def _shouldShowProperties(self) -> bool:
         """

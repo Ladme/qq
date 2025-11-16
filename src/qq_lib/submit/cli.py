@@ -59,8 +59,20 @@ using qq directives of this format: `# qq <option>=<value>`.
     type=str,
     default=None,
     help=(
-        f"A colon-, comma-, or space-separated list of files and directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
-        "By default, all files and directories except the qq info file and the archive directory are copied to the working directory.\n"
+        f"A colon-, comma-, or space-separated list of files or directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
+        "Paths to files and directories to exclude must be relative to the input directory.\n"
+    ),
+)
+@optgroup.option(
+    "--include",
+    type=str,
+    default=None,
+    help=(
+        f"A colon-, comma-, or space-separated list of files or directories that {click.style('should be', bold=True)} copied to the working directory\n"
+        f"even though they are not part of the job's input directory.\n"
+        f"These files will {click.style('not', bold=True)} be copied back to the input directory even after successful completion of the job.\n"
+        "Paths to files and directories to include must be either absolute or relative to the input directory.\n"
+        "This option is ignored if the input directory itself is used as the working directory.\n"
     ),
 )
 @optgroup.option(

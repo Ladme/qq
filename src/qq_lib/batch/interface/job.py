@@ -5,6 +5,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Self
 
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
@@ -135,72 +136,73 @@ class BatchJobInterface(ABC):
         pass
 
     @abstractmethod
-    def getUser(self) -> str:
+    def getUser(self) -> str | None:
         """
         Return the username of the job owner.
 
         Returns:
-            str: Username of the user who owns the job.
+            str | None: Username of the user who owns the job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getNCPUs(self) -> int:
+    def getNCPUs(self) -> int | None:
         """
         Return the number of CPU cores allocated for the job.
 
         Returns:
-            int: Number of CPUs allocated for the job.
+            int | None: Number of CPUs allocated for the job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getNGPUs(self) -> int:
+    def getNGPUs(self) -> int | None:
         """
         Return the number of GPUs allocated for the job.
 
         Returns:
-            int: Number of GPUs allocated for the job.
+            int | None: Number of GPUs allocated for the job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getNNodes(self) -> int:
+    def getNNodes(self) -> int | None:
         """
         Return the number of compute nodes assigned to the job.
 
         Returns:
-            int: Number of nodes used by the job.
+            int | None: Number of nodes used by the job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getMem(self) -> Size:
+    def getMem(self) -> Size | None:
         """
         Return the amount of memory allocated for the job.
 
         Returns:
-            Size: Amount of memory allocated for the job.
+            Size | None: Amount of memory allocated for the job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getName(self) -> str:
+    def getName(self) -> str | None:
         """
         Return the name of the job.
 
         Returns:
-            str: The name of the submitted job.
+            str | None: The name of the submitted job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getSubmissionTime(self) -> datetime:
+    def getSubmissionTime(self) -> datetime | None:
         """
         Return the timestamp when the job was submitted.
 
         Returns:
-            datetime: Time when the job was submitted to the batch system.
+            datetime | None: Time when the job was submitted to the batch system
+            or `None` if not available.
         """
         pass
 
@@ -211,7 +213,7 @@ class BatchJobInterface(ABC):
 
         Returns:
             datetime | None: Time when the job began running or
-            None if the job has not yet started.
+            `None` if the job has not yet started.
         """
         pass
 
@@ -222,37 +224,38 @@ class BatchJobInterface(ABC):
 
         Returns:
             datetime | None: Time when the job completed or
-            None if the job has not yet completed.
+            `None` if the job has not yet completed.
         """
         pass
 
     @abstractmethod
-    def getModificationTime(self) -> datetime:
+    def getModificationTime(self) -> datetime | None:
         """
         Return the timestamp at which the job was last modified.
 
         Returns:
-            datetime: Time when the job was last modified.
+            datetime | None: Time when the job was last modified or `None`
+            if the information is not available.
         """
         pass
 
     @abstractmethod
-    def getWalltime(self) -> timedelta:
+    def getWalltime(self) -> timedelta | None:
         """
         Return the walltime limit of the job.
 
         Returns:
-            timedelta: Walltime for the job.
+            timedelta | None: Walltime for the job or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getQueue(self) -> str:
+    def getQueue(self) -> str | None:
         """
         Return the submission queue of the job.
 
         Returns:
-            str: The queue this job is part of.
+            str | None: The queue this job is part of or `None` if not available.
         """
         pass
 
@@ -262,8 +265,7 @@ class BatchJobInterface(ABC):
         Return the utilization of requested CPUs in percents (0-100).
 
         Returns:
-            int | None: Utilization of requested CPUs or None
-            if information is not available.
+            int | None: Utilization of requested CPUs or `None` if not available.
         """
         pass
 
@@ -273,8 +275,7 @@ class BatchJobInterface(ABC):
         Return the utilization of requested memory in percents (0-100).
 
         Returns:
-            int | None: Utilization of requested memory or None
-            if information is not available.
+            int | None: Utilization of requested memory or `None` if not available.
         """
         pass
 
@@ -284,28 +285,27 @@ class BatchJobInterface(ABC):
         Return the exit code of the job.
 
         Returns:
-            int | None: Exit code of the job or None
-            if exit code is not assigned.
+            int | None: Exit code of the job or `None` if exit code is not assigned.
         """
         pass
 
     @abstractmethod
-    def getInputDir(self) -> Path:
+    def getInputDir(self) -> Path | None:
         """
         Return path to the directory from which the job was submitted.
 
         Returns:
-            Path: Path to the submission directory.
+            Path | None: Path to the submission directory or `None` if not available.
         """
         pass
 
     @abstractmethod
-    def getInputMachine(self) -> str:
+    def getInputMachine(self) -> str | None:
         """
         Return the hostname of the submission machine.
 
         Returns:
-            str: Hostname of the submission machine.
+            str | None: Hostname of the submission machine or `None` if not available.
         """
         pass
 
@@ -327,5 +327,28 @@ class BatchJobInterface(ABC):
 
         Returns:
             str: YAML-formatted string of job metadata.
+        """
+        pass
+
+    @abstractmethod
+    def getSteps(self) -> list[Self]:
+        """
+        Return a list of steps associated with this job.
+
+        Note that job step is represented by BatchJobInterface, but
+        may not contain all the values that a proper BatchJobInterface contains.
+
+        Returns:
+            list[BatchJobInterface] | None: List of job steps. An empty list if there are none.
+        """
+        pass
+
+    @abstractmethod
+    def getStepId(self) -> str | None:
+        """
+        Return the step index if this job is a job step.
+
+        Returns:
+            str | None: Job step index or `None` if this is not a job step.
         """
         pass

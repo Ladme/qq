@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
+from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.core.common import construct_info_file_path
+from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.info import Info
 from qq_lib.properties.states import BatchState, NaiveState, RealState
@@ -56,6 +59,66 @@ class Informer:
             QQError: If the file cannot be read, reached, or parsed correctly.
         """
         return cls(Info.fromFile(file, host))
+
+    @classmethod
+    def fromJobId(cls, job_id: str) -> Self:
+        """
+        Load an `Informer` from a job ID.
+
+        Retrieves batch metadata for the given job and loads its qq info file.
+        This is more efficient than resolving the info-file path separately,
+        as it also sets `_batch_info` without additional batch-system queries.
+
+        Args:
+            job_id (str): The job identifier.
+
+        Returns:
+            Informer: The loaded informer.
+
+        Raises:
+            QQError: If the job does not exist or is not a valid qq job.
+            QQJobMismatchError: If the info file does not correspond to the job's ID.
+        """
+        batch_system = BatchMeta.fromEnvVarOrGuess()
+        batch_job: BatchJobInterface = batch_system.getBatchJob(job_id)
+
+        if batch_job.isEmpty():
+            raise QQError(f"Job '{job_id}' does not exist.")
+
+        return Informer.fromBatchJob(batch_job)
+
+    @classmethod
+    def fromBatchJob(cls, batch_job: BatchJobInterface) -> Self:
+        """
+        Load an `Informer` from batch job information.
+
+        Raises an exception if the job is not a qq job.
+        This is more efficient than resolving the info-file path separately,
+        as it also sets `_batch_info` without additional batch-system queries.
+
+        Args:
+            batch_job (BatchJobInterface): The job info provided by the batch system.
+
+        Returns:
+            Informer: The loaded informer.
+
+        Raises:
+            QQError: If the job is not a valid qq job (missing info file).
+            QQJobMismatchError: If the info file does not correspond to the job's ID.
+        """
+        if not (path := batch_job.getInfoFile()):
+            raise QQError(f"Job '{batch_job.getId()}' is not a valid qq job.")
+
+        informer = Informer.fromFile(path)
+
+        # check that the loaded info file actually corresponds to the batch job's ID
+        if not informer.matchesJob(batch_job.getId()):
+            raise QQJobMismatchError(
+                f"Info file for job '{batch_job.getId()}' does not exist or is not reachable."
+            )
+
+        informer._batch_info = batch_job
+        return informer
 
     def toFile(self, file: Path, host: str | None = None) -> None:
         """
@@ -263,3 +326,24 @@ class Informer:
             self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
 
         return self._batch_info.getNodes()
+
+    def getBatchInfo(self) -> BatchJobInterface:
+        """
+        Return cached batch job information if available; otherwise fetch it from
+        the batch system, cache it, and return the result.
+
+        Returns:
+            BatchJobInterface: The information about the job from the batch system.
+        """
+        if self._batch_info is None:
+            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+        return self._batch_info
+
+    def getInfoFile(self) -> Path:
+        """
+        Get absolute path to the info file associated with this job.
+
+        Returns:
+            Path: Absolute path to the info file. Be aware that the info file does not have to exist.
+        """
+        return construct_info_file_path(self.info.input_dir, self.info.job_name)

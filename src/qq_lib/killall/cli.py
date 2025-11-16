@@ -5,7 +5,6 @@
 import getpass
 import sys
 from collections.abc import Iterable
-from pathlib import Path
 from typing import NoReturn
 
 import click
@@ -18,6 +17,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
+from qq_lib.info.informer import Informer
 from qq_lib.kill.cli import kill_job
 
 logger = get_logger(__name__)
@@ -47,8 +47,8 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
             logger.info("You have no active jobs. Nothing to kill.")
             sys.exit(0)
 
-        files = _jobs_to_paths(jobs)
-        if not files:
+        informers = _informers_from_jobs(jobs)
+        if not informers:
             logger.info(
                 f"You have no active qq jobs (and {len(jobs)} other jobs). Nothing to kill."
             )
@@ -58,17 +58,15 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
             yes
             or force
             or yes_or_no_prompt(
-                f"You have {len(files)} active qq job{'s' if len(files) > 1 else ''}. Do you want to kill {'them' if len(files) > 1 else 'it'}?"
+                f"You have {len(informers)} active qq job{'s' if len(informers) > 1 else ''}. Do you want to kill {'them' if len(informers) > 1 else 'it'}?"
             )
         ):
             repeater = Repeater(
-                files,
+                informers,
                 kill_job,
                 force=force,
                 yes=True,  # assume yes
-                job=None,  # assume that all qq info files correspond to the currently running jobs
             )
-            repeater.onException(QQJobMismatchError, _log_error_and_continue)
             repeater.onException(QQNotSuitableError, _log_error_and_continue)
             repeater.onException(QQError, _log_error_and_continue)
             repeater.run()
@@ -85,8 +83,18 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def _jobs_to_paths(jobs: Iterable[BatchJobInterface]) -> list[Path]:
-    return [info_file for job in jobs if (info_file := job.getInfoFile())]
+def _informers_from_jobs(jobs: Iterable[BatchJobInterface]) -> list[Informer]:
+    """
+    Get informers from the provided batch jobs. Ignore non-qq jobs.
+    """
+    informers = []
+    for job in jobs:
+        try:
+            informers.append(Informer.fromBatchJob(job))
+        except (QQError, QQJobMismatchError):
+            continue
+
+    return informers
 
 
 def _log_error_and_continue(

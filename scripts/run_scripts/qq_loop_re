@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #     multidir loop jobs using qq      #
-#         script version: 0.1          #
+#         script version: 0.2          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -262,7 +262,6 @@ IFS=" "
 # run the simulation
 if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     srun \
-    --mpi=pmix \
     --ntasks=${MPI} \
     --cpus-per-task=${NTOMP} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \

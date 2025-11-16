@@ -153,13 +153,25 @@ class Parser:
 
     def getExclude(self) -> list[Path]:
         """
-        Return a list of files to be excluded from the job submission.
+        Determine the files to exclude from being copied to the job's working directory.
 
         Returns:
             list[Path]: List of excluded file paths. Returns an empty list if none specified.
         """
         if isinstance(exclude := self._options.get("exclude"), str):
             return split_files_list(exclude)
+
+        return []
+
+    def getInclude(self) -> list[Path]:
+        """
+        Determine the files to explicitly copy to the job's working directory.
+
+        Returns:
+            list[Path]: List of included file paths. Returns an empty list if none specified.
+        """
+        if isinstance(include := self._options.get("include"), str):
+            return split_files_list(include)
 
         return []
 

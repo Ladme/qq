@@ -134,16 +134,16 @@ class SlurmQueue(BatchQueueInterface):
 
         return f"T{tier} ({job_factor})"
 
-    def getTotalJobs(self) -> int:
+    def getTotalJobs(self) -> int | None:
         return self._running_jobs + self._queued_jobs + self._other_jobs
 
-    def getRunningJobs(self) -> int:
+    def getRunningJobs(self) -> int | None:
         return self._running_jobs
 
-    def getQueuedJobs(self) -> int:
+    def getQueuedJobs(self) -> int | None:
         return self._queued_jobs
 
-    def getOtherJobs(self) -> int:
+    def getOtherJobs(self) -> int | None:
         return self._other_jobs
 
     def getMaxWalltime(self) -> timedelta | None:
@@ -152,8 +152,18 @@ class SlurmQueue(BatchQueueInterface):
 
         return None
 
-    def getComment(self) -> str:
-        return ""
+    def getMaxNNodes(self) -> int | None:
+        if not (raw := self._info.get("MaxNodes")):
+            return None
+
+        try:
+            return int(raw)
+        except ValueError as e:
+            logger.debug(f"Could not parse the 'MaxNodes' property as integer: {e}.")
+            return None
+
+    def getComment(self) -> str | None:
+        return None
 
     def isAvailableToUser(self, user: str) -> bool:
         # check the queue's state

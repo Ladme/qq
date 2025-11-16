@@ -4,7 +4,7 @@
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -468,7 +468,11 @@ def test_translate_rsync_included_command_local_to_local():
         "--include",
         "file1.txt",
         "--include",
+        "file1.txt/***",
+        "--include",
         "dir/file2.txt",
+        "--include",
+        "dir/file2.txt/***",
         "--exclude",
         "*",
         "/source/",
@@ -493,6 +497,8 @@ def test_translate_rsync_included_command_local_to_remote():
         "-rltD",
         "--include",
         "file1.txt",
+        "--include",
+        "file1.txt/***",
         "--exclude",
         "*",
         "/source/",
@@ -517,6 +523,8 @@ def test_translate_rsync_included_command_remote_to_local():
         "-rltD",
         "--include",
         "file1.txt",
+        "--include",
+        "file1.txt/***",
         "--exclude",
         "*",
         "remotehost:/source/",
@@ -649,3 +657,36 @@ def test_batch_interface_sort_jobs_empty_list():
     jobs = []
     BatchInterface.sortJobs(jobs)
     assert jobs == []
+
+
+@patch("qq_lib.batch.interface.interface.subprocess.run")
+def test_batchinterface_delete_remote_dir_success(mock_run):
+    mock_run.return_value = MagicMock(returncode=0)
+
+    BatchInterface.deleteRemoteDir("remote_host", Path("/remote/dir"))
+
+    mock_run.assert_called_once_with(
+        [
+            "ssh",
+            "-o PasswordAuthentication=no",
+            "-o GSSAPIAuthentication=yes",
+            f"-o ConnectTimeout={CFG.timeouts.ssh}",
+            "remote_host",
+            "yes | rm -r /remote/dir",
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+
+@patch("qq_lib.batch.interface.interface.subprocess.run")
+def test_batchinterface_delete_remote_dir_raises_error(mock_run):
+    mock_run.return_value = MagicMock(returncode=1, stderr="permission denied")
+
+    with pytest.raises(
+        QQError,
+        match="Could not delete remote directory '/remote/dir' on 'remote_host': permission denied.",
+    ):
+        BatchInterface.deleteRemoteDir("remote_host", Path("/remote/dir"))
+
+    mock_run.assert_called_once()

@@ -37,6 +37,8 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             job_type=JobType.STANDARD,
             resources=Resources(),
             command_line=["-q", "default", str(script)],
+            exclude=[Path("exclude")],
+            include=[Path("include"), Path("/tmp/include")],
         )
 
         assert submitter._batch_system == PBS
@@ -49,7 +51,8 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._job_name == "job1"
         assert submitter._info_file == tmp_path / f"job1{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
-        assert submitter._exclude == []
+        assert submitter._exclude == [tmp_path / "exclude"]
+        assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
         assert submitter._command_line == ["-q", "default", str(script)]
         assert submitter._depend == []
 
@@ -162,7 +165,25 @@ def test_submitter_construct_job_name_returns_name_with_cycle_number_for_loop_jo
 
     result = submitter._constructJobName()
 
-    assert result == f"job.sh{CFG.loop_jobs.pattern % 3}"
+    assert result == f"job{CFG.loop_jobs.pattern % 3}.sh"
+
+
+def test_submitter_construct_job_name_loop_job_no_extension(
+    tmp_path,
+):
+    script = tmp_path / "job"
+    script.write_text("#!/usr/bin/env -S qq run\n")
+    submitter = Submitter.__new__(Submitter)
+    submitter._script_name = "job"
+
+    class DummyLoopInfo:
+        current = 3
+
+    submitter._loop_info = DummyLoopInfo()
+
+    result = submitter._constructJobName()
+
+    assert result == f"job{CFG.loop_jobs.pattern % 3}"
 
 
 def test_submitter_has_valid_shebang_returns_true_for_valid_shebang(tmp_path):
@@ -427,6 +448,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._input_dir = tmp_path
     submitter._loop_info = None
     submitter._exclude = []
+    submitter._include = []
     submitter._command_line = ["-q", "default", str(submitter._script)]
     submitter._depend = []
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
@@ -475,6 +497,7 @@ def test_submitter_submit(tmp_path):
     submitter._input_dir = tmp_path
     submitter._loop_info = None
     submitter._exclude = ["exclude1"]
+    submitter._include = ["include1"]
     submitter._command_line = ["-q", "default", str(submitter._script)]
     submitter._depend = []
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
@@ -538,5 +561,6 @@ def test_submitter_submit(tmp_path):
     assert info_arg.resources == submitter._resources
     assert info_arg.loop_info == submitter._loop_info
     assert info_arg.excluded_files == submitter._exclude
+    assert info_arg.included_files == submitter._include
     assert info_arg.command_line == submitter._command_line
     assert info_arg.depend == submitter._depend

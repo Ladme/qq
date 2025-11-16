@@ -15,9 +15,29 @@ from rich.text import Text
 
 from qq_lib.batch.pbs import PBSJob
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
+from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.common import format_duration_wdhhmmss
 from qq_lib.jobs.presenter import CFG, JobsPresenter, JobsStatistics
 from qq_lib.properties.states import BatchState
+
+
+def test_init_sets_all_attributes_and_creates_statistics():
+    job1 = Mock()
+    job2 = Mock()
+    jobs = [job1, job2]
+
+    with patch("qq_lib.jobs.presenter.JobsStatistics") as mock_stats_class:
+        mock_stats_instance = Mock()
+        mock_stats_class.return_value = mock_stats_instance
+
+        presenter = JobsPresenter(PBS, jobs, True, False)
+
+    assert presenter._batch_system == PBS
+    assert presenter._jobs == jobs
+    assert presenter._extra is True
+    assert presenter._all is False
+    assert presenter._stats == mock_stats_instance
+    mock_stats_class.assert_called_once_with()
 
 
 @pytest.mark.parametrize(
@@ -110,6 +130,20 @@ def test_format_nodes_or_comment_returns_nodes(mock_job):
         assert result == expected
 
 
+def test_format_nodes_or_comment_returns_truncated_nodes(mock_job):
+    with (
+        patch.object(
+            mock_job,
+            "getShortNodes",
+            return_value=[f"node{i}" for i in range(1, 10)],
+        ),
+        patch.object(mock_job, "getEstimated", return_value=None),
+    ):
+        result = JobsPresenter._formatNodesOrComment(BatchState.RUNNING, mock_job)
+        expected = JobsPresenter._mainColor("node1 + node2 + node3 + node4 + node5 + …")
+        assert result == expected
+
+
 @pytest.mark.parametrize("state", [BatchState.FINISHED, BatchState.FAILED])
 def test_format_nodes_or_comment_finished_or_failed_no_nodes(mock_job, state):
     with (
@@ -150,6 +184,25 @@ def test_format_nodes_or_comment_returns_estimated(mock_job):
         assert duration_str in result
 
 
+def test_format_nodes_or_comment_returns_estimated_truncated(mock_job):
+    now = datetime.now()
+    estimated_time = now + timedelta(hours=2)
+    desc = " + ".join([f"node{i}" for i in range(1, 10)])
+
+    with (
+        patch.object(mock_job, "getShortNodes", return_value=[]),
+        patch.object(mock_job, "getEstimated", return_value=(estimated_time, desc)),
+    ):
+        result = JobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
+
+        assert JobsPresenter.ANSI_COLORS[BatchState.QUEUED.color] in result
+        assert "node1 + node2 + node3 + node4 + node5 + …" in result
+        duration_str = format_duration_wdhhmmss(estimated_time - datetime.now()).rsplit(
+            ":", 1
+        )[0]
+        assert duration_str in result
+
+
 def test_format_nodes_or_comment_returns_empty_when_no_info(mock_job):
     with (
         patch.object(mock_job, "getShortNodes", return_value=[]),
@@ -157,37 +210,6 @@ def test_format_nodes_or_comment_returns_empty_when_no_info(mock_job):
     ):
         result = JobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
         assert result == ""
-
-
-def test_format_exit_code_none_returns_empty():
-    result = JobsPresenter._formatExitCode(None)
-    assert result == ""
-
-
-def test_format_exit_code_zero_returns_main_color():
-    result = JobsPresenter._formatExitCode(0)
-    expected_color = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
-    main_colored = JobsPresenter._mainColor("0")
-
-    assert result == main_colored
-    assert "0" in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
-    # warning color should NOT be included
-    assert expected_color not in result
-
-
-@pytest.mark.parametrize("exit_code", [1, 42, 255, -1])
-def test_format_exit_code_nonzero_returns_warning_color(exit_code):
-    result = JobsPresenter._formatExitCode(exit_code)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
-
-    assert str(exit_code) in result
-    assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
-
-
-def test_format_util_cpu_none_returns_empty():
-    assert JobsPresenter._formatUtilCPU(None) == ""
 
 
 @pytest.mark.parametrize("util", [101, 150, 300])
@@ -396,54 +418,8 @@ def parsed_jobs(sample_pbs_dump):
     return jobs
 
 
-def test_create_basic_jobs_table_contains_all_headers_and_jobs(parsed_jobs):
-    presenter = JobsPresenter(parsed_jobs, False)
-
-    result = presenter._createBasicJobsTable()
-    expected_headers = [
-        "S",
-        "Job ID",
-        "User",
-        "Job Name",
-        "Queue",
-        "NCPUs",
-        "NGPUs",
-        "NNodes",
-        "Times",
-        "Node",
-        "%CPU",
-        "%Mem",
-        "Exit",
-    ]
-
-    for header in expected_headers:
-        assert header in result
-
-    for job in parsed_jobs:
-        short_id = JobsPresenter._shortenJobId(job.getId())
-        assert short_id in result
-
-    for job in parsed_jobs:
-        assert job.getName() in result
-        assert job.getUser() in result
-
-    count_1 = result.count(parsed_jobs[0].getName())
-    count_2 = result.count(parsed_jobs[1].getName())
-    assert count_1 == 1
-    assert count_2 == 1
-
-    assert "gpu" in result
-    assert "batch" in result
-
-    assert any(str(job.getNCPUs()) in result for job in parsed_jobs)
-    assert any(str(job.getNGPUs()) in result for job in parsed_jobs)
-
-    # ANSI colors
-    assert "\033[" in result
-
-
 def test_dump_yaml_roundtrip(parsed_jobs):
-    presenter = JobsPresenter(parsed_jobs, False)
+    presenter = JobsPresenter(PBS, parsed_jobs, False, True)
 
     # capture stdout
     captured = io.StringIO()
@@ -479,7 +455,7 @@ def test_dump_yaml_roundtrip(parsed_jobs):
 
 
 def test_create_jobs_info_panel_structure(parsed_jobs):
-    presenter = JobsPresenter(parsed_jobs, False)
+    presenter = JobsPresenter(PBS, parsed_jobs, False, True)
     panel_group = presenter.createJobsInfoPanel()
 
     assert isinstance(panel_group, Group)
@@ -897,30 +873,27 @@ def test_add_job_mixed_states_accumulates_correctly():
 
 
 @pytest.mark.parametrize(
-    "input_machine,input_dir,expected_machine,expected_dir",
+    "input_machine,input_dir,comment,expected_machine,expected_dir,expected_comment",
     [
-        # both have valid info
-        ("machine1", "/path/dir", True, True),
-        # input machine missing, dir valid
-        ("?????", "/path/dir", False, True),
-        # input machine valid, dir missing
-        ("machine2", "????", True, False),
-        # both missing
-        ("?????", "???", False, False),
+        ("machine1", "/path/dir", "comment1", True, True, True),
+        (None, "/path/dir", "comment2", False, True, True),
+        ("machine2", None, None, True, False, False),
+        (None, None, "comment3", False, False, True),
+        (None, None, None, False, False, False),
     ],
 )
 def test_jobs_presenter_insert_extra_info_various_combinations(
-    input_machine, input_dir, expected_machine, expected_dir
+    input_machine, input_dir, comment, expected_machine, expected_dir, expected_comment
 ):
     job = Mock()
     job.getInputMachine.return_value = input_machine
     job.getInputDir.return_value = input_dir
+    job.getComment.return_value = comment
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job]
 
     table = "HEADER\nROW1"
-
     result = presenter._insertExtraInfo(table)
 
     assert "HEADER" in result
@@ -928,16 +901,19 @@ def test_jobs_presenter_insert_extra_info_various_combinations(
 
     assert (">   Input machine:" in result) == expected_machine
     assert (">   Input directory:" in result) == expected_dir
+    assert (">   Comment:" in result) == expected_comment
 
 
 def test_jobs_presenter_insert_extra_info_multiple_jobs():
     job1 = Mock()
     job1.getInputMachine.return_value = "machineA"
     job1.getInputDir.return_value = "/dirA"
+    job1.getComment.return_value = "commentA"
 
     job2 = Mock()
     job2.getInputMachine.return_value = "machineB"
     job2.getInputDir.return_value = "/dirB"
+    job2.getComment.return_value = "commentB"
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job1, job2]
@@ -949,12 +925,15 @@ def test_jobs_presenter_insert_extra_info_multiple_jobs():
     assert "machineB" in result
     assert "/dirA" in result
     assert "/dirB" in result
+    assert "commentA" in result
+    assert "commentB" in result
 
 
 def test_jobs_presenter_insert_extra_info_preserves_header_and_spacing():
     job = Mock()
     job.getInputMachine.return_value = "machineX"
     job.getInputDir.return_value = "/inputX"
+    job.getComment.return_value = "commentX"
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job]
@@ -970,6 +949,7 @@ def test_jobs_presenter_insert_extra_info_uses_cfg_style():
     job = Mock()
     job.getInputMachine.return_value = "machineZ"
     job.getInputDir.return_value = "/inputZ"
+    job.getComment.return_value = "commentZ"
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._jobs = [job]
@@ -977,3 +957,322 @@ def test_jobs_presenter_insert_extra_info_uses_cfg_style():
     result = presenter._insertExtraInfo("HEADER\nROW1")
 
     assert JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.extra_info_style] in result
+
+
+def test_format_exit_code_returns_empty_string_when_exit_code_is_none():
+    job = Mock()
+    job.getExitCode.return_value = None
+
+    result = JobsPresenter._formatExitCode(job, BatchState.RUNNING)
+
+    assert result == ""
+
+
+def test_format_exit_code_returns_main_colored_string_for_finished_state():
+    job = Mock()
+    job.getExitCode.return_value = 0
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.main_style = "cyan"
+
+    with patch("qq_lib.jobs.presenter.CFG", mock_cfg):
+        result = JobsPresenter._formatExitCode(job, BatchState.FINISHED)
+
+    assert result == "\033[36m0\033[0m"
+
+
+def test_format_exit_code_returns_main_colored_string_for_finished_state_with_nonzero_exit_code():
+    job = Mock()
+    job.getExitCode.return_value = 1
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.main_style = "green"
+
+    with patch("qq_lib.jobs.presenter.CFG", mock_cfg):
+        result = JobsPresenter._formatExitCode(job, BatchState.FINISHED)
+
+    assert result == "\033[32m1\033[0m"
+
+
+def test_format_exit_code_returns_warning_colored_string_for_failed_state():
+    job = Mock()
+    job.getExitCode.return_value = 1
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.strong_warning_style = "red"
+
+    with patch("qq_lib.jobs.presenter.CFG", mock_cfg):
+        result = JobsPresenter._formatExitCode(job, BatchState.FAILED)
+
+    assert result == "\033[31m1\033[0m"
+
+
+def test_format_exit_code_returns_warning_colored_string_for_failed_state_with_zero_exit_code():
+    job = Mock()
+    job.getExitCode.return_value = 0
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.strong_warning_style = "bright_red"
+
+    with patch("qq_lib.jobs.presenter.CFG", mock_cfg):
+        result = JobsPresenter._formatExitCode(job, BatchState.FAILED)
+
+    assert result == "\033[91m0\033[0m"
+
+
+@pytest.mark.parametrize(
+    "state", [BatchState.QUEUED, BatchState.RUNNING, BatchState.HELD]
+)
+def test_format_exit_code_returns_empty_string_for_various_states(state):
+    job = Mock()
+    job.getExitCode.return_value = 0
+
+    result = JobsPresenter._formatExitCode(job, state)
+
+    assert result == ""
+
+
+def test_format_headers_returns_formatted_list():
+    presenter = JobsPresenter(PBS, [], False, False)
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.headers_style = "cyan"
+
+    with patch("qq_lib.jobs.presenter.CFG", mock_cfg):
+        result = presenter._formatHeaders(["S", "Job ID", "User"])
+
+    assert result == [
+        "\033[1m\033[36mS\033[0m",
+        "\033[1m\033[36mJob ID\033[0m",
+        "\033[1m\033[36mUser\033[0m",
+    ]
+
+
+def test_format_headers_returns_empty_list_for_empty_input():
+    presenter = JobsPresenter(PBS, [], False, False)
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.headers_style = "cyan"
+
+    with patch("qq_lib.jobs.presenter.CFG", mock_cfg):
+        result = presenter._formatHeaders([])
+
+    assert result == []
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        BatchState.QUEUED,
+        BatchState.HELD,
+        BatchState.WAITING,
+    ],
+)
+def test_get_job_times_returns_submission_time_for_non_started_states(state):
+    job = Mock()
+    submission_time = datetime(2025, 1, 1, 10, 0, 0)
+    job.getSubmissionTime.return_value = submission_time
+    now = datetime(2025, 1, 1, 11, 0, 0)
+
+    with patch("qq_lib.jobs.presenter.datetime") as mock_datetime:
+        mock_datetime.now.return_value = now
+        start_time, end_time = JobsPresenter._getJobTimes(job, state)
+
+    assert start_time == submission_time
+    assert end_time == now
+
+
+def test_get_job_times_returns_start_time_for_running_state():
+    job = Mock()
+    start_time = datetime(2025, 1, 1, 10, 30, 0)
+    job.getStartTime.return_value = start_time
+    now = datetime(2025, 1, 1, 11, 0, 0)
+
+    with patch("qq_lib.jobs.presenter.datetime") as mock_datetime:
+        mock_datetime.now.return_value = now
+        result_start, result_end = JobsPresenter._getJobTimes(job, BatchState.RUNNING)
+
+    assert result_start == start_time
+    assert result_end == now
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        BatchState.FINISHED,
+        BatchState.FAILED,
+    ],
+)
+def test_get_job_times_returns_completion_time_for_completed_states(state):
+    job = Mock()
+    start_time = datetime(2025, 1, 1, 10, 0, 0)
+    completion_time = datetime(2025, 1, 1, 11, 0, 0)
+    job.getStartTime.return_value = start_time
+    job.getCompletionTime.return_value = completion_time
+
+    result_start, result_end = JobsPresenter._getJobTimes(job, state)
+
+    assert result_start == start_time
+    assert result_end == completion_time
+
+
+def test_get_job_times_falls_back_to_modification_time_when_completion_time_is_none():
+    job = Mock()
+    start_time = datetime(2025, 1, 1, 10, 0, 0)
+    modification_time = datetime(2025, 1, 1, 11, 0, 0)
+    job.getStartTime.return_value = start_time
+    job.getCompletionTime.return_value = None
+    job.getModificationTime.return_value = modification_time
+
+    result_start, result_end = JobsPresenter._getJobTimes(job, BatchState.FINISHED)
+
+    assert result_start == start_time
+    assert result_end == modification_time
+
+
+def test_get_visible_headers_returns_headers_in_batch_system_config():
+    batch_system = Mock()
+    batch_system.jobsPresenterColumnsToShow.return_value = [
+        "S",
+        "Job ID",
+        "User",
+        "Queue",
+    ]
+
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._batch_system = batch_system
+    presenter._all = False
+
+    result = presenter._getVisibleHeaders()
+
+    assert result == ["S", "Job ID", "User", "Queue"]
+
+
+def test_get_visible_headers_includes_exit_when_all_is_true():
+    batch_system = Mock()
+    batch_system.jobsPresenterColumnsToShow.return_value = ["S", "Job ID", "Exit"]
+
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._batch_system = batch_system
+    presenter._all = True
+
+    result = presenter._getVisibleHeaders()
+
+    assert "Exit" in result
+
+
+def test_get_visible_headers_excludes_exit_when_all_is_false():
+    batch_system = Mock()
+    batch_system.jobsPresenterColumnsToShow.return_value = ["S", "Job ID", "Exit"]
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._batch_system = batch_system
+    presenter._all = False
+
+    result = presenter._getVisibleHeaders()
+
+    assert "Exit" not in result
+
+
+def test_create_job_row_returns_row_with_requested_headers():
+    job = Mock()
+    job.getState.return_value = Mock(toCode=Mock(return_value="R"), color="green")
+    job.getId.return_value = "12345"
+    job.getUser.return_value = "user1"
+    job.getName.return_value = "job_name"
+    job.getQueue.return_value = "default"
+    job.getNCPUs.return_value = 4
+    job.getNGPUs.return_value = 2
+    job.getNNodes.return_value = 1
+
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._all = False
+    presenter._stats = Mock()
+
+    with (
+        patch.object(
+            JobsPresenter, "_getJobTimes", return_value=(datetime.now(), datetime.now())
+        ),
+        patch.object(JobsPresenter, "_shortenJobId", return_value="12345"),
+        patch.object(JobsPresenter, "_shortenJobName", return_value="job_name"),
+        patch.object(JobsPresenter, "_formatTime", return_value="time"),
+        patch.object(JobsPresenter, "_formatNodesOrComment", return_value="node"),
+        patch.object(JobsPresenter, "_formatUtilCPU", return_value="cpu"),
+        patch.object(JobsPresenter, "_formatUtilMem", return_value="mem"),
+    ):
+        result = presenter._createJobRow(job, ["S", "Job ID", "NCPUs"])
+
+    assert len(result) == 3
+    assert "R" in result[0]
+    assert "12345" in result[1]
+    assert "4" in result[2]
+
+
+def test_create_job_row_calls_add_job_on_stats():
+    job = Mock()
+    state = Mock(toCode=Mock(return_value="R"), color="green")
+    job.getState.return_value = state
+    job.getNCPUs.return_value = 4
+    job.getNGPUs.return_value = 2
+    job.getNNodes.return_value = 1
+
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._all = False
+    presenter._stats = Mock()
+    mock_cfg = Mock()
+    mock_cfg.jobs_presenter.main_style = "cyan"
+
+    with (
+        patch.object(
+            JobsPresenter, "_getJobTimes", return_value=(datetime.now(), datetime.now())
+        ),
+        patch.object(JobsPresenter, "_shortenJobId", return_value="id"),
+        patch.object(JobsPresenter, "_shortenJobName", return_value="name"),
+        patch.object(JobsPresenter, "_formatTime", return_value="time"),
+        patch.object(JobsPresenter, "_formatNodesOrComment", return_value="node"),
+        patch.object(JobsPresenter, "_formatUtilCPU", return_value="cpu"),
+        patch.object(JobsPresenter, "_formatUtilMem", return_value="mem"),
+    ):
+        presenter._createJobRow(job, ["S"])
+
+    presenter._stats.addJob.assert_called_once_with(state, 4, 2, 1)
+
+
+def test_create_basic_jobs_table_creates_row_for_each_job_with_headers():
+    job1 = Mock()
+    job2 = Mock()
+    job3 = Mock()
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._jobs = [job1, job2, job3]
+
+    with (
+        patch.object(
+            presenter, "_getVisibleHeaders", return_value=["S", "Job ID", "User"]
+        ),
+        patch.object(
+            presenter,
+            "_formatHeaders",
+            return_value=["fmt_S", "fmt_Job_ID", "fmt_User"],
+        ),
+        patch.object(
+            presenter,
+            "_createJobRow",
+            side_effect=[
+                ["row1_col1", "row1_col2", "row1_col3"],
+                ["row2_col1", "row2_col2", "row2_col3"],
+                ["row3_col1", "row3_col2", "row3_col3"],
+            ],
+        ) as mock_create_row,
+        patch("qq_lib.jobs.presenter.tabulate", return_value="output") as mock_tabulate,
+    ):
+        result = presenter._createBasicJobsTable()
+
+    assert mock_create_row.call_count == 3
+    mock_create_row.assert_any_call(job1, ["S", "Job ID", "User"])
+    mock_create_row.assert_any_call(job2, ["S", "Job ID", "User"])
+    mock_create_row.assert_any_call(job3, ["S", "Job ID", "User"])
+    mock_tabulate.assert_called_once_with(
+        [
+            ["row1_col1", "row1_col2", "row1_col3"],
+            ["row2_col1", "row2_col2", "row2_col3"],
+            ["row3_col1", "row3_col2", "row3_col3"],
+        ],
+        headers=["fmt_S", "fmt_Job_ID", "fmt_User"],
+        tablefmt=JobsPresenter.COMPACT_TABLE,
+        stralign="center",
+        numalign="center",
+    )
+    assert result == "output"

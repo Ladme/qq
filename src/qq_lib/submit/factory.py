@@ -72,6 +72,7 @@ class SubmitterFactory:
             self._command_line,
             loop_info,
             self._getExclude(),
+            self._getInclude(),
             self._getDepend(),
         )
 
@@ -165,7 +166,8 @@ class SubmitterFactory:
         return LoopInfo(
             self._kwargs.get("loop_start") or self._parser.getLoopStart() or 1,
             self._kwargs.get("loop_end") or self._parser.getLoopEnd(),
-            Path(self._kwargs.get("archive") or self._parser.getArchive() or "storage"),
+            self._input_dir
+            / (self._kwargs.get("archive") or self._parser.getArchive() or "storage"),
             self._kwargs.get("archive_format")
             or self._parser.getArchiveFormat()
             or "job%04d",
@@ -174,18 +176,35 @@ class SubmitterFactory:
 
     def _getExclude(self) -> list[Path]:
         """
-        Determine the files to exclude from the job submission.
+        Determine the files to exclude from being copied to the job's working directory.
 
         Merges the list of files specified in command-line arguments with
         the list parsed from the script.
 
         Returns:
-            list[Path]: List of absolute file paths to exclude.
+            list[Path]: List of relative file paths to exclude.
         """
         return list(
             set(
                 split_files_list(self._kwargs.get("exclude"))
                 + self._parser.getExclude()
+            )
+        )
+
+    def _getInclude(self) -> list[Path]:
+        """
+        Determine the files to explicitly copy to the job's working directory.
+
+        Merges the list of files specified in command-line arguments with
+        the list parsed from the script.
+
+        Returns:
+            list[Path]: List of file paths to include.
+        """
+        return list(
+            set(
+                split_files_list(self._kwargs.get("include"))
+                + self._parser.getInclude()
             )
         )
 

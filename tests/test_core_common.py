@@ -16,6 +16,8 @@ from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
+    construct_info_file_path,
+    construct_loop_job_name,
     convert_absolute_to_relative,
     dhhmmss_to_duration,
     equals_normalized,
@@ -484,9 +486,9 @@ def test_split_files_list_whitespace(tmp_path):
         f"{tmp_path / 'file1.txt'} {tmp_path / 'file2.txt'}\t{tmp_path / 'file3.txt'}"
     )
     expected = [
-        Path(tmp_path / "file1.txt").resolve(),
-        Path(tmp_path / "file2.txt").resolve(),
-        Path(tmp_path / "file3.txt").resolve(),
+        Path(tmp_path / "file1.txt"),
+        Path(tmp_path / "file2.txt"),
+        Path(tmp_path / "file3.txt"),
     ]
     assert split_files_list(string) == expected
 
@@ -496,9 +498,9 @@ def test_split_files_list_commas_and_colons(tmp_path):
         f"{tmp_path / 'file1.txt'},{tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'}"
     )
     expected = [
-        Path(tmp_path / "file1.txt").resolve(),
-        Path(tmp_path / "file2.txt").resolve(),
-        Path(tmp_path / "file3.txt").resolve(),
+        Path(tmp_path / "file1.txt"),
+        Path(tmp_path / "file2.txt"),
+        Path(tmp_path / "file3.txt"),
     ]
     assert split_files_list(string) == expected
 
@@ -506,17 +508,17 @@ def test_split_files_list_commas_and_colons(tmp_path):
 def test_split_files_list_mixed_separators(tmp_path):
     string = f"{tmp_path / 'file1.txt'}, {tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'} {tmp_path / 'file4.txt'}"
     expected = [
-        Path(tmp_path / "file1.txt").resolve(),
-        Path(tmp_path / "file2.txt").resolve(),
-        Path(tmp_path / "file3.txt").resolve(),
-        Path(tmp_path / "file4.txt").resolve(),
+        Path(tmp_path / "file1.txt"),
+        Path(tmp_path / "file2.txt"),
+        Path(tmp_path / "file3.txt"),
+        Path(tmp_path / "file4.txt"),
     ]
     assert split_files_list(string) == expected
 
 
 def test_split_files_list_single_file(tmp_path):
     string = str(tmp_path / "single_file.txt")
-    expected = [Path(tmp_path / "single_file.txt").resolve()]
+    expected = [Path(tmp_path / "single_file.txt")]
     assert split_files_list(string) == expected
 
 
@@ -817,6 +819,24 @@ def test_get_info_files_from_job_id_or_dir_job_id_does_not_exit(
     mock_get_info_file_from_job_id.assert_called_once_with("12345")
 
 
+@patch("qq_lib.core.common.get_info_file_from_job_id")
+def test_get_info_files_from_job_id_or_dir_permission_error(
+    mock_get_info_file_from_job_id,
+):
+    fake_path = Path("/tmp/missing.qqinfo")
+    mock_get_info_file_from_job_id.return_value = fake_path
+
+    with (
+        patch.object(
+            Path, "is_file", side_effect=PermissionError("no permissions to read")
+        ),
+        pytest.raises(QQError, match="Info file for job '12345'"),
+    ):
+        get_info_files_from_job_id_or_dir("12345")
+
+    mock_get_info_file_from_job_id.assert_called_once_with("12345")
+
+
 @patch("qq_lib.core.common.get_info_files")
 def test_get_info_files_from_job_id_or_dir_job_id_no_job_id(mock_get_info_files):
     fake_files = [Path("/tmp/job1.qqinfo"), Path("/tmp/job2.qqinfo")]
@@ -1004,3 +1024,41 @@ def test_common_load_yaml_loader_cache_hits():
     assert first == "CSafeLoaderMock"
     assert second == "CSafeLoaderMock"
     assert imp.call_count == 1
+
+
+def test_construct_loop_job_name_no_extension():
+    script_name = "loop_job"
+    cycle = 134
+    assert (
+        construct_loop_job_name(script_name, cycle)
+        == f"loop_job{CFG.loop_jobs.pattern % cycle}"
+    )
+
+
+def test_construct_loop_job_name_with_extension():
+    script_name = "loop_job.sh"
+    cycle = 134
+    assert (
+        construct_loop_job_name(script_name, cycle)
+        == f"loop_job{CFG.loop_jobs.pattern % cycle}.sh"
+    )
+
+
+def test_construct_loop_job_name_with_two_extensions():
+    script_name = "loop_job.py.sh"
+    cycle = 134
+    assert (
+        construct_loop_job_name(script_name, cycle)
+        == f"loop_job{CFG.loop_jobs.pattern % cycle}.py.sh"
+    )
+
+
+def test_construct_info_file_path_returns_expected_path():
+    input_dir = Path("/tmp/jobs")
+    job_name = "example"
+
+    expected = (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()
+
+    result = construct_info_file_path(input_dir, job_name)
+
+    assert result == expected

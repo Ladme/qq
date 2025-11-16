@@ -20,12 +20,19 @@ from qq_lib.shebang import shebang
 from qq_lib.stat import stat
 from qq_lib.submit import submit
 from qq_lib.sync import sync
+from qq_lib.wipe import wipe
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
+
+# support both --help and -h
+_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
 @click.group(
-    cls=HelpColorsGroup, help_options_color="bright_blue", invoke_without_command=True
+    cls=HelpColorsGroup,
+    help_options_color="bright_blue",
+    invoke_without_command=True,
+    context_settings=_CONTEXT_SETTINGS,
 )
 @click.option(
     "--version",
@@ -64,3 +71,4 @@ cli.add_command(killall)
 cli.add_command(queues)
 cli.add_command(nodes)
 cli.add_command(shebang)
+cli.add_command(wipe)

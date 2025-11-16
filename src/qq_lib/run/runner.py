@@ -16,6 +16,7 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.core.common import construct_loop_job_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -150,7 +151,10 @@ class Runner:
             )
             self._archiver.archiveRunTimeFiles(
                 # we need to escape the '+' character
-                f"{self._informer.info.script_name}{CFG.loop_jobs.pattern.replace('+', '\\+') % (self._informer.info.loop_info.current - 1)}",
+                construct_loop_job_name(
+                    self._informer.info.script_name,
+                    self._informer.info.loop_info.current - 1,
+                ).replace("+", "\\+"),
                 self._informer.info.loop_info.current - 1,
             )
 
@@ -233,7 +237,7 @@ class Runner:
         - On failure (non-zero return code):
             - Updates the qq info file to indicate the job "failed".
             - If `use_scratch` is True, files remain in the scratch directory
-            for debugging purposes.
+            for debugging purposes. Only runtime files are copied to the input directory.
 
         Raises:
             QQError: If copying or deletion of files fails.
@@ -254,6 +258,9 @@ class Runner:
                     self._input_dir,
                     socket.gethostname(),
                     self._informer.info.input_machine,
+                    # exclude files that were copied to workdir from the outside of input dir (--include option)
+                    # these files should not be copied to the input directory, since they were never inside it
+                    self._getExplicitlyIncludedFilesInWorkDir(),
                     max_tries=CFG.runner.retry_tries,
                     wait_seconds=CFG.runner.retry_wait,
                 ).run()
@@ -269,8 +276,14 @@ class Runner:
             if self._informer.info.job_type == JobType.LOOP:
                 self._resubmit()
         else:
-            # only update the qqinfo file
+            # copy runtime files to input directory
+            if self._use_scratch:
+                self._copyRunTimeFilesToInputDir(retry=True)
+
+            # update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
+
+        logger.info(f"Job completed with an exit code of {self._process.returncode}.")
 
     def logFailureAndExit(self, exception: BaseException) -> NoReturn:
         """
@@ -348,7 +361,10 @@ class Runner:
         if self._archiver:
             excluded.append(self._archiver._archive)
 
-        # copy files to the working directory
+        # copy files from the input directory to the working directory
+        logger.debug(
+            f"Files excluded from being copied to the working directory: {excluded}."
+        )
         Retryer(
             self._batch_system.syncWithExclusions,
             self._input_dir,
@@ -356,6 +372,18 @@ class Runner:
             self._informer.info.input_machine,
             socket.gethostname(),
             excluded,
+            max_tries=CFG.runner.retry_tries,
+            wait_seconds=CFG.runner.retry_wait,
+        ).run()
+
+        # copy explicitly included files to the working directory
+        # this will copy files that were specified with the --include option, even if they are also in the list of excluded files
+        logger.debug(
+            f"Files explicitly requested to be copied to the working directory: {self._informer.info.included_files}."
+        )
+        Retryer(
+            self._copyFiles,
+            self._informer.info.included_files,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
@@ -481,11 +509,48 @@ class Runner:
 
         try:
             self._informer.setKilled(datetime.now())
-            # no retrying here since we cannot affort multiple attempts here
+            # no retrying here since we cannot afford multiple attempts here
             self._informer.toFile(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
+            )
+
+    def _copyRunTimeFilesToInputDir(self, retry: bool = True) -> None:
+        """
+        Copy .out and .err runtime files from the working directory to the input directory.
+
+        Args:
+            retry (bool): Retry the copying if it fails.
+
+        Raises:
+            QQError: If the files could not be copied after retrying.
+        """
+        files_to_copy = [
+            Path(self._informer.info.stdout_file).resolve(),
+            Path(self._informer.info.stderr_file).resolve(),
+        ]
+
+        logger.debug(f"Copying runtime files '{files_to_copy}' to input directory.")
+
+        if retry:
+            Retryer(
+                self._batch_system.syncSelected,
+                self._work_dir,
+                self._input_dir,
+                socket.gethostname(),
+                self._informer.info.input_machine,
+                include_files=files_to_copy,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
+            ).run()
+        else:
+            self._batch_system.syncSelected(
+                self._work_dir,
+                self._input_dir,
+                socket.gethostname(),
+                self._informer.info.input_machine,
+                files_to_copy,
             )
 
     def _reloadInfo(self, retry: bool = True) -> None:
@@ -594,39 +659,103 @@ class Runner:
         """
         Prepare a modified command line for submitting the next cycle of a loop job.
 
-        This method takes the original command line from the job's informer,
-        removes any existing dependency options (i.e., arguments containing or
-        following `"--depend"`), and appends a new dependency referencing the
-        current job ID. This ensures that the resubmitted job depends on the
-        successful completion (`afterok`) of the current one.
+        Removes existing dependency options and replaces the script path with just
+        the script name. Appends a new dependency on the current job ID to ensure
+        the resubmitted job runs after successful completion (`afterok`) of the
+        current one.
 
         Returns:
-            line[str]: The sanitized and updated list of command line arguments.
+            list[str]: The sanitized and updated list of command line arguments.
         """
         command_line = self._informer.info.command_line
+        script_name = self._informer.info.script_name
 
-        # we need to remove dependencies for the previous cycle
+        # here we perform two modifications
+        # 1) we replace path to the submitted script with just the script name
+        # this is needed in case we resubmit a loop job that has been originally submitted
+        # from a different directory than the current working directory
+        # e.g. if the job was submitted as `qq submit (...) job/run.sh`, we need to
+        # resubmit as `qq submit (...) run.sh`, because we are resubmitting from the job's
+        # input directory not from the directory from which the original qq submit was called
+        # note that this is done heuristically, assuming that the script name is not used as
+        # an independently-placed parameter of any option
+        # to protect against silently doing something wrong, we just explicitly raise an exception
+        # if the script name is detected multiple times
+
+        # 2) we remove dependencies for the previous cycle
+        # these dependencies had to already be fulfilled for the previous cycle to run
+        # so we ignore them for the next run
         modified = []
         it = iter(command_line)
+        replaced_script_name = False
         for arg in it:
-            if arg.strip() == "--depend":
+            if not arg.startswith("-") and Path(arg).name == script_name:
+                if replaced_script_name:
+                    # script has already been replaced
+                    raise QQError(
+                        f"Heuristic identification of script name failed for command line: {command_line}."
+                    )
+
+                # replace the script name
+                modified.append(script_name)
+                replaced_script_name = True
+
+            elif arg.strip() == "--depend":
                 next(it, None)  # skip the following argument
+
             elif "--depend" not in arg:
                 modified.append(arg)
 
-        # and add in a new dependency for the current cycle
+        # and add in a new dependency for the next cycle
+        # so that the next cycle always starts only after the previous one finishes
         modified.append(f"--depend=afterok={self._informer.info.job_id}")
 
         logger.debug(f"Command line for resubmit: {modified}.")
         return modified
 
+    def _getExplicitlyIncludedFilesInWorkDir(self) -> list[Path]:
+        """
+        Return absolute paths to files and directories in the working directory
+        that were explicitly copied via the `--include` submission option.
+        """
+        files = [
+            (self._work_dir / f.name).resolve()
+            for f in self._informer.info.included_files
+        ]
+
+        logger.debug(
+            f"Files that were copied to work dir using the `--include` option: {files}."
+        )
+
+        return files
+
+    def _copyFiles(self, files: list[Path]):
+        """
+        Copy files and directories using the provided absolute paths to the working directory.
+        """
+        for file in files:
+            # we rsync each file or directory individually because each file can be provided in a different directory
+            # this may be very slow if there is a large amount of files/directories to include
+            self._batch_system.syncSelected(
+                file.parent,
+                self._work_dir,
+                self._informer.info.input_machine,
+                socket.gethostname(),
+                [file],
+            )
+
     def _cleanup(self) -> None:
         """
         Clean up after execution is interrupted or killed.
 
+        - Copies .out and .err file to the input directory.
         - Marks job as killed in the info file.
         - Terminates the subprocess.
         """
+        # copy runtime files to input dir without retrying
+        if self._use_scratch:
+            self._copyRunTimeFilesToInputDir(retry=False)
+
         # update the qq info file
         self._updateInfoKilled()
 

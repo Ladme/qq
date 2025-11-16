@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installs qq from a GitHub release into a specific home directory
 # and updates that home directory's .bashrc accordingly.
-# Script version: 0.2.0
+# Script version: 0.3.0
 
 set -euo pipefail
 
@@ -107,6 +107,8 @@ qq() {
         command qq "\$@"
     fi
 }
+# This makes qq autocomplete work.
+eval "$(_QQ_COMPLETE=bash_source qq)"
 $BLOCK_END
 EOF
 }

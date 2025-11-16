@@ -3,7 +3,7 @@
 #     Script for running Gromacs       #
 #  flexible-length replica exchange    #
 #              using qq                #
-#         script version: 0.2          #
+#         script version: 0.3          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -272,7 +272,6 @@ IFS=" "
 # run the simulation
 if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     srun \
-    --mpi=pmix \
     --ntasks=${MPI} \
     --cpus-per-task=${NTOMP} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \

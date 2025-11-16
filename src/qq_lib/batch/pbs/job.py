@@ -132,77 +132,64 @@ class PBSJob(BatchJobInterface):
 
         return nodes
 
-    def getName(self) -> str:
-        if not (name := self._info.get("Job_Name")):
-            logger.warning(f"Could not get job name for '{self._job_id}'.")
-            return "?????"
+    def getName(self) -> str | None:
+        return self._info.get("Job_Name")
 
-        return name
-
-    def getNCPUs(self) -> int:
+    def getNCPUs(self) -> int | None:
         return self._getIntProperty("Resource_List.ncpus", "the number of CPUs")
 
-    def getNGPUs(self) -> int:
+    def getNGPUs(self) -> int | None:
         return self._getIntProperty("Resource_List.ngpus", "the number of GPUs")
 
-    def getNNodes(self) -> int:
+    def getNNodes(self) -> int | None:
         return self._getIntProperty("Resource_List.nodect", "the number of nodes")
 
-    def getMem(self) -> Size:
+    def getMem(self) -> Size | None:
         if not (mem := self._info.get("Resource_List.mem")):
             logger.debug(
                 f"Could not get information about the amount of memory from the batch system for '{self._job_id}'."
             )
-            return Size(0, "kb")
+            return None
 
         try:
             return Size.fromString(mem)
         except Exception as e:
             logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
-            return Size(0, "kb")
+            return None
 
     def getStartTime(self) -> datetime | None:
         return self._getDatetimeProperty("stime", "the job start time")
 
-    def getSubmissionTime(self) -> datetime:
-        return (
-            self._getDatetimeProperty("ctime", "the job submission time")
-            or datetime.min  # arbitrary datetime - submission time should always be available
-        )
+    def getSubmissionTime(self) -> datetime | None:
+        return self._getDatetimeProperty("ctime", "the job submission time")
 
     def getCompletionTime(self) -> datetime | None:
         return self._getDatetimeProperty("obittime", "the job completion time")
 
-    def getModificationTime(self) -> datetime:
+    def getModificationTime(self) -> datetime | None:
         return (
             self._getDatetimeProperty("mtime", "the job modification time")
             or self.getSubmissionTime()
         )
 
-    def getUser(self) -> str:
+    def getUser(self) -> str | None:
         if not (user := self._info.get("Job_Owner")):
-            logger.warning(f"Could not get user for '{self._job_id}'.")
-            return "?????"
+            return None
 
         return user.split("@")[0]
 
-    def getWalltime(self) -> timedelta:
+    def getWalltime(self) -> timedelta | None:
         if not (walltime := self._info.get("Resource_List.walltime")):
-            logger.warning(f"Could not get walltime for '{self._job_id}'.")
-            return timedelta(0)
+            return None
 
         try:
             return hhmmss_to_duration(walltime)
         except QQError as e:
             logger.warning(f"Could not parse walltime for '{self._job_id}': {e}.")
-            return timedelta(0)
+            return None
 
-    def getQueue(self) -> str:
-        if not (queue := self._info.get("queue")):
-            logger.warning(f"Could not get queue for '{self._job_id}'.")
-            return "?????"
-
-        return queue
+    def getQueue(self) -> str | None:
+        return self._info.get("queue")
 
     def getUtilCPU(self) -> int | None:
         if not (util_cpu := self._info.get("resources_used.cpupercent")):
@@ -211,9 +198,15 @@ class PBSJob(BatchJobInterface):
             )
             return None
 
+        if not (ncpus := self.getNCPUs()):
+            logger.debug(
+                f"Information about the number of CPUs is not available for '{self._job_id}'."
+            )
+            return None
+
         try:
             # PBS report CPU utilization in the same way as `top` - we have to divide by number of CPUs
-            return int(util_cpu) // self.getNCPUs()
+            return int(util_cpu) // ncpus
         except Exception as e:
             # this catches both invalid util_cpu and invalid getNCPUs
             logger.warning(
@@ -228,9 +221,15 @@ class PBSJob(BatchJobInterface):
             )
             return None
 
+        if not (mem := self.getMem()):
+            logger.debug(
+                f"Information about the amount of memory is not available for '{self._job_id}'."
+            )
+            return None
+
         try:
             util_mem_kb = Size.fromString(util_mem).value
-            return int(util_mem_kb / self.getMem().value * 100.0)
+            return int(util_mem_kb / mem.value * 100.0)
         except Exception as e:
             logger.warning(
                 f"Could not parse information about memory utilization for '{self._job_id}': {e}."
@@ -247,33 +246,32 @@ class PBSJob(BatchJobInterface):
             logger.warning(f"Could not parse exit code for '{self._job_id}': {e}.")
             return None
 
-    def getInputMachine(self) -> str:
-        if not (input_machine := self._info.get("Submit_Host")):
-            logger.warning(f"Could not get input machine for '{self._job_id}'.")
-            return "?????"
+    def getInputMachine(self) -> str | None:
+        return self._info.get("Submit_Host")
 
-        return input_machine
-
-    def getInputDir(self) -> Path:
+    def getInputDir(self) -> Path | None:
         if not (env_vars := self._getEnvVars()):
-            logger.warning(
+            logger.debug(
                 f"Could not get list of environment variables for '{self._job_id}'."
             )
-            return Path("???")
+            return None
 
         if not (
-            input_dir := env_vars.get("PBS_O_WORKDIR")  # try PBS first
-            or env_vars.get(CFG.env_vars.input_dir)  # if this fails, try qq
+            input_dir := env_vars.get(CFG.env_vars.input_dir)  # try qq first
+            or env_vars.get(
+                "PBS_O_WORKDIR"
+            )  # if this fails, try PBS (note that PBS_O_WORKDIR is not the directory with the submitted script,
+            # but the directory from which submission was done)
             or env_vars.get("INF_INPUT_DIR")  # if this fails, try Infinity
         ):
-            logger.warning(f"Could not obtain input directory for '{self._job_id}'.")
-            return Path("???")
+            logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
+            return None
 
         return Path(input_dir).resolve()
 
     def getInfoFile(self) -> Path | None:
         if not (env_vars := self._getEnvVars()):
-            logger.warning(
+            logger.debug(
                 f"Could not get list of environment variables for '{self._job_id}'."
             )
             return None
@@ -292,6 +290,14 @@ class PBSJob(BatchJobInterface):
         return yaml.dump(
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
+
+    def getSteps(self) -> list[Self]:
+        # not available for PBS
+        return []
+
+    def getStepId(self) -> str | None:
+        # no job steps for PBS
+        return None
 
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
@@ -343,18 +349,18 @@ class PBSJob(BatchJobInterface):
             item.split("=", 1) for item in variable_list.split(",") if "=" in item
         )
 
-    def _getIntProperty(self, property: str, property_name: str) -> int:
+    def _getIntProperty(self, property: str, property_name: str) -> int | None:
         """
         Retrieve an integer property value from the job information.
 
-        If the property is missing or cannot be converted, 0 is returned.
+        If the property is missing or cannot be converted, `None` is returned.
 
         Args:
             property (str): The key identifying the property in the job information.
             property_name (str): A human-readable name of the property for logging.
 
         Returns:
-            int: The integer value of the property, or 0 if unavailable or invalid.
+            int | None: The integer value of the property, or `None` if unavailable or invalid.
         """
         try:
             return int(self._info[property])
@@ -362,8 +368,7 @@ class PBSJob(BatchJobInterface):
             logger.debug(
                 f"Could not get information about {property_name} from the batch system for '{self._job_id}'."
             )
-            # if not specified, we assume 0
-            return 0
+            return None
 
     def _getDatetimeProperty(
         self, property: str, property_name: str

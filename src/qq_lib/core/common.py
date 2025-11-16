@@ -184,8 +184,13 @@ def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
     """
     if job_id:
         info_file = get_info_file_from_job_id(job_id)
-        # check that the detected info file exists
-        if not info_file.is_file():
+        # check that the detected info file exists and we have permissions to read it
+        try:
+            missing = not info_file.is_file()
+        except PermissionError:
+            missing = True
+
+        if missing:
             raise QQError(
                 f"Info file for job '{job_id}' does not exist or is not reachable."
             )
@@ -596,24 +601,23 @@ def is_printf_pattern(pattern: str) -> bool:
 
 def split_files_list(string: str | None) -> list[Path]:
     """
-    Split a string containing multiple file paths into a list of Path objects.
+    Split a string containing multiple file paths into a list of relative Path objects.
 
     The string can contain file paths separated by colons (:), commas (,), or
-    any whitespace characters (space, tab, newline). Each path is converted to
-    an absolute Path using Path.resolve().
+    any whitespace characters (space, tab, newline).
 
     Args:
         string (str | None): The string containing file paths. If None or empty,
                              an empty list is returned.
 
     Returns:
-        list[Path]: A list of resolved Path objects corresponding to the individual
-                    file paths in the input string.
+        list[Path]: A list of Path objects corresponding to the individual
+                    relative file paths in the input string.
     """
     if not string:
         return []
 
-    return [Path(f).resolve() for f in re.split(r"[:,\s]+", string)]
+    return [Path(f) for f in re.split(r"[:,\s]+", string)]
 
 
 def to_snake_case(s: str) -> str:
@@ -658,3 +662,37 @@ def get_panel_width(
         panel_width = min(panel_width, max_width)
 
     return panel_width
+
+
+def construct_loop_job_name(script_name: str, cycle: int) -> str:
+    """
+    Construct a job name for a loop job.
+
+    Args:
+        script_name (str): Filename of the submitted script.
+        cycle (int): The current cycle of the loop job.
+
+    Returns:
+        str: The name of the loop job in the current cycle.
+    """
+    try:
+        # if the script has an extension, put the cycle number BEFORE the extension
+        stem, suffix = script_name.split(".", maxsplit=1)
+        return f"{stem}{CFG.loop_jobs.pattern % cycle}.{suffix}"
+    except ValueError:
+        # if the script has no extension, add the cycle number after the full name
+        return f"{script_name}{CFG.loop_jobs.pattern % cycle}"
+
+
+def construct_info_file_path(input_dir: Path, job_name: str) -> Path:
+    """
+    Construct the absolute path to a job's qq info file.
+
+    Args:
+        input_dir (Path): The directory containing the job script.
+        job_name (str): The name of the job.
+
+    Returns:
+        Path: The absolute path to the job's qq info file.
+    """
+    return (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()

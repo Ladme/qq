@@ -393,7 +393,8 @@ def test_archive_runtime_files_moves_and_renames(
     archiver.makeArchiveDir()
 
     filenames = [f"script+0005{ext}" for ext in CFG.suffixes.all_suffixes] + [
-        "other.txt"
+        "other.txt",
+        "script+0004.qqinfo",
     ]
     touch_files(input_dir, filenames)
 
@@ -412,9 +413,45 @@ def test_archive_runtime_files_moves_and_renames(
 
     # non-matching files remain
     assert (input_dir / "other.txt").exists()
+    assert (input_dir / "script+0004.qqinfo").exists()
 
     # non-matching files are not present in the archive
     assert not (archive_dir / "other.txt").exists()
+    assert not (archive_dir / "script+0004.qqinfo").exists()
+
+
+def test_archive_runtime_files_moves_and_renames_job_name_with_extension(
+    monkeypatch, archiver, input_dir, archive_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver.makeArchiveDir()
+
+    filenames = [f"script+0005{ext}" for ext in CFG.suffixes.all_suffixes] + [
+        "other.txt",
+        "script+0004.qqinfo",
+    ]
+    touch_files(input_dir, filenames)
+
+    archiver.archiveRunTimeFiles("script\\+0005.sh", 5)
+
+    # check moved files exist in archive with renamed pattern
+    expected_files = [
+        archive_dir / f"job0005{ext}" for ext in CFG.suffixes.all_suffixes
+    ]
+    for f in expected_files:
+        assert f.exists() and f.is_file()
+
+    # original runtime files removed from input_dir
+    for f in [input_dir / f"script+0005{ext}" for ext in CFG.suffixes.all_suffixes]:
+        assert not f.exists()
+
+    # non-matching files remain
+    assert (input_dir / "other.txt").exists()
+    assert (input_dir / "script+0004.qqinfo").exists()
+
+    # non-matching files are not present in the archive
+    assert not (archive_dir / "other.txt").exists()
+    assert not (archive_dir / "script+0004.qqinfo").exists()
 
 
 def test_archive_runtime_files_nothing_to_archive(

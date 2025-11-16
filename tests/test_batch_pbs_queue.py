@@ -152,10 +152,10 @@ def test_pbsqueue_get_total_jobs_with_value():
     assert queue.getTotalJobs() == 10
 
 
-def test_pbsqueue_get_total_jobs_default_zero():
+def test_pbsqueue_get_total_jobs_default_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getTotalJobs() == 0
+    assert queue.getTotalJobs() is None
 
 
 def test_pbsqueue_get_running_jobs_with_value():
@@ -164,10 +164,10 @@ def test_pbsqueue_get_running_jobs_with_value():
     assert queue.getRunningJobs() == 4
 
 
-def test_pbsqueue_get_running_jobs_default_zero():
+def test_pbsqueue_get_running_jobs_default_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {}
-    assert queue.getRunningJobs() == 0
+    assert queue.getRunningJobs() is None
 
 
 def test_pbsqueue_get_queued_jobs_with_value():
@@ -213,6 +213,20 @@ def test_pbsqueue_get_max_walltime_none():
     assert queue.getMaxWalltime() is None
 
 
+def test_pbsqueue_get_max_nnodes_returns_int():
+    queue = PBSQueue.__new__(PBSQueue)
+    queue._info = {"resources_max.nodect": "8"}
+
+    assert queue.getMaxNNodes() == 8
+
+
+def test_pbsqueue_get_max_nnodes_none():
+    queue = PBSQueue.__new__(PBSQueue)
+    queue._info = {}
+
+    assert queue.getMaxNNodes() is None
+
+
 def test_pbsqueue_get_comment_with_value():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"comment": "Default queue|details"}
@@ -222,7 +236,7 @@ def test_pbsqueue_get_comment_with_value():
 def test_pbsqueue_get_comment_empty():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getComment() == ""
+    assert queue.getComment() is None
 
 
 def test_pbsqueue_get_destinations_with_values():

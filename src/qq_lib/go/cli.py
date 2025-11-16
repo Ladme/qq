@@ -62,7 +62,12 @@ def go(job: str | None) -> NoReturn:
         if job:
             informers = [Informer.fromJobId(job)]
         else:
-            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+            if not (
+                informers := [
+                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                ]
+            ):
+                raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, _go_to_job)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)

@@ -51,7 +51,12 @@ def info(job: str | None, short: bool) -> NoReturn:
         if job:
             informers = [Informer.fromJobId(job)]
         else:
-            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+            if not (
+                informers := [
+                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                ]
+            ):
+                raise QQError("No qq job info file found.")
 
         Repeater(informers, _info_for_job, short).run()
         sys.exit(0)

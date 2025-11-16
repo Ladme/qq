@@ -70,7 +70,12 @@ def sync(job: str | None, files: str | None) -> NoReturn:
         if job:
             informers = [Informer.fromJobId(job)]
         else:
-            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+            if not (
+                informers := [
+                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                ]
+            ):
+                raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, _sync_job, _split_files(files))
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)

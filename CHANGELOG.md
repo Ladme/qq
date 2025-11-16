@@ -1,3 +1,7 @@
+## Version 0.5.1
+
+- If no info file is detected when running `qq go`, `qq info`, `qq kill`, `qq sync`, and `qq wipe`, an error message is printed. (This fixes a regression in v0.5.0.)
+
 ## Version 0.5.0
 
 ### Support for LUMI

@@ -76,7 +76,12 @@ def wipe(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
         if job:
             informers = [Informer.fromJobId(job)]
         else:
-            informers = [Informer.fromFile(info) for info in get_info_files(Path.cwd())]
+            if not (
+                informers := [
+                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                ]
+            ):
+                raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, _wipe_work_dir, force, yes)
         repeater.onException(QQNotSuitableError, handle_not_suitable_error)

@@ -263,6 +263,8 @@ class Config:
     state_colors: StateColors = field(default_factory=StateColors)
     size: SizeOptions = field(default_factory=SizeOptions)
     binary_name: str = "qq"
+    it4i_scratch_dir_attempts: int = 5
+    lumi_scratch_dir_attempts: int = 5
 
     @classmethod
     def load(cls, config_path: Path | None = None) -> Self:

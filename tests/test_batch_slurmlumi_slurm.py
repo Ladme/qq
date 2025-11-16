@@ -5,7 +5,7 @@
 import getpass
 import os
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -75,9 +75,35 @@ def test_slurmlumi_get_scratch_dir_raises_on_creation_error(monkeypatch):
     monkeypatch.setattr(getpass, "getuser", lambda: "user")
 
     with (
-        patch.object(Path, "mkdir", side_effect=Exception("fail")),
+        patch.object(Path, "mkdir", side_effect=Exception("fail")) as mock_mkdir,
         pytest.raises(
             QQError, match="Could not create a scratch directory for job '444'"
         ),
     ):
         SlurmLumi.getScratchDir("444")
+
+    assert mock_mkdir.call_count == CFG.lumi_scratch_dir_attempts
+
+
+@patch("qq_lib.batch.slurmlumi.slurm.getpass.getuser", return_value="userX")
+@patch.dict(
+    os.environ,
+    {CFG.env_vars.slurm_job_account: "ACCT", CFG.env_vars.lumi_scratch_type: "scratch"},
+    clear=True,
+)
+def test_slurmlumi_get_scratch_dir_third_attempt_succeeds(mock_user):
+    mkdir_mock = MagicMock()
+    mkdir_mock.side_effect = [
+        OSError("fail 1"),
+        OSError("fail 2"),
+        None,  # third attempt succeeds
+    ]
+
+    with patch("qq_lib.batch.slurmlumi.slurm.Path.mkdir", mkdir_mock):
+        result = SlurmLumi.getScratchDir("999")
+
+    expected_path = "/scratch/acct/userX3/qq-jobs/job_999"
+    assert str(result).endswith(expected_path)
+
+    mock_user.assert_called_once()
+    assert mkdir_mock.call_count == 3

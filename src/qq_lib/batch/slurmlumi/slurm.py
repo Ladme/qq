@@ -60,26 +60,40 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
-        # get the storage type
+        # get the storage type (scratch or flash)
         if not (storage_type := os.environ.get(CFG.env_vars.lumi_scratch_type)):
             raise QQError(
                 f"Environment variable '{CFG.env_vars.lumi_scratch_type}' is not defined. This is a bug!"
             )
 
-        # create the scratch directory on /scratch or /flash
-        try:
+        user = getpass.getuser()
+
+        # we attempt to create the scratch directory multiple times in different user directory;
+        # if the user directory is already created but the user does not have permissions
+        # to write into it, we append a number to the user's name and try creating a new directory
+        last_exception = None
+        for attempt in range(CFG.lumi_scratch_dir_attempts):
+            user_component = (
+                user if attempt == 0 else f"{user}{attempt + 1}"
+            )  # appended number is 2 for the second attempt
+
             scratch = Path(
-                f"/{storage_type}/{account.lower()}/{getpass.getuser()}/qq-jobs/job_{job_id}"
+                f"/{storage_type}/{account.lower()}/{user_component}/qq-jobs/job_{job_id}"
             )
             logger.debug(
                 f"Creating directory '{str(scratch)}' on '{storage_type}' storage."
             )
-            scratch.mkdir(parents=True, exist_ok=True)
-            return scratch
-        except Exception as e:
-            raise QQError(
-                f"Could not create a scratch directory for job '{job_id}': {e}"
-            ) from e
+
+            try:
+                scratch.mkdir(parents=True, exist_ok=True)
+                return scratch
+            except Exception as e:
+                last_exception = e
+
+        # if all attempts failed
+        raise QQError(
+            f"Could not create a scratch directory for job '{job_id}' after {CFG.lumi_scratch_dir_attempts} attempts: {last_exception}"
+        ) from last_exception
 
     @classmethod
     def _getDefaultResources(cls) -> Resources:

@@ -277,6 +277,7 @@ class SlurmJob(BatchJobInterface):
         return None
 
     def getInputDir(self) -> Path | None:
+        # note that Slurm's WorkDir corresponds to the directory from which sbatch was run
         if not (raw_dir := self._info.get("WorkDir")):
             logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
             return None

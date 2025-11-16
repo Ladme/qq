@@ -4,6 +4,7 @@
 import getpass
 import os
 import socket
+from contextlib import chdir
 from datetime import datetime
 from pathlib import Path
 
@@ -120,45 +121,55 @@ class Submitter:
         Raises:
             QQError: If job submission fails.
         """
-        # submit the job
-        job_id = self._batch_system.jobSubmit(
-            self._resources,
-            self._queue,
-            self._script,
-            self._job_name,
-            self._depend,
-            self._createEnvVarsDict(),
-            self._account,
-        )
-
-        # create job qq info file
-        informer = Informer(
-            Info(
-                batch_system=self._batch_system,
-                qq_version=qq_lib.__version__,
-                username=getpass.getuser(),
-                job_id=job_id,
-                job_name=self._job_name,
-                script_name=self._script_name,
-                queue=self._queue,
-                job_type=self._job_type,
-                input_machine=socket.gethostname(),
-                input_dir=self._input_dir,
-                job_state=NaiveState.QUEUED,
-                submission_time=datetime.now(),
-                stdout_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stdout)),
-                stderr_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stderr)),
-                resources=self._resources,
-                loop_info=self._loop_info,
-                excluded_files=self._exclude,
-                included_files=self._include,
-                command_line=self._command_line,
-                depend=self._depend,
-                account=self._account,
+        # move to the script's parent directory and submit the script
+        # with PBS it is possible to submit the script from anywhere
+        # but with Slurm the input directory path is then not set correctly
+        # it is safer and easier to just move to the input directory,
+        # execute the command and then return back
+        with chdir(self._input_dir):
+            # submit the job
+            job_id = self._batch_system.jobSubmit(
+                self._resources,
+                self._queue,
+                self._script,
+                self._job_name,
+                self._depend,
+                self._createEnvVarsDict(),
+                self._account,
             )
-        )
-        informer.toFile(self._info_file)
-        return job_id
+
+            # create job qq info file
+            informer = Informer(
+                Info(
+                    batch_system=self._batch_system,
+                    qq_version=qq_lib.__version__,
+                    username=getpass.getuser(),
+                    job_id=job_id,
+                    job_name=self._job_name,
+                    script_name=self._script_name,
+                    queue=self._queue,
+                    job_type=self._job_type,
+                    input_machine=socket.gethostname(),
+                    input_dir=self._input_dir,
+                    job_state=NaiveState.QUEUED,
+                    submission_time=datetime.now(),
+                    stdout_file=str(
+                        Path(self._job_name).with_suffix(CFG.suffixes.stdout)
+                    ),
+                    stderr_file=str(
+                        Path(self._job_name).with_suffix(CFG.suffixes.stderr)
+                    ),
+                    resources=self._resources,
+                    loop_info=self._loop_info,
+                    excluded_files=self._exclude,
+                    included_files=self._include,
+                    command_line=self._command_line,
+                    depend=self._depend,
+                    account=self._account,
+                )
+            )
+            informer.toFile(self._info_file)
+            return job_id
 
     def continuesLoop(self) -> bool:
         """

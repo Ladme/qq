@@ -100,7 +100,7 @@ class Parser:
                         self._options[snake_case_key] = value
                 else:
                     raise QQError(
-                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line}.\nKnown options are '{' '.join(self._known_options)}'."
+                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line.strip()}.\nKnown options are '{' '.join(self._known_options)}'."
                     )
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")

@@ -18,9 +18,9 @@ logger = get_logger(__name__)
 @dataclass(init=False)
 @coupled_fields(
     # if mem is set, ignore mem_per_cpu
-    FieldCoupling(dominant="mem", recessive="mem_per_cpu"),
+    FieldCoupling("mem", "mem_per_cpu"),
     # if work_size is set, ignore work_size_per_cpu
-    FieldCoupling(dominant="work_size", recessive="work_size_per_cpu"),
+    FieldCoupling("work_size", "work_size_per_cpu"),
 )
 class Resources(HasCouplingMethods):
     """
@@ -172,16 +172,14 @@ class Resources(HasCouplingMethods):
                     (r for r in resources if coupling.hasValue(r)), None
                 )
 
+                # set all fields of the coupling
                 if source_resource:
-                    merged_data[coupling.dominant] = getattr(
-                        source_resource, coupling.dominant
-                    )
-                    merged_data[coupling.recessive] = getattr(
-                        source_resource, coupling.recessive
-                    )
+                    for field in coupling.fields:
+                        merged_data[field] = getattr(source_resource, field)
+                # if no resource has any attribute set for this coupling
                 else:
-                    merged_data[coupling.dominant] = None
-                    merged_data[coupling.recessive] = None
+                    for field in coupling.fields:
+                        merged_data[field] = None
                 continue
 
             # default: pick the first non-None value for this field

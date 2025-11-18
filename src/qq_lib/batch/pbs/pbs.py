@@ -222,6 +222,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return queues
 
     @classmethod
+    def getSupportedWorkDirTypes(cls) -> list[str]:
+        return cls.SUPPORTED_SCRATCHES + [
+            "scratch_shm",
+            "input_dir",
+            "job_dir",  # same as input_dir
+        ]
+
+    @classmethod
     def readRemoteFile(cls, host: str, file: Path) -> str:
         if os.environ.get(CFG.env_vars.shared_submit):
             # file is on shared storage, we can read it directly
@@ -413,13 +421,8 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             return resources
 
         # unknown work-dir type
-        supported_types = cls.SUPPORTED_SCRATCHES + [
-            "scratch_shm",
-            "job_dir",
-            "input_dir",  # same as job_dir
-        ]
         raise QQError(
-            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: '{' '.join(supported_types)}'."
+            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: '{' '.join(cls.getSupportedWorkDirTypes())}'."
         )
 
     @classmethod

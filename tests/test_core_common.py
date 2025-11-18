@@ -16,6 +16,7 @@ from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
+    available_work_dirs,
     construct_info_file_path,
     construct_loop_job_name,
     convert_absolute_to_relative,
@@ -1062,3 +1063,18 @@ def test_construct_info_file_path_returns_expected_path():
     result = construct_info_file_path(input_dir, job_name)
 
     assert result == expected
+
+
+def test_available_work_dirs_returns_joined_list():
+    mock_batch_system = MagicMock()
+    mock_batch_system.getSupportedWorkDirTypes.return_value = ["a", "b"]
+
+    with patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=mock_batch_system):
+        expected = "'a', 'b'"
+
+        assert available_work_dirs() == expected
+
+
+def test_available_work_dirs_returns_placeholder_on_error():
+    with patch.object(BatchMeta, "fromEnvVarOrGuess", side_effect=QQError):
+        assert available_work_dirs() == "??? (no batch system detected)"

@@ -267,6 +267,19 @@ class BatchInterface[
         )
 
     @classmethod
+    def getSupportedWorkDirTypes(cls) -> list[str]:
+        """
+        Retrieve the list of supported types of working directories
+        (i.e., strings that can be used with the `--work-dir` option).
+
+        Returns:
+            list[str]: A list of supported types of working directories.
+        """
+        raise NotImplementedError(
+            f"getSupportedWorkDirTypes method is not implemented for {cls.__name__}"
+        )
+
+    @classmethod
     def navigateToDestination(cls, host: str, directory: Path) -> None:
         """
         Open a new terminal on the specified host and change the working directory

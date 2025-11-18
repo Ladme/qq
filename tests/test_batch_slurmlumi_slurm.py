@@ -107,3 +107,8 @@ def test_slurmlumi_get_scratch_dir_third_attempt_succeeds(mock_user):
 
     mock_user.assert_called_once()
     assert mkdir_mock.call_count == 3
+
+
+def test_slurmlumi_get_supported_work_dir_types_returns_combined_list():
+    expected = ["scratch", "flash", "input_dir", "job_dir"]
+    assert SlurmLumi.getSupportedWorkDirTypes() == expected

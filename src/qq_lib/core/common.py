@@ -696,3 +696,24 @@ def construct_info_file_path(input_dir: Path, job_name: str) -> Path:
         Path: The absolute path to the job's qq info file.
     """
     return (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()
+
+
+def available_work_dirs() -> str:
+    """Return the supported work-directory types for the detected batch system.
+
+    The batch system is determined using the `QQ_BATCH_SYSTEM` environment
+    variable or by automatic detection. The supported work-directory types are
+    returned as a comma-separated string formatted for display in help text.
+
+    Returns:
+        str: A comma-separated list of supported work directory types, each
+        wrapped in quotes.
+    """
+    from qq_lib.batch.interface.meta import BatchMeta
+
+    try:
+        batch_system = BatchMeta.fromEnvVarOrGuess()
+        work_dirs = batch_system.getSupportedWorkDirTypes()
+        return ", ".join([f"'{work_dir_type}'" for work_dir_type in work_dirs])
+    except QQError:
+        return "??? (no batch system detected)"

@@ -1449,3 +1449,15 @@ def test_pbs_delete_remote_dir_calls_super_for_remote_host(mock_super):
     PBS.deleteRemoteDir(host, directory)
 
     mock_super().deleteRemoteDir.assert_called_once_with(host, directory)
+
+
+def test_pbs_get_supported_work_dir_types_returns_combined_list():
+    expected = [
+        "scratch_local",
+        "scratch_ssd",
+        "scratch_shared",
+        "scratch_shm",
+        "input_dir",
+        "job_dir",
+    ]
+    assert PBS.getSupportedWorkDirTypes() == expected

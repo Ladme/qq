@@ -69,6 +69,13 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         ) from last_exception
 
     @classmethod
+    def getSupportedWorkDirTypes(cls) -> list[str]:
+        return cls.SUPPORTED_SCRATCHES + [
+            "input_dir",
+            "job_dir",  # same as input_dir
+        ]
+
+    @classmethod
     def navigateToDestination(cls, host: str, directory: Path) -> None:
         logger.info(
             f"Host '{host}' is not reachable in this environment. Navigating to '{directory}' on the current machine."
@@ -183,12 +190,12 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
                 "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity."
             )
 
-        supported_types = cls.SUPPORTED_SCRATCHES + ["input_dir", "job_dir"]
         if not any(
-            equals_normalized(resources.work_dir, dir) for dir in supported_types
+            equals_normalized(resources.work_dir, dir)
+            for dir in cls.getSupportedWorkDirTypes()
         ):
             raise QQError(
-                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: {' '.join(supported_types)}."
+                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: {' '.join(cls.getSupportedWorkDirTypes())}."
             )
 
         return resources

@@ -10,7 +10,7 @@ import click
 from click_option_group import optgroup
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import get_runtime_files
+from qq_lib.core.common import available_work_dirs, get_runtime_files
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -149,7 +149,7 @@ Overrides `--mem-per-cpu` and `--mem-per-node`.""",
     "--workdir",
     type=str,
     default=None,
-    help="Type of working directory to use for the job.",
+    help=f"Type of working directory to use for the job. Available types: {available_work_dirs()}.",
 )
 @optgroup.option(
     "--work-size-per-cpu",

@@ -372,7 +372,7 @@ def test_slurmit4i_get_scratch_dir_third_attempt_succeeds(mock_user):
     assert mkdir_mock.call_count == 3
 
 
-def test_slurm_delete_remote_dir_deletes_local(tmp_path):
+def test_slurmit4i_delete_remote_dir_deletes_local(tmp_path):
     test_dir = tmp_path / "to_delete"
     test_dir.mkdir()
     (test_dir / "file.txt").write_text("content")
@@ -385,7 +385,9 @@ def test_slurm_delete_remote_dir_deletes_local(tmp_path):
     assert not test_dir.exists()
 
 
-def test_slurm_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypatch):
+def test_slurmit4i_delete_remote_dir_raises_error_on_local_failure(
+    tmp_path, monkeypatch
+):
     test_dir = tmp_path / "to_delete_fail"
     test_dir.mkdir()
 
@@ -398,3 +400,8 @@ def test_slurm_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeyp
         QQError, match=f"Could not delete directory '{test_dir}': access denied."
     ):
         SlurmIT4I.deleteRemoteDir("some_host", test_dir)
+
+
+def test_slurmit4i_get_supported_work_dir_types_returns_combined_list():
+    expected = ["scratch", "input_dir", "job_dir"]
+    assert SlurmIT4I.getSupportedWorkDirTypes() == expected

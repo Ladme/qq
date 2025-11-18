@@ -96,6 +96,13 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         ) from last_exception
 
     @classmethod
+    def getSupportedWorkDirTypes(cls) -> list[str]:
+        return cls.SUPPORTED_SCRATCHES + [
+            "input_dir",
+            "job_dir",  # same as input_dir
+        ]
+
+    @classmethod
     def _getDefaultResources(cls) -> Resources:
         return Resources(
             nnodes=1,

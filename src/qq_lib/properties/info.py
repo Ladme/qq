@@ -162,9 +162,7 @@ class Info:
         except yaml.YAMLError as e:
             raise QQError(f"Could not parse the qq info file '{file}': {e}.") from e
         except TypeError as e:
-            raise QQError(
-                f"Mandatory information missing from the qq info file '{file}': {e}."
-            ) from e
+            raise QQError(f"Invalid qq info file '{file}': {e}.") from e
 
     def toFile(self, file: Path, host: str | None = None) -> None:
         """

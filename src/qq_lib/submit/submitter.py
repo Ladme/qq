@@ -246,9 +246,22 @@ class Submitter:
         env_vars[CFG.env_vars.input_dir] = str(self._input_dir)
 
         # environment variables for resources
-        env_vars[CFG.env_vars.ncpus] = str(self._resources.ncpus or 1)
-        env_vars[CFG.env_vars.ngpus] = str(self._resources.ngpus or 0)
-        env_vars[CFG.env_vars.nnodes] = str(self._resources.nnodes or 1)
+        nnodes = self._resources.nnodes or 1
+        if ncpus := self._resources.ncpus:
+            env_vars[CFG.env_vars.ncpus] = str(ncpus)
+        elif ncpus_per_node := self._resources.ncpus_per_node:
+            env_vars[CFG.env_vars.ncpus] = str(ncpus_per_node * nnodes)
+        else:
+            env_vars[CFG.env_vars.ncpus] = "1"
+
+        if ngpus := self._resources.ngpus:
+            env_vars[CFG.env_vars.ngpus] = str(ngpus)
+        elif ngpus_per_node := self._resources.ngpus_per_node:
+            env_vars[CFG.env_vars.ngpus] = str(ngpus_per_node * nnodes)
+        else:
+            env_vars[CFG.env_vars.ngpus] = "0"
+
+        env_vars[CFG.env_vars.nnodes] = str(nnodes)
         env_vars[CFG.env_vars.walltime] = str(
             hhmmss_to_duration(self._resources.walltime or "00:00:00").total_seconds()
             / 3600

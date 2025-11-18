@@ -17,10 +17,14 @@ logger = get_logger(__name__)
 # dataclass decorator has to come before `@coupled_fields`!
 @dataclass(init=False)
 @coupled_fields(
-    # if mem is set, ignore mem_per_cpu
-    FieldCoupling("mem", "mem_per_cpu"),
-    # if work_size is set, ignore work_size_per_cpu
-    FieldCoupling("work_size", "work_size_per_cpu"),
+    # if mem is set, ignore other mem properties; if mem_per_node is set, ignore mem_per_cpu
+    FieldCoupling("mem", "mem_per_node", "mem_per_cpu"),
+    # if work_size is set, ignore other work_size properties; if work_size_per_node is set, ignore work_size_per_cpu
+    FieldCoupling("work_size", "work_size_per_node", "work_size_per_cpu"),
+    # if ncpus is set, ignore ncpus_per_node
+    FieldCoupling("ncpus", "ncpus_per_node"),
+    # if ngpus is set, ignore ngpus_per_node
+    FieldCoupling("ngpus", "ngpus_per_node"),
 )
 class Resources(HasCouplingMethods):
     """
@@ -33,14 +37,23 @@ class Resources(HasCouplingMethods):
     # Number of CPU cores to use for the job
     ncpus: int | None = None
 
+    # Number of CPU cores to use per node
+    ncpus_per_node: int | None = None
+
     # Absolute amount of memory to allocate for the job (overrides mem_per_cpu)
     mem: Size | None = None
+
+    # Amount of memory to allocate per node
+    mem_per_node: Size | None = None
 
     # Amount of memory to allocate per CPU core
     mem_per_cpu: Size | None = None
 
     # Number of GPUs to use
     ngpus: int | None = None
+
+    # Number of GPUs to use per node
+    ngpus_per_node: int | None = None
 
     # Maximum allowed runtime for the job
     walltime: str | None = None
@@ -50,6 +63,9 @@ class Resources(HasCouplingMethods):
 
     # Absolute size of storage requested for the job (overrides work_size_per_cpu)
     work_size: Size | None = None
+
+    # Storage size requested per node
+    work_size_per_node: Size | None = None
 
     # Storage size requested per CPU core
     work_size_per_cpu: Size | None = None
@@ -61,19 +77,25 @@ class Resources(HasCouplingMethods):
         self,
         nnodes: int | str | None = None,
         ncpus: int | str | None = None,
+        ncpus_per_node: int | str | None = None,
         mem: Size | str | dict[str, object] | None = None,
+        mem_per_node: Size | str | dict[str, object] | None = None,
         mem_per_cpu: Size | str | dict[str, object] | None = None,
         ngpus: int | str | None = None,
+        ngpus_per_node: int | str | None = None,
         walltime: str | None = None,
         work_dir: str | None = None,
         work_size: Size | str | dict[str, object] | None = None,
+        work_size_per_node: Size | str | dict[str, object] | None = None,
         work_size_per_cpu: Size | str | dict[str, object] | None = None,
         props: dict[str, str] | str | None = None,
     ):
         # convert sizes
         mem = Resources._parseSize(mem)
+        mem_per_node = Resources._parseSize(mem_per_node)
         mem_per_cpu = Resources._parseSize(mem_per_cpu)
         work_size = Resources._parseSize(work_size)
+        work_size_per_node = Resources._parseSize(work_size_per_node)
         work_size_per_cpu = Resources._parseSize(work_size_per_cpu)
 
         # convert walltime
@@ -84,23 +106,31 @@ class Resources(HasCouplingMethods):
         if isinstance(props, str):
             props = Resources._parseProps(props)
 
-        # convert nnodes, ncpus, and ngpus to integer
+        # convert nnodes, ncpus, and ngpus to integers
         if isinstance(nnodes, str):
             nnodes = int(nnodes)
         if isinstance(ncpus, str):
             ncpus = int(ncpus)
+        if isinstance(ncpus_per_node, str):
+            ncpus_per_node = int(ncpus_per_node)
         if isinstance(ngpus, str):
             ngpus = int(ngpus)
+        if isinstance(ngpus_per_node, str):
+            ngpus_per_node = int(ngpus_per_node)
 
         # set attributes
         self.nnodes = nnodes
         self.ncpus = ncpus
+        self.ncpus_per_node = ncpus_per_node
         self.mem = mem
+        self.mem_per_node = mem_per_node
         self.mem_per_cpu = mem_per_cpu
         self.ngpus = ngpus
+        self.ngpus_per_node = ngpus_per_node
         self.walltime = walltime
         self.work_dir = work_dir
         self.work_size = work_size
+        self.work_size_per_node = work_size_per_node
         self.work_size_per_cpu = work_size_per_cpu
         self.props = props
 

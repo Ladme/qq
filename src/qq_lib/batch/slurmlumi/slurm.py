@@ -99,7 +99,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
     def _getDefaultResources(cls) -> Resources:
         return Resources(
             nnodes=1,
-            ncpus=128,
+            ncpus_per_node=128,
             mem_per_cpu="500mb",
             work_dir="scratch",
             walltime="1d",

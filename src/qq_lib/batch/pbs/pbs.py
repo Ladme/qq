@@ -586,21 +586,37 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             # number of sockets; this does not mean that the run script has to use one MPI
             # process per CPU core, this value can be overriden
             trans_res.append(f"mpiprocs={res.ncpus // res.nnodes}")
+        elif res.ncpus_per_node:
+            trans_res.append(f"ncpus={res.ncpus_per_node}")
+            trans_res.append(f"mpiprocs={res.ncpus_per_node}")
 
         if res.mem:
             trans_res.append(f"mem={(res.mem // res.nnodes).toStrExact()}")
-        elif res.mem_per_cpu and res.ncpus:
-            trans_res.append(
-                f"mem={(res.mem_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
-            )
+        elif res.mem_per_node:
+            trans_res.append(f"mem={res.mem_per_node.toStrExact()}")
+        elif res.mem_per_cpu:
+            if res.ncpus:
+                trans_res.append(
+                    f"mem={(res.mem_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+                )
+            elif res.ncpus_per_node:
+                trans_res.append(
+                    f"mem={(res.mem_per_cpu * res.ncpus_per_node).toStrExact()}"
+                )
+            else:
+                raise QQError(
+                    "Attribute 'mem-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined."
+                )
         else:
             # memory not set in any way
             raise QQError(
-                "Attribute 'mem' or attributes 'mem-per-cpu' and 'ncpus' are not defined."
+                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined."
             )
 
         if res.ngpus:
             trans_res.append(f"ngpus={res.ngpus // res.nnodes}")
+        elif res.ngpus_per_node:
+            trans_res.append(f"ngpus={res.ngpus_per_node}")
 
         # translate work-dir
         if workdir := cls._translateWorkDir(res):
@@ -629,12 +645,20 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
         if res.work_size:
             return f"{res.work_dir}={(res.work_size // res.nnodes).toStrExact()}"
+        if res.work_size_per_node:
+            return f"{res.work_dir}={res.work_size_per_node.toStrExact()}"
+        if res.work_size_per_cpu:
+            if res.ncpus:
+                return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+            if res.ncpus_per_node:
+                return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus_per_node).toStrExact()}"
 
-        if res.work_size_per_cpu and res.ncpus:
-            return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+            raise QQError(
+                "Attribute 'work-size-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined."
+            )
 
         raise QQError(
-            "Attribute 'work-size' or attributes 'work-size-per-cpu' and 'ncpus' are not defined."
+            "None of the attributes 'work-size', 'work-size-per-node', or 'work-size-per-cpu' is defined."
         )
 
     @classmethod

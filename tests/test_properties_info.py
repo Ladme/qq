@@ -277,5 +277,5 @@ def test_from_file_missing_required_field(tmp_path):
     }
     file.write_text(yaml.dump(data))
 
-    with pytest.raises(QQError, match=r"Mandatory information missing"):
+    with pytest.raises(QQError, match=r"Invalid qq info file"):
         Info.fromFile(file)

@@ -254,6 +254,47 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables(
 
 
 @pytest.mark.parametrize("debug_mode", [True, False])
+def test_submitter_create_env_vars_dict_sets_all_required_variables_with_per_node_properties(
+    tmp_path, debug_mode
+):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
+
+    submitter = Submitter.__new__(Submitter)
+    submitter._info_file = tmp_path / "job.qqinfo"
+    submitter._batch_system = PBS
+    submitter._loop_info = None
+    submitter._input_dir = tmp_path
+    submitter._resources = Resources(
+        nnodes=2, ncpus_per_node=8, ngpus_per_node=2, walltime="1d"
+    )
+
+    if debug_mode:
+        with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
+            env = submitter._createEnvVarsDict()
+    else:
+        env = submitter._createEnvVarsDict()
+
+    assert env[CFG.env_vars.guard] == "true"
+    assert env[CFG.env_vars.info_file] == str(submitter._info_file)
+    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
+    assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
+    assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
+    assert env[CFG.env_vars.ncpus] == str(
+        submitter._resources.ncpus_per_node * submitter._resources.nnodes
+    )
+    assert env[CFG.env_vars.ngpus] == str(
+        submitter._resources.ngpus_per_node * submitter._resources.nnodes
+    )
+    assert env[CFG.env_vars.walltime] == "24.0"
+    if debug_mode:
+        assert env[CFG.env_vars.debug_mode] == "true"
+    else:
+        assert CFG.env_vars.debug_mode not in env
+
+
+@pytest.mark.parametrize("debug_mode", [True, False])
 def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode):
     script = tmp_path / "script.sh"
     script.write_text("#!/usr/bin/env -S qq run\n")

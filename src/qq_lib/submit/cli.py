@@ -96,10 +96,16 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     help="Number of computing nodes to allocate for the job.",
 )
 @optgroup.option(
+    "--ncpus-per-node",
+    type=int,
+    default=None,
+    help="Number of CPU cores to allocate per one requested node.",
+)
+@optgroup.option(
     "--ncpus",
     type=int,
     default=None,
-    help="Number of CPU cores to allocate for the job.",
+    help="Total number of CPU cores to allocate for the job. Overrides `--ncpus-per-node`.",
 )
 @optgroup.option(
     "--mem-per-cpu",
@@ -108,13 +114,29 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     help="Memory to allocate per CPU core. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 2gb).",
 )
 @optgroup.option(
+    "--mem-per-node",
+    type=str,
+    default=None,
+    help="Memory to allocate per one requested node. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 32gb). Overrides `--mem-per-cpu`.",
+)
+@optgroup.option(
     "--mem",
     type=str,
     default=None,
-    help="Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides `--mem-per-cpu`.",
+    help="""Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 64gb).
+Overrides `--mem-per-cpu` and `--mem-per-node`.""",
 )
 @optgroup.option(
-    "--ngpus", type=int, default=None, help="Number of GPUs to allocate for the job."
+    "--ngpus-per-node",
+    type=int,
+    default=None,
+    help="Number of GPUs to allocate per one requested node.",
+)
+@optgroup.option(
+    "--ngpus",
+    type=int,
+    default=None,
+    help="Total number of GPUs to allocate for the job. Overrides `--ngpus-per-node`.",
 )
 @optgroup.option(
     "--walltime",
@@ -137,11 +159,19 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     help="Storage to allocate per CPU core. Specify as 'Ngb' (e.g., 1gb).",
 )
 @optgroup.option(
+    "--work-size-per-node",
+    "--worksize-per-node",
+    type=str,
+    default=None,
+    help="Storage to allocate per one requested node. Specify as 'Ngb' (e.g., 32gb). Overrides `--work-size-per-cpu`.",
+)
+@optgroup.option(
     "--work-size",
     "--worksize",
     type=str,
     default=None,
-    help="Total storage to allocate for the job. Specify as 'Ngb' (e.g., 10gb). Overrides `--work-size-per-cpu`.",
+    help="""Total storage to allocate for the job. Specify as 'Ngb' (e.g., 64gb).
+Overrides `--work-size-per-cpu` and `--work-size-per-node`.""",
 )
 @optgroup.option(
     "--props",

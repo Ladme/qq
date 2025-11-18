@@ -1,3 +1,10 @@
+## Version 0.6.0
+
+### Support for per-node resources
+- Number of CPU cores, number of GPUs, the amount of memory and the amount of storage can be now requested per-node using the submission options `ncpus-per-node`, `ngpus-per-node`, `mem-per-node`, and `work-size-per-node`. Per-node properties override per-cpu properties (`mem-per-cpu`, `work-size-per-cpu`) but are overriden by "total" properties (`ncpus`, `ngpus`, `mem`, `work-size`).
+
+***
+
 ## Version 0.5.1
 
 - If no info file is detected when running `qq go`, `qq info`, `qq kill`, `qq sync`, and `qq wipe`, an error message is printed. (This fixes a regression in v0.5.0.)

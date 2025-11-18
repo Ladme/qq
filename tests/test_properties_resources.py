@@ -56,20 +56,79 @@ def test_init_converts_numeric_strings_to_integers():
     assert res.ngpus == 4
 
 
-def test_init_mem_overrides_mem_per_cpu():
-    res = Resources(mem_per_cpu="1gb", mem="4gb")
+def test_init_mem_overrides_mem_per_node():
+    res = Resources(mem_per_node="1gb", mem="4gb")
     assert res.mem_per_cpu is None
+    assert res.mem_per_node is None
 
     assert res.mem is not None
     assert res.mem.value == 4194304
 
 
-def test_init_worksize_overrides_work_size_per_cpu():
-    res = Resources(work_size_per_cpu="1gb", work_size="4gb")
+def test_init_mem_overrides_mem_per_cpu():
+    res = Resources(mem_per_cpu="1gb", mem="4gb")
+    assert res.mem_per_cpu is None
+    assert res.mem_per_node is None
+
+    assert res.mem is not None
+    assert res.mem.value == 4194304
+
+
+def test_init_mem_per_node_overrides_mem_per_cpu():
+    res = Resources(mem_per_node="4gb", mem_per_cpu="1gb")
+    assert res.mem_per_cpu is None
+    assert res.mem is None
+
+    assert res.mem_per_node is not None
+    assert res.mem_per_node.value == 4194304
+
+
+def test_init_mem_overrides_mem_per_node_and_mem_per_cpu():
+    res = Resources(mem_per_node="2gb", mem_per_cpu="1gb", mem="4gb")
+    assert res.mem_per_cpu is None
+    assert res.mem_per_node is None
+
+    assert res.mem is not None
+    assert res.mem.value == 4194304
+
+
+def test_init_worksize_overrides_work_size_per_node():
+    res = Resources(work_size_per_node="2gb", work_size="4gb")
     assert res.work_size_per_cpu is None
+    assert res.work_size_per_node is None
 
     assert res.work_size is not None
     assert res.work_size.value == 4194304
+
+
+def test_init_worksize_overrides_work_size_per_cpu():
+    res = Resources(work_size_per_cpu="1gb", work_size="4gb")
+    assert res.work_size_per_cpu is None
+    assert res.work_size_per_node is None
+
+    assert res.work_size is not None
+    assert res.work_size.value == 4194304
+
+
+def test_init_worksize_per_node_overrides_work_size_per_cpu():
+    res = Resources(work_size_per_node="4gb", work_size_per_cpu="1gb")
+    assert res.work_size_per_cpu is None
+    assert res.work_size is None
+
+    assert res.work_size_per_node is not None
+    assert res.work_size_per_node.value == 4194304
+
+
+def test_init_ncpus_overrides_ncpus_per_node():
+    res = Resources(ncpus_per_node=4, ncpus=8)
+    assert res.ncpus_per_node is None
+    assert res.ncpus == 8
+
+
+def test_init_ngpus_overrides_ngpus_per_node():
+    res = Resources(ngpus_per_node=1, ngpus=4)
+    assert res.ngpus_per_node is None
+    assert res.ngpus == 4
 
 
 def test_init_leaves_already_converted_types_unchanged():
@@ -179,6 +238,17 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence3():
     assert merged.mem_per_cpu.value == 4194304
 
 
+def test_merge_resources_mem_with_mem_per_node_precedence():
+    r1 = Resources(mem_per_node="16gb")
+    r2 = Resources(mem="32gb", mem_per_cpu="4gb")
+    r3 = Resources(mem="64gb")
+    merged = Resources.mergeResources(r1, r2, r3)
+    assert merged.mem_per_cpu is None
+    assert merged.mem is None
+    assert merged.mem_per_node is not None
+    assert merged.mem_per_node.value == 16777216
+
+
 def test_merge_resources_mem_skipped_if_mem_per_cpu_seen_first():
     r1 = Resources(mem_per_cpu="4gb")
     r2 = Resources(mem="32gb")
@@ -218,6 +288,53 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence3():
     assert merged.work_size is None
     assert merged.work_size_per_cpu is not None
     assert merged.work_size_per_cpu.value == 10485760
+
+
+def test_merge_resources_work_size_with_work_size_per_node_precedence():
+    r1 = Resources(work_size_per_node="100gb")
+    r2 = Resources(work_size="400gb", work_size_per_cpu="10gb")
+    r3 = Resources(work_size="200gb")
+    merged = Resources.mergeResources(r1, r2, r3)
+    assert merged.work_size_per_cpu is None
+    assert merged.work_size is None
+    assert merged.work_size_per_node is not None
+    assert merged.work_size_per_node.value == 104857600
+
+
+def test_merge_resources_ncpus_with_ncpus_per_node_precedence():
+    r1 = Resources(ncpus_per_node=64)
+    r2 = Resources(ncpus=128)
+    r3 = Resources(ncpus=32)
+    merged = Resources.mergeResources(r1, r2, r3)
+    assert merged.ncpus is None
+    assert merged.ncpus_per_node == 64
+
+
+def test_merge_resources_ncpus_with_ncpus_per_node_precedence2():
+    r1 = Resources()
+    r2 = Resources(ncpus=128, ncpus_per_node=64)
+    r3 = Resources(ncpus=32)
+    merged = Resources.mergeResources(r1, r2, r3)
+    assert merged.ncpus == 128
+    assert merged.ncpus_per_node is None
+
+
+def test_merge_resources_ngpus_with_ngpus_per_node_precedence():
+    r1 = Resources(ngpus_per_node=8)
+    r2 = Resources(ngpus=16)
+    r3 = Resources(ngpus=1)
+    merged = Resources.mergeResources(r1, r2, r3)
+    assert merged.ngpus is None
+    assert merged.ngpus_per_node == 8
+
+
+def test_merge_resources_ngpus_with_ngpus_per_node_precedence2():
+    r1 = Resources()
+    r2 = Resources(ngpus=16, ngpus_per_node=8)
+    r3 = Resources(ngpus=1)
+    merged = Resources.mergeResources(r1, r2, r3)
+    assert merged.ngpus == 16
+    assert merged.ngpus_per_node is None
 
 
 def test_merge_resources_work_size_skipped_if_work_size_per_cpu_seen_first():

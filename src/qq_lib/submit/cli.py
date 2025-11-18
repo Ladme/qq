@@ -142,7 +142,7 @@ Overrides `--mem-per-cpu` and `--mem-per-node`.""",
     "--walltime",
     type=str,
     default=None,
-    help="Maximum runtime allowed for the job.",
+    help="Maximum runtime allowed for the job. Examples: '1d', '12h', '10m', '24:00:00', '12:00:00', '00:10:00'.",
 )
 @optgroup.option(
     "--work-dir",

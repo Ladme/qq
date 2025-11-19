@@ -3,7 +3,7 @@
 #     Script for running Gromacs       #
 #  flexible-length replica exchange    #
 #              using qq                #
-#         script version: 0.3          #
+#         script version: 0.5          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -53,7 +53,7 @@ HREX="true"
 # maximum number of warnings; leave empty to determine automatically (gen-vel)
 MAXWARN=""
 
-# number of MPI ranks to use; leave empty to determine automatically
+# number of MPI ranks PER CLIENT to use; leave empty to determine automatically
 MPI=""
 # number of OpenMP threads per MPI rank to use; leave empty to determine automatically
 NTOMP=""
@@ -82,32 +82,37 @@ for CLIENT in "${CLIENTS[@]}"; do
     CLI_SUFFIXES+=( "${CLIENT#${CLIENTS_PATTERN}}" )
 done
 
-# set MPI ranks and OpenMP threads
-# by default, use one MPI rank per client or GPU
-if [[ -z "${MPI}" ]]; then 
-    MPI=$(( QQ_NGPUS > N_CLIENTS ? QQ_NGPUS : N_CLIENTS ))
-    echo "[QQ_FLEX_RE]    INFO    Setting the number of MPI ranks to ${MPI}."
+# set MPI ranks
+if [[ -z "${MPI}" ]]; then
+    # if no GPUs are used, use one MPI rank per CPU core
+    # otherwise, use one MPI rank per GPU
+    MPI=$(( QQ_NGPUS == 0 ? QQ_NCPUS : QQ_NGPUS ))
+else
+    # convert MPI ranks per client to total number of MPI ranks
+    MPI=$(( MPI * N_CLIENTS ))
 fi
 
 if [[ "${MPI}" -eq 0 ]]; then
     echo "[QQ_FLEX_RE]    ERROR    The number of MPI ranks cannot be 0." >&2
     exit 1
+else
+    echo "[QQ_FLEX_RE]    INFO    Setting the total number of MPI ranks to ${MPI}."
 fi
 
-# by default, use the highest possible number of OpenMP threads
+# set OpenMP threads
 if [[ -z "${NTOMP}" ]]; then
     NTOMP=$(( QQ_NCPUS / MPI ))
-    echo "[QQ_FLEX_RE]    INFO    Setting the number of OpenMP threads per MPI rank to ${NTOMP}."
 fi
 
 if [[ "${NTOMP}" -eq 0 ]]; then
     echo "[QQ_FLEX_RE]    ERROR    The number of OpenMP threads per MPI rank cannot be 0." >&2
     exit 1
+else
+    echo "[QQ_FLEX_RE]    INFO    Setting the number of OpenMP threads per MPI rank to ${NTOMP}."
 fi
 
-TOTAL_NTOMP=$(( NTOMP * MPI ))
-
 # check for oversubscription
+TOTAL_NTOMP=$(( NTOMP * MPI ))
 if [[ "${TOTAL_NTOMP}" -gt "${QQ_NCPUS}" ]]; then
     echo "[QQ_FLEX_RE]    ERROR    The total number of OpenMP threads (${TOTAL_NTOMP}) exceeds the number of allocated CPU cores (${QQ_NCPUS})." >&2
     exit 1

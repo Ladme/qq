@@ -3,6 +3,10 @@
 ### Support for per-node resources
 - Number of CPU cores, number of GPUs, the amount of memory and the amount of storage can be now requested per-node using the submission options `ncpus-per-node`, `ngpus-per-node`, `mem-per-node`, and `work-size-per-node`. Per-node properties override per-cpu properties (`mem-per-cpu`, `work-size-per-cpu`) but are overriden by "total" properties (`ncpus`, `ngpus`, `mem`, `work-size`).
 
+### Changes in Gromacs run scripts
+- The scripts now by default try to allocate the maximum possible number of MPI ranks.
+- Numbers of MPI ranks are now specified per node (in `*_md` scripts) or per client (in `*_re` scripts).
+
 ### Bug fixes and minor improvements
 - The available types of working directories for the current environment are now shown in the output of `qq submit -h`.
 - Fixed a regression from v0.5: missing size property in `qq nodes` is now correctly intepreted as zero size.

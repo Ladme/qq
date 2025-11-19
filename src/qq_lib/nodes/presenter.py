@@ -198,16 +198,16 @@ class NodeGroup:
             NodesPresenter._formatProcessingUnits(free_gpus, total_gpus, available)
             if self._show_gpus
             else None,
-            Text(str(node.getFreeGPUMemory()), style=style)
+            Text(str(node.getFreeGPUMemory() or Size(0, "kb")), style=style)
             if self._show_gpu_mem
             else None,
-            Text(str(node.getFreeLocalScratch()), style=style)
+            Text(str(node.getFreeLocalScratch() or Size(0, "kb")), style=style)
             if self._show_local
             else None,
-            Text(str(node.getFreeSSDScratch()), style=style)
+            Text(str(node.getFreeSSDScratch() or Size(0, "kb")), style=style)
             if self._show_ssd
             else None,
-            Text(str(node.getFreeSharedScratch()), style=style)
+            Text(str(node.getFreeSharedScratch() or Size(0, "kb")), style=style)
             if self._show_shared
             else None,
             NodesPresenter._formatNodeProperties(

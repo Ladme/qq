@@ -10,7 +10,7 @@ from click.testing import CliRunner
 from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
-from qq_lib.jobs import jobs
+from qq_lib.jobs.cli import jobs
 from qq_lib.jobs.presenter import JobsPresenter
 
 

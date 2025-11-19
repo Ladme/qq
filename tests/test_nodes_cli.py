@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.nodes import nodes
+from qq_lib.nodes.cli import nodes
 
 
 def test_nodes_command_prints_available_nodes():

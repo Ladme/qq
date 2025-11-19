@@ -73,6 +73,24 @@ class Navigator(Operator):
         """
         return self._work_dir is not None and self._main_node is not None
 
+    def getMainNode(self) -> str | None:
+        """
+        Get the hostname of the main node where the job is running.
+
+        Returns:
+            str | None: Hostname of the main node or None if undefined.
+        """
+        return self._main_node
+
+    def getWorkDir(self) -> Path | None:
+        """
+        Get the absolute path to the working directory of the job.
+
+        Returns:
+            Path | None: Absolute path to the working directory or None if undefined.
+        """
+        return self._work_dir
+
     def _setDestination(self) -> None:
         """
         Get the job's host and working directory from the wrapped informer.

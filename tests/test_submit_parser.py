@@ -17,7 +17,7 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
-from qq_lib.submit import submit
+from qq_lib.submit.cli import submit
 from qq_lib.submit.parser import Parser
 
 # ruff: noqa: W293

@@ -11,7 +11,7 @@ from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.jobs.presenter import JobsPresenter
-from qq_lib.stat import stat
+from qq_lib.stat.cli import stat
 
 
 @pytest.fixture

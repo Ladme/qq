@@ -115,6 +115,9 @@ class Submitter:
         Sets required environment variables, calls the batch system's
         job submission mechanism, and creates an info file with job metadata.
 
+        Note that this method temporarily changes the current working directory,
+        and is therefore not thread-safe.
+
         Returns:
             str: The job ID of the submitted job.
 

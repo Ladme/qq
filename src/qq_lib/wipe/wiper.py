@@ -50,7 +50,7 @@ class Wiper(Navigator):
                 "Working directory of the job is the input directory of the job. Cannot delete the input directory."
             )
 
-    def delete(self) -> str:
+    def wipe(self) -> str:
         """
         Delete the working directory on the computing node.
 

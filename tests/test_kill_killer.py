@@ -194,7 +194,7 @@ def test_killer_should_update_info_file_all_combinations_manual(
     assert killer._shouldUpdateInfoFile(force) is expected
 
 
-def test_killer_terminate_normal_updates_info_file():
+def test_killer_kill_normal_updates_info_file():
     killer = Killer.__new__(Killer)
     killer._shouldUpdateInfoFile = MagicMock(return_value=True)
     killer._updateInfoFile = MagicMock()
@@ -202,7 +202,7 @@ def test_killer_terminate_normal_updates_info_file():
     killer._informer = MagicMock()
     killer._informer.info.job_id = "1234"
 
-    job_id = killer.terminate(force=False)
+    job_id = killer.kill(force=False)
 
     assert job_id == "1234"
     killer._shouldUpdateInfoFile.assert_called_once_with(False)
@@ -211,7 +211,7 @@ def test_killer_terminate_normal_updates_info_file():
     killer._updateInfoFile.assert_called_once()
 
 
-def test_killer_terminate_force_updates_info_file():
+def test_killer_kill_force_updates_info_file():
     killer = Killer.__new__(Killer)
     killer._shouldUpdateInfoFile = MagicMock(return_value=True)
     killer._updateInfoFile = MagicMock()
@@ -219,7 +219,7 @@ def test_killer_terminate_force_updates_info_file():
     killer._informer = MagicMock()
     killer._informer.info.job_id = "5678"
 
-    job_id = killer.terminate(force=True)
+    job_id = killer.kill(force=True)
 
     assert job_id == "5678"
     killer._shouldUpdateInfoFile.assert_called_once_with(True)
@@ -228,7 +228,7 @@ def test_killer_terminate_force_updates_info_file():
     killer._updateInfoFile.assert_called_once()
 
 
-def test_killer_terminate_does_not_update_info_file():
+def test_killer_kill_does_not_update_info_file():
     killer = Killer.__new__(Killer)
     killer._shouldUpdateInfoFile = MagicMock(return_value=False)
     killer._updateInfoFile = MagicMock()
@@ -236,7 +236,7 @@ def test_killer_terminate_does_not_update_info_file():
     killer._informer = MagicMock()
     killer._informer.info.job_id = "91011"
 
-    job_id = killer.terminate(force=False)
+    job_id = killer.kill(force=False)
 
     assert job_id == "91011"
     killer._shouldUpdateInfoFile.assert_called_once_with(False)

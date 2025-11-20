@@ -160,7 +160,7 @@ def test_wiper_ensure_suitable_passes_for_allowed_states(state):
         ),
     ],
 )
-def test_wiper_delete_raises_for_invalid_conditions(
+def test_wiper_wipe_raises_for_invalid_conditions(
     has_destination, workdir_is_inputdir, expected_exception, expected_message
 ):
     wiper = Wiper.__new__(Wiper)
@@ -172,7 +172,7 @@ def test_wiper_delete_raises_for_invalid_conditions(
     wiper._work_dir = Path("/workdir")
 
     with pytest.raises(expected_exception, match=expected_message):
-        wiper.delete()
+        wiper.wipe()
 
 
 @patch("qq_lib.wipe.wiper.logger.info")
@@ -187,7 +187,7 @@ def test_wiper_delete_success_calls_logger_and_deletes(mock_logger_info):
     wiper._main_node = "main_node"
     wiper._work_dir = Path("/some/workdir")
 
-    result = wiper.delete()
+    result = wiper.wipe()
 
     assert result == "job123"
     mock_logger_info.assert_called_once()

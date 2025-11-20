@@ -124,7 +124,7 @@ def _wipe_work_dir(informer: Informer, force: bool, yes: bool) -> None:
         or yes
         or yes_or_no_prompt("Do you want to delete the job's working directory?")
     ):
-        job_id = wiper.delete()
+        job_id = wiper.wipe()
         logger.info(f"Deleted the working directory of the job '{job_id}'.")
     else:
         logger.info("Operation aborted.")

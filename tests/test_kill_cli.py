@@ -19,13 +19,13 @@ def test_kill_job_force_skips_suitability_and_logs_killed():
         patch("qq_lib.kill.cli.console"),
     ):
         mock_killer = MagicMock()
-        mock_killer.terminate.return_value = "1234"
+        mock_killer.kill.return_value = "1234"
         mock_killer_ctor.return_value = mock_killer
 
         kill_job(MagicMock(), force=True, yes=False)
 
         mock_killer.ensureSuitable.assert_not_called()
-        mock_killer.terminate.assert_called_once_with(True)
+        mock_killer.kill.assert_called_once_with(True)
         mock_prompt.assert_not_called()
         mock_logger.assert_called_once_with("Killed the job '1234'.")
 
@@ -38,13 +38,13 @@ def test_kill_job_prompts_yes_and_kills():
         patch("qq_lib.kill.cli.yes_or_no_prompt", return_value=True),
     ):
         mock_killer = MagicMock()
-        mock_killer.terminate.return_value = "5678"
+        mock_killer.kill.return_value = "5678"
         mock_killer_ctor.return_value = mock_killer
 
         kill_job(MagicMock(), force=False, yes=False)
 
         mock_killer.ensureSuitable.assert_called_once()
-        mock_killer.terminate.assert_called_once_with(False)
+        mock_killer.kill.assert_called_once_with(False)
         mock_logger.assert_called_once_with("Killed the job '5678'.")
 
 
@@ -60,7 +60,7 @@ def test_kill_job_prompts_no_and_aborts():
 
         kill_job(MagicMock(), force=False, yes=False)
 
-        mock_killer.terminate.assert_not_called()
+        mock_killer.kill.assert_not_called()
         mock_logger.assert_called_once_with("Operation aborted.")
 
 

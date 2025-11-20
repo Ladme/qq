@@ -135,7 +135,7 @@ def kill_job(informer: Informer, force: bool, yes: bool) -> None:
         killer.ensureSuitable()
 
     if force or yes or yes_or_no_prompt("Do you want to kill the job?"):
-        job_id = killer.terminate(force)
+        job_id = killer.kill(force)
         logger.info(f"Killed the job '{job_id}'.")
     else:
         logger.info("Operation aborted.")

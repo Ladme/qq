@@ -41,7 +41,7 @@ class Killer(Operator):
                 "Job cannot be terminated. Job is in an exiting state."
             )
 
-    def terminate(self, force: bool = False) -> str:
+    def kill(self, force: bool = False) -> str:
         """
         Execute the kill command for the job using the batch system.
 

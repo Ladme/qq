@@ -213,9 +213,7 @@ def submit(script: str, **kwargs) -> NoReturn:
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
         # parse options from the command line and from the script itself
-        factory = SubmitterFactory(
-            script_path.resolve(), submit.params, sys.argv[2:], **kwargs
-        )
+        factory = SubmitterFactory(script_path.resolve(), sys.argv[2:], **kwargs)
         submitter = factory.makeSubmitter()
 
         # guard against multiple submissions from the same directory

@@ -19,7 +19,6 @@ from qq_lib.submit.factory import SubmitterFactory
 
 def test_submitter_factory_init(tmp_path):
     script = tmp_path / "script.sh"
-    params = [MagicMock(), MagicMock()]
     command_line = ["-q", "default", str(script)]
     kwargs = {"queue": "default"}
 
@@ -27,14 +26,14 @@ def test_submitter_factory_init(tmp_path):
         mock_parser_instance = MagicMock()
         mock_parser_class.return_value = mock_parser_instance
 
-        factory = SubmitterFactory(script, params, command_line, **kwargs)
+        factory = SubmitterFactory(script, command_line, **kwargs)
 
     assert factory._parser == mock_parser_instance
     assert factory._script == script
     assert factory._input_dir == tmp_path
     assert factory._command_line == command_line
     assert factory._kwargs == kwargs
-    mock_parser_class.assert_called_once_with(script, params)
+    mock_parser_class.assert_called_once()
 
 
 def test_submitter_factory_get_depend():

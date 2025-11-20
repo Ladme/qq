@@ -15,6 +15,7 @@
 - `Wiper.delete` method has been renamed to `Wiper.wipe`.
 - `Killer.terminate` method has been renamed to `Killer.kill`.
 - `SubmitterFactory` no longer requires a list of supported parameters and instead loads it itself.
+- Added getter methods to `Submitter`.
 
 ***
 

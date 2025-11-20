@@ -217,6 +217,50 @@ class Submitter:
         """
         return self._input_dir
 
+    def getBatchSystem(self) -> type[BatchInterface]:
+        """Get the batch system used for submiting."""
+        return self._batch_system
+
+    def getQueue(self) -> str:
+        """Get the submission queue."""
+        return self._queue
+
+    def getAccount(self) -> str | None:
+        """Get the user's account."""
+        return self._account
+
+    def getScript(self) -> Path:
+        """Get path to the submitted script."""
+        return self._script
+
+    def getJobType(self) -> JobType:
+        """Get type of the job."""
+        return self._job_type
+
+    def getResources(self) -> Resources:
+        """Get resources requested for the job."""
+        return self._resources
+
+    def getCommandLine(self) -> list[str]:
+        """Get the submission command line."""
+        return self._command_line
+
+    def getLoopInfo(self) -> LoopInfo | None:
+        """Get loop job information."""
+        return self._loop_info
+
+    def getExclude(self) -> list[Path] | None:
+        """Get a list of excluded files."""
+        return self._exclude
+
+    def getInclude(self) -> list[Path] | None:
+        """Get a list of included files."""
+        return self._include
+
+    def getDepend(self) -> list[Depend] | None:
+        """Get the list of dependencies."""
+        return self._depend
+
     def _createEnvVarsDict(self) -> dict[str, str]:
         """
         Create a dictionary of environment variables provided to qq runtime.

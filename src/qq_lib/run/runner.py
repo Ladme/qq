@@ -752,10 +752,6 @@ class Runner:
         - Marks job as killed in the info file.
         - Terminates the subprocess.
         """
-        # copy runtime files to input dir without retrying
-        if self._use_scratch:
-            self._copyRunTimeFilesToInputDir(retry=False)
-
         # update the qq info file
         self._updateInfoKilled()
 
@@ -769,6 +765,10 @@ class Runner:
             sleep(CFG.runner.sigterm_to_sigkill)
             if self._process and self._process.poll() is None:
                 self._process.kill()
+
+        # copy runtime files to input dir without retrying
+        if self._use_scratch:
+            self._copyRunTimeFilesToInputDir(retry=False)
 
     def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> NoReturn:
         """

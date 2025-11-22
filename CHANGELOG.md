@@ -17,6 +17,7 @@
 - `Killer.terminate` method has been renamed to `Killer.kill`.
 - `SubmitterFactory` no longer requires a list of supported parameters and instead loads it itself.
 - Added getter methods to `Submitter`.
+- `Submitter` no longer requires to provide the "command line". Command line is no longer written into qq info files.
 
 ***
 

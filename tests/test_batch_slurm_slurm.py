@@ -541,12 +541,12 @@ def test_slurm_is_shared_delegates_to_interface(mock_is_shared):
 def test_slurm_resubmit_delegates_to_interface(mock_resubmit):
     Slurm.resubmit(
         input_machine="machine1",
-        input_dir="/work/job",
+        input_dir=Path("/work/job"),
         command_line=["-q gpu", "--account fake-account"],
     )
     mock_resubmit.assert_called_once_with(
         input_machine="machine1",
-        input_dir="/work/job",
+        input_dir=Path("/work/job"),
         command_line=["-q gpu", "--account fake-account"],
     )
 

@@ -49,7 +49,6 @@ class Submitter:
         script: Path,
         job_type: JobType,
         resources: Resources,
-        command_line: list[str],
         loop_info: LoopInfo | None = None,
         exclude: list[Path] | None = None,
         include: list[Path] | None = None,
@@ -66,7 +65,6 @@ class Submitter:
             script (Path): Path to the job script to submit.
             job_type (JobType): Type of the job to submit (e.g. standard, loop).
             resources (Resources): Job resource requirements (e.g., CPUs, memory, walltime).
-            command_line (list[str]): List of all arguments and options provided on the command line.
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
                 Paths are provided relative to the input directory.
@@ -95,7 +93,6 @@ class Submitter:
         self._include = [
             i if i.is_absolute() else self._input_dir / i for i in (include or [])
         ]
-        self._command_line = command_line
         self._depend = depend or []
 
         # script must exist
@@ -166,7 +163,6 @@ class Submitter:
                     loop_info=self._loop_info,
                     excluded_files=self._exclude,
                     included_files=self._include,
-                    command_line=self._command_line,
                     depend=self._depend,
                     account=self._account,
                 )
@@ -243,10 +239,6 @@ class Submitter:
     def getResources(self) -> Resources:
         """Get resources requested for the job."""
         return self._resources
-
-    def getCommandLine(self) -> list[str]:
-        """Get the submission command line."""
-        return self._command_line
 
     def getLoopInfo(self) -> LoopInfo | None:
         """Get loop job information."""

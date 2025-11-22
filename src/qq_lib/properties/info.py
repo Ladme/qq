@@ -82,9 +82,6 @@ class Info:
     # Resources allocated to the job
     resources: Resources
 
-    # Command line arguments and options provided when submitting.
-    command_line: list[str]
-
     # List of files and directories to not copy to the working directory.
     excluded_files: list[Path] = field(default_factory=list)
 
@@ -193,6 +190,47 @@ class Info:
                     output.write(content)
         except Exception as e:
             raise QQError(f"Cannot create or write to file '{file}': {e}") from e
+
+    def getCommandLineForResubmit(self) -> list[str]:
+        """
+        Construct the command-line arguments required to resubmit the job.
+
+        Returns:
+            list[str]: A list of command-line tokens representing all options
+            needed to resubmit the job.
+        """
+
+        command_line = [
+            self.script_name,
+            "--queue",
+            self.queue,
+            "--job-type",
+            str(self.job_type),
+            "--batch-system",
+            str(self.batch_system),
+            "--depend",
+            f"afterok={self.job_id}",
+        ]
+
+        command_line.extend(self.resources.toCommandLine())
+
+        if self.account:
+            command_line.extend(["--account", self.account])
+
+        if self.excluded_files:
+            command_line.extend(
+                ["--exclude", ",".join([str(x) for x in self.excluded_files])]
+            )
+
+        if self.included_files:
+            command_line.extend(
+                ["--include", ",".join([str(x) for x in self.included_files])]
+            )
+
+        if self.loop_info:
+            command_line.extend(self.loop_info.toCommandLine())
+
+        return command_line
 
     def _toYaml(self) -> str:
         """

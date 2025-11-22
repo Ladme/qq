@@ -224,6 +224,36 @@ class Resources(HasCouplingMethods):
 
         return Resources(**merged_data)
 
+    def toCommandLine(self) -> list[str]:
+        """
+        Convert resource settings into a command-line argument list for `qq submit`.
+
+        Returns:
+            list[str]: A list of command-line arguments ready to pass to ``qq submit``.
+        """
+        command_line: list[str] = []
+        for f in fields(Resources):
+            field_name = f.name.replace("_", "-")
+            value = getattr(self, f.name)
+            if value is None:
+                continue
+
+            if isinstance(value, Size):
+                command_line.extend([f"--{field_name}", value.toStrExact()])
+            elif isinstance(value, int):
+                command_line.extend([f"--{field_name}", str(value)])
+            elif isinstance(value, dict):
+                if value := self._propsToValue():
+                    command_line.extend([f"--{field_name}", value])
+            elif isinstance(value, str):
+                command_line.extend([f"--{field_name}", value])
+            else:
+                raise QQError(
+                    f"Unknown value type detected: {field_name}={value} of type {type(value)} when converting Resources to command line options. This is a bug, please report this."
+                )
+
+        return command_line
+
     @staticmethod
     def _parseSize(value: object) -> Size | None:
         """
@@ -284,3 +314,28 @@ class Resources(HasCouplingMethods):
             result[key] = value
 
         return result
+
+    def _propsToValue(self) -> str | None:
+        """
+        Convert a properties dictionary into a command-line raw value string.
+
+        Args:
+            props (dict[str, str]): Mapping of property names to their string values.
+
+        Returns:
+            str | None: A comma-separated command-line representation of the property definitions
+            or None if the dictionary is empty.
+        """
+        if not self.props:
+            return None
+
+        properties = []
+        for key, value in self.props.items():
+            if value == "true":
+                properties.append(key)
+            elif value == "false":
+                properties.append(f"^{key}")
+            else:
+                properties.append(f"{key}={value}")
+
+        return ",".join(properties)

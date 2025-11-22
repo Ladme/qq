@@ -451,3 +451,112 @@ def test_parse_props_strips_empty_parts():
 def test_parse_props_raises_on_duplicate_keys(props):
     with pytest.raises(QQError, match="Property 'foo' is defined multiple times."):
         Resources._parseProps(props)
+
+
+def test_props_to_value_true_value():
+    res = Resources.__new__(Resources)
+    res.props = {"debug": "true"}
+    assert res._propsToValue() == "debug"
+
+
+def test_props_to_value_false_value():
+    res = Resources.__new__(Resources)
+    res.props = {"debug": "false"}
+    assert res._propsToValue() == "^debug"
+
+
+def test_props_to_value_regular_value():
+    res = Resources.__new__(Resources)
+    res.props = {"mode": "fast"}
+    assert res._propsToValue() == "mode=fast"
+
+
+def test_props_to_value_multiple_mixed_values():
+    res = Resources.__new__(Resources)
+    res.props = {
+        "debug": "true",
+        "optimize": "false",
+        "mode": "fast",
+    }
+    assert res._propsToValue() == "debug,^optimize,mode=fast"
+
+
+def test_props_to_value_empty_dict():
+    res = Resources.__new__(Resources)
+    res.props = {}
+    assert res._propsToValue() is None
+
+
+def test_props_to_value_non_boolean_strings():
+    res = Resources.__new__(Resources)
+    res.props = {
+        "a": "TRUE",
+        "b": "False",
+        "c": "trueish",
+    }
+    assert res._propsToValue() == "a=TRUE,b=False,c=trueish"
+
+
+def test_to_command_line_int_values():
+    res = Resources(nnodes=3, ncpus=12)
+
+    assert res.toCommandLine() == ["--nnodes", "3", "--ncpus", "12"]
+
+
+def test_to_command_line_size_values():
+    res = Resources(mem="4gb", work_size="10mb")
+
+    assert res.toCommandLine() == [
+        "--mem",
+        "4194304kb",
+        "--work-size",
+        "10240kb",
+    ]
+
+
+def test_to_command_line_string_values():
+    res = Resources(walltime="02:00:00", work_dir="scratch_local")
+
+    assert res.toCommandLine() == [
+        "--walltime",
+        "02:00:00",
+        "--work-dir",
+        "scratch_local",
+    ]
+
+
+def test_to_command_line_props_value():
+    res = Resources(props="debug,^gpu,type=A")
+
+    assert res.toCommandLine() == ["--props", "debug,^gpu,type=A"]
+
+
+def test_to_command_line_mixed_value_types():
+    res = Resources(nnodes=2, mem="1gb", work_dir="scratch", props="debug")
+    assert res.toCommandLine() == [
+        "--nnodes",
+        "2",
+        "--mem",
+        "1048576kb",
+        "--work-dir",
+        "scratch",
+        "--props",
+        "debug",
+    ]
+
+
+def test_to_command_line_mixed_value_types_no_props():
+    res = Resources(nnodes=2, mem="1gb", work_dir="scratch")
+    assert res.toCommandLine() == [
+        "--nnodes",
+        "2",
+        "--mem",
+        "1048576kb",
+        "--work-dir",
+        "scratch",
+    ]
+
+
+def test_to_command_line_empty():
+    res = Resources()
+    assert res.toCommandLine() == []

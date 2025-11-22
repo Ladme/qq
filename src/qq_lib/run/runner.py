@@ -648,70 +648,12 @@ class Runner:
             self._batch_system.resubmit,
             input_machine=self._informer.info.input_machine,
             input_dir=self._informer.info.input_dir,
-            command_line=self._prepareCommandLineForResubmit(),
+            command_line=self._informer.info.getCommandLineForResubmit(),
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
 
         logger.info("Job successfully resubmitted.")
-
-    def _prepareCommandLineForResubmit(self) -> list[str]:
-        """
-        Prepare a modified command line for submitting the next cycle of a loop job.
-
-        Removes existing dependency options and replaces the script path with just
-        the script name. Appends a new dependency on the current job ID to ensure
-        the resubmitted job runs after successful completion (`afterok`) of the
-        current one.
-
-        Returns:
-            list[str]: The sanitized and updated list of command line arguments.
-        """
-        command_line = self._informer.info.command_line
-        script_name = self._informer.info.script_name
-
-        # here we perform two modifications
-        # 1) we replace path to the submitted script with just the script name
-        # this is needed in case we resubmit a loop job that has been originally submitted
-        # from a different directory than the current working directory
-        # e.g. if the job was submitted as `qq submit (...) job/run.sh`, we need to
-        # resubmit as `qq submit (...) run.sh`, because we are resubmitting from the job's
-        # input directory not from the directory from which the original qq submit was called
-        # note that this is done heuristically, assuming that the script name is not used as
-        # an independently-placed parameter of any option
-        # to protect against silently doing something wrong, we just explicitly raise an exception
-        # if the script name is detected multiple times
-
-        # 2) we remove dependencies for the previous cycle
-        # these dependencies had to already be fulfilled for the previous cycle to run
-        # so we ignore them for the next run
-        modified = []
-        it = iter(command_line)
-        replaced_script_name = False
-        for arg in it:
-            if not arg.startswith("-") and Path(arg).name == script_name:
-                if replaced_script_name:
-                    # script has already been replaced
-                    raise QQError(
-                        f"Heuristic identification of script name failed for command line: {command_line}."
-                    )
-
-                # replace the script name
-                modified.append(script_name)
-                replaced_script_name = True
-
-            elif arg.strip() == "--depend":
-                next(it, None)  # skip the following argument
-
-            elif "--depend" not in arg:
-                modified.append(arg)
-
-        # and add in a new dependency for the next cycle
-        # so that the next cycle always starts only after the previous one finishes
-        modified.append(f"--depend=afterok={self._informer.info.job_id}")
-
-        logger.debug(f"Command line for resubmit: {modified}.")
-        return modified
 
     def _getExplicitlyIncludedFilesInWorkDir(self) -> list[Path]:
         """

@@ -22,13 +22,12 @@ class SubmitterFactory:
     the command-line and from the script itself.
     """
 
-    def __init__(self, script: Path, command_line: list[str], **kwargs):
+    def __init__(self, script: Path, **kwargs):
         """
         Initialize the factory with the script, command-line parameters, and additional options.
 
         Args:
             script (Path): Path to the script to submit.
-            command_line (list[str]): All the arguments and options specified on the command line.
             **kwargs: Keyword arguments from the command line.
         """
         from qq_lib.submit.cli import submit
@@ -37,7 +36,6 @@ class SubmitterFactory:
         self._script = script
         self._input_dir = script.parent
         self._kwargs = kwargs
-        self._command_line = command_line
 
     def makeSubmitter(self) -> Submitter:
         """
@@ -66,7 +64,6 @@ class SubmitterFactory:
             self._script,
             job_type,
             self._getResources(BatchSystem, queue),
-            self._command_line,
             loop_info,
             self._getExclude(),
             self._getInclude(),

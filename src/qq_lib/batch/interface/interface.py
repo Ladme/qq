@@ -706,7 +706,9 @@ class BatchInterface[
         return result.returncode != 0
 
     @classmethod
-    def resubmit(cls, **kwargs) -> None:
+    def resubmit(
+        cls, input_machine: str, input_dir: Path, command_line: list[str]
+    ) -> None:
         """
         Resubmit a job to the batch system.
 
@@ -716,26 +718,19 @@ class BatchInterface[
 
         If the resubmission fails, a QQError is raised.
 
-        Keyword Args:
-            input_machine (str): The hostname of the machine where the job
-                should be resubmitted.
-            input_dir (str | Path): The directory on the remote machine containing
-                the job data and submission files.
-            command_line (list[str]): The original command-line arguments that
-                should be passed to `qq submit`.
+        Args:
+            input_machine (str): Name of the host from which the job is to be submitted.
+            input_dir (Path): Path to the job's input directory.
+            command_line (list[str]): Options and arguments to use for submitting.
 
         Raises:
             QQError: If the resubmission fails (non-zero return code from the
             SSH command).
         """
-        input_machine = kwargs["input_machine"]
-        input_dir = kwargs["input_dir"]
-        command_line = kwargs["command_line"]
-
         qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
 
         logger.debug(
-            f"Navigating to '{input_machine}:{input_dir}' to execute '{qq_submit_command}'."
+            f"Navigating to '{input_machine}:{str(input_dir)}' to execute '{qq_submit_command}'."
         )
         result = subprocess.run(
             [
@@ -745,7 +740,7 @@ class BatchInterface[
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 input_machine,
-                f"cd {input_dir} && {qq_submit_command}",
+                f"cd {str(input_dir)} && {qq_submit_command}",
             ],
             capture_output=True,
             text=True,

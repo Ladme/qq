@@ -19,19 +19,17 @@ from qq_lib.submit.factory import SubmitterFactory
 
 def test_submitter_factory_init(tmp_path):
     script = tmp_path / "script.sh"
-    command_line = ["-q", "default", str(script)]
     kwargs = {"queue": "default"}
 
     with patch("qq_lib.submit.factory.Parser") as mock_parser_class:
         mock_parser_instance = MagicMock()
         mock_parser_class.return_value = mock_parser_instance
 
-        factory = SubmitterFactory(script, command_line, **kwargs)
+        factory = SubmitterFactory(script, **kwargs)
 
     assert factory._parser == mock_parser_instance
     assert factory._script == script
     assert factory._input_dir == tmp_path
-    assert factory._command_line == command_line
     assert factory._kwargs == kwargs
     mock_parser_class.assert_called_once()
 
@@ -356,7 +354,6 @@ def test_submitter_factory_make_submitter_standard_job():
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._script = Path("/tmp/script.sh")
-    factory._command_line = ["--arg"]
     factory._kwargs = {"queue": "default", "job_type": "standard"}
 
     BatchSystem = MagicMock()
@@ -397,7 +394,6 @@ def test_submitter_factory_make_submitter_standard_job():
         factory._script,
         JobType.STANDARD,
         resources,
-        factory._command_line,
         None,  # loop_info is None for STANDARD job
         excludes,
         includes,
@@ -419,7 +415,6 @@ def test_submitter_factory_make_submitter_loop_job():
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._script = Path("/tmp/script.sh")
-    factory._command_line = ["--arg"]
     factory._kwargs = {"queue": "default", "job_type": "loop"}
 
     BatchSystem = MagicMock()
@@ -461,7 +456,6 @@ def test_submitter_factory_make_submitter_loop_job():
         factory._script,
         JobType.LOOP,
         resources,
-        factory._command_line,
         loop_info,
         excludes,
         includes,

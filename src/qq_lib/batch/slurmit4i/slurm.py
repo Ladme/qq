@@ -207,9 +207,11 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         return True
 
     @classmethod
-    def resubmit(cls, **kwargs) -> None:
-        input_dir = kwargs["input_dir"]
-        command_line = kwargs["command_line"]
+    def resubmit(
+        cls, input_machine: str, input_dir: Path, command_line: list[str]
+    ) -> None:
+        # input machine is unused, resubmit from the current machine
+        _ = input_machine
 
         qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
 
@@ -221,7 +223,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
                 f"Could not resubmit the job. Could not navigate to '{input_dir}': {e}."
             ) from e
 
-        logger.debug(f"Navigated to {input_dir}.")
+        logger.debug(f"Navigated to {str(input_dir)}.")
         result = subprocess.run(
             ["bash"],
             input=qq_submit_command,

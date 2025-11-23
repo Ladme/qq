@@ -56,7 +56,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         )
 
     @classmethod
-    def getScratchDir(cls, job_id: str) -> Path:
+    def createWorkDirOnScratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
@@ -72,7 +72,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         # if the user directory is already created but the user does not have permissions
         # to write into it, we append a number to the user's name and try creating a new directory
         last_exception = None
-        for attempt in range(CFG.lumi_scratch_dir_attempts):
+        for attempt in range(CFG.slurm_lumi_options.scratch_dir_attempts):
             user_component = (
                 user if attempt == 0 else f"{user}{attempt + 1}"
             )  # appended number is 2 for the second attempt
@@ -92,7 +92,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
 
         # if all attempts failed
         raise QQError(
-            f"Could not create a scratch directory for job '{job_id}' after {CFG.lumi_scratch_dir_attempts} attempts: {last_exception}"
+            f"Could not create a working directory on {storage_type} for job '{job_id}' after {CFG.slurm_lumi_options.scratch_dir_attempts} attempts: {last_exception}"
         ) from last_exception
 
     @classmethod

@@ -72,6 +72,8 @@ class BatchInterface[
         """
         Get the id of the current job from the corresponding batch system's environment variable.
 
+        For this method to work, it has to be called from the inside of an active job.
+
         Returns:
             str | None: Index of the job or None if the collective variable is not set.
         """
@@ -80,21 +82,21 @@ class BatchInterface[
         )
 
     @classmethod
-    def getScratchDir(cls, job_id: str) -> Path:
+    def createWorkDirOnScratch(cls, job_id: str) -> Path:
         """
-        Retrieve the scratch directory for a given job.
+        Create the working directory on scratch for the given job.
 
         Args:
             job_id (int): Unique identifier of the job.
 
         Returns:
-            Path: Path to the scratch directory.
+            Path: Absolute path to the working directory on directory.
 
         Raises:
-            QQError: If there is no scratch directory available for this job.
+            QQError: If the working directory could not be created.
         """
         raise NotImplementedError(
-            f"getScratchDir method is not implemented for {cls.__name__}"
+            f"createWorkDirOnScratch method is not implemented for {cls.__name__}"
         )
 
     @classmethod

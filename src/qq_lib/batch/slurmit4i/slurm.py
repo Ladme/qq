@@ -38,7 +38,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         return shutil.which("it4ifree") is not None
 
     @classmethod
-    def getScratchDir(cls, job_id: str) -> Path:
+    def createWorkDirOnScratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
@@ -48,7 +48,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         # if the user directory is already created but the user does not have permissions
         # to write into it, we append a number to the user's name and try creating a new directory
         last_exception = None
-        for attempt in range(CFG.it4i_scratch_dir_attempts):
+        for attempt in range(CFG.slurm_it4i_options.scratch_dir_attempts):
             user_component = (
                 user if attempt == 0 else f"{user}{attempt + 1}"
             )  # appended number is 2 for the second attempt
@@ -65,7 +65,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
 
         # if all attempts failed
         raise QQError(
-            f"Could not create a scratch directory for job '{job_id}' after {CFG.it4i_scratch_dir_attempts} attempts: {last_exception}"
+            f"Could not create a working directory on scratch for job '{job_id}' after {CFG.slurm_it4i_options.scratch_dir_attempts} attempts: {last_exception}"
         ) from last_exception
 
     @classmethod

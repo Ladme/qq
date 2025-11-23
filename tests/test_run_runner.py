@@ -667,24 +667,23 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._informer.info.job_name = "job+0002"
     runner._archiver = None
 
-    scratch_dir = Path("/scratch")
-    runner._batch_system.getScratchDir.return_value = scratch_dir
+    work_dir = Path("/scratch/job123")
+    runner._batch_system.createWorkDirOnScratch.return_value = work_dir
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_cls,
         patch("qq_lib.run.runner.logger"),
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
     ):
+        retryer_cls.return_value.run.return_value = work_dir
         runner._setUpScratchDir()
 
-    work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
-
-    # first Retryer call: Path.mkdir
-    mkdir_call = retryer_cls.call_args_list[0]
-    assert mkdir_call.kwargs["max_tries"] == CFG.runner.retry_tries
-    assert mkdir_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
-    assert mkdir_call.args[0] == Path.mkdir
-    assert mkdir_call.args[1] == work_dir
+    # first Retryer call: batch_system
+    batch_system_call = retryer_cls.call_args_list[0]
+    assert batch_system_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert batch_system_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
+    assert batch_system_call.args[0] == runner._batch_system.createWorkDirOnScratch
+    assert batch_system_call.args[1] == runner._informer.info.job_id
 
     # second Retryer call: os.chdir
     chdir_call = retryer_cls.call_args_list[1]

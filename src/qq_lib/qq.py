@@ -22,7 +22,7 @@ from qq_lib.submit.cli import submit
 from qq_lib.sync.cli import sync
 from qq_lib.wipe.cli import wipe
 
-__version__ = "0.6.0-dev.1"
+__version__ = "0.6.0-dev.2"
 
 # support both --help and -h
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}

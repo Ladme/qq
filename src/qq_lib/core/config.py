@@ -63,7 +63,6 @@ class RunnerSettings:
 
     retry_tries: int = 3
     retry_wait: int = 300
-    scratch_dir_inner: str = "main"
     sigterm_to_sigkill: int = 5
     subprocess_checks_wait_time: int = 2
 
@@ -240,6 +239,23 @@ class SizeOptions:
 
 
 @dataclass
+class PBSOptions:
+    """Options associated with PBS."""
+
+    scratch_dir_inner: str = "main"
+
+
+@dataclass
+class SlurmIT4IOptions:
+    scratch_dir_attempts: int = 3
+
+
+@dataclass
+class SlurmLumiOptions:
+    scratch_dir_attempts: int = 3
+
+
+@dataclass
 class Config:
     """Main configuration for qq."""
 
@@ -262,9 +278,10 @@ class Config:
     exit_codes: ExitCodes = field(default_factory=ExitCodes)
     state_colors: StateColors = field(default_factory=StateColors)
     size: SizeOptions = field(default_factory=SizeOptions)
+    pbs_options: PBSOptions = field(default_factory=PBSOptions)
+    slurm_it4i_options: SlurmIT4IOptions = field(default_factory=SlurmIT4IOptions)
+    slurm_lumi_options: SlurmLumiOptions = field(default_factory=SlurmLumiOptions)
     binary_name: str = "qq"
-    it4i_scratch_dir_attempts: int = 5
-    lumi_scratch_dir_attempts: int = 5
 
     @classmethod
     def load(cls, config_path: Path | None = None) -> Self:

@@ -1461,3 +1461,25 @@ def test_pbs_get_supported_work_dir_types_returns_combined_list():
         "job_dir",
     ]
     assert PBS.getSupportedWorkDirTypes() == expected
+
+
+def test_pbs_create_work_dir_on_scratch_creates_work_dir():
+    job_id = "12345"
+    fake_scratch = Path("/scratch/job_12345")
+    inner_name = CFG.pbs_options.scratch_dir_inner
+    expected_work_dir = (fake_scratch / inner_name).resolve()
+
+    with (
+        patch.object(
+            PBS, "_getScratchDir", return_value=fake_scratch
+        ) as get_scratch_mock,
+        patch("qq_lib.batch.pbs.pbs.logger"),
+        patch("pathlib.Path.mkdir") as mkdir_mock,
+    ):
+        result = PBS.createWorkDirOnScratch(job_id)
+
+    get_scratch_mock.assert_called_once_with(job_id)
+
+    assert result == expected_work_dir
+
+    mkdir_mock.assert_called_once_with(exist_ok=True)

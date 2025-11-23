@@ -48,12 +48,21 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return os.environ.get("PBS_JOBID")
 
     @classmethod
-    def getScratchDir(cls, job_id: str) -> Path:
-        scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
-        if not scratch_dir:
-            raise QQError(f"Scratch directory for job '{job_id}' is undefined")
+    def createWorkDirOnScratch(cls, job_id: str) -> Path:
+        scratch_dir = cls._getScratchDir(job_id)
 
-        return Path(scratch_dir)
+        # create working directory inside the scratch directory allocated by the batch system
+        # we create this directory because other processes may write files
+        # into the allocated scratch directory and we do not want these files
+        # to affect the job execution or be copied back to input_dir
+        # this also simplifies deletion of the working directory
+        # (the allocated scratch dir cannot be deleted)
+        work_dir = (scratch_dir / CFG.pbs_options.scratch_dir_inner).resolve()
+
+        logger.debug(f"Creating working directory '{str(work_dir)}'.")
+        work_dir.mkdir(exist_ok=True)
+
+        return work_dir
 
     @classmethod
     def jobSubmit(
@@ -430,6 +439,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         # jobs with invalid ID get assigned an ID of 0 for sorting => they are sorted to the start
         # and therefore are displayed at the top in the qq jobs / qq stat output
         jobs.sort(key=lambda job: job.getIdInt() or 0)
+
+    @classmethod
+    def _getScratchDir(cls, job_id: str) -> Path:
+        """
+        Get the path to the scratch directory allocated by PBS.
+        """
+        scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
+        if not scratch_dir:
+            raise QQError(f"Scratch directory for job '{job_id}' is undefined")
+
+        return Path(scratch_dir)
 
     @classmethod
     def _sharedGuard(cls, res: Resources, env_vars: dict[str, str]) -> None:

@@ -11,6 +11,7 @@
 - The available types of working directories for the current environment are now shown in the output of `qq submit -h`.
 - Fixed a regression from v0.5: missing size property in `qq nodes` is now correctly intepreted as zero size.
 - When a job is killed, runtime files are copied to the input directory only after the executed process finishes.
+- Changed the way working directories on Karolina and LUMI are created allowing their complete removal.
 
 ### Internal changes
 - `Wiper.delete` method has been renamed to `Wiper.wipe`.

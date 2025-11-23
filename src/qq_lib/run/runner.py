@@ -329,21 +329,15 @@ class Runner:
         Raises:
             QQError: If scratch directory cannot be determined.
         """
-        # get scratch directory (this directory should be created and allocated by the batch system)
-        scratch_dir = self._batch_system.getScratchDir(self._informer.info.job_id)
-
-        # create working directory inside the scratch directory allocated by the batch system
-        # we create this directory because other processes may write files
-        # into the allocated scratch directory and we do not want these files
-        # to affect the job execution or be copied back to input_dir
-        self._work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
-        logger.info(f"Setting up working directory in '{self._work_dir}'.")
-        Retryer(
-            Path.mkdir,
-            self._work_dir,
+        # get path to the working directory (created by the batch system)
+        self._work_dir: Path = Retryer(
+            self._batch_system.createWorkDirOnScratch,
+            self._informer.info.job_id,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
+
+        logger.info(f"Setting up working directory in '{self._work_dir}'.")
 
         # move to the working directory
         Retryer(

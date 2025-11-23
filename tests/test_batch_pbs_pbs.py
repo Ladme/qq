@@ -53,7 +53,7 @@ def test_navigate_success(tmp_path):
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "fake.host.org",
                 "-t",
-                f"cd {directory} || exit {BatchInterface.CD_FAIL} && exec bash -l",
+                f"cd {directory} || exit {BatchInterface._CD_FAIL} && exec bash -l",
             ]
         )
 

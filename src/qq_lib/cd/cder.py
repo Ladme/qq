@@ -13,8 +13,7 @@ logger = get_logger(__name__)
 
 class Cder:
     """
-    Retrieve and provide the input directory for a specific job
-    in the configured batch system.
+    Retrieve and provide the input directory for a specific job in the configured batch system.
     """
 
     def __init__(self, BatchSystem: type[BatchInterface], job_id: str):
@@ -22,8 +21,8 @@ class Cder:
         Initialize the Cder instance with a batch system interface and job ID.
 
         Args:
-            BatchSystem (type[BatchInterface]): Batch system class to use.
-            job_id (str): Identifier of the job whose input directory is needed.
+            BatchSystem (type[BatchInterface]): The batch system which manages the job.
+            job_id (str): Identifier of the job to query.
         """
         self._job_id = job_id
         self._BatchSystem = BatchSystem
@@ -45,10 +44,10 @@ class Cder:
     @staticmethod
     def _getInputDirFromJobId(BatchSystem: type[BatchInterface], job_id: str) -> Path:
         """
-        Query the batch system for the input/submission directory of a job.
+        Query the batch system for the input directory of a job.
 
         Args:
-            BatchSystem (type[BatchInterface]): Batch system class to use.
+            BatchSystem (type[BatchInterface]): The batch system which manages the job.
             job_id (str): Identifier of the job to query.
 
         Returns:

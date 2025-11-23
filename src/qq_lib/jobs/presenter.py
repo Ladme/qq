@@ -25,7 +25,7 @@ class JobsPresenter:
     """
 
     # Mapping of human-readable color names to ANSI escape codes.
-    ANSI_COLORS = {
+    _ANSI_COLORS = {
         # default
         "default": "",
         # standard colors
@@ -59,7 +59,7 @@ class JobsPresenter:
     }
 
     # Table formatting configuration for `tabulate`.
-    COMPACT_TABLE = TableFormat(
+    _COMPACT_TABLE = TableFormat(
         lineabove=Line("", "", "", ""),
         linebelowheader="",
         linebetweenrows="",
@@ -148,7 +148,7 @@ class JobsPresenter:
             str: Tabulated job information with ANSI color codes applied.
 
         Notes:
-            - Uses `tabulate` with `COMPACT_TABLE` format because
+            - Uses `tabulate` with `_COMPACT_TABLE` format because
               Rich's Table is prohibitively slow for large number of items.
             - Updates internal job statistics via `self._stats`.
         """
@@ -158,7 +158,7 @@ class JobsPresenter:
         return tabulate(
             rows,
             headers=self._formatHeaders(headers),
-            tablefmt=JobsPresenter.COMPACT_TABLE,
+            tablefmt=JobsPresenter._COMPACT_TABLE,
             stralign="center",
             numalign="center",
         )
@@ -537,7 +537,7 @@ class JobsPresenter:
         Returns:
             str: ANSI-colored and optionally bolded string.
         """
-        return f"{JobsPresenter.ANSI_COLORS['bold'] if bold else ''}{JobsPresenter.ANSI_COLORS[color] if color else ''}{string}{JobsPresenter.ANSI_COLORS['reset'] if color or bold else ''}"
+        return f"{JobsPresenter._ANSI_COLORS['bold'] if bold else ''}{JobsPresenter._ANSI_COLORS[color] if color else ''}{string}{JobsPresenter._ANSI_COLORS['reset'] if color or bold else ''}"
 
     @staticmethod
     def _mainColor(string: str, bold: bool = False) -> str:

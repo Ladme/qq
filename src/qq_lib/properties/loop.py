@@ -1,6 +1,15 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Loop-job metadata and cycle-tracking utilities.
+
+This module defines `LoopInfo`, a dataclass describing the iteration
+parameters of a qq loop job: its cycle range, archive location, archive
+naming format, and the current cycle as inferred from existing archived
+files.
+"""
+
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path

@@ -14,7 +14,7 @@ from qq_lib.properties.states import BatchState
 
 class QueuesPresenter:
     """
-    Present information about queues of the batch system.
+    Presents information about queues of the batch system.
     """
 
     def __init__(self, queues: list[BatchQueueInterface], user: str, all: bool):

@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 class Parser:
     """
-    Parser for qq job submission options specified in a script.
+    Parser for qq job submission options (qq directives) specified in a script.
     """
 
     def __init__(self, script: Path, params: list[Parameter]):

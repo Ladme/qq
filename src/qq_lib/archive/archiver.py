@@ -3,6 +3,7 @@
 
 import re
 import socket
+from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
@@ -16,7 +17,7 @@ logger = get_logger(__name__, show_time=True)
 
 class Archiver:
     """
-    Handles archiving and retrieval of files for a job.
+    Manages archiving and retrieval of job-related files.
     """
 
     def __init__(
@@ -31,11 +32,11 @@ class Archiver:
         Initialize the Archiver.
 
         Args:
-            archive (Path): Absolute path to the archive directory.
-            archive_format (str): The pattern describing which files to archive.
+            archive (Path): Absolute path to the job's archive directory.
+            archive_format (str): Printf-style or regex pattern describing archived filenames.
             input_machine (str): The hostname from which the job was submitted.
             input_dir (Path): The directory from which the job was submitted.
-            batch_system (type[BatchInterface]): The batch system used to run the qq job.
+            batch_system (type[BatchInterface]): The batch system which manages the job.
         """
         self._batch_system = batch_system
         self._archive = archive
@@ -45,7 +46,7 @@ class Archiver:
 
     def makeArchiveDir(self) -> None:
         """
-        Create the archive directory if it does not already exist.
+        Create the archive directory in the job's input directory if it does not already exist.
         """
         logger.debug(
             f"Attempting to create an archive '{self._archive}' on '{self._input_machine}'."
@@ -54,7 +55,7 @@ class Archiver:
 
     def fromArchive(self, dir: Path, cycle: int | None = None) -> None:
         """
-        Fetch files from the archive to a local working directory.
+        Fetch files from the archive to job's working directory.
 
         This method retrieves files from the archive that match the
         configured archive pattern. If a cycle number is provided, only
@@ -63,7 +64,7 @@ class Archiver:
         in the archive are fetched.
 
         Args:
-            dir (Path): The local directory where files will be copied to.
+            dir (Path): The directory where files will be copied to.
             cycle (int | None): The cycle number to filter files for.
                 Only relevant for printf-style patterns. If `None`, all
                 matching files are fetched. Defaults to `None`.
@@ -94,14 +95,14 @@ class Archiver:
 
     def toArchive(self, dir: Path) -> None:
         """
-        Archive all files matching the archive format in the specified working directory.
+        Archive all files matching the archive format in the specified directory.
 
-        Copies all files matching the archive pattern from the local
+        Copies all files matching the archive pattern from directory
         `dir` to the archive directory. After successfully transferring
         the files, they are removed from the working directory.
 
         Args:
-            work_dir (Path): The local directory containing files to archive.
+            work_dir (Path): The directory containing files to archive.
 
         Raises:
             QQError: If file transfer or removal fails.
@@ -133,9 +134,9 @@ class Archiver:
 
     def archiveRunTimeFiles(self, job_name: str, cycle: int) -> None:
         """
-        Archive qq runtime files from a specific job located in the submission directory.
+        Archive qq runtime files from a specific job located in the input directory.
 
-        The archived files are moved from the submission directory to the archive directory.
+        The archived files are moved from the input directory to the archive directory.
 
         Ensure that `job_name` does not contain special regex characters, or that any such
         characters are properly escaped.
@@ -194,7 +195,8 @@ class Archiver:
 
         Args:
             directory (Path): Directory to search for files.
-            host (str | None): Hostname for remote directories, or None for local.
+            host (str | None): Hostname if the directory is remote,
+                or None if it is available from the current machine.
             pattern (str): A printf-style or regex pattern to match file stems.
             cycle (int | None): Optional cycle number for printf-style patterns.
                 If provided, only files corresponding to that loop are returned.
@@ -254,7 +256,7 @@ class Archiver:
             pattern (str): The pattern to convert.
 
         Returns:
-            re.Pattern[str]: Compiled regex pattern matching any part of the filename stem.
+            re.Pattern[str]: Compiled regex pattern that can be used for matching.
         """
         if is_printf_pattern(pattern):
             pattern = printf_to_regex(pattern)
@@ -262,12 +264,12 @@ class Archiver:
         return re.compile(pattern)
 
     @staticmethod
-    def _removeFiles(files: list[Path]) -> None:
+    def _removeFiles(files: Iterable[Path]) -> None:
         """
         Remove a list of files from the filesystem.
 
         Args:
-            files (list[Path]): Files to delete.
+            files (Iterable[Path]): Files to delete.
 
         Raises:
             OSError: If file removal fails for any file.

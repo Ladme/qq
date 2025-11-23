@@ -1,6 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Unified logging utilities for qq.
+
+This module provides a helper for creating consistently formatted loggers using
+Rich-based output. Loggers automatically adapt to qq's debug mode, support
+optional timestamps, and apply standardized styling across the codebase.
+"""
+
 import logging
 import os
 

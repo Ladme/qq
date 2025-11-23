@@ -1,6 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Structured representation of job resource requirements.
+
+This module defines the `Resources` dataclass, which captures all CPU, GPU,
+memory, storage, walltime, and property requirements associated with a qq job.
+"""
+
 import re
 from dataclasses import asdict, dataclass, fields
 

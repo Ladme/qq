@@ -1,6 +1,15 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Utility for retrying operations with configurable backoff.
+
+This module provides the `Retryer` class, which executes a function repeatedly
+until it succeeds or a maximum number of attempts is reached. Failures are
+logged with timing information, and the final exception is re-raised with
+context when retries are exhausted.
+"""
+
 from collections.abc import Callable
 from time import sleep
 from typing import Any

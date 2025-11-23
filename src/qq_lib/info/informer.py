@@ -26,7 +26,7 @@ class Informer:
         Initialize the informer with job information.
 
         Args:
-            info: An Info object containing raw job data.
+            info (Info): An Info object containing raw job data.
         """
         self.info = info
         self._batch_info: BatchJobInterface | None = None
@@ -37,7 +37,7 @@ class Informer:
         Return the batch system class used for this job.
 
         Returns:
-            type[BatchInterface]: The batch system class associated with the job.
+            type[BatchInterface]: The batch system class used for this job.
         """
         return self.info.batch_system
 
@@ -155,9 +155,9 @@ class Informer:
         Mark the job as running and set associated metadata.
 
         Args:
-            time: Job start time.
-            main_node: Main node assigned to the job.
-            work_dir: Working directory used by the job.
+            time (datetime): Job start time.
+            main_node (str): Main node assigned to the job.
+            work_dir (Path): Working directory used by the job.
         """
         self.info.job_state = NaiveState.RUNNING
         self.info.start_time = time
@@ -170,7 +170,7 @@ class Informer:
         Mark the job as finished successfully.
 
         Args:
-            time: Job completion time.
+            time (datetime): Job completion time.
         """
         self.info.job_state = NaiveState.FINISHED
         self.info.completion_time = time
@@ -181,8 +181,8 @@ class Informer:
         Mark the job as failed.
 
         Args:
-            time: Job completion (failure) time.
-            exit_code: Exit code of the failed job.
+            time (datetime): Job completion (failure) time.
+            exit_code (int): Exit code of the failed job.
         """
         self.info.job_state = NaiveState.FAILED
         self.info.completion_time = time
@@ -193,7 +193,7 @@ class Informer:
         Mark the job as killed.
 
         Args:
-            time: Time when the job was killed.
+            time (datetime): Time when the job was killed.
         """
         self.info.job_state = NaiveState.KILLED
         self.info.completion_time = time
@@ -204,7 +204,7 @@ class Informer:
         Determine if the job uses a scratch directory.
 
         Returns:
-            nool: True if a scratch is used, False if it is not.
+            bool: True if a scratch is used, False if it is not.
         """
         return self.info.resources.usesScratch()
 
@@ -237,7 +237,7 @@ class Informer:
 
     def getRealState(self) -> RealState:
         """
-        Get the job's real state by combining qq's internal state (`NaiveState`)
+        Get the job's real state by combining the internal state (`NaiveState`)
         with the state reported by the batch system (`BatchState`).
 
         Uses cached information if available; otherwise queries the batch system
@@ -343,7 +343,9 @@ class Informer:
         """
         Get absolute path to the info file associated with this job.
 
+        Be aware that the info file does not have to exist.
+
         Returns:
-            Path: Absolute path to the info file. Be aware that the info file does not have to exist.
+            Path: Absolute path to the info file.
         """
         return construct_info_file_path(self.info.input_dir, self.info.job_name)

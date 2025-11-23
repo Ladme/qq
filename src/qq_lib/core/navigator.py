@@ -1,6 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Navigation utilities for qq job directories.
+
+This module defines the `Navigator` class, an extension of `Operator` that
+locates a job's working directory and execution host. It provides helpers for
+determining job destination, checking whether the current process is already in
+the working directory, and inspecting job state in the context of directory navigation.
+"""
 
 import socket
 from pathlib import Path
@@ -52,7 +60,7 @@ class Navigator(Operator):
             informer (Informer): Initialized informer instance containing information about the job.
 
         Returns:
-            Operator: Initialized Operator.
+            Navigator: Initialized Navigator.
         """
         navigator = super().fromInformer(informer)
         navigator._setDestination()

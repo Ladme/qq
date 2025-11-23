@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 class Goer(Navigator):
     """
-    Provides utilities to open a shell in the working directory of a qq job.
+    Handles opening a new shell in the job's working directory on the job's main execution node.
     """
 
     def ensureSuitable(self) -> None:
@@ -88,7 +88,7 @@ class Goer(Navigator):
 
     def _waitQueued(self):
         """
-        Wait until the job is no longer in the queued state.
+        Wait until the job is no longer in queued/booting/waiting state.
 
         Raises:
             QQNotSuitableError: If at any point the job is found to be finished
@@ -96,7 +96,7 @@ class Goer(Navigator):
 
         Note:
             This is a blocking method and will continue looping until the job
-            leaves the queued state or an exception is raised.
+            leaves the queued/booting/waiting state or an exception is raised.
         """
         while self._isQueued():
             sleep(CFG.goer.wait_time)

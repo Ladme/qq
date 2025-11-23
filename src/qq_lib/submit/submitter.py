@@ -39,6 +39,9 @@ class Submitter:
         - Guard against multiple submissions from the same directory.
         - Set environment variables required for `qq run`.
         - Create a qq info file for tracking job state and metadata.
+
+    Note that Submitter ignores qq directives in the submitted script.
+    To handle them, you have to build a Submitter using the SubmitterFactory.
     """
 
     def __init__(

@@ -1,6 +1,19 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Structured storage and serialization of qq job metadata.
+
+This module defines the `Info` dataclass, which provides a representation
+of qq job information: submission parameters, resource requests, job state,
+timing data, dependencies, and execution context. It handles
+loading and exporting YAML info files both locally and from remote hosts, and
+offers minimal helpers such as command-line reconstruction for resubmission.
+
+`Info` focuses strictly on data representation and safe serialization; higher-level
+logic (state interpretation, batch-system interaction, consistency checks) is
+implemented in `Informer` and related components.
+"""
 
 from dataclasses import dataclass, field, fields
 from datetime import datetime
@@ -297,7 +310,7 @@ class Info:
         Construct an Info instance from a dictionary.
 
         Args:
-            data: Dictionary containing field names and values.
+            data (dict[str, object]): Dictionary containing field names and values.
 
         Returns:
             Info: An Info instance.

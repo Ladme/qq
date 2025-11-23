@@ -20,7 +20,7 @@ from qq_lib.properties.size import Size
 
 class NodeGroup:
     """
-    Represents a logical group of compute nodes within a batch or cluster system.
+    Represents a logical group of compute nodes within a batch system.
     """
 
     def __init__(self, name: str, nodes: list[BatchNodeInterface], user: str):
@@ -134,7 +134,7 @@ class NodeGroup:
 
         def extract_number_sequence(name: str):
             # get individual groups of digits in the name
-            # this allows properly sorting even names like 'elmo5-18'
+            # this allows properly sorting even names like 'node5-18'
             numbers = re.findall(r"\d+", name)
             return [int(n) for n in numbers] if numbers else [float("inf")]
 
@@ -488,7 +488,7 @@ class NodesPresenter:
 
         Nodes sharing the same alphabetic prefix are grouped together (e.g.,
         `node1`, `node2`, `node3` form one group). Groups with fewer than three
-        nodes are merged into a generic "Others" group.
+        nodes are merged into a generic "others" group.
 
         Returns:
             list[NodeGroup]: A list of node groups created from the input nodes.
@@ -571,7 +571,7 @@ class NodesPresenter:
         Format numbers of free and total CPUs or GPUs as a styled Rich text element.
 
         Args:
-            free (int): Number of free units (CPUs or GPUs).
+            free (int): Number of free units (e.g., CPUs or GPUs).
             total (int): Total number of units.
             available (bool): Whether the node is available to the user.
 

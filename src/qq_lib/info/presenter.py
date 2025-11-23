@@ -21,7 +21,7 @@ from .informer import Informer
 
 class Presenter:
     """
-    Presentation layer for qq job information.
+    Presents information about a qq job.
     """
 
     def __init__(self, informer: Informer):
@@ -362,7 +362,19 @@ class Presenter:
 
         return table
 
-    def _createJobStepsTable(self, steps: list[BatchJobInterface]):
+    def _createJobStepsTable(self, steps: list[BatchJobInterface]) -> Table:
+        """
+        Create a formatted Rich table displaying job step information.
+
+        Steps without a valid start time are skipped. The resulting table is intended
+        to be used within full-info job panels.
+
+        Args:
+            steps: A list of batch-system step objects belonging to the job.
+
+        Returns:
+            Table: A Rich table containing the formatted step information.
+        """
         table = Table(show_header=True, box=None, padding=(0, 1))
 
         table.add_column("Step", justify="center", style=CFG.presenter.key_style)
@@ -400,6 +412,18 @@ class Presenter:
         return table
 
     def _createJobStepsBlock(self) -> Group:
+        """
+        Create a Rich block containing the job-steps section of the full info panel.
+
+        This block includes a section heading ("STEPS") and the table of job steps
+        created by `_createJobStepsTable()`. The block is only shown when the job
+        contains more than one step; for single-step jobs, an empty block is returned.
+
+        Returns:
+            Group: A Rich group representing the job-steps section, or an empty group
+            if no multi-step information should be displayed.
+        """
+
         job: BatchJobInterface = self._informer.getBatchInfo()
         steps = job.getSteps()
 

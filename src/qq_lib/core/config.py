@@ -1,6 +1,16 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Configuration system for qq.
+
+This module defines dataclasses representing all configurable aspects of qq,
+including file suffixes, environment variables, timeouts, presentation settings,
+batch-system options, and global defaults.
+
+The `Config` class loads user configuration from a TOML file (if available)
+and provides a globally accessible `CFG` instance.
+"""
 
 import os
 import tomllib

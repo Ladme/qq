@@ -30,6 +30,7 @@ class PBSJob(BatchJobInterface):
     """
 
     def __init__(self, job_id: str):
+        """Query the batch system for information about the job with the specified ID."""
         self._job_id = job_id
         self._info: dict[str, str] = {}
 

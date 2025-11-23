@@ -1,6 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Utility for repeated execution with per-item error handling.
+
+This module provides the `Repeater` class, which runs a function over a list of
+items while capturing exceptions, invoking registered handlers, and tracking
+errors on a per-item basis.
+"""
+
 from collections.abc import Callable
 from typing import Any, Self
 

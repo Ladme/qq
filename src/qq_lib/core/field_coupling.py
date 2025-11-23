@@ -1,6 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Utilities for defining and enforcing coupled fields in dataclasses.
+
+This module provides `FieldCoupling` for specifying dominance-ordered
+relationships among multiple fields, and the `@coupled_fields` decorator for
+automatically enforcing these rules in a dataclass's `__post_init__`.
+"""
 
 from typing import Any, Protocol
 

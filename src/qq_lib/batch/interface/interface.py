@@ -36,9 +36,9 @@ class BatchInterface[
     """
 
     # magic number indicating unreachable directory when navigating to it
-    CD_FAIL = 94
+    _CD_FAIL = 94
     # exit code of ssh if connection fails
-    SSH_FAIL = 255
+    _SSH_FAIL = 255
 
     @classmethod
     def envName(cls) -> str:
@@ -290,7 +290,7 @@ class BatchInterface[
         Default behavior:
             - If the target host is different from the current host, SSH is used
             to connect and `cd` is executed to switch to the directory.
-            Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+            Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
             - If the target host matches the current host, only `cd` is used.
 
         A new terminal should always be opened, regardless of the host.
@@ -313,16 +313,16 @@ class BatchInterface[
         result = subprocess.run(ssh_command)
 
         # the subprocess exit code can come from:
-        # - SSH itself failing - returns SSH_FAIL
-        # - the explicit exit code we set if 'cd' to the directory fails - returns CD_FAIL
+        # - SSH itself failing - returns _SSH_FAIL
+        # - the explicit exit code we set if 'cd' to the directory fails - returns _CD_FAIL
         # - the exit code of the last command the user runs in the interactive shell
         #
-        # we ignore user exit codes entirely and only treat SSH_FAIL and CD_FAIL as errors
-        if result.returncode == cls.SSH_FAIL:
+        # we ignore user exit codes entirely and only treat _SSH_FAIL and _CD_FAIL as errors
+        if result.returncode == cls._SSH_FAIL:
             raise QQError(
                 f"Could not reach '{host}:{str(directory)}': Could not connect to host."
             )
-        if result.returncode == cls.CD_FAIL:
+        if result.returncode == cls._CD_FAIL:
             raise QQError(
                 f"Could not reach '{host}:{str(directory)}': Could not change directory."
             )
@@ -334,7 +334,7 @@ class BatchInterface[
 
         The default implementation uses SSH to retrieve the file contents.
         This approach may be inefficient on shared storage or high-latency networks.
-        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
 
         Subclasses should override this method to provide a more efficient implementation
         if possible.
@@ -376,7 +376,7 @@ class BatchInterface[
 
         The default implementation uses SSH to send the content to the remote file.
         This approach may be inefficient on shared storage or high-latency networks.
-        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
 
         Subclasses should override this method to provide a more efficient implementation
         if possible.
@@ -416,7 +416,7 @@ class BatchInterface[
 
         The default implementation uses SSH to run `mkdir` on the remote host.
         This approach may be inefficient on shared storage or high-latency networks.
-        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
 
         Subclasses should override this method to provide a more efficient implementation
         if possible.
@@ -454,7 +454,7 @@ class BatchInterface[
 
         The default implementation uses SSH to run `ls -A` on the remote host.
         This approach may be inefficient on shared storage or high-latency networks.
-        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
 
         Subclasses should override this method to provide a more efficient implementation
         if possible.
@@ -502,7 +502,7 @@ class BatchInterface[
 
         The default implementation uses SSH to run `rm -r` on the remote host.
         This approach may be inefficient on shared storage or high-latency networks.
-        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
 
         Subclasses should override this method to provide a more efficient implementation
         if possible.
@@ -541,7 +541,7 @@ class BatchInterface[
 
         The default implementation uses SSH to run a sequence of `mv` commands on the remote host.
         This approach may be inefficient on shared storage or high-latency networks.
-        Note that the timeout for the SSH connection is set to `SSH_TIMEOUT` seconds.
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds.
 
         Subclasses should override this method to provide a more efficient implementation
         if possible.
@@ -819,7 +819,7 @@ class BatchInterface[
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
-            f"cd {directory} || exit {cls.CD_FAIL} && exec bash -l",
+            f"cd {directory} || exit {cls._CD_FAIL} && exec bash -l",
         ]
 
     @classmethod
@@ -1004,7 +1004,7 @@ class BatchInterface[
 
         Raises:
             QQError: If the rsync command fails (non-zero exit code) or
-                if the command times out after `RSYNC_TIMEOUT` seconds.
+                if the command times out after `CFG.timeouts.rsync` seconds.
         """
         src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
         dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)

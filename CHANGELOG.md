@@ -12,6 +12,7 @@
 - Fixed a regression from v0.5: missing size property in `qq nodes` is now correctly intepreted as zero size.
 - When a job is killed, runtime files are copied to the input directory only after the executed process finishes.
 - Changed the way working directories on Karolina and LUMI are created allowing their complete removal.
+- Collection of Slurm jobs (which is complicated by Slurm's architecture) is now performed in parallel and is consequently much faster.
 
 ### Internal changes
 - `Wiper.delete` method has been renamed to `Wiper.wipe`.

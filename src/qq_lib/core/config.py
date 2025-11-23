@@ -246,12 +246,24 @@ class PBSOptions:
 
 
 @dataclass
+class SlurmOptions:
+    """Options associated with Slurm."""
+
+    # maximal number of threads used to collect information about jobs using scontrol
+    jobs_scontrol_nthreads: int = 8
+
+
+@dataclass
 class SlurmIT4IOptions:
+    """Options associated with Slurm on IT4I clusters."""
+
     scratch_dir_attempts: int = 3
 
 
 @dataclass
 class SlurmLumiOptions:
+    """Options associated with Slurm on LUMI."""
+
     scratch_dir_attempts: int = 3
 
 
@@ -279,6 +291,7 @@ class Config:
     state_colors: StateColors = field(default_factory=StateColors)
     size: SizeOptions = field(default_factory=SizeOptions)
     pbs_options: PBSOptions = field(default_factory=PBSOptions)
+    slurm_options: SlurmOptions = field(default_factory=SlurmOptions)
     slurm_it4i_options: SlurmIT4IOptions = field(default_factory=SlurmIT4IOptions)
     slurm_lumi_options: SlurmLumiOptions = field(default_factory=SlurmLumiOptions)
     binary_name: str = "qq"

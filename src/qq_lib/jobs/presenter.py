@@ -689,7 +689,11 @@ class JobsStatistics:
 
         # sum of all jobs
         line.append(
-            JobsStatistics._colorText("Σ ", color=CFG.state_colors.sum, bold=True)
+            JobsStatistics._colorText(
+                f"{CFG.jobs_presenter.sum_jobs_code} ",
+                color=CFG.state_colors.sum,
+                bold=True,
+            )
         )
         line.append(JobsStatistics._secondaryColorText(str(total)))
         line.append(spacing)

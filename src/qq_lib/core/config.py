@@ -214,6 +214,9 @@ class JobsPresenterSettings:
     # Style used for mild warning messages.
     mild_warning_style: str = "bright_yellow"
 
+    # Code used to signify "total jobs".
+    sum_jobs_code: str = "Σ"
+
 
 @dataclass
 class QueuesPresenterSettings:
@@ -246,6 +249,11 @@ class QueuesPresenterSettings:
     main_text_style: str = "white"
     # Style used for information about reroutings.
     rerouted_text_style: str = "grey50"
+
+    # Code used to signify "other jobs".
+    other_jobs_code: str = "O"
+    # Code used to signify "total jobs".
+    sum_jobs_code: str = "Σ"
 
 
 @dataclass

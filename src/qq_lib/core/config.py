@@ -213,6 +213,9 @@ class JobsPresenterSettings:
     strong_warning_style: str = "bright_red"
     # Style used for mild warning messages.
     mild_warning_style: str = "bright_yellow"
+    # List of columns to show in the output.
+    # If not set, the settings for the current batch system will be used.
+    columns_to_show: list[str] | None = None
 
     # Code used to signify "total jobs".
     sum_jobs_code: str = "Σ"

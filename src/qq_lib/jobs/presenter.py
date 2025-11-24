@@ -185,9 +185,12 @@ class JobsPresenter:
             "Node",
             "%CPU",
             "%Mem",
-            "Exit" if self._all else None,
+            "Exit" if self._all or CFG.jobs_presenter.columns_to_show else None,
         ]
-        headers_to_show = self._batch_system.jobsPresenterColumnsToShow()
+        headers_to_show = (
+            CFG.jobs_presenter.columns_to_show
+            or self._batch_system.jobsPresenterColumnsToShow()
+        )
         return [h for h in all_headers if h and h in headers_to_show]
 
     def _createJobRow(self, job: BatchJobInterface, headers: list[str]) -> list[str]:

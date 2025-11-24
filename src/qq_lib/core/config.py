@@ -367,7 +367,7 @@ class StateColors:
 class SizeOptions:
     """Options associated with the Size dataclass."""
 
-    # Maximal error acceptable when rounding Size values for display.
+    # Maximal relative error acceptable when rounding Size values for display.
     max_rounding_error: float = 0.1
 
 

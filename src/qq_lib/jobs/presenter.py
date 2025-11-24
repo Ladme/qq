@@ -14,6 +14,7 @@ from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
+    get_panel_width,
 )
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
@@ -104,7 +105,6 @@ class JobsPresenter:
             Group: Rich Group containing the jobs table and stats panel.
         """
         console = console or Console()
-        panel_width = console.size.width
 
         jobs_table = self._createBasicJobsTable()
         if self._extra:
@@ -127,7 +127,9 @@ class JobsPresenter:
             ),
             border_style=CFG.jobs_presenter.border_style,
             padding=(1, 1),
-            width=panel_width,
+            width=get_panel_width(
+                console, 1, CFG.jobs_presenter.min_width, CFG.jobs_presenter.max_width
+            ),
             expand=False,
         )
 

@@ -189,6 +189,10 @@ class PresenterSettings:
 class JobsPresenterSettings:
     """Settings for JobsPresenter."""
 
+    # Maximal width of the jobs panel.
+    max_width: int | None = None
+    # Minimal width of the jobs panel.
+    min_width: int | None = 80
     # Maximum displayed length of a job name before truncation.
     max_job_name_length: int = 20
     # Maximum displayed length of working nodes before truncation.

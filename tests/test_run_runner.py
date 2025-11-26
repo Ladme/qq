@@ -316,215 +316,6 @@ def test_runner_cleanup_with_running_process_no_scratch():
     process_mock.kill.assert_not_called()
 
 
-def test_runner_prepare_command_line_for_resubmit_only_script():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "script.sh",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert result == informer_mock.info.command_line + ["--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_script_path():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "job/script.sh",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_script_path_last():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "-q",
-        "gpu",
-        "job/script.sh",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert result == ["-q", "gpu", "script.sh", "--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_complicated_script_path():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "../path/to/../something/job/script.sh",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_inline_depend():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "script.sh",
-        "--depend=afterok=11111",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert "--depend=afterok=11111" not in result
-    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_separate_depend_argument():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "script.sh",
-        "--depend",
-        "afterok=11111",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert "--depend" not in result
-    assert "afterok=11111" not in result
-    assert result == ["script.sh", "-q", "gpu", "--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_multiple_scripts():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "script.sh",
-        "--depend",
-        "afterok=11111",
-        "--exclude",
-        "script.sh",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    with pytest.raises(
-        QQError,
-        match="Heuristic identification of script name failed for command line:",
-    ):
-        runner._prepareCommandLineForResubmit()
-
-
-def test_runner_prepare_command_line_for_resubmit_multiple_depends():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "script.sh",
-        "--depend=afterok=11111",
-        "--depend",
-        "afterany=33333",
-        "--depend=after=22222",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert "--depend" not in result
-    assert all("afterok=11111" not in arg for arg in result)
-    assert all("afterany=33333" not in arg for arg in result)
-    assert result[-1] == "--depend=afterok=99999"
-    assert "gpu" in result
-    assert "script.sh" in result
-
-
-def test_runner_prepare_command_line_for_resubmit_multiple_depends_and_script_path_complex():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = [
-        "--depend=afterok=11111",
-        "--depend",
-        "afterany=33333",
-        "job/path/script.sh",
-        "--depend=after=22222",
-        "-q",
-        "gpu",
-    ]
-    informer_mock.info.script_name = "script.sh"
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert "--depend" not in result
-    assert all("afterok=11111" not in arg for arg in result)
-    assert all("afterany=33333" not in arg for arg in result)
-    assert result[-1] == "--depend=afterok=99999"
-    assert "gpu" in result
-    assert "script.sh" in result
-    assert "job/path/script.sh" not in result
-
-
-def test_runner_prepare_command_line_for_resubmit_depend_last_arg():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = ["script.sh", "--depend"]
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert "--depend" not in result
-    assert result == ["script.sh", "--depend=afterok=99999"]
-
-
-def test_runner_prepare_command_line_for_resubmit_only_depend():
-    informer_mock = MagicMock()
-    informer_mock.info.command_line = ["--depend=afterok=11111"]
-    informer_mock.info.job_id = "99999"
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._prepareCommandLineForResubmit()
-
-    assert result == ["--depend=afterok=99999"]
-
-
 def test_runner_resubmit_final_cycle():
     informer_mock = MagicMock()
     informer_mock.info.loop_info.current = 5
@@ -569,7 +360,7 @@ def test_runner_resubmit_successful_resubmission():
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._batch_system = MagicMock()
-    runner._prepareCommandLineForResubmit = MagicMock(return_value=["cmd"])
+    runner._informer.info.getCommandLineForResubmit = MagicMock(return_value=["cmd"])
     runner._should_resubmit = True
 
     retryer_mock = MagicMock()
@@ -603,7 +394,7 @@ def test_runner_resubmit_raises_qqerror():
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
     runner._batch_system = MagicMock()
-    runner._prepareCommandLineForResubmit = MagicMock(return_value=["cmd"])
+    runner._informer.info.getCommandLineForResubmit = MagicMock(return_value=["cmd"])
     runner._should_resubmit = True
 
     with (
@@ -876,24 +667,23 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._informer.info.job_name = "job+0002"
     runner._archiver = None
 
-    scratch_dir = Path("/scratch")
-    runner._batch_system.getScratchDir.return_value = scratch_dir
+    work_dir = Path("/scratch/job123")
+    runner._batch_system.createWorkDirOnScratch.return_value = work_dir
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_cls,
         patch("qq_lib.run.runner.logger"),
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
     ):
+        retryer_cls.return_value.run.return_value = work_dir
         runner._setUpScratchDir()
 
-    work_dir = (scratch_dir / CFG.runner.scratch_dir_inner).resolve()
-
-    # first Retryer call: Path.mkdir
-    mkdir_call = retryer_cls.call_args_list[0]
-    assert mkdir_call.kwargs["max_tries"] == CFG.runner.retry_tries
-    assert mkdir_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
-    assert mkdir_call.args[0] == Path.mkdir
-    assert mkdir_call.args[1] == work_dir
+    # first Retryer call: batch_system
+    batch_system_call = retryer_cls.call_args_list[0]
+    assert batch_system_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert batch_system_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
+    assert batch_system_call.args[0] == runner._batch_system.createWorkDirOnScratch
+    assert batch_system_call.args[1] == runner._informer.info.job_id
 
     # second Retryer call: os.chdir
     chdir_call = retryer_cls.call_args_list[1]

@@ -89,7 +89,9 @@ def test_slurmit4i_get_default_server_resources_returns_empty_on_failure(
 def test_slurmit4i_resubmit_success(mock_chdir, mock_run):
     mock_run.return_value = MagicMock(returncode=0)
     SlurmIT4I.resubmit(
-        input_dir=Path("/home/user/jobdir"), command_line=["-q", "default"]
+        input_machine="unused_machine",
+        input_dir=Path("/home/user/jobdir"),
+        command_line=["-q", "default"],
     )
     mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
     mock_run.assert_called_once()
@@ -99,7 +101,9 @@ def test_slurmit4i_resubmit_success(mock_chdir, mock_run):
 def test_slurmit4i_resubmit_raises_when_cannot_cd(mock_chdir):
     with pytest.raises(QQError, match="Could not navigate to"):
         SlurmIT4I.resubmit(
-            input_dir=Path("/home/user/jobdir"), command_line=["-q", "default"]
+            input_machine="unused_machine",
+            input_dir=Path("/home/user/jobdir"),
+            command_line=["-q", "default"],
         )
     mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
 
@@ -110,7 +114,9 @@ def test_slurmit4i_resubmit_raises_when_command_fails(mock_chdir, mock_run):
     mock_run.return_value = MagicMock(returncode=1, stderr="execution failed")
     with pytest.raises(QQError):
         SlurmIT4I.resubmit(
-            input_dir=Path("/home/user/jobdir"), command_line=["-q", "default"]
+            input_machine="unused_machine",
+            input_dir=Path("/home/user/jobdir"),
+            command_line=["-q", "default"],
         )
     mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
 
@@ -327,34 +333,38 @@ def test_slurmit4i_navigate_to_destination_calls_interface(mock_nav, mock_info):
 @patch("qq_lib.batch.slurmit4i.slurm.getpass.getuser", return_value="user1")
 @patch("qq_lib.batch.slurmit4i.slurm.Path.mkdir")
 @patch.dict(os.environ, {"SLURM_JOB_ACCOUNT": "ACCT"}, clear=True)
-def test_slurmit4i_get_scratch_dir_creates_and_returns_path(mock_mkdir, mock_user):
-    result = SlurmIT4I.getScratchDir("123")
+def test_slurmit4i_create_work_dir_on_scratch_creates_and_returns_path(
+    mock_mkdir, mock_user
+):
+    result = SlurmIT4I.createWorkDirOnScratch("123")
     assert str(result).endswith("/scratch/project/acct/user1/qq-jobs/job_123")
     mock_user.assert_called_once()
     mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
 
 @patch.dict(os.environ, {}, clear=True)
-def test_slurmit4i_get_scratch_dir_raises_when_no_account():
+def test_slurmit4i_create_work_dir_on_scratch_raises_when_no_account():
     with pytest.raises(QQError, match="No account is defined for job '123'"):
-        SlurmIT4I.getScratchDir("123")
+        SlurmIT4I.createWorkDirOnScratch("123")
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.getpass.getuser", return_value="user2")
 @patch("qq_lib.batch.slurmit4i.slurm.Path.mkdir", side_effect=OSError("disk error"))
 @patch.dict(os.environ, {"SLURM_JOB_ACCOUNT": "ACCT2"}, clear=True)
-def test_slurmit4i_get_scratch_dir_raises_on_mkdir_failure(mock_mkdir, mock_user):
+def test_slurmit4i_create_work_dir_on_scratch_raises_on_mkdir_failure(
+    mock_mkdir, mock_user
+):
     with pytest.raises(
-        QQError, match="Could not create a scratch directory for job '456'"
+        QQError, match="Could not create a working directory on scratch for job '456'"
     ):
-        SlurmIT4I.getScratchDir("456")
+        SlurmIT4I.createWorkDirOnScratch("456")
     mock_user.assert_called_once()
-    assert mock_mkdir.call_count == CFG.it4i_scratch_dir_attempts
+    assert mock_mkdir.call_count == CFG.slurm_it4i_options.scratch_dir_attempts
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.getpass.getuser", return_value="userX")
 @patch.dict(os.environ, {"SLURM_JOB_ACCOUNT": "ACCT"}, clear=True)
-def test_slurmit4i_get_scratch_dir_third_attempt_succeeds(mock_user):
+def test_slurmit4i_create_work_dir_on_scratch_third_attempt_succeeds(mock_user):
     mkdir_mock = MagicMock()
     mkdir_mock.side_effect = [
         OSError("fail 1"),
@@ -363,7 +373,7 @@ def test_slurmit4i_get_scratch_dir_third_attempt_succeeds(mock_user):
     ]
 
     with patch("qq_lib.batch.slurmit4i.slurm.Path.mkdir", mkdir_mock):
-        result = SlurmIT4I.getScratchDir("999")
+        result = SlurmIT4I.createWorkDirOnScratch("999")
 
     expected_path = "/scratch/project/acct/userX3/qq-jobs/job_999"
     assert str(result).endswith(expected_path)
@@ -372,7 +382,7 @@ def test_slurmit4i_get_scratch_dir_third_attempt_succeeds(mock_user):
     assert mkdir_mock.call_count == 3
 
 
-def test_slurm_delete_remote_dir_deletes_local(tmp_path):
+def test_slurmit4i_delete_remote_dir_deletes_local(tmp_path):
     test_dir = tmp_path / "to_delete"
     test_dir.mkdir()
     (test_dir / "file.txt").write_text("content")
@@ -385,7 +395,9 @@ def test_slurm_delete_remote_dir_deletes_local(tmp_path):
     assert not test_dir.exists()
 
 
-def test_slurm_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypatch):
+def test_slurmit4i_delete_remote_dir_raises_error_on_local_failure(
+    tmp_path, monkeypatch
+):
     test_dir = tmp_path / "to_delete_fail"
     test_dir.mkdir()
 
@@ -398,3 +410,8 @@ def test_slurm_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeyp
         QQError, match=f"Could not delete directory '{test_dir}': access denied."
     ):
         SlurmIT4I.deleteRemoteDir("some_host", test_dir)
+
+
+def test_slurmit4i_get_supported_work_dir_types_returns_combined_list():
+    expected = ["scratch", "input_dir", "job_dir"]
+    assert SlurmIT4I.getSupportedWorkDirTypes() == expected

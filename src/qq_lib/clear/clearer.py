@@ -80,7 +80,7 @@ class Clearer:
 
     def _collectExcludedFiles(self) -> set[Path]:
         """
-        Collect qq runtime files that should not be deleted.
+        Collect qq runtime files that should **not** be deleted.
 
         Runtime files corresponding to active or successfully finished jobs are included.
 

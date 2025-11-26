@@ -44,47 +44,47 @@ def test_init_sets_all_attributes_and_creates_statistics():
     "string,color,bold,expected_prefix",
     [
         ("test", None, False, ""),  # no color, no bold
-        ("test", "red", False, JobsPresenter.ANSI_COLORS["red"]),
-        ("test", None, True, JobsPresenter.ANSI_COLORS["bold"]),
+        ("test", "red", False, JobsPresenter._ANSI_COLORS["red"]),
+        ("test", None, True, JobsPresenter._ANSI_COLORS["bold"]),
         (
             "test",
             "green",
             True,
-            JobsPresenter.ANSI_COLORS["bold"] + JobsPresenter.ANSI_COLORS["green"],
+            JobsPresenter._ANSI_COLORS["bold"] + JobsPresenter._ANSI_COLORS["green"],
         ),
     ],
 )
 def test_color_applies_correct_ansi(string, color, bold, expected_prefix):
     result = JobsPresenter._color(string, color=color, bold=bold)
-    reset = JobsPresenter.ANSI_COLORS["reset"] if color or bold else ""
+    reset = JobsPresenter._ANSI_COLORS["reset"] if color or bold else ""
     assert result == f"{expected_prefix}{string}{reset}"
 
 
 def test_main_color_applies_main_color():
     text = "text"
     result = JobsPresenter._mainColor(text)
-    expected = f"{JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]}text{JobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.main_style]}text{JobsPresenter._ANSI_COLORS['reset']}"
     assert result == expected
 
 
 def test_main_color_applies_main_color_and_bold():
     text = "text"
     result = JobsPresenter._mainColor(text, bold=True)
-    expected = f"{JobsPresenter.ANSI_COLORS['bold']}{JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]}text{JobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{JobsPresenter._ANSI_COLORS['bold']}{JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.main_style]}text{JobsPresenter._ANSI_COLORS['reset']}"
     assert result == expected
 
 
 def test_secondary_color_applies_secondary_color():
     text = "text"
     result = JobsPresenter._secondaryColor(text)
-    expected = f"{JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.secondary_style]}text{JobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.secondary_style]}text{JobsPresenter._ANSI_COLORS['reset']}"
     assert result == expected
 
 
 def test_secondary_color_applies_secondary_color_and_bold():
     text = "text"
     result = JobsPresenter._secondaryColor(text, bold=True)
-    expected = f"{JobsPresenter.ANSI_COLORS['bold']}{JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.secondary_style]}text{JobsPresenter.ANSI_COLORS['reset']}"
+    expected = f"{JobsPresenter._ANSI_COLORS['bold']}{JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.secondary_style]}text{JobsPresenter._ANSI_COLORS['reset']}"
     assert result == expected
 
 
@@ -176,7 +176,7 @@ def test_format_nodes_or_comment_returns_estimated(mock_job):
     ):
         result = JobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
 
-        assert JobsPresenter.ANSI_COLORS[BatchState.QUEUED.color] in result
+        assert JobsPresenter._ANSI_COLORS[BatchState.QUEUED.color] in result
         assert desc in result
         duration_str = format_duration_wdhhmmss(estimated_time - datetime.now()).rsplit(
             ":", 1
@@ -195,7 +195,7 @@ def test_format_nodes_or_comment_returns_estimated_truncated(mock_job):
     ):
         result = JobsPresenter._formatNodesOrComment(BatchState.QUEUED, mock_job)
 
-        assert JobsPresenter.ANSI_COLORS[BatchState.QUEUED.color] in result
+        assert JobsPresenter._ANSI_COLORS[BatchState.QUEUED.color] in result
         assert "node1 + node2 + node3 + node4 + node5 + …" in result
         duration_str = format_duration_wdhhmmss(estimated_time - datetime.now()).rsplit(
             ":", 1
@@ -215,37 +215,37 @@ def test_format_nodes_or_comment_returns_empty_when_no_info(mock_job):
 @pytest.mark.parametrize("util", [101, 150, 300])
 def test_format_util_cpu_above_100_uses_strong_warning(util):
     result = JobsPresenter._formatUtilCPU(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("util", [80, 85, 99, 100])
 def test_format_util_cpu_80_to_100_uses_main_color(util):
     result = JobsPresenter._formatUtilCPU(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.main_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("util", [60, 61, 79])
 def test_format_util_cpu_60_to_79_uses_mild_warning(util):
     result = JobsPresenter._formatUtilCPU(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.mild_warning_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.mild_warning_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("util", [0, 10, 59])
 def test_format_util_cpu_below_60_uses_strong_warning(util):
     result = JobsPresenter._formatUtilCPU(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 def test_format_util_mem_none_returns_empty():
@@ -255,28 +255,28 @@ def test_format_util_mem_none_returns_empty():
 @pytest.mark.parametrize("util", [0, 50, 89])
 def test_format_util_mem_below_90_uses_main_color(util):
     result = JobsPresenter._formatUtilMem(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.main_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.main_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("util", [90, 95, 99])
 def test_format_util_mem_90_to_99_uses_mild_warning(util):
     result = JobsPresenter._formatUtilMem(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.mild_warning_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.mild_warning_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("util", [100, 110, 150])
 def test_format_util_mem_100_or_more_uses_strong_warning(util):
     result = JobsPresenter._formatUtilMem(util)
-    color_code = JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
+    color_code = JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.strong_warning_style]
     assert str(util) in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.fixture
@@ -299,12 +299,12 @@ def test_format_time_unknown_or_suspended_returns_empty(state, start_end_walltim
 def test_format_time_finished_or_failed_returns_colored_date(state, start_end_walltime):
     start, end, walltime = start_end_walltime
     result = JobsPresenter._formatTime(state, start, end, walltime)
-    color_code = JobsPresenter.ANSI_COLORS[state.color]
+    color_code = JobsPresenter._ANSI_COLORS[state.color]
     formatted_date = end.strftime(CFG.date_formats.standard)
 
     assert formatted_date in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize(
@@ -316,11 +316,11 @@ def test_format_time_waiting_like_states_show_elapsed_duration(
     start, end, walltime = start_end_walltime
     duration_str = format_duration_wdhhmmss(end - start)
     result = JobsPresenter._formatTime(state, start, end, walltime)
-    color_code = JobsPresenter.ANSI_COLORS[state.color]
+    color_code = JobsPresenter._ANSI_COLORS[state.color]
 
     assert duration_str in result
     assert color_code in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("state", [BatchState.RUNNING, BatchState.EXITING])
@@ -331,11 +331,11 @@ def test_format_time_running_or_exiting_within_walltime(state, start_end_walltim
     result = JobsPresenter._formatTime(state, start, end, walltime)
 
     # should use state's color (not strong warning)
-    color_code = JobsPresenter.ANSI_COLORS[state.color]
+    color_code = JobsPresenter._ANSI_COLORS[state.color]
     assert run_duration_str in result
     assert color_code in result
     assert f"/ {walltime_str}" in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.mark.parametrize("state", [BatchState.RUNNING, BatchState.EXITING])
@@ -349,13 +349,13 @@ def test_format_time_running_or_exiting_exceeding_walltime_uses_strong_warning(
     result = JobsPresenter._formatTime(state, start, end, walltime)
 
     # should use strong warning color for run time
-    warning_color_code = JobsPresenter.ANSI_COLORS[
+    warning_color_code = JobsPresenter._ANSI_COLORS[
         CFG.jobs_presenter.strong_warning_style
     ]
     assert run_duration_str in result
     assert warning_color_code in result
     assert f"/ {walltime_str}" in result
-    assert result.endswith(JobsPresenter.ANSI_COLORS["reset"])
+    assert result.endswith(JobsPresenter._ANSI_COLORS["reset"])
 
 
 @pytest.fixture
@@ -956,7 +956,7 @@ def test_jobs_presenter_insert_extra_info_uses_cfg_style():
 
     result = presenter._insertExtraInfo("HEADER\nROW1")
 
-    assert JobsPresenter.ANSI_COLORS[CFG.jobs_presenter.extra_info_style] in result
+    assert JobsPresenter._ANSI_COLORS[CFG.jobs_presenter.extra_info_style] in result
 
 
 def test_format_exit_code_returns_empty_string_when_exit_code_is_none():
@@ -1271,7 +1271,7 @@ def test_create_basic_jobs_table_creates_row_for_each_job_with_headers():
             ["row3_col1", "row3_col2", "row3_col3"],
         ],
         headers=["fmt_S", "fmt_Job_ID", "fmt_User"],
-        tablefmt=JobsPresenter.COMPACT_TABLE,
+        tablefmt=JobsPresenter._COMPACT_TABLE,
         stralign="center",
         numalign="center",
     )

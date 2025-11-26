@@ -30,7 +30,8 @@ class SlurmJob(BatchJobInterface):
     Stores metadata for a single Slurm job.
     """
 
-    STATE_CONVERTER: dict[str, BatchState] = {
+    # converts from Slurm state names to qq BatchStates
+    _STATE_CONVERTER: dict[str, BatchState] = {
         "BOOT_FAIL": BatchState.FAILED,
         "CANCELLED": BatchState.FAILED,
         "COMPLETED": BatchState.FINISHED,
@@ -46,6 +47,7 @@ class SlurmJob(BatchJobInterface):
     }
 
     def __init__(self, job_id: str):
+        """Query the batch system for information about the job with the specified ID."""
         self._job_id = job_id
         self._info: dict[str, str] = {}
 
@@ -110,7 +112,7 @@ class SlurmJob(BatchJobInterface):
         if not (raw_state := self._info.get("JobState")):
             return BatchState.UNKNOWN
 
-        converted_state = SlurmJob.STATE_CONVERTER.get(raw_state) or BatchState.UNKNOWN
+        converted_state = SlurmJob._STATE_CONVERTER.get(raw_state) or BatchState.UNKNOWN
 
         # if the job is queued due to depending on another job, it should be considered "held"
         if (

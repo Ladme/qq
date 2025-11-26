@@ -25,7 +25,7 @@ def test_translate_ssh_command():
         f"-o ConnectTimeout={CFG.timeouts.ssh}",
         host,
         "-t",
-        f"cd {directory} || exit {BatchInterface.CD_FAIL} && exec bash -l",
+        f"cd {directory} || exit {BatchInterface._CD_FAIL} && exec bash -l",
     ]
 
 

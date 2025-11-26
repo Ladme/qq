@@ -199,3 +199,43 @@ def test_get_cycle_non_numeric_files_are_ignored_but_numeric_stems_count(temp_di
     (temp_dir / "mdxxxx.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md.*")
     assert loop_info._getCycle() == 10
+
+
+def test_to_command_line_basic():
+    info = LoopInfo(
+        start=1,
+        end=10,
+        archive=Path("/tmp/archive"),
+        archive_format="job%04d",
+    )
+
+    assert info.toCommandLine() == [
+        "--loop-start",
+        "1",
+        "--loop-end",
+        "10",
+        "--archive",
+        "archive",
+        "--archive-format",
+        "job%04d",
+    ]
+
+
+def test_to_command_line_archive_name_only():
+    info = LoopInfo(
+        start=0,
+        end=5,
+        archive=Path("/very/long/path/to/myarchive"),
+        archive_format="md%03d",
+    )
+
+    assert info.toCommandLine() == [
+        "--loop-start",
+        "0",
+        "--loop-end",
+        "5",
+        "--archive",
+        "myarchive",
+        "--archive-format",
+        "md%03d",
+    ]

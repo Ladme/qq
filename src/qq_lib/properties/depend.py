@@ -1,6 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Representation and handling of qq job dependencies.
+
+This module defines `DependType`, an enumeration of supported dependency
+conditions and the `Depend` dataclass, which stores both the dependency type
+and referenced job IDs.
+"""
 
 import re
 from dataclasses import dataclass

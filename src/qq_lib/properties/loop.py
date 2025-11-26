@@ -1,6 +1,15 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Loop-job metadata and cycle-tracking utilities.
+
+This module defines `LoopInfo`, a dataclass describing the iteration
+parameters of a qq loop job: its cycle range, archive location, archive
+naming format, and the current cycle as inferred from existing archived
+files.
+"""
+
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -81,6 +90,24 @@ class LoopInfo:
         return {
             k: str(v) if isinstance(v, Path) else v for k, v in asdict(self).items()
         }
+
+    def toCommandLine(self) -> list[str]:
+        """
+        Convert loop job settings into a command-line argument list for `qq submit`.
+
+        Returns:
+            list[str]: A list of command-line arguments ready to pass to ``qq submit``.
+        """
+        return [
+            "--loop-start",
+            str(self.start),
+            "--loop-end",
+            str(self.end),
+            "--archive",
+            self.archive.name,
+            "--archive-format",
+            self.archive_format,
+        ]
 
     def _getCycle(self) -> int:
         """

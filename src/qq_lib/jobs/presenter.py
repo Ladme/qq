@@ -14,6 +14,7 @@ from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
+    get_panel_width,
 )
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
@@ -25,7 +26,7 @@ class JobsPresenter:
     """
 
     # Mapping of human-readable color names to ANSI escape codes.
-    ANSI_COLORS = {
+    _ANSI_COLORS = {
         # default
         "default": "",
         # standard colors
@@ -59,7 +60,7 @@ class JobsPresenter:
     }
 
     # Table formatting configuration for `tabulate`.
-    COMPACT_TABLE = TableFormat(
+    _COMPACT_TABLE = TableFormat(
         lineabove=Line("", "", "", ""),
         linebelowheader="",
         linebetweenrows="",
@@ -104,7 +105,6 @@ class JobsPresenter:
             Group: Rich Group containing the jobs table and stats panel.
         """
         console = console or Console()
-        panel_width = console.size.width
 
         jobs_table = self._createBasicJobsTable()
         if self._extra:
@@ -127,7 +127,9 @@ class JobsPresenter:
             ),
             border_style=CFG.jobs_presenter.border_style,
             padding=(1, 1),
-            width=panel_width,
+            width=get_panel_width(
+                console, 1, CFG.jobs_presenter.min_width, CFG.jobs_presenter.max_width
+            ),
             expand=False,
         )
 
@@ -148,7 +150,7 @@ class JobsPresenter:
             str: Tabulated job information with ANSI color codes applied.
 
         Notes:
-            - Uses `tabulate` with `COMPACT_TABLE` format because
+            - Uses `tabulate` with `_COMPACT_TABLE` format because
               Rich's Table is prohibitively slow for large number of items.
             - Updates internal job statistics via `self._stats`.
         """
@@ -158,7 +160,7 @@ class JobsPresenter:
         return tabulate(
             rows,
             headers=self._formatHeaders(headers),
-            tablefmt=JobsPresenter.COMPACT_TABLE,
+            tablefmt=JobsPresenter._COMPACT_TABLE,
             stralign="center",
             numalign="center",
         )
@@ -183,9 +185,12 @@ class JobsPresenter:
             "Node",
             "%CPU",
             "%Mem",
-            "Exit" if self._all else None,
+            "Exit" if self._all or CFG.jobs_presenter.columns_to_show else None,
         ]
-        headers_to_show = self._batch_system.jobsPresenterColumnsToShow()
+        headers_to_show = (
+            CFG.jobs_presenter.columns_to_show
+            or self._batch_system.jobsPresenterColumnsToShow()
+        )
         return [h for h in all_headers if h and h in headers_to_show]
 
     def _createJobRow(self, job: BatchJobInterface, headers: list[str]) -> list[str]:
@@ -537,7 +542,7 @@ class JobsPresenter:
         Returns:
             str: ANSI-colored and optionally bolded string.
         """
-        return f"{JobsPresenter.ANSI_COLORS['bold'] if bold else ''}{JobsPresenter.ANSI_COLORS[color] if color else ''}{string}{JobsPresenter.ANSI_COLORS['reset'] if color or bold else ''}"
+        return f"{JobsPresenter._ANSI_COLORS['bold'] if bold else ''}{JobsPresenter._ANSI_COLORS[color] if color else ''}{string}{JobsPresenter._ANSI_COLORS['reset'] if color or bold else ''}"
 
     @staticmethod
     def _mainColor(string: str, bold: bool = False) -> str:
@@ -687,7 +692,11 @@ class JobsStatistics:
 
         # sum of all jobs
         line.append(
-            JobsStatistics._colorText("Σ ", color=CFG.state_colors.sum, bold=True)
+            JobsStatistics._colorText(
+                f"{CFG.jobs_presenter.sum_jobs_code} ",
+                color=CFG.state_colors.sum,
+                bold=True,
+            )
         )
         line.append(JobsStatistics._secondaryColorText(str(total)))
         line.append(spacing)

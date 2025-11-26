@@ -53,7 +53,7 @@ def test_navigate_success(tmp_path):
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "fake.host.org",
                 "-t",
-                f"cd {directory} || exit {BatchInterface.CD_FAIL} && exec bash -l",
+                f"cd {directory} || exit {BatchInterface._CD_FAIL} && exec bash -l",
             ]
         )
 
@@ -572,6 +572,16 @@ def test_translate_submit_minimal_fields():
     )
 
 
+def test_translate_submit_ncpus_ngpus_per_node():
+    res = Resources(
+        nnodes=1, ncpus_per_node=1, ngpus_per_node=1, mem="1gb", work_dir="input_dir"
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb,ngpus=1 script.sh"
+    )
+
+
 def test_translate_submit_with_env_vars():
     res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
@@ -593,6 +603,16 @@ def test_translate_submit_multiple_nodes():
     assert (
         PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=2:mpiprocs=2:mem=262144kb -l place=vscatter script.sh"
+    )
+
+
+def test_translate_submit_multiple_nodes_ncpus_and_ngpus_per_node():
+    res = Resources(
+        nnodes=4, ncpus_per_node=8, ngpus_per_node=1, mem="1gb", work_dir="input_dir"
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=8:mpiprocs=8:mem=262144kb:ngpus=1 -l place=vscatter script.sh"
     )
 
 
@@ -668,6 +688,20 @@ def test_translate_submit_scratch_local_work_size():
     )
 
 
+def test_translate_submit_scratch_local_work_size_per_node():
+    res = Resources(
+        nnodes=2,
+        ncpus=2,
+        mem="4gb",
+        work_dir="scratch_local",
+        work_size_per_node="16gb",
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mpiprocs=1:mem=2097152kb:scratch_local=16777216kb -l place=vscatter script.sh"
+    )
+
+
 def test_translate_submit_scratch_ssd_work_size():
     res = Resources(
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_ssd", work_size="16gb"
@@ -698,6 +732,20 @@ def test_translate_submit_work_size_per_cpu():
     )
 
 
+def test_translate_submit_work_size_per_cpu_with_cpus_per_node():
+    res = Resources(
+        nnodes=1,
+        ncpus_per_node=8,
+        mem="4gb",
+        work_dir="scratch_local",
+        work_size_per_cpu="2gb",
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=8,mpiprocs=8,mem=4194304kb,scratch_local=16777216kb script.sh"
+    )
+
+
 def test_translate_submit_work_size_per_cpu_multiple_nodes():
     res = Resources(
         nnodes=3, ncpus=3, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
@@ -718,9 +766,51 @@ def test_translate_submit_mem_per_cpu():
     )
 
 
+def test_translate_submit_mem_per_cpu_with_ncpus_per_node():
+    res = Resources(
+        nnodes=1,
+        ncpus_per_node=4,
+        mem_per_cpu="2gb",
+        work_dir="scratch_local",
+        work_size="10gb",
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mpiprocs=4,mem=8388608kb,scratch_local=10485760kb script.sh"
+    )
+
+
+def test_translate_submit_mem_per_node():
+    res = Resources(
+        nnodes=1,
+        ncpus=4,
+        mem_per_node="8gb",
+        work_dir="scratch_local",
+        work_size="10gb",
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mpiprocs=4,mem=8388608kb,scratch_local=10485760kb script.sh"
+    )
+
+
 def test_translate_submit_mem_per_cpu_multiple_nodes():
     res = Resources(
         nnodes=2, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="20gb"
+    )
+    assert (
+        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mpiprocs=2:mem=4194304kb:scratch_local=10485760kb -l place=vscatter script.sh"
+    )
+
+
+def test_translate_submit_mem_per_node_multiple_nodes():
+    res = Resources(
+        nnodes=2,
+        ncpus=4,
+        mem_per_node="4gb",
+        work_dir="scratch_local",
+        work_size="20gb",
     )
     assert (
         PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
@@ -1359,3 +1449,37 @@ def test_pbs_delete_remote_dir_calls_super_for_remote_host(mock_super):
     PBS.deleteRemoteDir(host, directory)
 
     mock_super().deleteRemoteDir.assert_called_once_with(host, directory)
+
+
+def test_pbs_get_supported_work_dir_types_returns_combined_list():
+    expected = [
+        "scratch_local",
+        "scratch_ssd",
+        "scratch_shared",
+        "scratch_shm",
+        "input_dir",
+        "job_dir",
+    ]
+    assert PBS.getSupportedWorkDirTypes() == expected
+
+
+def test_pbs_create_work_dir_on_scratch_creates_work_dir():
+    job_id = "12345"
+    fake_scratch = Path("/scratch/job_12345")
+    inner_name = CFG.pbs_options.scratch_dir_inner
+    expected_work_dir = (fake_scratch / inner_name).resolve()
+
+    with (
+        patch.object(
+            PBS, "_getScratchDir", return_value=fake_scratch
+        ) as get_scratch_mock,
+        patch("qq_lib.batch.pbs.pbs.logger"),
+        patch("pathlib.Path.mkdir") as mkdir_mock,
+    ):
+        result = PBS.createWorkDirOnScratch(job_id)
+
+    get_scratch_mock.assert_called_once_with(job_id)
+
+    assert result == expected_work_dir
+
+    mkdir_mock.assert_called_once_with(exist_ok=True)

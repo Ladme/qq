@@ -1,0 +1,215 @@
+#!/usr/bin/env -S uv run --script
+
+# Released under MIT License.
+# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+
+"""
+Submit qq jobs from multiple directories.
+Version 0.3.
+Requires `uv`: https://docs.astral.sh/uv
+"""
+
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "qq",
+# ]
+#
+# [tool.uv.sources]
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.6.0" }
+# ///
+
+import argparse
+import logging
+from contextlib import suppress
+from pathlib import Path
+
+from rich.console import Console
+from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
+
+from qq_lib.clear import Clearer
+from qq_lib.core.common import get_runtime_files
+from qq_lib.core.error import QQError
+from qq_lib.submit import Submitter, SubmitterFactory
+
+console = Console()
+# increase logging level to critical
+logging.disable(logging.ERROR)
+
+
+def submit_job(base_submitter: Submitter, directory: str) -> bool:
+    """Return True if job submitted else return False."""
+    # we have to modify the archive directory to redirect it into a new input dir
+    if loop_info := base_submitter.getLoopInfo():
+        loop_info.archive = Path(directory).resolve() / loop_info.archive.name
+
+    # create the submitter for the specific directory
+    submitter = Submitter(
+        base_submitter.getBatchSystem(),
+        base_submitter.getQueue(),
+        base_submitter.getAccount(),
+        (Path(directory).resolve() / base_submitter.getScript().name),
+        base_submitter.getJobType(),
+        base_submitter.getResources(),
+        loop_info,
+        base_submitter.getExclude(),
+        base_submitter.getInclude(),
+        base_submitter.getDepend(),
+    )
+
+    with suppress(QQError):
+        # remove runtime files in the directory, if possible
+        clearer = Clearer(Path(directory))
+        clearer.clear()
+
+    # make sure that the directory is suitable for submission
+    if get_runtime_files(submitter.getInputDir()) and not submitter.continuesLoop():
+        return False
+
+    try:
+        submitter.submit()
+    except Exception as e:
+        console.print(
+            f"\n[red bold]ERROR[/red bold]. Could not submit job in directory '{directory}': {e}"
+        )
+        return False
+
+    return True
+
+
+def click_passthrough_to_dict(args):
+    """Convert a list of CLI tokens into a dict-like structure."""
+    result = {}
+    tokens = list(args)
+    i = 0
+    n = len(tokens)
+
+    def is_option(t):
+        return t.startswith("-")
+
+    def clean_key(k):
+        # remove leading "-" or "--"
+        k = k.lstrip("-")
+        # rewrite q -> queue
+        return "queue" if k == "q" else k
+
+    while i < n:
+        token = tokens[i]
+
+        # long option: --opt=value
+        if token.startswith("--") and "=" in token:
+            key, val = token.split("=", 1)
+            result[clean_key(key)] = val
+            i += 1
+            continue
+
+        # long option: --opt [value] or flag
+        if token.startswith("--"):
+            key = clean_key(token)
+            if i + 1 < n and not is_option(tokens[i + 1]):
+                result[key] = tokens[i + 1]
+                i += 2
+            else:
+                result[key] = True
+                i += 1
+            continue
+
+        # short option: -x [value]
+        if token.startswith("-"):
+            key = clean_key(token)
+            if i + 1 < n and not is_option(tokens[i + 1]):
+                result[key] = tokens[i + 1]
+                i += 2
+            else:
+                result[key] = True
+                i += 1
+            continue
+
+        # positional argument
+        result.setdefault("_positional", []).append(token)
+        i += 1
+
+    return result
+
+
+def main():
+    # parse command line options
+    parser = argparse.ArgumentParser(
+        "multi-submit",
+        description="Submit qq jobs from multiple directories. All jobs must request the same resources!",
+    )
+    parser.add_argument("script", nargs=1, help="Name of the script to submit.")
+    parser.add_argument(
+        "directories", nargs="+", help="Directories containing qq info files."
+    )
+    # parse only known arguments
+    args, passthrough = parser.parse_known_args()
+    console.print()
+
+    if len(args.directories) == 0 or len(args.script) == 0:
+        # nothing to submit
+        return
+
+    # make sure that the script exists
+    if not (script_path := Path(args.directories[0]) / args.script[0]).is_file():
+        console.print(
+            f"\n[red bold]ERROR[/red bold]. Script '{script_path}' does not exist or is not a file."
+        )
+        return
+
+    # create a submitter factory for building a submitter
+    factory = SubmitterFactory(
+        Path(args.directories[0]) / args.script[0],
+        **click_passthrough_to_dict(passthrough),
+    )
+
+    # make the base submitter
+    base_submitter = factory.makeSubmitter()
+
+    # prepare a progress bar
+    progress = Progress(
+        TextColumn("Submitting jobs"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=console,
+        expand=False,
+    )
+
+    # submit the jobs
+    # we are not using multithreading because submitting a job in qq is not thread-safe
+    # (working directory is temporarily changed during the submission)
+    submitted = set()
+    not_submitted = set()
+
+    with progress:
+        task = progress.add_task("submit", total=len(args.directories))
+
+        for dir in args.directories:
+            if submit_job(base_submitter, dir):
+                submitted.add(dir)
+            else:
+                not_submitted.add(dir)
+
+            progress.update(task, advance=1)
+
+    # print the submission statistics
+    if not submitted and not not_submitted:
+        console.print("[bold]Nothing to submit.[/bold]\n")
+        return
+
+    console.print(
+        f"\n[bright_green bold]{'SUBMITTED SUCCESSFULLY':25s}[/bright_green bold] [default]{len(submitted)}[/default]"
+    )
+    console.print(f"[grey70]{' '.join(str(x) for x in sorted(submitted))}[/grey70]")
+
+    console.print(
+        f"\n[bright_red bold]{'COULD NOT SUBMIT':25s}[/bright_red bold] [default]{len(not_submitted)}[/default]"
+    )
+    console.print(
+        f"[grey70]{' '.join(str(x) for x in sorted(not_submitted))}[/grey70]\n"
+    )
+
+
+if __name__ == "__main__":
+    main()

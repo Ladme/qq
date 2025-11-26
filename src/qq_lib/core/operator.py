@@ -1,6 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Base functionality for qq job operations.
+
+This module defines the `Operator` class, which provides a common interface for
+working with qq jobs. It loads job information, tracks job state, refreshes
+metadata, and renders formatted status output using Rich presenters.
+"""
+
 from pathlib import Path
 from typing import Self
 

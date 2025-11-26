@@ -52,6 +52,7 @@ def default_resources_from_dict(res: dict[str, str]) -> Resources:
 
     converter = {
         "DefMemPerCPU": "mem_per_cpu",
+        "DefMemPerNode": "mem_per_node",
         "DefaultTime": "walltime",
     }
     logger.debug(f"Raw dictionary for default resources: {res}.")
@@ -66,7 +67,10 @@ def default_resources_from_dict(res: dict[str, str]) -> Resources:
 
         converted_key = converter.get(key, key)
         if converted_key in field_names:
-            if converted_key in {"mem_per_cpu", "mem"} and value.isnumeric():
+            if (
+                converted_key in {"mem_per_cpu", "mem_per_node", "mem"}
+                and value.isnumeric()
+            ):
                 # default unit for Slurm sizes is MB
                 value += "mb"
             if converted_key == "walltime":

@@ -4,6 +4,7 @@
 import os
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
@@ -477,19 +478,26 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
             # this setup is here only to allow for better accounting by Slurm
             trans_res.append("--ntasks-per-node=1")
             trans_res.append(f"--cpus-per-task={res.ncpus // res.nnodes}")
+        elif res.ncpus_per_node:
+            trans_res.append("--ntasks-per-node=1")
+            trans_res.append(f"--cpus-per-task={res.ncpus_per_node}")
 
         if res.mem:
             trans_res.append(f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}")
+        elif res.mem_per_node:
+            trans_res.append(f"--mem={res.mem_per_node.toStrExactSlurm()}")
         elif res.mem_per_cpu:
             trans_res.append(f"--mem-per-cpu={res.mem_per_cpu.toStrExactSlurm()}")
         else:
             # memory not set in any way
             raise QQError(
-                "Attribute 'mem' and attribute 'mem-per-cpu' are not defined."
+                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined."
             )
 
         if res.ngpus:
             trans_res.append(f"--gpus-per-node={res.ngpus // res.nnodes}")
+        elif res.ngpus_per_node:
+            trans_res.append(f"--gpus-per-node={res.ngpus_per_node}")
 
         return trans_res
 
@@ -597,6 +605,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         """
         Execute `squeue` and `scontrol show job` to retrieve information about Slurm jobs.
 
+        Multiple `scontrol` commands are executed in parallel
+        to increase the speed of collecting the information about jobs.
+
+        Note that the jobs are returned in an arbitrary order.
+
         Args:
             command (str): A Slurm command to get the relevant job IDs.
 
@@ -623,11 +636,24 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
                 f"Could not retrieve information about jobs: {result.stderr.strip()}."
             )
 
-        jobs = []
-        for id in result.stdout.split("\n"):
-            if id.strip() == "":
-                continue
+        ids = [line.strip() for line in result.stdout.split("\n") if line.strip()]
 
-            jobs.append(SlurmJob(id))
+        def get_job(job_id: str) -> SlurmJob:
+            return SlurmJob(job_id)
+
+        jobs: list[SlurmJob] = []
+
+        # use ThreadPoolExecutor to get information about jobs in parallel
+        with ThreadPoolExecutor(
+            max_workers=CFG.slurm_options.jobs_scontrol_nthreads
+        ) as executor:
+            future_to_id = {executor.submit(get_job, job_id): job_id for job_id in ids}
+
+            for future in as_completed(future_to_id):
+                try:
+                    jobs.append(future.result())
+                except Exception as e:
+                    job_id = future_to_id[future]
+                    raise QQError(f"Failed to load job {job_id}: {e}.") from e
 
         return jobs

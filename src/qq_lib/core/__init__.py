@@ -1,14 +1,11 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-# ruff: noqa: F401
+"""
+Core infrastructure for qq.
 
-from .common import (
-    get_info_file,
-    get_info_file_from_job_id,
-    get_info_files,
-    get_info_files_from_job_id_or_dir,
-)
-from .error import QQError
-from .repeater import Repeater
-from .retryer import Retryer
+This module collects the foundational classes, utilities, and helpers used
+across the qq codebase. It provides the building blocks for command behavior,
+job introspection, navigation, configuration, error handling, and structured
+logging.
+"""

@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.queues import queues
+from qq_lib.queues.cli import queues
 
 
 def test_queues_command_prints_available_queues():

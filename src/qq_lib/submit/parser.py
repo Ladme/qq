@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 class Parser:
     """
-    Parser for qq job submission options specified in a script.
+    Parser for qq job submission options (qq directives) specified in a script.
     """
 
     def __init__(self, script: Path, params: list[Parameter]):
@@ -100,7 +100,7 @@ class Parser:
                         self._options[snake_case_key] = value
                 else:
                     raise QQError(
-                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line}.\nKnown options are '{' '.join(self._known_options)}'."
+                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line.strip()}.\nKnown options are '{' '.join(self._known_options)}'."
                     )
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")

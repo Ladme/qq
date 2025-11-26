@@ -6,23 +6,24 @@ import sys
 import click
 from click_help_colors import HelpColorsGroup
 
-from qq_lib.cd import cd
-from qq_lib.clear import clear
-from qq_lib.go import go
-from qq_lib.info import info
-from qq_lib.jobs import jobs
-from qq_lib.kill import kill
-from qq_lib.killall import killall
-from qq_lib.nodes import nodes
-from qq_lib.queues import queues
-from qq_lib.run import run
-from qq_lib.shebang import shebang
-from qq_lib.stat import stat
-from qq_lib.submit import submit
-from qq_lib.sync import sync
-from qq_lib.wipe import wipe
+from qq_lib.cd.cli import cd
+from qq_lib.clear.cli import clear
+from qq_lib.go.cli import go
+from qq_lib.info.cli import info
+from qq_lib.jobs.cli import jobs
+from qq_lib.kill.cli import kill
+from qq_lib.killall.cli import killall
+from qq_lib.nodes.cli import nodes
+from qq_lib.queues.cli import queues
+from qq_lib.run.cli import run
+from qq_lib.shebang.cli import shebang
+from qq_lib.stat.cli import stat
+from qq_lib.submit.cli import submit
+from qq_lib.sync.cli import sync
+from qq_lib.wipe.cli import wipe
 
-__version__ = "0.5.1"
+# version of the qq package
+__version__ = "0.6.0-dev.2"
 
 # support both --help and -h
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}

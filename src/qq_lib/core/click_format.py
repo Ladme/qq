@@ -1,6 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+GNU-style help formatting for Click commands.
+
+This module defines `GNUHelpColorsCommand`, a Click command class that prints
+help text using GNU-style formatting with customizable colors, headings, and
+option layouts.
+"""
 
 from collections.abc import Sequence
 

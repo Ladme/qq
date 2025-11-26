@@ -35,6 +35,10 @@ To force deletion of all qq files regardless of job status, use the `--force` fl
 def clear(force: bool) -> NoReturn:
     """
     Delete qq runtime files in the current directory.
+
+    Only runtime files that do **not** correspond to
+    an active or successfully completed job are deleted,
+    unless the `force` option is used.
     """
     try:
         clearer = Clearer(Path())

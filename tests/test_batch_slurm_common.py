@@ -67,9 +67,19 @@ def test_default_resources_from_dict_def_mem_per_cpu_numeric():
     assert result.mem_per_cpu == Size.fromString("4096mb")
 
 
+def test_default_resources_from_dict_def_mem_per_node_numeric():
+    input_dict = {
+        "DefMemPerNode": "4096",
+    }
+    result = default_resources_from_dict(input_dict)
+    assert isinstance(result, Resources)
+    assert result.mem_per_node == Size.fromString("4096mb")
+
+
 def test_default_resources_from_dict_ignores_unlimited_values():
     input_dict = {
         "DefMemPerCPU": "UNLIMITED",
+        "DefMemPerNode": "UNLIMITED",
         "DefaultTime": "UNLIMITED",
     }
     result = default_resources_from_dict(input_dict)

@@ -1,6 +1,12 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Utility class for representing and manipulating memory and storage sizes.
+
+This module defines the `Size` class, a numeric wrapper used across
+qq to express quantities such as memory limits and scratch allocations.
+"""
 
 import math
 import re

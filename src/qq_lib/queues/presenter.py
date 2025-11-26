@@ -14,7 +14,7 @@ from qq_lib.properties.states import BatchState
 
 class QueuesPresenter:
     """
-    Present information about queues of the batch system.
+    Presents information about queues of the batch system.
     """
 
     def __init__(self, queues: list[BatchQueueInterface], user: str, all: bool):
@@ -118,11 +118,19 @@ class QueuesPresenter:
             justify="right",
         )
         table.add_column(
-            header=Text("O", justify="right", style=CFG.state_colors.other),
+            header=Text(
+                CFG.queues_presenter.other_jobs_code,
+                justify="right",
+                style=CFG.state_colors.other,
+            ),
             justify="right",
         )
         table.add_column(
-            header=Text("Σ", justify="right", style=CFG.state_colors.sum),
+            header=Text(
+                CFG.queues_presenter.sum_jobs_code,
+                justify="right",
+                style=CFG.state_colors.sum,
+            ),
             justify="right",
         )
         table.add_column(

@@ -1,6 +1,18 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+State models for qq jobs across different layers of the system.
+
+This module defines three related enums - `NaiveState`, `BatchState`, and
+`RealState` - used to represent a job's status as recorded in qq's metadata,
+reported by the batch system, and interpreted by qq's higher-level logic.
+
+qq often receives partial or inconsistent information (e.g., a job marked as
+finished locally while still running in the batch system). `RealState`
+normalizes these signals into a single coherent state used by qq operators.
+"""
+
 from enum import Enum
 from typing import Self
 

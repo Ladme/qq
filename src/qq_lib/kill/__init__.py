@@ -1,13 +1,18 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
-# ruff: noqa: F401
-
 """
-Module for terminating qq jobs submitted from the current directory.
+Termination utilities for qq jobs.
 
-Read the documentation of the `kill` function for more details.
+This module defines the `Killer` class, which extends `Operator` to validate
+whether a job can be terminated and to invoke the batch system's kill command.
+
+It also updates and locks the qq info file when appropriate, ensuring that killed jobs
+are consistently recorded.
 """
 
-from .cli import kill
 from .killer import Killer
+
+__all__ = [
+    "Killer",
+]

@@ -1,3 +1,28 @@
+## Version 0.6.0
+
+### Support for per-node resources
+- Number of CPU cores, number of GPUs, the amount of memory and the amount of storage can be now requested per-node using the submission options `ncpus-per-node`, `ngpus-per-node`, `mem-per-node`, and `work-size-per-node`. Per-node properties override per-cpu properties (`mem-per-cpu`, `work-size-per-cpu`) but are overriden by "total" properties (`ncpus`, `ngpus`, `mem`, `work-size`).
+
+### Changes in Gromacs run scripts
+- The scripts now by default try to allocate the maximum possible number of MPI ranks.
+- Numbers of MPI ranks are now specified per node (in `*_md` scripts) or per client (in `*_re` scripts).
+
+### Bug fixes and minor improvements
+- The available types of working directories for the current environment are now shown in the output of `qq submit -h`.
+- Fixed a regression from v0.5: missing size property in `qq nodes` is now correctly intepreted as zero size.
+- When a job is killed, runtime files are copied to the input directory only after the executed process finishes.
+- Changed the way working directories on Karolina and LUMI are created allowing their complete removal.
+- Collection of Slurm jobs (which is complicated by Slurm's architecture) is now performed in parallel and is consequently much faster.
+
+### Internal changes
+- `Wiper.delete` method has been renamed to `Wiper.wipe`.
+- `Killer.terminate` method has been renamed to `Killer.kill`.
+- `SubmitterFactory` no longer requires a list of supported parameters and instead loads it itself.
+- Added getter methods to `Submitter`.
+- `Submitter` no longer requires to provide the "command line". Command line is no longer written into qq info files.
+
+***
+
 ## Version 0.5.1
 
 - If no info file is detected when running `qq go`, `qq info`, `qq kill`, `qq sync`, and `qq wipe`, an error message is printed. (This fixes a regression in v0.5.0.)

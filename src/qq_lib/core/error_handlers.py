@@ -1,6 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Error-handling utilities for qq operations.
+
+This module provides helper functions for processing and reporting errors
+encountered during multi-item qq operations. Handlers distinguish between
+unsuitable jobs, job-ID mismatches, general failures, and ignorable errors,
+and exit with appropriate qq exit codes when necessary.
+"""
 
 import sys
 from typing import NoReturn

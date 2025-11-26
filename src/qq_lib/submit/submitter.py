@@ -39,6 +39,9 @@ class Submitter:
         - Guard against multiple submissions from the same directory.
         - Set environment variables required for `qq run`.
         - Create a qq info file for tracking job state and metadata.
+
+    Note that Submitter ignores qq directives in the submitted script.
+    To handle them, you have to build a Submitter using the SubmitterFactory.
     """
 
     def __init__(
@@ -49,7 +52,6 @@ class Submitter:
         script: Path,
         job_type: JobType,
         resources: Resources,
-        command_line: list[str],
         loop_info: LoopInfo | None = None,
         exclude: list[Path] | None = None,
         include: list[Path] | None = None,
@@ -66,7 +68,6 @@ class Submitter:
             script (Path): Path to the job script to submit.
             job_type (JobType): Type of the job to submit (e.g. standard, loop).
             resources (Resources): Job resource requirements (e.g., CPUs, memory, walltime).
-            command_line (list[str]): List of all arguments and options provided on the command line.
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
             exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
                 Paths are provided relative to the input directory.
@@ -95,7 +96,6 @@ class Submitter:
         self._include = [
             i if i.is_absolute() else self._input_dir / i for i in (include or [])
         ]
-        self._command_line = command_line
         self._depend = depend or []
 
         # script must exist
@@ -114,6 +114,9 @@ class Submitter:
 
         Sets required environment variables, calls the batch system's
         job submission mechanism, and creates an info file with job metadata.
+
+        Note that this method temporarily changes the current working directory,
+        and is therefore not thread-safe.
 
         Returns:
             str: The job ID of the submitted job.
@@ -163,7 +166,6 @@ class Submitter:
                     loop_info=self._loop_info,
                     excluded_files=self._exclude,
                     included_files=self._include,
-                    command_line=self._command_line,
                     depend=self._depend,
                     account=self._account,
                 )
@@ -217,6 +219,46 @@ class Submitter:
         """
         return self._input_dir
 
+    def getBatchSystem(self) -> type[BatchInterface]:
+        """Get the batch system used for submiting."""
+        return self._batch_system
+
+    def getQueue(self) -> str:
+        """Get the submission queue."""
+        return self._queue
+
+    def getAccount(self) -> str | None:
+        """Get the user's account."""
+        return self._account
+
+    def getScript(self) -> Path:
+        """Get path to the submitted script."""
+        return self._script
+
+    def getJobType(self) -> JobType:
+        """Get type of the job."""
+        return self._job_type
+
+    def getResources(self) -> Resources:
+        """Get resources requested for the job."""
+        return self._resources
+
+    def getLoopInfo(self) -> LoopInfo | None:
+        """Get loop job information."""
+        return self._loop_info
+
+    def getExclude(self) -> list[Path] | None:
+        """Get a list of excluded files."""
+        return self._exclude
+
+    def getInclude(self) -> list[Path] | None:
+        """Get a list of included files."""
+        return self._include
+
+    def getDepend(self) -> list[Depend] | None:
+        """Get the list of dependencies."""
+        return self._depend
+
     def _createEnvVarsDict(self) -> dict[str, str]:
         """
         Create a dictionary of environment variables provided to qq runtime.
@@ -246,9 +288,22 @@ class Submitter:
         env_vars[CFG.env_vars.input_dir] = str(self._input_dir)
 
         # environment variables for resources
-        env_vars[CFG.env_vars.ncpus] = str(self._resources.ncpus or 1)
-        env_vars[CFG.env_vars.ngpus] = str(self._resources.ngpus or 0)
-        env_vars[CFG.env_vars.nnodes] = str(self._resources.nnodes or 1)
+        nnodes = self._resources.nnodes or 1
+        if ncpus := self._resources.ncpus:
+            env_vars[CFG.env_vars.ncpus] = str(ncpus)
+        elif ncpus_per_node := self._resources.ncpus_per_node:
+            env_vars[CFG.env_vars.ncpus] = str(ncpus_per_node * nnodes)
+        else:
+            env_vars[CFG.env_vars.ncpus] = "1"
+
+        if ngpus := self._resources.ngpus:
+            env_vars[CFG.env_vars.ngpus] = str(ngpus)
+        elif ngpus_per_node := self._resources.ngpus_per_node:
+            env_vars[CFG.env_vars.ngpus] = str(ngpus_per_node * nnodes)
+        else:
+            env_vars[CFG.env_vars.ngpus] = "0"
+
+        env_vars[CFG.env_vars.nnodes] = str(nnodes)
         env_vars[CFG.env_vars.walltime] = str(
             hhmmss_to_duration(self._resources.walltime or "00:00:00").total_seconds()
             / 3600

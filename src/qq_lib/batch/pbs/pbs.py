@@ -48,12 +48,21 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return os.environ.get("PBS_JOBID")
 
     @classmethod
-    def getScratchDir(cls, job_id: str) -> Path:
-        scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
-        if not scratch_dir:
-            raise QQError(f"Scratch directory for job '{job_id}' is undefined")
+    def createWorkDirOnScratch(cls, job_id: str) -> Path:
+        scratch_dir = cls._getScratchDir(job_id)
 
-        return Path(scratch_dir)
+        # create working directory inside the scratch directory allocated by the batch system
+        # we create this directory because other processes may write files
+        # into the allocated scratch directory and we do not want these files
+        # to affect the job execution or be copied back to input_dir
+        # this also simplifies deletion of the working directory
+        # (the allocated scratch dir cannot be deleted)
+        work_dir = (scratch_dir / CFG.pbs_options.scratch_dir_inner).resolve()
+
+        logger.debug(f"Creating working directory '{str(work_dir)}'.")
+        work_dir.mkdir(exist_ok=True)
+
+        return work_dir
 
     @classmethod
     def jobSubmit(
@@ -220,6 +229,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             queues.append(PBSNode.fromDict(name, data))
 
         return queues
+
+    @classmethod
+    def getSupportedWorkDirTypes(cls) -> list[str]:
+        return cls.SUPPORTED_SCRATCHES + [
+            "scratch_shm",
+            "input_dir",
+            "job_dir",  # same as input_dir
+        ]
 
     @classmethod
     def readRemoteFile(cls, host: str, file: Path) -> str:
@@ -413,13 +430,8 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             return resources
 
         # unknown work-dir type
-        supported_types = cls.SUPPORTED_SCRATCHES + [
-            "scratch_shm",
-            "job_dir",
-            "input_dir",  # same as job_dir
-        ]
         raise QQError(
-            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: '{' '.join(supported_types)}'."
+            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: '{' '.join(cls.getSupportedWorkDirTypes())}'."
         )
 
     @classmethod
@@ -427,6 +439,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         # jobs with invalid ID get assigned an ID of 0 for sorting => they are sorted to the start
         # and therefore are displayed at the top in the qq jobs / qq stat output
         jobs.sort(key=lambda job: job.getIdInt() or 0)
+
+    @classmethod
+    def _getScratchDir(cls, job_id: str) -> Path:
+        """
+        Get the path to the scratch directory allocated by PBS.
+        """
+        scratch_dir = os.environ.get(CFG.env_vars.pbs_scratch_dir)
+        if not scratch_dir:
+            raise QQError(f"Scratch directory for job '{job_id}' is undefined")
+
+        return Path(scratch_dir)
 
     @classmethod
     def _sharedGuard(cls, res: Resources, env_vars: dict[str, str]) -> None:
@@ -586,21 +609,37 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             # number of sockets; this does not mean that the run script has to use one MPI
             # process per CPU core, this value can be overriden
             trans_res.append(f"mpiprocs={res.ncpus // res.nnodes}")
+        elif res.ncpus_per_node:
+            trans_res.append(f"ncpus={res.ncpus_per_node}")
+            trans_res.append(f"mpiprocs={res.ncpus_per_node}")
 
         if res.mem:
             trans_res.append(f"mem={(res.mem // res.nnodes).toStrExact()}")
-        elif res.mem_per_cpu and res.ncpus:
-            trans_res.append(
-                f"mem={(res.mem_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
-            )
+        elif res.mem_per_node:
+            trans_res.append(f"mem={res.mem_per_node.toStrExact()}")
+        elif res.mem_per_cpu:
+            if res.ncpus:
+                trans_res.append(
+                    f"mem={(res.mem_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+                )
+            elif res.ncpus_per_node:
+                trans_res.append(
+                    f"mem={(res.mem_per_cpu * res.ncpus_per_node).toStrExact()}"
+                )
+            else:
+                raise QQError(
+                    "Attribute 'mem-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined."
+                )
         else:
             # memory not set in any way
             raise QQError(
-                "Attribute 'mem' or attributes 'mem-per-cpu' and 'ncpus' are not defined."
+                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined."
             )
 
         if res.ngpus:
             trans_res.append(f"ngpus={res.ngpus // res.nnodes}")
+        elif res.ngpus_per_node:
+            trans_res.append(f"ngpus={res.ngpus_per_node}")
 
         # translate work-dir
         if workdir := cls._translateWorkDir(res):
@@ -629,12 +668,20 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
         if res.work_size:
             return f"{res.work_dir}={(res.work_size // res.nnodes).toStrExact()}"
+        if res.work_size_per_node:
+            return f"{res.work_dir}={res.work_size_per_node.toStrExact()}"
+        if res.work_size_per_cpu:
+            if res.ncpus:
+                return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+            if res.ncpus_per_node:
+                return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus_per_node).toStrExact()}"
 
-        if res.work_size_per_cpu and res.ncpus:
-            return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus // res.nnodes).toStrExact()}"
+            raise QQError(
+                "Attribute 'work-size-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined."
+            )
 
         raise QQError(
-            "Attribute 'work-size' or attributes 'work-size-per-cpu' and 'ncpus' are not defined."
+            "None of the attributes 'work-size', 'work-size-per-node', or 'work-size-per-cpu' is defined."
         )
 
     @classmethod

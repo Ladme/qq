@@ -1,6 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+General utility functions for the qq library.
+
+This module provides helpers for working with qq job files, time durations,
+YAML I/O, string normalization, user prompts, path manipulation, and job-name construction.
+"""
+
 import re
 from datetime import timedelta
 from functools import lru_cache
@@ -134,13 +141,13 @@ def get_info_files(directory: Path) -> list[Path]:
 def get_info_file_from_job_id(job_id: str) -> Path:
     """
     Get path to the qq info file corresponding to a job with the given ID.
-    The BatchSystem to use is obtained from the environment variable or guessed.
+    The batch system to use is obtained from the environment variable or guessed.
 
     Args:
         job_id (str): The ID of the job for which to retrieve the info file.
 
     Returns:
-        Path: Absolute path to the QQ job information file.
+        Path: Absolute path to the qq job info file.
 
     Raises:
         QQError: If the batch system could not be guessed,
@@ -696,3 +703,25 @@ def construct_info_file_path(input_dir: Path, job_name: str) -> Path:
         Path: The absolute path to the job's qq info file.
     """
     return (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()
+
+
+def available_work_dirs() -> str:
+    """
+    Return the supported work-directory types for the detected batch system.
+
+    The batch system is determined using the `QQ_BATCH_SYSTEM` environment
+    variable or by automatic detection. The supported work-directory types are
+    returned as a comma-separated string formatted for display in help text.
+
+    Returns:
+        str: A comma-separated list of supported work directory types, each
+        wrapped in quotes.
+    """
+    from qq_lib.batch.interface.meta import BatchMeta
+
+    try:
+        batch_system = BatchMeta.fromEnvVarOrGuess()
+        work_dirs = batch_system.getSupportedWorkDirTypes()
+        return ", ".join([f"'{work_dir_type}'" for work_dir_type in work_dirs])
+    except QQError:
+        return "??? (no batch system detected)"

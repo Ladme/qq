@@ -13,3 +13,6 @@ wheels/
 # Codecov
 htmlcov/
 .coverage
+
+# Documentations
+docs/

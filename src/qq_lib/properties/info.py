@@ -1,6 +1,19 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Structured storage and serialization of qq job metadata.
+
+This module defines the `Info` dataclass, which provides a representation
+of qq job information: submission parameters, resource requests, job state,
+timing data, dependencies, and execution context. It handles
+loading and exporting YAML info files both locally and from remote hosts, and
+offers minimal helpers such as command-line reconstruction for resubmission.
+
+`Info` focuses strictly on data representation and safe serialization; higher-level
+logic (state interpretation, batch-system interaction, consistency checks) is
+implemented in `Informer` and related components.
+"""
 
 from dataclasses import dataclass, field, fields
 from datetime import datetime
@@ -82,9 +95,6 @@ class Info:
     # Resources allocated to the job
     resources: Resources
 
-    # Command line arguments and options provided when submitting.
-    command_line: list[str]
-
     # List of files and directories to not copy to the working directory.
     excluded_files: list[Path] = field(default_factory=list)
 
@@ -162,9 +172,7 @@ class Info:
         except yaml.YAMLError as e:
             raise QQError(f"Could not parse the qq info file '{file}': {e}.") from e
         except TypeError as e:
-            raise QQError(
-                f"Mandatory information missing from the qq info file '{file}': {e}."
-            ) from e
+            raise QQError(f"Invalid qq info file '{file}': {e}.") from e
 
     def toFile(self, file: Path, host: str | None = None) -> None:
         """
@@ -195,6 +203,47 @@ class Info:
                     output.write(content)
         except Exception as e:
             raise QQError(f"Cannot create or write to file '{file}': {e}") from e
+
+    def getCommandLineForResubmit(self) -> list[str]:
+        """
+        Construct the command-line arguments required to resubmit the job.
+
+        Returns:
+            list[str]: A list of command-line tokens representing all options
+            needed to resubmit the job.
+        """
+
+        command_line = [
+            self.script_name,
+            "--queue",
+            self.queue,
+            "--job-type",
+            str(self.job_type),
+            "--batch-system",
+            str(self.batch_system),
+            "--depend",
+            f"afterok={self.job_id}",
+        ]
+
+        command_line.extend(self.resources.toCommandLine())
+
+        if self.account:
+            command_line.extend(["--account", self.account])
+
+        if self.excluded_files:
+            command_line.extend(
+                ["--exclude", ",".join([str(x) for x in self.excluded_files])]
+            )
+
+        if self.included_files:
+            command_line.extend(
+                ["--include", ",".join([str(x) for x in self.included_files])]
+            )
+
+        if self.loop_info:
+            command_line.extend(self.loop_info.toCommandLine())
+
+        return command_line
 
     def _toYaml(self) -> str:
         """
@@ -261,7 +310,7 @@ class Info:
         Construct an Info instance from a dictionary.
 
         Args:
-            data: Dictionary containing field names and values.
+            data (dict[str, object]): Dictionary containing field names and values.
 
         Returns:
             Info: An Info instance.

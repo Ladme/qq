@@ -1,6 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Exception types used throughout qq.
+
+This module defines the core qq-specific exceptions, including recoverable
+errors, job-mismatch and suitability errors, and fatal or communication-related
+runner errors. Each exception carries an associated exit code used by qq
+commands to report failures consistently.
+"""
 
 from qq_lib.core.config import CFG
 
@@ -29,8 +37,7 @@ class QQNotSuitableError(QQError):
 
 class QQRunFatalError(Exception):
     """
-    Raised when qq runner is unable to load a qq info file
-    or if qq run is being called outside of qq environment.
+    Raised when qq runner is unable to load a qq info file.
 
     Should only be used to signal that the error state cannot be logged into a qq info file.
     """

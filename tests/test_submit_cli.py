@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
-from qq_lib.submit import submit
+from qq_lib.submit.cli import submit
 
 
 def test_submit_successful(tmp_path):

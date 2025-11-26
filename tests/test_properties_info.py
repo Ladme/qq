@@ -14,6 +14,7 @@ from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.info import CFG, Info
 from qq_lib.properties.job_type import JobType
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
 
@@ -49,7 +50,6 @@ def sample_info(sample_resources):
         stderr_file="stderr.log",
         resources=sample_resources,
         excluded_files=[Path("ignore.txt")],
-        command_line=["-q", "default", "script.sh"],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
         account="fake-account",
     )
@@ -277,5 +277,62 @@ def test_from_file_missing_required_field(tmp_path):
     }
     file.write_text(yaml.dump(data))
 
-    with pytest.raises(QQError, match=r"Mandatory information missing"):
+    with pytest.raises(QQError, match=r"Invalid qq info file"):
         Info.fromFile(file)
+
+
+def test_get_command_line_for_resubmit_basic(sample_info):
+    sample_info.resources = Resources()
+    sample_info.account = None
+    sample_info.excluded_files = []
+
+    assert sample_info.getCommandLineForResubmit() == [
+        "script.sh",
+        "--queue",
+        "default",
+        "--job-type",
+        "standard",
+        "--batch-system",
+        "PBS",
+        "--depend",
+        "afterok=12345.fake.server.com",
+    ]
+
+
+def test_get_command_line_full(sample_info):
+    sample_info.job_type = JobType.LOOP
+    sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]
+    sample_info.included_files = [Path("include.txt"), Path("inner/include2.txt")]
+    sample_info.loop_info = LoopInfo(
+        start=3, end=10, archive=Path("inner/inner2/archive"), archive_format="job%3d"
+    )
+
+    assert sample_info.getCommandLineForResubmit() == [
+        "script.sh",
+        "--queue",
+        "default",
+        "--job-type",
+        "loop",
+        "--batch-system",
+        "PBS",
+        "--depend",
+        "afterok=12345.fake.server.com",
+        "--ncpus",
+        "8",
+        "--work-dir",
+        "scratch_local",
+        "--account",
+        "fake-account",
+        "--exclude",
+        "exclude.txt,inner/exclude2.txt",
+        "--include",
+        "include.txt,inner/include2.txt",
+        "--loop-start",
+        "3",
+        "--loop-end",
+        "10",
+        "--archive",
+        "archive",
+        "--archive-format",
+        "job%3d",
+    ]

@@ -11,13 +11,12 @@ logger = get_logger(__name__)
 class Syncer(Navigator):
     """
     Handle synchronization of job files between a remote working directory
-    (on a compute node or cluster) and the local input directory.
+    (on a compute node) and the local input directory.
     """
 
     def ensureSuitable(self):
         """
-        Verify that the job is in a state where files
-        can be fetched from its working directory.
+        Verify that the job is in a state where files can be fetched from its working directory.
 
         Raises:
             QQNotSuitableError: If the job has already finished / is finishing successfully

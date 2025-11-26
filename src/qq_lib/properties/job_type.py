@@ -1,6 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
 
+"""
+Enumeration of supported qq job types.
+
+This module defines `JobType`, an enum distinguishing between standard
+(single-run) qq jobs and loop jobs.
+"""
+
 from enum import Enum
 from typing import Self
 

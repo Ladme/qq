@@ -236,6 +236,19 @@ def test_slurm_translate_per_chunk_resources_two_nodes():
     assert "--gpus-per-node=2" in result
 
 
+def test_slurm_translate_per_chunk_resources_two_nodes_per_node_resources():
+    res = Resources()
+    res.nnodes = 2
+    res.ncpus_per_node = 8
+    res.mem_per_node = Size(32, "gb")
+    res.ngpus_per_node = 4
+    result = Slurm._translatePerChunkResources(res)
+    assert "--ntasks-per-node=1" in result
+    assert "--cpus-per-task=8" in result
+    assert f"--mem={res.mem_per_node.toStrExactSlurm()}" in result
+    assert "--gpus-per-node=4" in result
+
+
 def test_slurm_translate_per_chunk_resources_single_node():
     res = Resources()
     res.nnodes = 1
@@ -246,6 +259,19 @@ def test_slurm_translate_per_chunk_resources_single_node():
     assert "--ntasks-per-node=1" in result
     assert "--cpus-per-task=4" in result
     assert f"--mem={res.mem.toStrExactSlurm()}" in result
+    assert "--gpus-per-node=2" in result
+
+
+def test_slurm_translate_per_chunk_resources_single_node_per_node_resources():
+    res = Resources()
+    res.nnodes = 1
+    res.ncpus_per_node = 4
+    res.mem_per_node = Size(16, "gb")
+    res.ngpus_per_node = 2
+    result = Slurm._translatePerChunkResources(res)
+    assert "--ntasks-per-node=1" in result
+    assert "--cpus-per-task=4" in result
+    assert f"--mem={res.mem_per_node.toStrExactSlurm()}" in result
     assert "--gpus-per-node=2" in result
 
 
@@ -279,7 +305,8 @@ def test_slurm_translate_per_chunk_resources_raises_when_mem_missing():
     res.mem = None
     res.mem_per_cpu = None
     with pytest.raises(
-        QQError, match="Attribute 'mem' and attribute 'mem-per-cpu' are not defined."
+        QQError,
+        match="None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined.",
     ):
         Slurm._translatePerChunkResources(res)
 
@@ -360,6 +387,41 @@ def test_slurm_translate_submit_basic_command():
     assert f"--cpus-per-task={res.ncpus // res.nnodes}" in command
     assert f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}" in command
     assert f"--gpus-per-node={res.ngpus // res.nnodes}" in command
+    assert f"--time={res.walltime}" in command
+    assert command.endswith(script)
+
+
+def test_slurm_translate_submit_basic_command_with_per_node_properties():
+    res = Resources()
+    res.nnodes = 2
+    res.ncpus_per_node = 32
+    res.mem_per_node = Size(32, "gb")
+    res.ngpus_per_node = 4
+    res.props = {}
+    res.walltime = "2-00:00:00"
+
+    queue = "gpu"
+    input_dir = Path("/tmp")
+    script = "run.sh"
+    job_name = "job1"
+    depend = []
+    env_vars = {}
+    account = None
+
+    command = Slurm._translateSubmit(
+        res, queue, input_dir, script, job_name, depend, env_vars, account
+    )
+
+    assert command.startswith("sbatch")
+    assert f"-J {job_name}" in command
+    assert f"-p {queue}" in command
+    assert f"-e {input_dir / (job_name + '.qqout')}" in command
+    assert f"-o {input_dir / (job_name + '.qqout')}" in command
+    assert f"--nodes {res.nnodes}" in command
+    assert "--ntasks-per-node=1" in command
+    assert f"--cpus-per-task={res.ncpus_per_node}" in command
+    assert f"--mem={res.mem_per_node.toStrExactSlurm()}" in command
+    assert f"--gpus-per-node={res.ngpus_per_node}" in command
     assert f"--time={res.walltime}" in command
     assert command.endswith(script)
 
@@ -479,12 +541,12 @@ def test_slurm_is_shared_delegates_to_interface(mock_is_shared):
 def test_slurm_resubmit_delegates_to_interface(mock_resubmit):
     Slurm.resubmit(
         input_machine="machine1",
-        input_dir="/work/job",
+        input_dir=Path("/work/job"),
         command_line=["-q gpu", "--account fake-account"],
     )
     mock_resubmit.assert_called_once_with(
         input_machine="machine1",
-        input_dir="/work/job",
+        input_dir=Path("/work/job"),
         command_line=["-q gpu", "--account fake-account"],
     )
 

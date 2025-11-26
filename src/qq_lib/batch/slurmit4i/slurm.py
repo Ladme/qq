@@ -38,7 +38,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         return shutil.which("it4ifree") is not None
 
     @classmethod
-    def getScratchDir(cls, job_id: str) -> Path:
+    def createWorkDirOnScratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
@@ -48,7 +48,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         # if the user directory is already created but the user does not have permissions
         # to write into it, we append a number to the user's name and try creating a new directory
         last_exception = None
-        for attempt in range(CFG.it4i_scratch_dir_attempts):
+        for attempt in range(CFG.slurm_it4i_options.scratch_dir_attempts):
             user_component = (
                 user if attempt == 0 else f"{user}{attempt + 1}"
             )  # appended number is 2 for the second attempt
@@ -65,8 +65,15 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
 
         # if all attempts failed
         raise QQError(
-            f"Could not create a scratch directory for job '{job_id}' after {CFG.it4i_scratch_dir_attempts} attempts: {last_exception}"
+            f"Could not create a working directory on scratch for job '{job_id}' after {CFG.slurm_it4i_options.scratch_dir_attempts} attempts: {last_exception}"
         ) from last_exception
+
+    @classmethod
+    def getSupportedWorkDirTypes(cls) -> list[str]:
+        return cls.SUPPORTED_SCRATCHES + [
+            "input_dir",
+            "job_dir",  # same as input_dir
+        ]
 
     @classmethod
     def navigateToDestination(cls, host: str, directory: Path) -> None:
@@ -183,12 +190,12 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
                 "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity."
             )
 
-        supported_types = cls.SUPPORTED_SCRATCHES + ["input_dir", "job_dir"]
         if not any(
-            equals_normalized(resources.work_dir, dir) for dir in supported_types
+            equals_normalized(resources.work_dir, dir)
+            for dir in cls.getSupportedWorkDirTypes()
         ):
             raise QQError(
-                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: {' '.join(supported_types)}."
+                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: {' '.join(cls.getSupportedWorkDirTypes())}."
             )
 
         return resources
@@ -200,9 +207,11 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         return True
 
     @classmethod
-    def resubmit(cls, **kwargs) -> None:
-        input_dir = kwargs["input_dir"]
-        command_line = kwargs["command_line"]
+    def resubmit(
+        cls, input_machine: str, input_dir: Path, command_line: list[str]
+    ) -> None:
+        # input machine is unused, resubmit from the current machine
+        _ = input_machine
 
         qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
 
@@ -214,7 +223,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
                 f"Could not resubmit the job. Could not navigate to '{input_dir}': {e}."
             ) from e
 
-        logger.debug(f"Navigated to {input_dir}.")
+        logger.debug(f"Navigated to {str(input_dir)}.")
         result = subprocess.run(
             ["bash"],
             input=qq_submit_command,
@@ -231,7 +240,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
     def _getDefaultResources(cls) -> Resources:
         return Resources(
             nnodes=1,
-            ncpus=128,
+            ncpus_per_node=128,
             mem_per_cpu="1gb",
             work_dir="scratch",
             walltime="1d",

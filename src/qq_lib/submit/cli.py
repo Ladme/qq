@@ -10,7 +10,7 @@ import click
 from click_option_group import optgroup
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import get_runtime_files
+from qq_lib.core.common import available_work_dirs, get_runtime_files
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -96,10 +96,16 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     help="Number of computing nodes to allocate for the job.",
 )
 @optgroup.option(
+    "--ncpus-per-node",
+    type=int,
+    default=None,
+    help="Number of CPU cores to allocate per one requested node.",
+)
+@optgroup.option(
     "--ncpus",
     type=int,
     default=None,
-    help="Number of CPU cores to allocate for the job.",
+    help="Total number of CPU cores to allocate for the job. Overrides `--ncpus-per-node`.",
 )
 @optgroup.option(
     "--mem-per-cpu",
@@ -108,26 +114,42 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     help="Memory to allocate per CPU core. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 2gb).",
 )
 @optgroup.option(
+    "--mem-per-node",
+    type=str,
+    default=None,
+    help="Memory to allocate per one requested node. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 32gb). Overrides `--mem-per-cpu`.",
+)
+@optgroup.option(
     "--mem",
     type=str,
     default=None,
-    help="Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 10gb). Overrides `--mem-per-cpu`.",
+    help="""Total memory to allocate for the job. Specify as 'Nmb' or 'Ngb' (e.g., 500mb or 64gb).
+Overrides `--mem-per-cpu` and `--mem-per-node`.""",
 )
 @optgroup.option(
-    "--ngpus", type=int, default=None, help="Number of GPUs to allocate for the job."
+    "--ngpus-per-node",
+    type=int,
+    default=None,
+    help="Number of GPUs to allocate per one requested node.",
+)
+@optgroup.option(
+    "--ngpus",
+    type=int,
+    default=None,
+    help="Total number of GPUs to allocate for the job. Overrides `--ngpus-per-node`.",
 )
 @optgroup.option(
     "--walltime",
     type=str,
     default=None,
-    help="Maximum runtime allowed for the job.",
+    help="Maximum runtime allowed for the job. Examples: '1d', '12h', '10m', '24:00:00', '12:00:00', '00:10:00'.",
 )
 @optgroup.option(
     "--work-dir",
     "--workdir",
     type=str,
     default=None,
-    help="Type of working directory to use for the job.",
+    help=f"Type of working directory to use for the job. Available types: {available_work_dirs()}.",
 )
 @optgroup.option(
     "--work-size-per-cpu",
@@ -137,11 +159,19 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
     help="Storage to allocate per CPU core. Specify as 'Ngb' (e.g., 1gb).",
 )
 @optgroup.option(
+    "--work-size-per-node",
+    "--worksize-per-node",
+    type=str,
+    default=None,
+    help="Storage to allocate per one requested node. Specify as 'Ngb' (e.g., 32gb). Overrides `--work-size-per-cpu`.",
+)
+@optgroup.option(
     "--work-size",
     "--worksize",
     type=str,
     default=None,
-    help="Total storage to allocate for the job. Specify as 'Ngb' (e.g., 10gb). Overrides `--work-size-per-cpu`.",
+    help="""Total storage to allocate for the job. Specify as 'Ngb' (e.g., 64gb).
+Overrides `--work-size-per-cpu` and `--work-size-per-node`.""",
 )
 @optgroup.option(
     "--props",
@@ -183,9 +213,7 @@ def submit(script: str, **kwargs) -> NoReturn:
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
         # parse options from the command line and from the script itself
-        factory = SubmitterFactory(
-            script_path.resolve(), submit.params, sys.argv[2:], **kwargs
-        )
+        factory = SubmitterFactory(script_path.resolve(), **kwargs)
         submitter = factory.makeSubmitter()
 
         # guard against multiple submissions from the same directory

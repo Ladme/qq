@@ -16,14 +16,14 @@ from qq_lib.wipe.cli import _wipe_work_dir, wipe
 @patch("qq_lib.wipe.cli.Wiper.fromInformer")
 def test_wipe_work_dir_success_with_force(mock_wiper_from_informer, mock_logger_info):
     mock_wiper = MagicMock()
-    mock_wiper.delete.return_value = "job123"
+    mock_wiper.wipe.return_value = "job123"
     mock_wiper_from_informer.return_value = mock_wiper
 
     informer = MagicMock()
     _wipe_work_dir(informer, force=True, yes=False)
 
     mock_wiper.ensureSuitable.assert_not_called()
-    mock_wiper.delete.assert_called_once()
+    mock_wiper.wipe.assert_called_once()
     mock_logger_info.assert_called_with(
         "Deleted the working directory of the job 'job123'."
     )
@@ -36,14 +36,14 @@ def test_wipe_work_dir_success_with_prompt(
     mock_prompt, mock_wiper_from_informer, mock_logger_info
 ):
     mock_wiper = MagicMock()
-    mock_wiper.delete.return_value = "jobXYZ"
+    mock_wiper.wipe.return_value = "jobXYZ"
     mock_wiper_from_informer.return_value = mock_wiper
 
     informer = MagicMock()
     _wipe_work_dir(informer, force=False, yes=False)
 
     mock_wiper.ensureSuitable.assert_called_once()
-    mock_wiper.delete.assert_called_once()
+    mock_wiper.wipe.assert_called_once()
     mock_prompt.assert_called_once()
     mock_logger_info.assert_called_with(
         "Deleted the working directory of the job 'jobXYZ'."
@@ -63,7 +63,7 @@ def test_wipe_work_dir_aborts_on_negative_prompt(
     _wipe_work_dir(informer, force=False, yes=False)
 
     mock_wiper.ensureSuitable.assert_called_once()
-    mock_wiper.delete.assert_not_called()
+    mock_wiper.wipe.assert_not_called()
     mock_prompt.assert_called_once()
     mock_logger_info.assert_called_with("Operation aborted.")
 
@@ -82,7 +82,7 @@ def test_wipe_work_dir_raises_not_suitable_error(mock_wiper_from_informer):
 @patch("qq_lib.wipe.cli.Wiper.fromInformer")
 def test_wipe_work_dir_raises_general_error(mock_wiper_from_informer):
     mock_wiper = MagicMock()
-    mock_wiper.delete.side_effect = QQError("Cannot delete working directory")
+    mock_wiper.wipe.side_effect = QQError("Cannot delete working directory")
     mock_wiper_from_informer.return_value = mock_wiper
 
     informer = MagicMock()

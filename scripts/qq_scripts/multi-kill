@@ -1,0 +1,170 @@
+#!/usr/bin/env -S uv run --script
+
+# Released under MIT License.
+# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+
+"""
+Kill qq jobs in multiple directories.
+Version 0.1.
+Requires `uv`: https://docs.astral.sh/uv
+"""
+
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "qq",
+# ]
+#
+# [tool.uv.sources]
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.6.0" }
+# ///
+
+import argparse
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+from rich.console import Console
+from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
+
+from qq_lib.core.common import get_info_files
+from qq_lib.core.error import QQError
+from qq_lib.info import Informer
+from qq_lib.kill import Killer
+
+console = Console()
+# increase logging level to critical
+logging.disable(logging.ERROR)
+
+
+def get_killer(directory: str) -> Killer | None:
+    """Get killer for the newest job in the specified directory."""
+    # check that the directory is actually a directory and convert it to Path
+    if not (directory := Path(directory)).is_dir():
+        return None
+
+    # get all info files in the directory
+    info_files = get_info_files(directory)
+
+    # if no qq info files are found, return None
+    if not info_files:
+        return None
+
+    # get the last info file (the newest one) and load it into an informer
+    informer = Informer.fromFile(info_files[-1], None)
+
+    # construct a killer from informer
+    if informer:
+        return Killer.fromInformer(informer)
+    return None
+
+
+def process_directory(directory: str) -> tuple[str, bool]:
+    """Return (directory, success) for use in thread pool."""
+    # get killer from the directory
+    killer = get_killer(directory)
+
+    # return (directory, false), if killer not constructed
+    if not killer:
+        return (directory, False)
+
+    # make sure that the job is suitable to be killed
+    try:
+        killer.ensureSuitable()
+    except Exception:
+        return (directory, False)
+
+    # kill the job
+    try:
+        killer.kill()
+    except QQError as e:
+        console.print(
+            f"\n[red bold]ERROR[/red bold]. Could not kill the job in directory '{directory}': {e}"
+        )
+        return (directory, False)
+
+    return (directory, True)
+
+
+def kill_directories(
+    directories: list[Path], threads: int
+) -> tuple[set[Path], set[Path]]:
+    """Kill jobs in directories that are suitable to be killed."""
+
+    # prepare a progress bar
+    progress = Progress(
+        TextColumn("Killing jobs"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=console,
+        expand=False,
+    )
+
+    killed_jobs = set()
+    not_killed_jobs = set()
+    with progress:
+        # register a new progress task (for progress bar)
+        task = progress.add_task("kill", total=len(directories))
+
+        # create a thread pool for parallel processing of jobs
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            # submit each job to the thread pool
+            # `futures` maps Future objects to directories
+            futures = {executor.submit(process_directory, d): d for d in directories}
+
+            # iterate over futures as they finish (in arbitrary order)
+            for future in as_completed(futures):
+                result = future.result()
+
+                # if successful, add the directory to the list of killed jobs
+                if result[1]:
+                    killed_jobs.add(result[0])
+                else:
+                    not_killed_jobs.add(result[0])
+
+                # advance the progress bar by once since one job is killed
+                progress.update(task, advance=1)
+
+    return killed_jobs, not_killed_jobs
+
+
+def main():
+    # parse command line options
+    parser = argparse.ArgumentParser(
+        "multi-kill",
+        description="Kill qq jobs in multiple directories.",
+    )
+    parser.add_argument(
+        "directories", nargs="+", help="Directories containing qq info files."
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        default=16,
+        help="Number of worker threads (default: 16)",
+    )
+    args = parser.parse_args()
+    console.print()
+
+    # kill the jobs
+    killed, not_killed = kill_directories(args.directories, args.threads)
+
+    if not killed and not not_killed:
+        console.print("[bold]Nothing to kill.[/bold]\n")
+        return
+
+    console.print(
+        f"\n[bright_green bold]{'KILLED SUCCESSFULLY':25s}[/bright_green bold] [default]{len(killed)}[/default]"
+    )
+    console.print(f"[grey70]{' '.join(str(x) for x in sorted(killed))}[/grey70]")
+
+    console.print(
+        f"\n[bright_red bold]{'COULD NOT KILL':25s}[/bright_red bold] [default]{len(not_killed)}[/default]"
+    )
+    console.print(f"[grey70]{' '.join(str(x) for x in sorted(not_killed))}[/grey70]\n")
+
+
+if __name__ == "__main__":
+    main()

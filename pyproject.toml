@@ -50,6 +50,9 @@ dev = [
     "ty>=0.0.1a24",
 ]
 
+[tool.ruff]
+extend-include = ["scripts/qq_scripts/*"]
+
 [tool.ruff.lint]
 extend-select = [
     "F",   # Pyflakes rules

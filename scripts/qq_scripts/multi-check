@@ -5,7 +5,7 @@
 
 """
 Check the state of qq jobs in multiple directories.
-Version 0.3.
+Version 0.4.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
@@ -113,7 +113,7 @@ def fix_job(job: Job) -> tuple[Job, bool]:
             informer.info.loop_info,
             informer.info.excluded_files,
             informer.info.included_files,
-            informer.info.depend,
+            # remove dependencies
         )
         submitter.submit()
         return (job, True)

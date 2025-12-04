@@ -16,3 +16,6 @@ htmlcov/
 
 # Documentations
 docs/
+
+# Version
+src/qq_lib/_version.py

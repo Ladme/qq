@@ -558,8 +558,7 @@ wheels = [
 
 [[package]]
 name = "qq"
-version = "0.6.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "click-help-colors" },

@@ -83,8 +83,8 @@
 ### qq jobs/stat flag --extra
 - Added a flag `-e`/`--extra` for `qq jobs` and `qq stat`, which makes qq print additional information about each job. Currently, the input machine and input directory are printed (if available), but the list may be expanded in the future.
 
-### More qq collective variables
-- The collective variables `QQ_NCPUS` (number of allocated CPU cores), `QQ_NGPUS` (number of allocated GPU cores), `QQ_NNODES` (number of allocated nodes), and `QQ_WALLTIME` (walltime in hours) are now exported to the job environment.
+### More qq environment variables
+- The environment variables `QQ_NCPUS` (number of allocated CPU cores), `QQ_NGPUS` (number of allocated GPU cores), `QQ_NNODES` (number of allocated nodes), and `QQ_WALLTIME` (walltime in hours) are now exported to the job environment.
 
 ### Bug fixes and other small changes
 - When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of `qq info`.

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sets up .bashrc to sync qq from a specified directory to /scratch/${USER}
 # and add both locations to PATH (with /scratch/${USER}/qq prioritized).
-# Script version: 0.3.0
+# Script version: 0.3.1
 
 set -euo pipefail
 
@@ -65,7 +65,7 @@ fi
 qq() {
     if [[ "\$1" == "cd" ]]; then
         for arg in "\$@"; do
-            if [[ "\$arg" == "--help" ]]; then
+            if [[ "\$arg" == "--help" || "\$arg" == "-h" ]]; then
                 command qq "\$@"
                 return
             fi

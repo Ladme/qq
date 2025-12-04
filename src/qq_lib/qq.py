@@ -23,7 +23,7 @@ from qq_lib.sync.cli import sync
 from qq_lib.wipe.cli import wipe
 
 # version of the qq package
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 # support both --help and -h
 _CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}

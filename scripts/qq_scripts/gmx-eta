@@ -16,7 +16,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.6.0" }
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.6.1" }
 # ///
 
 import argparse

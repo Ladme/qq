@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installs qq from a GitHub release into a specific home directory
 # and updates that home directory's specified rc file accordingly.
-# Script version: 0.1.0-experimental
+# Script version: 0.1.1
 
 set -euo pipefail
 
@@ -98,7 +98,7 @@ fi
 qq() {
     if [[ "\$1" == "cd" ]]; then
         for arg in "\$@"; do
-            if [[ "\$arg" == "--help" ]]; then
+            if [[ "\$arg" == "--help" || "\$arg" == "-h" ]]; then
                 command qq "\$@"
                 return
             fi

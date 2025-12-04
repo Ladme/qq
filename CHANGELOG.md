@@ -1,3 +1,7 @@
+## Version 0.6.1
+
+- `qq cd -h` now properly prints help.
+
 ## Version 0.6.0
 
 ### Support for per-node resources

@@ -25,10 +25,12 @@ jobs:
       run: |
         uv sync --all-groups
     
-    - name: Get version from setuptools-scm
+    - name: Get version from tag
       id: version
       run: |
-        echo "version=$(uv run python -c 'import qq_lib; print(qq_lib.__version__)')" >> $GITHUB_OUTPUT
+        TAG="${{ github.event.release.tag_name }}"
+        VERSION="${TAG#v}"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
     
     - name: Build with PyInstaller
       run: |
@@ -36,11 +38,11 @@ jobs:
     
     - name: Add VERSION file to package directory
       run: |
-        echo "${{ steps.get_version.outputs.version }}" > dist/qq/VERSION
+        echo "${{ steps.version.outputs.version }}" > dist/qq/VERSION
 
     - name: Update version in installation scripts
       run: |
-        VERSION="${{ steps.get_version.outputs.version }}"
+        VERSION="${{ steps.version.outputs.version }}"
         for script in scripts/installation_scripts/*; do
           sed -i "s/__VERSION__/$VERSION/g" "$script"
         done
